@@ -4,7 +4,7 @@ let localStream;
 let currentCall;
 
 async function start() {
-  const ROOM_ID = "room";
+  const ROOM_ID = "telugu-chat-room";
   myId = ROOM_ID + "-" + Math.floor(Math.random() * 1000);
 
   peer = new Peer(myId, {
