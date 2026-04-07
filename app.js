@@ -1,18 +1,25 @@
 let peer;
-let conn;
 let myId;
 let localStream;
 let currentCall;
-
-function randomId() {
-  return Math.random().toString(36).substring(2, 8);
-}
 
 async function start() {
   const ROOM_ID = "telugu-chat-room";
   myId = ROOM_ID + "-" + Math.floor(Math.random() * 1000);
 
-  peer = new Peer(myId);
+  peer = new Peer(myId, {
+    config: {
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:global.stun.twilio.com:3478" },
+      ],
+    },
+  });
+
+  peer.on("open", (id) => {
+    console.log("My ID:", id);
+    findRandomPeer();
+  });
 
   localStream = await navigator.mediaDevices.getUserMedia({
     video: true,
@@ -30,12 +37,10 @@ async function start() {
 
     currentCall = call;
   });
-
-  findRandomPeer();
 }
 
 function findRandomPeer() {
-  const targetId = prompt("Enter peer ID to connect:");
+  const targetId = prompt("Enter peer ID:");
 
   if (!targetId) return;
 
@@ -45,14 +50,6 @@ function findRandomPeer() {
     document.getElementById("remote").srcObject = remoteStream;
     currentCall = call;
   });
-}
-
-function generateGuessIds() {
-  let ids = [];
-  for (let i = 0; i < 20; i++) {
-    ids.push(randomId());
-  }
-  return ids;
 }
 
 function next() {
