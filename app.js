@@ -9,7 +9,8 @@ function randomId() {
 }
 
 async function start() {
-  myId = randomId();
+  const ROOM_ID = "telugu-chat-room";
+  myId = ROOM_ID + "-" + Math.floor(Math.random() * 1000);
 
   peer = new Peer(myId);
 
@@ -34,18 +35,16 @@ async function start() {
 }
 
 function findRandomPeer() {
-  const possibleIds = generateGuessIds();
+  const targetId = prompt("Enter peer ID to connect:");
 
-  for (let id of possibleIds) {
-    if (id === myId) continue;
+  if (!targetId) return;
 
-    const call = peer.call(id, localStream);
+  const call = peer.call(targetId, localStream);
 
-    call.on("stream", (remoteStream) => {
-      document.getElementById("remote").srcObject = remoteStream;
-      currentCall = call;
-    });
-  }
+  call.on("stream", (remoteStream) => {
+    document.getElementById("remote").srcObject = remoteStream;
+    currentCall = call;
+  });
 }
 
 function generateGuessIds() {
