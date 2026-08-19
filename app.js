@@ -49,16 +49,23 @@ const elements = {
   overlaySub: document.getElementById("overlay-status-sub"),
   firewallBanner: document.getElementById("firewall-banner"),
   statusDot: document.getElementById("status-dot"),
-  statusText: document.getElementById("status-text")
+  statusText: document.getElementById("status-text"),
+  btnThemeToggle: document.getElementById("btn-theme-toggle"),
+  themeIcon: document.getElementById("theme-icon")
 };
 
 // Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
   setupEventListeners();
-  updateStatus("idle", "Click 'Start Chat' to connect");
+  updateStatus("idle", "Ready to Connect");
 });
 
 function setupEventListeners() {
+  if (elements.btnThemeToggle) {
+    elements.btnThemeToggle.addEventListener("click", toggleTheme);
+  }
+
   elements.btnNext.addEventListener("click", handleStartOrNext);
   elements.btnStop.addEventListener("click", stopCall);
   elements.btnMute.addEventListener("click", toggleAudio);
@@ -71,6 +78,67 @@ function setupEventListeners() {
   elements.chatInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") sendChatMessage();
   });
+}
+
+/**
+ * Theme Management Engine
+ * - Auto-detects browser / device preference (prefers-color-scheme)
+ * - Defaults to Dark Mode if un-set
+ * - Supports manual toggle override saved in localStorage
+ */
+function initTheme() {
+  const savedTheme = localStorage.getItem("app-theme");
+
+  if (savedTheme === "dark" || savedTheme === "light") {
+    applyTheme(savedTheme, false);
+  } else {
+    // Check browser preference, default to dark if ambiguous
+    const darkQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const lightQuery = window.matchMedia("(prefers-color-scheme: light)");
+
+    if (lightQuery.matches) {
+      applyTheme("light", false);
+    } else {
+      applyTheme("dark", false);
+    }
+
+    // Dynamic listener for browser media query changes
+    const handleMediaChange = () => {
+      if (!localStorage.getItem("app-theme")) {
+        applyTheme(darkQuery.matches ? "dark" : "light", false);
+      }
+    };
+
+    if (darkQuery.addEventListener) {
+      darkQuery.addEventListener("change", handleMediaChange);
+    } else if (darkQuery.addListener) {
+      darkQuery.addListener(handleMediaChange);
+    }
+  }
+}
+
+function applyTheme(theme, save = true) {
+  document.documentElement.setAttribute("data-theme", theme);
+
+  if (save) {
+    localStorage.setItem("app-theme", theme);
+  }
+
+  if (elements.themeIcon) {
+    if (theme === "dark") {
+      elements.themeIcon.className = "fa-solid fa-sun";
+      elements.btnThemeToggle.title = "Switch to Light Mode";
+    } else {
+      elements.themeIcon.className = "fa-solid fa-moon";
+      elements.btnThemeToggle.title = "Switch to Dark Mode";
+    }
+  }
+}
+
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
+  const newTheme = currentTheme === "dark" ? "light" : "dark";
+  applyTheme(newTheme, true);
 }
 
 /**
@@ -215,7 +283,6 @@ function becomeWaitingHost(hostId) {
 
   peer.on("error", (err) => {
     console.warn("Host Slot Conflict, retrying another slot...", err);
-    // Retry with another random slot
     setTimeout(findAndConnectPeer, 500);
   });
 }
@@ -383,7 +450,7 @@ function toggleChatDrawer() {
 function stopCall() {
   cleanupCallState();
   elements.btnNextLabel.textContent = "Start Chat";
-  updateStatus("idle", "Disconnected. Click 'Start Chat'");
+  updateStatus("idle", "Ready to Connect");
   hideSearchingOverlay();
   hideFirewallWarning();
 }
