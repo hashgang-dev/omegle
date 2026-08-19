@@ -628,7 +628,7 @@ function handleIncomingCall(call) {
 }
 
 /**
- * Monitor WebRTC ICE Connection State for Strict Firewall / NAT Failures
+ * Monitor WebRTC ICE Connection State for Disconnects & Reconnections
  */
 function monitorICEConnection(call) {
   if (!call || !call.peerConnection) return;
@@ -641,11 +641,14 @@ function monitorICEConnection(call) {
       hideSearchingOverlay();
       hideFirewallWarning();
       updateStatus("connected", "Connected with Stranger");
-    } else if (state === "failed" || state === "disconnected") {
-      console.warn("P2P Connection failed due to Strict Firewall / NAT.");
-      showFirewallWarning();
-      updateStatus("error", "Firewall Restricted");
-      hideSearchingOverlay();
+    } else if (state === "disconnected") {
+      // Temporary network drop (e.g. cellular signal glitch) - WebRTC auto-reconnecting
+      updateStatus("searching", "Reconnecting stranger...");
+    } else if (state === "failed" || state === "closed") {
+      // Permanent disconnect
+      updateStatus("idle", "Stranger disconnected");
+      appendSystemChatMessage("Stranger has left or disconnected.");
+      cleanupCallState();
     }
   };
 }
