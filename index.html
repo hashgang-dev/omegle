@@ -4,30 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
-    <title>Decentralized P2P Stranger Video Chat</title>
-    <meta name="description" content="Zero-cost, privacy-first, serverless WebRTC video chat with strangers." />
+    <title>Anonymous Stranger Video Chat</title>
+    <meta name="description" content="Instant, private, anonymous video chat with strangers worldwide." />
+
+    <!-- Google Fonts & Font Awesome Icons -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    
-    <!-- App Stylesheet -->
-    <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="style.css">
   </head>
   <body>
+    
     <div class="app-container">
-      
-      <!-- Top Header Navigation -->
+      <!-- Top Application Header -->
       <header class="app-header">
         <div class="brand-logo">
-          <div class="brand-icon">
-            <i class="fa-solid fa-bolt"></i>
-          </div>
-          <span>P2P Omegle</span>
+          <i class="fa-solid fa-video-slash logo-icon"></i>
+          <span>Stranger Chat</span>
         </div>
         
         <div class="header-actions">
@@ -52,14 +47,54 @@
           <div class="firewall-banner hidden" id="firewall-banner">
             <i class="fa-solid fa-triangle-exclamation firewall-icon"></i>
             <div class="firewall-content">
-              <h4>Network Firewall Restricted</h4>
-              <p>Direct P2P connection blocked by your network/Wi-Fi firewall (Strict NAT). Please switch to Mobile Data or another Wi-Fi network to connect.</p>
+              <h4>Network Connection Restricted</h4>
+              <p>Direct video connection is blocked by your network or Wi-Fi firewall. Please switch to Mobile Data or another network to connect.</p>
             </div>
           </div>
 
           <!-- Remote Video Feed -->
           <div class="remote-video-container">
             <video id="remote" autoplay playsinline></video>
+            
+            <!-- Authentic YouTube-Style Video Ad Overlay & Controls -->
+            <div class="yt-ad-overlay hidden" id="sponsored-ad-overlay">
+              <!-- YouTube Skip Ad Button (Bottom Right) -->
+              <button class="yt-skip-btn" id="btn-ad-skip" disabled>
+                <span id="ad-skip-text">Skip in 10s</span>
+                <i class="fa-solid fa-forward-step yt-skip-icon"></i>
+              </button>
+
+              <!-- YouTube Sponsor Info Card (Bottom Left) -->
+              <div class="yt-sponsor-card">
+                <div class="yt-sponsor-badge-row">
+                  <span class="yt-ad-tag">Ad</span>
+                  <span class="yt-ad-count">1 of 1</span>
+                  <span class="yt-ad-timer" id="ad-time-display">0:00 / 0:00</span>
+                </div>
+                
+                <div class="yt-sponsor-details">
+                  <h4 id="sponsored-title">CyberShield Unlimited VPN</h4>
+                  <p id="sponsored-desc">Protect your IP address and encrypt your video chat sessions worldwide.</p>
+                </div>
+
+                <div class="yt-sponsor-actions">
+                  <a href="https://google.com" class="yt-cta-btn" id="sponsored-cta-link" target="_blank" rel="noopener">
+                    Visit Site <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                  </a>
+                  <button class="yt-ctrl-btn" id="btn-ad-play-pause" title="Play/Pause">
+                    <i class="fa-solid fa-pause" id="ad-play-pause-icon"></i>
+                  </button>
+                  <button class="yt-ctrl-btn" id="btn-ad-rewind" title="Rewind 5 Seconds">
+                    <i class="fa-solid fa-rotate-left"></i> 5s
+                  </button>
+                </div>
+              </div>
+
+              <!-- YouTube Iconic Yellow Progress Timeline at Bottom Video Edge -->
+              <div class="yt-ad-progress-container">
+                <div class="yt-ad-progress-bar" id="ad-progress-bar"></div>
+              </div>
+            </div>
           </div>
 
           <!-- Self Local PIP Feed -->
@@ -79,11 +114,11 @@
               </div>
             </div>
             <div class="searching-text" id="overlay-status-title">Searching for a Stranger...</div>
-            <div class="searching-subtext" id="overlay-status-sub">Zero-cost end-to-end P2P connection is being established.</div>
+            <div class="searching-subtext" id="overlay-status-sub">Connecting you to a random stranger worldwide...</div>
           </div>
 
           <!-- Floating Control Toolbar -->
-          <div class="control-toolbar">
+          <div class="control-toolbar" id="control-toolbar">
             <button class="btn-ctrl" id="btn-mute" title="Toggle Microphone">
               <i class="fa-solid fa-microphone"></i>
             </button>
@@ -96,7 +131,7 @@
               <span id="btn-next-label">Start Chat</span>
             </button>
             
-            <button class="btn-ctrl" id="btn-chat-toggle" title="Toggle P2P Chat">
+            <button class="btn-ctrl" id="btn-chat-toggle" title="Toggle Text Chat">
               <i class="fa-solid fa-message"></i>
               <span class="unread-badge hidden" id="unread-badge">0</span>
             </button>
@@ -109,15 +144,15 @@
           
         </section>
 
-        <!-- Slide-over P2P Text Chat Sidebar -->
+        <!-- Slide-over Text Chat Sidebar -->
         <aside class="chat-drawer closed" id="chat-drawer">
           <div class="chat-header">
-            <span><i class="fa-solid fa-lock" style="color: var(--accent-emerald); margin-right: 6px;"></i> Encrypted P2P Chat</span>
+            <span><i class="fa-solid fa-lock" style="color: var(--accent-emerald); margin-right: 6px;"></i> Encrypted Chat</span>
             <button class="btn-ctrl" id="btn-close-chat" style="width: 28px; height: 28px; font-size: 0.85rem;">
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
-          
+
           <div class="chat-messages" id="chat-messages">
             <div class="chat-msg system">Messages are end-to-end encrypted and never stored on any server.</div>
           </div>
@@ -133,8 +168,72 @@
       </main>
     </div>
 
+    <!-- Terms of Service & Age Disclaimer Consent Modal -->
+    <div class="modal-overlay hidden" id="tos-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-icon">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <div>
+            <h3>Terms of Service & Disclaimer</h3>
+            <p class="modal-subtitle">User Agreement & Age Declaration</p>
+          </div>
+        </div>
+        
+        <div class="modal-body">
+          <p class="modal-notice">
+            Welcome to <strong>Stranger Chat</strong>. To participate in video calls, you must review and agree to our platform terms:
+          </p>
+          
+          <ul class="modal-rules">
+            <li>
+              <i class="fa-solid fa-user-shield rule-icon"></i>
+              <div>
+                <strong>Unmoderated Platform:</strong> Calls are direct live video connections. We do not monitor, record, or moderate live user content.
+              </div>
+            </li>
+            <li>
+              <i class="fa-solid fa-triangle-exclamation rule-icon"></i>
+              <div>
+                <strong>No Platform Liability:</strong> Participating is entirely your personal choice. You assume full personal responsibility for interactions with strangers.
+              </div>
+            </li>
+            <li>
+              <i class="fa-solid fa-lock rule-icon"></i>
+              <div>
+                <strong>Zero Storage Privacy:</strong> Calls are end-to-end encrypted. No logs or chat messages are ever saved on any server.
+              </div>
+            </li>
+          </ul>
+
+          <div class="consent-checkboxes">
+            <label class="checkbox-container">
+              <input type="checkbox" id="chk-age" />
+              <span class="checkmark"></span>
+              <span>I confirm that I am <strong>18 years of age or older</strong>.</span>
+            </label>
+            
+            <label class="checkbox-container">
+              <input type="checkbox" id="chk-tos" />
+              <span class="checkmark"></span>
+              <span>I accept the <strong>Terms of Service</strong> and agree to participate at my own risk.</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn-modal-agree" id="btn-tos-agree" disabled>
+            <i class="fa-solid fa-circle-check"></i> Accept & Continue
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- Ads Configuration Data -->
+    <script src="ads.js"></script>
     <!-- App Logic -->
     <script src="app.js"></script>
   </body>
