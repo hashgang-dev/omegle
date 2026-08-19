@@ -305,6 +305,7 @@ async function handleStartOrNext() {
 /**
  * Native Sponsored Video Ad Engine (Product & Architect Specification)
  */
+let currentAdIndex = 0;
 let adMaxWatchedTime = 0;
 let currentAdConfig = null;
 
@@ -314,8 +315,9 @@ function playSponsoredVideoAd() {
   hideSearchingOverlay();
   hideFirewallWarning();
 
-  // Select ad item randomly from pool
-  currentAdConfig = adsPool[Math.floor(Math.random() * adsPool.length)];
+  // Select ad item sequentially using Round-Robin rotation
+  currentAdConfig = adsPool[currentAdIndex];
+  currentAdIndex = (currentAdIndex + 1) % adsPool.length;
 
   // Update Ad Overlay Metadata Text & Links
   if (elements.sponsoredTitle) elements.sponsoredTitle.textContent = currentAdConfig.title;
