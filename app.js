@@ -1,3 +1,6 @@
+// Two devices same network lo undakoodadhu - recheck
+// Incoginoto lo work avvadhu
+
 let peer;
 let myId;
 let localStream;
