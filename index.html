@@ -1,18 +1,134 @@
-<!doctype html>
-<html>
+<!DOCTYPE html>
+<html lang="en">
   <head>
-    <title>Stable Decentralized Omegle</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Decentralized P2P Stranger Video Chat</title>
+    <meta name="description" content="Zero-cost, privacy-first, serverless WebRTC video chat with strangers." />
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <!-- App Stylesheet -->
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <h2>Stranger Chat</h2>
+    <div class="app-container">
+      
+      <!-- Top Header Navigation -->
+      <header class="app-header">
+        <div class="brand-logo">
+          <div class="brand-icon">
+            <i class="fa-solid fa-bolt"></i>
+          </div>
+          <span>P2P Omegle</span>
+        </div>
+        
+        <div class="status-badge" id="status-badge">
+          <span class="status-dot idle" id="status-dot"></span>
+          <span id="status-text">Ready to Connect</span>
+        </div>
+      </header>
 
-    <video id="local" autoplay muted></video>
-    <video id="remote" autoplay></video>
+      <!-- Main Stage Workspace -->
+      <main class="main-stage">
+        
+        <!-- Video Viewport Area -->
+        <section class="video-viewport">
+          
+          <!-- Firewall Restricted Banner -->
+          <div class="firewall-banner hidden" id="firewall-banner">
+            <i class="fa-solid fa-triangle-exclamation firewall-icon"></i>
+            <div class="firewall-content">
+              <h4>Network Firewall Restricted</h4>
+              <p>Direct P2P connection blocked by your network/Wi-Fi firewall (Strict NAT). Please switch to Mobile Data or another Wi-Fi network to connect.</p>
+            </div>
+          </div>
 
-    <button onclick="start()">Start</button>
-    <button onclick="next()">Next</button>
+          <!-- Remote Video Feed -->
+          <div class="remote-video-container">
+            <video id="remote" autoplay playsinline></video>
+          </div>
 
+          <!-- Self Local PIP Feed -->
+          <div class="local-pip-container">
+            <video id="local" autoplay muted playsinline></video>
+            <span class="pip-label">You</span>
+          </div>
+
+          <!-- Radar Searching Animation Overlay -->
+          <div class="searching-overlay hidden" id="searching-overlay">
+            <div class="radar-spinner">
+              <div class="radar-circle"></div>
+              <div class="radar-circle"></div>
+              <div class="radar-circle"></div>
+              <div class="radar-icon">
+                <i class="fa-solid fa-globe"></i>
+              </div>
+            </div>
+            <div class="searching-text" id="overlay-status-title">Searching for a Stranger...</div>
+            <div class="searching-subtext" id="overlay-status-sub">Zero-cost end-to-end P2P connection is being established.</div>
+          </div>
+
+          <!-- Floating Control Toolbar -->
+          <div class="control-toolbar">
+            <button class="btn-ctrl" id="btn-mute" title="Toggle Microphone">
+              <i class="fa-solid fa-microphone"></i>
+            </button>
+            <button class="btn-ctrl" id="btn-video" title="Toggle Camera">
+              <i class="fa-solid fa-video"></i>
+            </button>
+            
+            <button class="btn-action-primary" id="btn-next">
+              <i class="fa-solid fa-forward-step"></i>
+              <span id="btn-next-label">Start Chat</span>
+            </button>
+            
+            <button class="btn-ctrl" id="btn-chat-toggle" title="Toggle P2P Chat">
+              <i class="fa-solid fa-message"></i>
+              <span class="unread-badge hidden" id="unread-badge">0</span>
+            </button>
+            
+            <button class="btn-action-secondary" id="btn-stop" title="Stop Call">
+              <i class="fa-solid fa-phone-slash"></i>
+              <span>Stop</span>
+            </button>
+          </div>
+          
+        </section>
+
+        <!-- Slide-over P2P Text Chat Sidebar -->
+        <aside class="chat-drawer closed" id="chat-drawer">
+          <div class="chat-header">
+            <span><i class="fa-solid fa-lock" style="color: var(--accent-emerald); margin-right: 6px;"></i> Encrypted P2P Chat</span>
+            <button class="btn-ctrl" id="btn-close-chat" style="width: 28px; height: 28px; font-size: 0.85rem;">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+          
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-msg system">Messages are end-to-end encrypted and never stored on any server.</div>
+          </div>
+          
+          <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Type a message..." disabled autocomplete="off" />
+            <button class="btn-send" id="btn-send-chat" disabled>
+              <i class="fa-solid fa-paper-plane"></i>
+            </button>
+          </div>
+        </aside>
+
+      </main>
+    </div>
+
+    <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <!-- App Logic -->
     <script src="app.js"></script>
   </body>
 </html>
