@@ -106,7 +106,8 @@ const elements = {
   btnAdRewind: document.getElementById("btn-ad-rewind"),
   adProgressBar: document.getElementById("ad-progress-bar"),
   adTimeDisplay: document.getElementById("ad-time-display"),
-  controlToolbar: document.getElementById("control-toolbar")
+  controlToolbar: document.getElementById("control-toolbar"),
+  btnReport: document.getElementById("btn-report")
 };
 
 // Initialize Application
@@ -143,6 +144,10 @@ function setupEventListeners() {
   elements.btnMute.addEventListener("click", toggleAudio);
   elements.btnVideo.addEventListener("click", toggleVideo);
   
+  if (elements.btnReport) {
+    elements.btnReport.addEventListener("click", reportAndBlockStranger);
+  }
+
   elements.btnChatToggle.addEventListener("click", toggleChatDrawer);
   elements.btnCloseChat.addEventListener("click", () => elements.chatDrawer.classList.add("closed"));
   elements.btnSendChat.addEventListener("click", sendChatMessage);
@@ -752,6 +757,26 @@ function toggleVideo() {
   elements.btnVideo.innerHTML = isVideoOff 
     ? '<i class="fa-solid fa-video-slash"></i>' 
     : '<i class="fa-solid fa-video"></i>';
+}
+
+/**
+ * Report & Block Current Stranger
+ */
+function reportAndBlockStranger() {
+  if (currentCall && currentCall.peer) {
+    const blockedPeerId = currentCall.peer;
+    try {
+      const blocked = JSON.parse(localStorage.getItem("p2p_blocked_peers") || "[]");
+      if (!blocked.includes(blockedPeerId)) {
+        blocked.push(blockedPeerId);
+        localStorage.setItem("p2p_blocked_peers", JSON.stringify(blocked));
+      }
+    } catch (e) {}
+  }
+  
+  updateStatus("error", "Stranger reported & blocked");
+  cleanupCallState();
+  handleStartOrNext();
 }
 
 /**

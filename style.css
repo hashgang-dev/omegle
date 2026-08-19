@@ -961,6 +961,35 @@ video#local {
   box-shadow: 0 0 30px var(--primary-glow);
 }
 
+.btn-ctrl-warning:hover {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.modal-legal-contact {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 12px;
+}
+
+.legal-email {
+  color: var(--accent-magenta);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.legal-email:hover {
+  text-decoration: underline;
+}
+
 /* ==========================================================================
    Monetization Native Sponsored Video Ads Styling
    ========================================================================== */
