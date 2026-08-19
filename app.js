@@ -107,7 +107,8 @@ const elements = {
   adProgressBar: document.getElementById("ad-progress-bar"),
   adTimeDisplay: document.getElementById("ad-time-display"),
   controlToolbar: document.getElementById("control-toolbar"),
-  btnReport: document.getElementById("btn-report")
+  btnReport: document.getElementById("btn-report"),
+  localPipContainer: document.getElementById("local-pip-container")
 };
 
 // Initialize Application
@@ -325,9 +326,10 @@ function playSponsoredVideoAd() {
   // Initialize Skip Button State
   updateSkipButtonState(0);
 
-  // Show Ad Overlay Card & Hide Main Control Toolbar
+  // Show Ad Overlay Card & Hide Main Control Toolbar and Local PIP Feed
   if (elements.sponsoredOverlay) elements.sponsoredOverlay.classList.remove("hidden");
   if (elements.controlToolbar) elements.controlToolbar.classList.add("hidden");
+  if (elements.localPipContainer) elements.localPipContainer.classList.add("hidden");
 
   // Setup Remote Video
   const video = elements.remoteVideo;
@@ -467,6 +469,7 @@ function cleanupAdState() {
 
   if (elements.sponsoredOverlay) elements.sponsoredOverlay.classList.add("hidden");
   if (elements.controlToolbar) elements.controlToolbar.classList.remove("hidden");
+  if (elements.localPipContainer) elements.localPipContainer.classList.remove("hidden");
   if (elements.adPlayPauseIcon) elements.adPlayPauseIcon.className = "fa-solid fa-pause";
 }
 
