@@ -439,14 +439,28 @@ function rewindAd5Seconds() {
 
 function skipAdAndProceed() {
   if (!isAdPlaying) return;
+  console.log("Skip Ad clicked! Transitioning directly to stranger search...");
   cleanupAdState();
-  handleStartOrNext();
+
+  // Directly start searching for stranger (bypass handleStartOrNext matchCounter trigger)
+  elements.btnNextLabel.textContent = "Next Stranger";
+  updateStatus("searching", "Searching for a Stranger...");
+  updateToolbarVisibility("searching");
+  showSearchingOverlay("Searching for a Stranger...", "Connecting you to a random stranger worldwide...");
+  findAndConnectPeer();
 }
 
 function handleAdEnded() {
   if (!isAdPlaying) return;
+  console.log("Ad video ended naturally. Transitioning directly to stranger search...");
   cleanupAdState();
-  handleStartOrNext();
+
+  // Directly start searching for stranger
+  elements.btnNextLabel.textContent = "Next Stranger";
+  updateStatus("searching", "Searching for a Stranger...");
+  updateToolbarVisibility("searching");
+  showSearchingOverlay("Searching for a Stranger...", "Connecting you to a random stranger worldwide...");
+  findAndConnectPeer();
 }
 
 function cleanupAdState() {
