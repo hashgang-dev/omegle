@@ -18,31 +18,24 @@
   <body>
     
     <div class="app-container">
-      <!-- Top Application Header -->
-      <header class="app-header">
-        <div class="brand-logo">
-          <i class="fa-solid fa-video-slash logo-icon"></i>
-          <span>Stranger Chat</span>
-        </div>
-        
-        <div class="header-actions">
-          <button class="theme-toggle-btn" id="btn-theme-toggle" title="Toggle Theme (Dark / Light / System Auto)" aria-label="Toggle Theme">
-            <i class="fa-solid fa-moon" id="theme-icon"></i>
-          </button>
-
-          <div class="status-badge" id="status-badge">
-            <span class="status-dot idle" id="status-dot"></span>
-            <span class="status-text" id="status-text">Ready to Connect</span>
-          </div>
-        </div>
-      </header>
-
-      <!-- Main Stage Workspace -->
+      <!-- Main Stage Workspace (Full Screen 100vh) -->
       <main class="main-stage">
         
         <!-- Video Viewport Area -->
         <section class="video-viewport">
           
+          <!-- Top Viewport Actions Overlay (Status Badge & Theme Toggle) -->
+          <div class="viewport-top-bar">
+            <div class="status-badge" id="status-badge">
+              <span class="status-dot idle" id="status-dot"></span>
+              <span class="status-text" id="status-text">Click Start Chat to Connect</span>
+            </div>
+
+            <button class="theme-toggle-btn" id="btn-theme-toggle" title="Toggle Theme (Dark / Light)" aria-label="Toggle Theme">
+              <i class="fa-solid fa-moon" id="theme-icon"></i>
+            </button>
+          </div>
+
           <!-- Firewall Restricted Banner -->
           <div class="firewall-banner hidden" id="firewall-banner">
             <i class="fa-solid fa-triangle-exclamation firewall-icon"></i>
@@ -56,6 +49,11 @@
           <div class="remote-video-container">
             <video id="remote" autoplay playsinline></video>
             
+            <!-- Branding TV Channel Watermark Logo -->
+            <div class="brand-watermark">
+              <i class="fa-solid fa-video-slash"></i> STRANGER CHAT
+            </div>
+
             <!-- Authentic YouTube-Style Video Ad Overlay & Controls -->
             <div class="yt-ad-overlay hidden" id="sponsored-ad-overlay">
               <!-- YouTube Skip Ad Button (Bottom Right) -->
@@ -98,7 +96,7 @@
           </div>
 
           <!-- Self Local PIP Feed -->
-          <div class="local-pip-container">
+          <div class="local-pip-container" id="local-pip-container">
             <video id="local" autoplay muted playsinline></video>
             <span class="pip-label">You</span>
           </div>
@@ -122,9 +120,6 @@
             <button class="btn-ctrl" id="btn-mute" title="Toggle Microphone">
               <i class="fa-solid fa-microphone"></i>
             </button>
-            <button class="btn-ctrl" id="btn-video" title="Toggle Camera">
-              <i class="fa-solid fa-video"></i>
-            </button>
             
             <button class="btn-action-primary" id="btn-next">
               <i class="fa-solid fa-forward-step"></i>
@@ -136,11 +131,11 @@
               <span class="unread-badge hidden" id="unread-badge">0</span>
             </button>
 
-            <button class="btn-ctrl btn-ctrl-warning" id="btn-report" title="Report & Block Stranger">
+            <button class="btn-ctrl btn-ctrl-warning hidden" id="btn-report" title="Report & Block Stranger">
               <i class="fa-solid fa-flag"></i>
             </button>
             
-            <button class="btn-action-secondary" id="btn-stop" title="Stop Call">
+            <button class="btn-action-secondary hidden" id="btn-stop" title="Stop Call">
               <i class="fa-solid fa-phone-slash"></i>
               <span>Stop</span>
             </button>

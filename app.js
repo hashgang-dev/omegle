@@ -114,7 +114,8 @@ const elements = {
 document.addEventListener("DOMContentLoaded", () => {
   initTheme();
   setupEventListeners();
-  updateStatus("idle", "Ready to Connect");
+  updateStatus("idle", "Click Start Chat to Connect");
+  updateToolbarVisibility("idle");
 
   // Prompt Terms of Service & Age Consent Modal on Page Load if missing/expired
   if (!isTosConsentValid()) {
@@ -293,6 +294,7 @@ async function handleStartOrNext() {
 
   elements.btnNextLabel.textContent = "Next Stranger";
   updateStatus("searching", "Searching for a Stranger...");
+  updateToolbarVisibility("searching");
   showSearchingOverlay("Searching for a Stranger...", "Connecting you to a random stranger worldwide...");
 
   // Start automated zero-cost matchmaking
@@ -485,13 +487,36 @@ async function initLocalMedia() {
       audio: true
     });
     elements.localVideo.srcObject = localStream;
+
+    // Remove permission overlay if previously shown
+    const existingOverlay = document.getElementById("media-perm-overlay");
+    if (existingOverlay) existingOverlay.remove();
+
     return true;
   } catch (err) {
     console.error("Camera/Mic Permission Error:", err);
-    alert("Camera and Microphone access are required for P2P video chat.");
-    updateStatus("error", "Media permission denied");
+    showMediaPermissionError();
+    updateStatus("error", "Permission Denied");
     hideSearchingOverlay();
     return false;
+  }
+}
+
+function showMediaPermissionError() {
+  const container = document.getElementById("local-pip-container");
+  if (!container) return;
+
+  let existingOverlay = document.getElementById("media-perm-overlay");
+  if (!existingOverlay) {
+    existingOverlay = document.createElement("div");
+    existingOverlay.id = "media-perm-overlay";
+    existingOverlay.className = "media-perm-overlay";
+    existingOverlay.innerHTML = `
+      <i class="fa-solid fa-video-slash"></i>
+      <strong>Access Denied</strong>
+      <span>Please allow camera & mic permissions in your browser.</span>
+    `;
+    container.appendChild(existingOverlay);
   }
 }
 
@@ -661,6 +686,7 @@ function onPeerConnected(remoteStream) {
   hideSearchingOverlay();
   hideFirewallWarning();
   updateStatus("connected", "Connected with Stranger");
+  updateToolbarVisibility("connected");
   
   // Enable Chat Input
   elements.chatInput.disabled = false;
@@ -795,14 +821,44 @@ function toggleChatDrawer() {
 }
 
 /**
- * Disconnect and Stop Current Call
+ * Update Floating Control Toolbar Contextual Visibility
+ * States: 'idle', 'searching', 'connected'
+ */
+function updateToolbarVisibility(state) {
+  if (state === "idle") {
+    if (elements.btnReport) elements.btnReport.classList.add("hidden");
+    if (elements.btnStop) elements.btnStop.classList.add("hidden");
+    elements.btnNextLabel.textContent = "Start Chat";
+  } else if (state === "searching") {
+    if (elements.btnReport) elements.btnReport.classList.add("hidden");
+    if (elements.btnStop) elements.btnStop.classList.remove("hidden");
+    elements.btnNextLabel.textContent = "Next Stranger";
+  } else if (state === "connected") {
+    if (elements.btnReport) elements.btnReport.classList.remove("hidden");
+    if (elements.btnStop) elements.btnStop.classList.remove("hidden");
+    elements.btnNextLabel.textContent = "Next Stranger";
+  }
+}
+
+/**
+ * Disconnect and Stop Current Call (Releases Local Camera Stream)
  */
 function stopCall() {
   cleanupCallState();
-  elements.btnNextLabel.textContent = "Start Chat";
-  updateStatus("idle", "Ready to Connect");
+
+  // Stop & Release local user camera & mic stream tracks
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+  if (elements.localVideo) {
+    elements.localVideo.srcObject = null;
+  }
+
+  updateStatus("idle", "Click Start Chat to Connect");
   hideSearchingOverlay();
   hideFirewallWarning();
+  updateToolbarVisibility("idle");
 }
 
 /**
