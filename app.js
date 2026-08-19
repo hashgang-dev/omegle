@@ -40,13 +40,29 @@ const adsPool = (typeof SPONSORED_ADS_POOL !== "undefined" && SPONSORED_ADS_POOL
 const LOBBY_PREFIX = "p2p-omegle-v1-slot-";
 const TOTAL_SLOTS = 20;
 
-// ICE Servers (Google & Cloudflare STUN)
+// ICE Servers (Google STUN + Free TURN Relays for 4G/5G Mobile CGNAT Traversal)
 const STUN_CONFIG = {
   config: {
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
-      { urls: "stun:stun.cloudflare.com:3478" }
+      { urls: "stun:stun.cloudflare.com:3478" },
+      // OpenRelay Public TURN Servers (Crucial for 4G/5G Mobile Data & Strict NAT)
+      {
+        urls: "turn:openrelay.metered.ca:80",
+        username: "openrelay",
+        credential: "openrelay"
+      },
+      {
+        urls: "turn:openrelay.metered.ca:443",
+        username: "openrelay",
+        credential: "openrelay"
+      },
+      {
+        urls: "turn:openrelay.metered.ca:443?transport=tcp",
+        username: "openrelay",
+        credential: "openrelay"
+      }
     ]
   }
 };
@@ -257,6 +273,9 @@ async function handleStartOrNext() {
     const success = await initLocalMedia();
     if (!success) return;
   }
+
+  // Cycle lobby slot index for next stranger scan
+  currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
 
   // Increment Match Counter for Frequency Control
   matchCounter++;
@@ -472,12 +491,13 @@ async function initLocalMedia() {
 }
 
 /**
- * Automated Matchmaking Lobby Protocol
+ * Automated Smart Matchmaking Lobby Protocol
  */
+let currentSlotScanIndex = 1;
+
 function findAndConnectPeer() {
-  // Try to acquire an open host slot in the public lobby pool
-  const randomSlotIndex = Math.floor(Math.random() * TOTAL_SLOTS) + 1;
-  const targetHostId = LOBBY_PREFIX + randomSlotIndex;
+  // Target slot 1 primary lobby (or current index) so 2 active users always land on the same slot
+  const targetHostId = LOBBY_PREFIX + currentSlotScanIndex;
   
   // Create client Peer instance
   const tempClientId = "client-" + Math.floor(Math.random() * 1000000);
@@ -486,7 +506,7 @@ function findAndConnectPeer() {
 
   peer.on("open", (id) => {
     myPeerId = id;
-    console.log("Registered Peer ID:", id);
+    console.log("Registered Peer ID:", id, "Targeting Lobby Slot:", targetHostId);
     
     // Attempt to call the target host slot
     connectToHostOrBecomeHost(targetHostId);
