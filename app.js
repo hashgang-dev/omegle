@@ -108,8 +108,11 @@ const elements = {
   adTimeDisplay: document.getElementById("ad-time-display"),
   controlToolbar: document.getElementById("control-toolbar"),
   btnReport: document.getElementById("btn-report"),
-  localPipContainer: document.getElementById("local-pip-container")
+  localPipContainer: document.getElementById("local-pip-container"),
+  onlineUsersCount: document.getElementById("online-users-count")
 };
+
+let currentOnlineUsersCount = 1;
 
 // Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
@@ -117,6 +120,11 @@ document.addEventListener("DOMContentLoaded", () => {
   setupEventListeners();
   updateStatus("idle", "Click Start Chat to Connect");
   updateToolbarVisibility("idle");
+  recordVisitBackend();
+  fetchActiveUsersBackend();
+
+  // Poll active users count every 15 seconds
+  setInterval(fetchActiveUsersBackend, 15000);
 
   // Prompt Terms of Service & Age Consent Modal on Page Load if missing/expired
   if (!isTosConsentValid()) {
@@ -167,6 +175,13 @@ function setupEventListeners() {
   }
   if (elements.btnAdSkip) {
     elements.btnAdSkip.addEventListener("click", skipAdAndProceed);
+  }
+  if (elements.sponsoredCtaLink) {
+    elements.sponsoredCtaLink.addEventListener("click", () => {
+      if (isAdPlaying && currentAdConfig) {
+        recordAdImpressionBackend(currentAdConfig, adMaxWatchedTime, false, false, true);
+      }
+    });
   }
 }
 
@@ -385,7 +400,16 @@ function handleAdTimeUpdate() {
 function updateSkipButtonState(currentTime) {
   if (!currentAdConfig || !elements.btnAdSkip || !elements.adSkipText) return;
 
-  const threshold = currentAdConfig.skipAfterSeconds;
+  const video = elements.remoteVideo;
+  const videoDuration = (video && video.duration && !isNaN(video.duration)) ? video.duration : null;
+  const rawThreshold = currentAdConfig.skipAfterSeconds;
+
+  // Smart Edge Case Handling: If ad video duration is shorter than skip threshold (e.g. 6s video vs 10s skip),
+  // treat it as a short unskippable ad that finishes naturally!
+  let threshold = rawThreshold;
+  if (videoDuration && typeof rawThreshold === "number" && videoDuration <= rawThreshold) {
+    threshold = null;
+  }
 
   if (typeof threshold === "number" && threshold > 0) {
     const remainingToSkip = Math.ceil(threshold - currentTime);
@@ -397,9 +421,9 @@ function updateSkipButtonState(currentTime) {
       elements.adSkipText.innerHTML = `Skip Ad &nbsp;<i class="fa-solid fa-forward-step"></i>`;
     }
   } else {
-    // Unskippable Ad - Must watch full video!
+    // Short / Full Duration Video Ad - Finish naturally
     elements.btnAdSkip.disabled = true;
-    elements.adSkipText.innerHTML = `Video will play full duration`;
+    elements.adSkipText.innerHTML = `Ad plays full duration`;
   }
 }
 
@@ -442,6 +466,9 @@ function rewindAd5Seconds() {
 function skipAdAndProceed() {
   if (!isAdPlaying) return;
   console.log("Skip Ad clicked! Transitioning directly to stranger search...");
+  if (currentAdConfig) {
+    recordAdImpressionBackend(currentAdConfig, adMaxWatchedTime, false, true, false);
+  }
   cleanupAdState();
 
   // Directly start searching for stranger (bypass handleStartOrNext matchCounter trigger)
@@ -455,6 +482,9 @@ function skipAdAndProceed() {
 function handleAdEnded() {
   if (!isAdPlaying) return;
   console.log("Ad video ended naturally. Transitioning directly to stranger search...");
+  if (currentAdConfig) {
+    recordAdImpressionBackend(currentAdConfig, adMaxWatchedTime, true, false, false);
+  }
   cleanupAdState();
 
   // Directly start searching for stranger
@@ -930,7 +960,7 @@ function updateStatus(state, text) {
 
 function showSearchingOverlay(title, sub) {
   elements.overlayTitle.textContent = title;
-  elements.overlaySub.textContent = sub;
+  elements.overlaySub.textContent = sub || `Connecting you to 1 stranger among ${currentOnlineUsersCount.toLocaleString()} online strangers worldwide...`;
   elements.searchingOverlay.classList.remove("hidden");
 }
 
@@ -944,4 +974,88 @@ function showFirewallWarning() {
 
 function hideFirewallWarning() {
   elements.firewallBanner.classList.add("hidden");
+}
+
+/**
+ * Stranger Chat Backend API Telemetry & Analytics Integration
+ */
+function getVisitorId() {
+  let vid = localStorage.getItem("sc_visitor_id");
+  if (!vid) {
+    vid = "v_" + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+    localStorage.setItem("sc_visitor_id", vid);
+  }
+  return vid;
+}
+
+async function recordVisitBackend() {
+  if (typeof BACKEND_API_BASE === "undefined") return;
+  try {
+    const visitorId = getVisitorId();
+    const device = window.innerWidth <= 768 ? "mobile" : "desktop";
+    fetch(`${BACKEND_API_BASE}/analytics/visit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitorId, country: "UNKNOWN", device })
+    }).catch(e => console.warn("Visit log API notice:", e));
+  } catch (e) {}
+}
+
+async function recordAdImpressionBackend(adConfig, durationWatched, completedFull, skipped, clickedCta) {
+  if (typeof BACKEND_API_BASE === "undefined" || !adConfig) return;
+  try {
+    const visitorId = getVisitorId();
+    const device = window.innerWidth <= 768 ? "mobile" : "desktop";
+    const adId = adConfig.adId || adConfig.id || "unknown-ad";
+
+    fetch(`${BACKEND_API_BASE}/ad-impression`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        adId,
+        country: "UNKNOWN",
+        device,
+        durationWatched: Math.round(durationWatched),
+        completedFull,
+        skipped,
+        clickedCta,
+        visitorId
+      })
+    }).catch(e => console.warn("Ad impression API notice:", e));
+  } catch (e) {}
+}
+
+async function recordSessionTimeBackend(durationSeconds = 30) {
+  if (typeof BACKEND_API_BASE === "undefined") return;
+  try {
+    const visitorId = getVisitorId();
+    fetch(`${BACKEND_API_BASE}/analytics/session-time`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitorId, durationSeconds, matchesCount: matchCounter })
+    }).catch(e => console.warn("Session time API notice:", e));
+  } catch (e) {}
+}
+
+// Start 30-second session time tracking heartbeat
+setInterval(() => {
+  recordSessionTimeBackend(30);
+}, 30000);
+
+async function fetchActiveUsersBackend() {
+  if (typeof BACKEND_API_BASE === "undefined") return;
+  try {
+    const res = await fetch(`${BACKEND_API_BASE}/active-users`);
+    const data = await res.json();
+    if (data && data.success && typeof data.activeUsers === "number") {
+      updateOnlineUsersDisplay(data.activeUsers);
+    }
+  } catch (e) {}
+}
+
+function updateOnlineUsersDisplay(count) {
+  currentOnlineUsersCount = Math.max(1, count);
+  if (elements.onlineUsersCount) {
+    elements.onlineUsersCount.textContent = currentOnlineUsersCount.toLocaleString();
+  }
 }

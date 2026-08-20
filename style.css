@@ -239,9 +239,44 @@ body {
   background: var(--btn-ctrl-bg);
   border: 1px solid var(--border-glass);
   border-radius: 20px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   font-weight: 500;
   color: var(--text-muted);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.online-users-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fbbf24;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.online-fire-icon {
+  color: #f59e0b;
+  animation: firePulse 1.5s infinite ease-in-out;
+}
+
+@keyframes firePulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.25); opacity: 0.8; }
+}
+
+.online-label {
+  font-size: 0.725rem;
+  font-weight: 500;
+  color: rgba(251, 191, 36, 0.85);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .status-dot {
@@ -303,12 +338,20 @@ body {
   pointer-events: auto;
 }
 
-/* TV Channel / Watermark Logo Overlay (Top-Left Video Container) */
-.brand-watermark {
+/* TV Channel / Watermark Logo Overlay & Online Badge Stack (Top-Left Video Container) */
+.brand-watermark-container {
   position: absolute;
   top: 20px;
   left: 24px;
   z-index: 25;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.brand-watermark {
   pointer-events: none;
   display: flex;
   align-items: center;
@@ -1293,5 +1336,32 @@ video#local {
     z-index: 30;
     padding: 8px 12px;
     font-size: 0.78rem;
+  }
+
+  .brand-watermark-container {
+    top: 14px;
+    left: 14px;
+    gap: 5px;
+  }
+
+  .brand-watermark {
+    font-size: 0.75rem;
+    padding: 4px 10px;
+  }
+
+  .online-users-badge {
+    padding: 4px 10px;
+    font-size: 0.72rem;
+  }
+
+  .viewport-top-bar {
+    top: 14px;
+    right: 14px;
+    gap: 8px;
+  }
+
+  .status-badge {
+    padding: 4px 10px;
+    font-size: 0.72rem;
   }
 }
