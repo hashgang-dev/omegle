@@ -115,8 +115,16 @@ const elements = {
 
 let currentOnlineUsersCount = 1;
 
+function setMobileVh() {
+  const vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+
 // Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
+  setMobileVh();
+  window.addEventListener('resize', setMobileVh);
+  window.addEventListener('orientationchange', setMobileVh);
   initTheme();
   setupEventListeners();
   updateStatus("idle", "Click Start Chat to Connect");

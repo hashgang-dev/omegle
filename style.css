@@ -140,16 +140,26 @@ html[data-theme="light"] {
   -webkit-font-smoothing: antialiased;
 }
 
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  height: calc(var(--vh, 1vh) * 100);
+  overflow: hidden;
+  position: fixed;
+  touch-action: manipulation;
+}
+
 body {
   background-color: var(--bg-dark);
   background-image: 
     radial-gradient(at 0% 0%, var(--bg-gradient-1) 0px, transparent 50%),
     radial-gradient(at 100% 100%, var(--bg-gradient-2) 0px, transparent 50%);
   color: var(--text-main);
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
@@ -293,14 +303,18 @@ body {
 
 /* Full-Screen App Container */
 .app-container {
-  width: 100vw;
+  width: 100%;
+  height: 100%;
   height: 100vh;
+  height: 100dvh;
+  height: calc(var(--vh, 1vh) * 100);
   max-width: 100vw;
-  max-height: 100vh;
+  max-height: 100dvh;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 /* Main Stage Workspace */
@@ -1363,5 +1377,26 @@ video#local {
   .status-badge {
     padding: 4px 10px;
     font-size: 0.72rem;
+  }
+
+  .control-toolbar {
+    bottom: 14px;
+    bottom: max(14px, env(safe-area-inset-bottom));
+    padding: 8px 12px;
+    gap: 8px;
+    max-width: calc(100vw - 24px);
+  }
+
+  .btn-ctrl {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+  }
+
+  .local-pip-container {
+    bottom: 74px;
+    bottom: max(74px, calc(60px + env(safe-area-inset-bottom)));
+    right: 14px;
+    width: 140px;
+    height: 95px;
   }
 }
