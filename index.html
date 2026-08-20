@@ -1,37 +1,50 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>Anonymous Stranger Video Chat</title>
-    <meta name="description" content="Instant, private, anonymous video chat with strangers worldwide." />
+    <meta
+      name="description"
+      content="Instant, private, anonymous video chat with strangers worldwide."
+    />
 
     <!-- Google Fonts & Font Awesome Icons -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
-    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    
     <div class="app-container">
       <!-- Main Stage Workspace (Full Screen 100vh) -->
       <main class="main-stage">
-        
         <!-- Video Viewport Area -->
         <section class="video-viewport">
-          
           <!-- Top Viewport Actions Overlay (Status Badge & Theme Toggle) -->
           <div class="viewport-top-bar">
             <div class="status-badge" id="status-badge">
               <span class="status-dot idle" id="status-dot"></span>
-              <span class="status-text" id="status-text">Click Start Chat to Connect</span>
+              <span class="status-text" id="status-text"
+                >Click Start Chat to Connect</span
+              >
             </div>
 
-            <button class="theme-toggle-btn" id="btn-theme-toggle" title="Toggle Theme (Dark / Light)" aria-label="Toggle Theme">
+            <button
+              class="theme-toggle-btn"
+              id="btn-theme-toggle"
+              title="Toggle Theme (Dark / Light)"
+              aria-label="Toggle Theme"
+            >
               <i class="fa-solid fa-moon" id="theme-icon"></i>
             </button>
           </div>
@@ -41,14 +54,18 @@
             <i class="fa-solid fa-triangle-exclamation firewall-icon"></i>
             <div class="firewall-content">
               <h4>Network Connection Restricted</h4>
-              <p>Direct video connection is blocked by your network or Wi-Fi firewall. Please switch to Mobile Data or another network to connect.</p>
+              <p>
+                Direct video connection is blocked by your network or Wi-Fi
+                firewall. Please switch to Mobile Data or another network to
+                connect.
+              </p>
             </div>
           </div>
 
           <!-- Remote Video Feed -->
           <div class="remote-video-container">
             <video id="remote" autoplay playsinline></video>
-            
+
             <!-- Branding TV Channel Watermark Logo & Live Online Counter Stack -->
             <div class="brand-watermark-container">
               <div class="brand-watermark">
@@ -56,7 +73,8 @@
               </div>
               <div class="online-users-badge" id="online-users-badge">
                 <i class="fa-solid fa-fire online-fire-icon"></i>
-                <span id="online-users-count">1</span> <span class="online-label">Online</span>
+                <span id="online-users-count">1</span>
+                <span class="online-label">Online</span>
               </div>
             </div>
 
@@ -73,22 +91,42 @@
                 <div class="yt-sponsor-badge-row">
                   <span class="yt-ad-tag">Ad</span>
                   <span class="yt-ad-count">1 of 1</span>
-                  <span class="yt-ad-timer" id="ad-time-display">0:00 / 0:00</span>
+                  <span class="yt-ad-timer" id="ad-time-display"
+                    >0:00 / 0:00</span
+                  >
                 </div>
-                
+
                 <div class="yt-sponsor-details">
                   <h4 id="sponsored-title">CyberShield Unlimited VPN</h4>
-                  <p id="sponsored-desc">Protect your IP address and encrypt your video chat sessions worldwide.</p>
+                  <p id="sponsored-desc">
+                    Protect your IP address and encrypt your video chat sessions
+                    worldwide.
+                  </p>
                 </div>
 
                 <div class="yt-sponsor-actions">
-                  <a href="https://google.com" class="yt-cta-btn" id="sponsored-cta-link" target="_blank" rel="noopener">
-                    Visit Site <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                  <a
+                    href="https://hashgang.com"
+                    class="yt-cta-btn"
+                    id="sponsored-cta-link"
+                    target="_blank"
+                    rel="noopener"
+                  >
+                    Visit Site
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
                   </a>
-                  <button class="yt-ctrl-btn" id="btn-ad-play-pause" title="Play/Pause">
+                  <button
+                    class="yt-ctrl-btn"
+                    id="btn-ad-play-pause"
+                    title="Play/Pause"
+                  >
                     <i class="fa-solid fa-pause" id="ad-play-pause-icon"></i>
                   </button>
-                  <button class="yt-ctrl-btn" id="btn-ad-rewind" title="Rewind 5 Seconds">
+                  <button
+                    class="yt-ctrl-btn"
+                    id="btn-ad-rewind"
+                    title="Rewind 5 Seconds"
+                  >
                     <i class="fa-solid fa-rotate-left"></i> 5s
                   </button>
                 </div>
@@ -117,8 +155,12 @@
                 <i class="fa-solid fa-globe"></i>
               </div>
             </div>
-            <div class="searching-text" id="overlay-status-title">Searching for a Stranger...</div>
-            <div class="searching-subtext" id="overlay-status-sub">Connecting you to a random stranger worldwide...</div>
+            <div class="searching-text" id="overlay-status-title">
+              Searching for a Stranger...
+            </div>
+            <div class="searching-subtext" id="overlay-status-sub">
+              Connecting you to a random stranger worldwide...
+            </div>
           </div>
 
           <!-- Floating Control Toolbar -->
@@ -126,50 +168,78 @@
             <button class="btn-ctrl" id="btn-mute" title="Toggle Microphone">
               <i class="fa-solid fa-microphone"></i>
             </button>
-            
+
             <button class="btn-action-primary" id="btn-next">
               <i class="fa-solid fa-forward-step"></i>
               <span id="btn-next-label">Start Chat</span>
             </button>
-            
-            <button class="btn-ctrl" id="btn-chat-toggle" title="Toggle Text Chat">
+
+            <button
+              class="btn-ctrl"
+              id="btn-chat-toggle"
+              title="Toggle Text Chat"
+            >
               <i class="fa-solid fa-message"></i>
               <span class="unread-badge hidden" id="unread-badge">0</span>
             </button>
 
-            <button class="btn-ctrl btn-ctrl-warning hidden" id="btn-report" title="Report & Block Stranger">
+            <button
+              class="btn-ctrl btn-ctrl-warning hidden"
+              id="btn-report"
+              title="Report & Block Stranger"
+            >
               <i class="fa-solid fa-flag"></i>
             </button>
-            
-            <button class="btn-action-secondary hidden" id="btn-stop" title="Stop Call">
+
+            <button
+              class="btn-action-secondary hidden"
+              id="btn-stop"
+              title="Stop Call"
+            >
               <i class="fa-solid fa-phone-slash"></i>
               <span>Stop</span>
             </button>
           </div>
-          
         </section>
 
         <!-- Slide-over Text Chat Sidebar -->
         <aside class="chat-drawer closed" id="chat-drawer">
           <div class="chat-header">
-            <span><i class="fa-solid fa-lock" style="color: var(--accent-emerald); margin-right: 6px;"></i> Encrypted Chat</span>
-            <button class="btn-ctrl" id="btn-close-chat" style="width: 28px; height: 28px; font-size: 0.85rem;">
+            <span
+              ><i
+                class="fa-solid fa-lock"
+                style="color: var(--accent-emerald); margin-right: 6px"
+              ></i>
+              Encrypted Chat</span
+            >
+            <button
+              class="btn-ctrl"
+              id="btn-close-chat"
+              style="width: 28px; height: 28px; font-size: 0.85rem"
+            >
               <i class="fa-solid fa-xmark"></i>
             </button>
           </div>
 
           <div class="chat-messages" id="chat-messages">
-            <div class="chat-msg system">Messages are end-to-end encrypted and never stored on any server.</div>
+            <div class="chat-msg system">
+              Messages are end-to-end encrypted and never stored on any server.
+            </div>
           </div>
-          
+
           <div class="chat-input-area">
-            <input type="text" id="chat-input" placeholder="Type a message..." disabled autocomplete="off" />
+            <input
+              type="text"
+              id="chat-input"
+              placeholder="Type a message..."
+              disabled
+              autocomplete="off"
+            />
             <button class="btn-send" id="btn-send-chat" disabled>
               <i class="fa-solid fa-paper-plane"></i>
             </button>
           </div>
         </aside>
-
       </main>
     </div>
 
@@ -185,49 +255,67 @@
             <p class="modal-subtitle">User Agreement & Age Declaration</p>
           </div>
         </div>
-        
+
         <div class="modal-body">
           <p class="modal-notice">
-            Welcome to <strong>Stranger Chat</strong>. To participate in video calls, you must review and agree to our platform terms:
+            Welcome to <strong>Stranger Chat</strong>. To participate in video
+            calls, you must review and agree to our platform terms:
           </p>
-          
+
           <ul class="modal-rules">
             <li>
               <i class="fa-solid fa-user-shield rule-icon"></i>
               <div>
-                <strong>Unmoderated Platform:</strong> Calls are direct live video connections. We do not monitor, record, or moderate live user content.
+                <strong>Unmoderated Platform:</strong> Calls are direct live
+                video connections. We do not monitor, record, or moderate live
+                user content.
               </div>
             </li>
             <li>
               <i class="fa-solid fa-triangle-exclamation rule-icon"></i>
               <div>
-                <strong>No Platform Liability:</strong> Participating is entirely your personal choice. You assume full personal responsibility for interactions with strangers.
+                <strong>No Platform Liability:</strong> Participating is
+                entirely your personal choice. You assume full personal
+                responsibility for interactions with strangers.
               </div>
             </li>
             <li>
               <i class="fa-solid fa-lock rule-icon"></i>
               <div>
-                <strong>Zero Storage Privacy:</strong> Calls are end-to-end encrypted. No logs or chat messages are ever saved on any server.
+                <strong>Zero Storage Privacy:</strong> Calls are end-to-end
+                encrypted. No logs or chat messages are ever saved on any
+                server.
               </div>
             </li>
           </ul>
 
           <div class="modal-legal-contact">
             <i class="fa-solid fa-envelope-shield"></i>
-            <span>For legal inquiries or abuse reporting: <a href="mailto:info@hashgang.com" class="legal-email">info@hashgang.com</a></span>
+            <span
+              >For legal inquiries or abuse reporting:
+              <a href="mailto:info@hashgang.com" class="legal-email"
+                >info@hashgang.com</a
+              ></span
+            >
           </div>
 
           <div class="consent-checkboxes">
             <label class="checkbox-container">
               <input type="checkbox" id="chk-age" />
               <span class="checkmark"></span>
-              <span>I confirm that I am <strong>18 years of age or older</strong>.</span>
+              <span
+                >I confirm that I am
+                <strong>18 years of age or older</strong>.</span
+              >
             </label>
-            
+
             <label class="checkbox-container">
               <input type="checkbox" id="chk-tos" />
               <span class="checkmark"></span>
-              <span>I accept the <strong>Terms of Service</strong> and agree to participate at my own risk.</span>
+              <span
+                >I accept the <strong>Terms of Service</strong> and agree to
+                participate at my own risk.</span
+              >
             </label>
           </div>
         </div>

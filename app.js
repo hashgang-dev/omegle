@@ -23,18 +23,19 @@ let adTimerInterval = null;
 let hostConnectTimeout = null;
 let retryMatchmakingTimeout = null;
 
-const adsPool = (typeof SPONSORED_ADS_POOL !== "undefined" && SPONSORED_ADS_POOL.length) 
-  ? SPONSORED_ADS_POOL 
-  : [
-      {
-        id: "ad-1",
-        title: "CyberShield High-Speed VPN",
-        desc: "Encrypt your P2P video calls and protect your privacy worldwide.",
-        videoUrl: "assets/ads/vpn_ad.mp4",
-        linkUrl: "https://google.com",
-        badgeText: "FEATURED PARTNER"
-      }
-    ];
+const adsPool =
+  typeof SPONSORED_ADS_POOL !== "undefined" && SPONSORED_ADS_POOL.length
+    ? SPONSORED_ADS_POOL
+    : [
+        {
+          id: "ad-1",
+          title: "CyberShield High-Speed VPN",
+          desc: "Encrypt your P2P video calls and protect your privacy worldwide.",
+          videoUrl: "assets/ads/vpn_ad.mp4",
+          linkUrl: "https://hashgang.com",
+          badgeText: "FEATURED PARTNER",
+        },
+      ];
 
 // Matchmaking Pool Config (Zero-Cost Public Lobby Slots)
 const LOBBY_PREFIX = "p2p-omegle-v1-slot-";
@@ -51,20 +52,20 @@ const STUN_CONFIG = {
       {
         urls: "turn:openrelay.metered.ca:80",
         username: "openrelay",
-        credential: "openrelay"
+        credential: "openrelay",
       },
       {
         urls: "turn:openrelay.metered.ca:443",
         username: "openrelay",
-        credential: "openrelay"
+        credential: "openrelay",
       },
       {
         urls: "turn:openrelay.metered.ca:443?transport=tcp",
         username: "openrelay",
-        credential: "openrelay"
-      }
-    ]
-  }
+        credential: "openrelay",
+      },
+    ],
+  },
 };
 
 // DOM Elements
@@ -109,7 +110,7 @@ const elements = {
   controlToolbar: document.getElementById("control-toolbar"),
   btnReport: document.getElementById("btn-report"),
   localPipContainer: document.getElementById("local-pip-container"),
-  onlineUsersCount: document.getElementById("online-users-count")
+  onlineUsersCount: document.getElementById("online-users-count"),
 };
 
 let currentOnlineUsersCount = 1;
@@ -139,7 +140,9 @@ function setupEventListeners() {
 
   if (elements.chkAge && elements.chkTos) {
     const updateAgreeButton = () => {
-      elements.btnTosAgree.disabled = !(elements.chkAge.checked && elements.chkTos.checked);
+      elements.btnTosAgree.disabled = !(
+        elements.chkAge.checked && elements.chkTos.checked
+      );
     };
     elements.chkAge.addEventListener("change", updateAgreeButton);
     elements.chkTos.addEventListener("change", updateAgreeButton);
@@ -153,15 +156,17 @@ function setupEventListeners() {
   elements.btnStop.addEventListener("click", stopCall);
   elements.btnMute.addEventListener("click", toggleAudio);
   elements.btnVideo.addEventListener("click", toggleVideo);
-  
+
   if (elements.btnReport) {
     elements.btnReport.addEventListener("click", reportAndBlockStranger);
   }
 
   elements.btnChatToggle.addEventListener("click", toggleChatDrawer);
-  elements.btnCloseChat.addEventListener("click", () => elements.chatDrawer.classList.add("closed"));
+  elements.btnCloseChat.addEventListener("click", () =>
+    elements.chatDrawer.classList.add("closed"),
+  );
   elements.btnSendChat.addEventListener("click", sendChatMessage);
-  
+
   elements.chatInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") sendChatMessage();
   });
@@ -179,7 +184,13 @@ function setupEventListeners() {
   if (elements.sponsoredCtaLink) {
     elements.sponsoredCtaLink.addEventListener("click", () => {
       if (isAdPlaying && currentAdConfig) {
-        recordAdImpressionBackend(currentAdConfig, adMaxWatchedTime, false, false, true);
+        recordAdImpressionBackend(
+          currentAdConfig,
+          adMaxWatchedTime,
+          false,
+          false,
+          true,
+        );
       }
     });
   }
@@ -198,7 +209,7 @@ function isTosConsentValid() {
   if (isNaN(acceptedAt)) return false;
 
   // Check if consent was accepted within the last 24 hours
-  return (Date.now() - acceptedAt) < TOS_EXPIRATION_MS;
+  return Date.now() - acceptedAt < TOS_EXPIRATION_MS;
 }
 
 function showTosModal() {
@@ -271,7 +282,8 @@ function applyTheme(theme, save = true) {
 }
 
 function toggleTheme() {
-  const currentTheme = document.documentElement.getAttribute("data-theme") || "dark";
+  const currentTheme =
+    document.documentElement.getAttribute("data-theme") || "dark";
   const newTheme = currentTheme === "dark" ? "light" : "dark";
   applyTheme(newTheme, true);
 }
@@ -311,7 +323,10 @@ async function handleStartOrNext() {
   elements.btnNextLabel.textContent = "Next Stranger";
   updateStatus("searching", "Searching for a Stranger...");
   updateToolbarVisibility("searching");
-  showSearchingOverlay("Searching for a Stranger...", "Connecting you to a random stranger worldwide...");
+  showSearchingOverlay(
+    "Searching for a Stranger...",
+    "Connecting you to a random stranger worldwide...",
+  );
 
   // Start automated zero-cost matchmaking
   findAndConnectPeer();
@@ -335,18 +350,24 @@ function playSponsoredVideoAd() {
   currentAdIndex = (currentAdIndex + 1) % adsPool.length;
 
   // Update Ad Overlay Metadata Text & Links
-  if (elements.sponsoredTitle) elements.sponsoredTitle.textContent = currentAdConfig.title;
-  if (elements.sponsoredDesc) elements.sponsoredDesc.textContent = currentAdConfig.desc;
-  if (elements.sponsoredBadgeText) elements.sponsoredBadgeText.textContent = currentAdConfig.badgeText;
-  if (elements.sponsoredCtaLink) elements.sponsoredCtaLink.href = currentAdConfig.linkUrl;
+  if (elements.sponsoredTitle)
+    elements.sponsoredTitle.textContent = currentAdConfig.title;
+  if (elements.sponsoredDesc)
+    elements.sponsoredDesc.textContent = currentAdConfig.desc;
+  if (elements.sponsoredBadgeText)
+    elements.sponsoredBadgeText.textContent = currentAdConfig.badgeText;
+  if (elements.sponsoredCtaLink)
+    elements.sponsoredCtaLink.href = currentAdConfig.linkUrl;
 
   // Initialize Skip Button State
   updateSkipButtonState(0);
 
   // Show Ad Overlay Card & Hide Main Control Toolbar and Local PIP Feed
-  if (elements.sponsoredOverlay) elements.sponsoredOverlay.classList.remove("hidden");
+  if (elements.sponsoredOverlay)
+    elements.sponsoredOverlay.classList.remove("hidden");
   if (elements.controlToolbar) elements.controlToolbar.classList.add("hidden");
-  if (elements.localPipContainer) elements.localPipContainer.classList.add("hidden");
+  if (elements.localPipContainer)
+    elements.localPipContainer.classList.add("hidden");
 
   // Setup Remote Video
   const video = elements.remoteVideo;
@@ -361,9 +382,10 @@ function playSponsoredVideoAd() {
   video.addEventListener("volumechange", handleAdVolumeChange);
   video.addEventListener("ended", handleAdEnded);
 
-  video.play().catch(e => console.warn("Video Ad Autoplay Notice:", e));
+  video.play().catch((e) => console.warn("Video Ad Autoplay Notice:", e));
 
-  if (elements.adPlayPauseIcon) elements.adPlayPauseIcon.className = "fa-solid fa-pause";
+  if (elements.adPlayPauseIcon)
+    elements.adPlayPauseIcon.className = "fa-solid fa-pause";
   updateStatus("connected", "Connected with Sponsored Partner");
   elements.btnNextLabel.textContent = "Next Stranger";
 }
@@ -387,11 +409,13 @@ function handleAdTimeUpdate() {
 
   // 2. Timeline Progress Bar & Time Display (00:04 / 00:15)
   const progressPercent = (video.currentTime / video.duration) * 100;
-  if (elements.adProgressBar) elements.adProgressBar.style.width = `${progressPercent}%`;
+  if (elements.adProgressBar)
+    elements.adProgressBar.style.width = `${progressPercent}%`;
 
   const currentFmt = formatTime(video.currentTime);
   const durationFmt = formatTime(video.duration);
-  if (elements.adTimeDisplay) elements.adTimeDisplay.textContent = `${currentFmt} / ${durationFmt}`;
+  if (elements.adTimeDisplay)
+    elements.adTimeDisplay.textContent = `${currentFmt} / ${durationFmt}`;
 
   // 3. Skip Threshold Evaluation
   updateSkipButtonState(video.currentTime);
@@ -401,13 +425,18 @@ function updateSkipButtonState(currentTime) {
   if (!currentAdConfig || !elements.btnAdSkip || !elements.adSkipText) return;
 
   const video = elements.remoteVideo;
-  const videoDuration = (video && video.duration && !isNaN(video.duration)) ? video.duration : null;
+  const videoDuration =
+    video && video.duration && !isNaN(video.duration) ? video.duration : null;
   const rawThreshold = currentAdConfig.skipAfterSeconds;
 
   // Smart Edge Case Handling: If ad video duration is shorter than skip threshold (e.g. 6s video vs 10s skip),
   // treat it as a short unskippable ad that finishes naturally!
   let threshold = rawThreshold;
-  if (videoDuration && typeof rawThreshold === "number" && videoDuration <= rawThreshold) {
+  if (
+    videoDuration &&
+    typeof rawThreshold === "number" &&
+    videoDuration <= rawThreshold
+  ) {
     threshold = null;
   }
 
@@ -449,10 +478,12 @@ function toggleAdPlayPause() {
   const video = elements.remoteVideo;
   if (video.paused) {
     video.play();
-    if (elements.adPlayPauseIcon) elements.adPlayPauseIcon.className = "fa-solid fa-pause";
+    if (elements.adPlayPauseIcon)
+      elements.adPlayPauseIcon.className = "fa-solid fa-pause";
   } else {
     video.pause();
-    if (elements.adPlayPauseIcon) elements.adPlayPauseIcon.className = "fa-solid fa-play";
+    if (elements.adPlayPauseIcon)
+      elements.adPlayPauseIcon.className = "fa-solid fa-play";
   }
 }
 
@@ -467,7 +498,13 @@ function skipAdAndProceed() {
   if (!isAdPlaying) return;
   console.log("Skip Ad clicked! Transitioning directly to stranger search...");
   if (currentAdConfig) {
-    recordAdImpressionBackend(currentAdConfig, adMaxWatchedTime, false, true, false);
+    recordAdImpressionBackend(
+      currentAdConfig,
+      adMaxWatchedTime,
+      false,
+      true,
+      false,
+    );
   }
   cleanupAdState();
 
@@ -475,15 +512,26 @@ function skipAdAndProceed() {
   elements.btnNextLabel.textContent = "Next Stranger";
   updateStatus("searching", "Searching for a Stranger...");
   updateToolbarVisibility("searching");
-  showSearchingOverlay("Searching for a Stranger...", "Connecting you to a random stranger worldwide...");
+  showSearchingOverlay(
+    "Searching for a Stranger...",
+    "Connecting you to a random stranger worldwide...",
+  );
   findAndConnectPeer();
 }
 
 function handleAdEnded() {
   if (!isAdPlaying) return;
-  console.log("Ad video ended naturally. Transitioning directly to stranger search...");
+  console.log(
+    "Ad video ended naturally. Transitioning directly to stranger search...",
+  );
   if (currentAdConfig) {
-    recordAdImpressionBackend(currentAdConfig, adMaxWatchedTime, true, false, false);
+    recordAdImpressionBackend(
+      currentAdConfig,
+      adMaxWatchedTime,
+      true,
+      false,
+      false,
+    );
   }
   cleanupAdState();
 
@@ -491,7 +539,10 @@ function handleAdEnded() {
   elements.btnNextLabel.textContent = "Next Stranger";
   updateStatus("searching", "Searching for a Stranger...");
   updateToolbarVisibility("searching");
-  showSearchingOverlay("Searching for a Stranger...", "Connecting you to a random stranger worldwide...");
+  showSearchingOverlay(
+    "Searching for a Stranger...",
+    "Connecting you to a random stranger worldwide...",
+  );
   findAndConnectPeer();
 }
 
@@ -513,10 +564,14 @@ function cleanupAdState() {
     } catch (e) {}
   }
 
-  if (elements.sponsoredOverlay) elements.sponsoredOverlay.classList.add("hidden");
-  if (elements.controlToolbar) elements.controlToolbar.classList.remove("hidden");
-  if (elements.localPipContainer) elements.localPipContainer.classList.remove("hidden");
-  if (elements.adPlayPauseIcon) elements.adPlayPauseIcon.className = "fa-solid fa-pause";
+  if (elements.sponsoredOverlay)
+    elements.sponsoredOverlay.classList.add("hidden");
+  if (elements.controlToolbar)
+    elements.controlToolbar.classList.remove("hidden");
+  if (elements.localPipContainer)
+    elements.localPipContainer.classList.remove("hidden");
+  if (elements.adPlayPauseIcon)
+    elements.adPlayPauseIcon.className = "fa-solid fa-pause";
 }
 
 function formatTime(seconds) {
@@ -533,7 +588,7 @@ async function initLocalMedia() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
       video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: true
+      audio: true,
     });
     elements.localVideo.srcObject = localStream;
 
@@ -577,16 +632,21 @@ let currentSlotScanIndex = 1;
 function findAndConnectPeer() {
   // Target slot 1 primary lobby (or current index) so 2 active users always land on the same slot
   const targetHostId = LOBBY_PREFIX + currentSlotScanIndex;
-  
+
   // Create client Peer instance
   const tempClientId = "client-" + Math.floor(Math.random() * 1000000);
-  
+
   peer = new Peer(tempClientId, STUN_CONFIG);
 
   peer.on("open", (id) => {
     myPeerId = id;
-    console.log("Registered Peer ID:", id, "Targeting Lobby Slot:", targetHostId);
-    
+    console.log(
+      "Registered Peer ID:",
+      id,
+      "Targeting Lobby Slot:",
+      targetHostId,
+    );
+
     // Attempt to call the target host slot
     connectToHostOrBecomeHost(targetHostId);
   });
@@ -618,7 +678,7 @@ function connectToHostOrBecomeHost(hostId) {
   const call = peer.call(hostId, localStream);
 
   let connected = false;
-  
+
   call.on("stream", (remoteStream) => {
     connected = true;
     currentCall = call;
@@ -663,14 +723,17 @@ function becomeWaitingHost(hostId) {
     console.log("Waiting as Host on slot:", id);
     if (!isAdPlaying) {
       updateStatus("searching", "Waiting for a stranger to join...");
-      showSearchingOverlay("Waiting for a Stranger...", "You are in the waiting queue. A peer will connect shortly.");
+      showSearchingOverlay(
+        "Waiting for a Stranger...",
+        "You are in the waiting queue. A peer will connect shortly.",
+      );
     }
   });
 
   peer.on("call", (call) => {
     call.answer(localStream);
     currentCall = call;
-    
+
     call.on("stream", (remoteStream) => {
       onPeerConnected(remoteStream);
       monitorICEConnection(call);
@@ -736,11 +799,11 @@ function onPeerConnected(remoteStream) {
   hideFirewallWarning();
   updateStatus("connected", "Connected with Stranger");
   updateToolbarVisibility("connected");
-  
+
   // Enable Chat Input
   elements.chatInput.disabled = false;
   elements.btnSendChat.disabled = false;
-  
+
   appendSystemChatMessage("Connected with a stranger. Say hi!");
 }
 
@@ -758,7 +821,7 @@ function setupDataConnection(conn) {
 
   chatConn.on("data", (data) => {
     appendChatMessage(data, "received");
-    
+
     // Increment unread badge if drawer is closed
     if (elements.chatDrawer.classList.contains("closed")) {
       unreadMessagesCount++;
@@ -786,7 +849,9 @@ function sendChatMessage() {
     appendChatMessage(text, "sent");
     elements.chatInput.value = "";
   } else {
-    appendSystemChatMessage("Cannot send message: P2P chat connection is not active.");
+    appendSystemChatMessage(
+      "Cannot send message: P2P chat connection is not active.",
+    );
   }
 }
 
@@ -815,11 +880,11 @@ function appendSystemChatMessage(text) {
 function toggleAudio() {
   if (!localStream) return;
   isAudioMuted = !isAudioMuted;
-  localStream.getAudioTracks().forEach(t => t.enabled = !isAudioMuted);
-  
+  localStream.getAudioTracks().forEach((t) => (t.enabled = !isAudioMuted));
+
   elements.btnMute.classList.toggle("muted", isAudioMuted);
-  elements.btnMute.innerHTML = isAudioMuted 
-    ? '<i class="fa-solid fa-microphone-slash"></i>' 
+  elements.btnMute.innerHTML = isAudioMuted
+    ? '<i class="fa-solid fa-microphone-slash"></i>'
     : '<i class="fa-solid fa-microphone"></i>';
 }
 
@@ -829,11 +894,11 @@ function toggleAudio() {
 function toggleVideo() {
   if (!localStream) return;
   isVideoOff = !isVideoOff;
-  localStream.getVideoTracks().forEach(t => t.enabled = !isVideoOff);
-  
+  localStream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
+
   elements.btnVideo.classList.toggle("off", isVideoOff);
-  elements.btnVideo.innerHTML = isVideoOff 
-    ? '<i class="fa-solid fa-video-slash"></i>' 
+  elements.btnVideo.innerHTML = isVideoOff
+    ? '<i class="fa-solid fa-video-slash"></i>'
     : '<i class="fa-solid fa-video"></i>';
 }
 
@@ -844,14 +909,16 @@ function reportAndBlockStranger() {
   if (currentCall && currentCall.peer) {
     const blockedPeerId = currentCall.peer;
     try {
-      const blocked = JSON.parse(localStorage.getItem("p2p_blocked_peers") || "[]");
+      const blocked = JSON.parse(
+        localStorage.getItem("p2p_blocked_peers") || "[]",
+      );
       if (!blocked.includes(blockedPeerId)) {
         blocked.push(blockedPeerId);
         localStorage.setItem("p2p_blocked_peers", JSON.stringify(blocked));
       }
     } catch (e) {}
   }
-  
+
   updateStatus("error", "Stranger reported & blocked");
   cleanupCallState();
   handleStartOrNext();
@@ -897,7 +964,7 @@ function stopCall() {
 
   // Stop & Release local user camera & mic stream tracks
   if (localStream) {
-    localStream.getTracks().forEach(t => t.stop());
+    localStream.getTracks().forEach((t) => t.stop());
     localStream = null;
   }
   if (elements.localVideo) {
@@ -926,26 +993,33 @@ function cleanupCallState() {
   }
 
   if (currentCall) {
-    try { currentCall.close(); } catch (e) {}
+    try {
+      currentCall.close();
+    } catch (e) {}
     currentCall = null;
   }
 
   if (chatConn) {
-    try { chatConn.close(); } catch (e) {}
+    try {
+      chatConn.close();
+    } catch (e) {}
     chatConn = null;
   }
 
   if (peer && !peer.destroyed) {
-    try { peer.destroy(); } catch (e) {}
+    try {
+      peer.destroy();
+    } catch (e) {}
     peer = null;
   }
 
   elements.remoteVideo.srcObject = null;
   elements.chatInput.disabled = true;
   elements.btnSendChat.disabled = true;
-  
+
   // Wipe chat history for end-to-end privacy across strangers
-  elements.chatMessages.innerHTML = '<div class="chat-msg system">Messages are end-to-end encrypted and never stored on any server.</div>';
+  elements.chatMessages.innerHTML =
+    '<div class="chat-msg system">Messages are end-to-end encrypted and never stored on any server.</div>';
   unreadMessagesCount = 0;
   elements.unreadBadge.classList.add("hidden");
 }
@@ -960,7 +1034,9 @@ function updateStatus(state, text) {
 
 function showSearchingOverlay(title, sub) {
   elements.overlayTitle.textContent = title;
-  elements.overlaySub.textContent = sub || `Connecting you to 1 stranger among ${currentOnlineUsersCount.toLocaleString()} online strangers worldwide...`;
+  elements.overlaySub.textContent =
+    sub ||
+    `Connecting you to 1 stranger among ${currentOnlineUsersCount.toLocaleString()} online strangers worldwide...`;
   elements.searchingOverlay.classList.remove("hidden");
 }
 
@@ -982,7 +1058,10 @@ function hideFirewallWarning() {
 function getVisitorId() {
   let vid = localStorage.getItem("sc_visitor_id");
   if (!vid) {
-    vid = "v_" + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+    vid =
+      "v_" +
+      Math.random().toString(36).substring(2, 11) +
+      Date.now().toString(36);
     localStorage.setItem("sc_visitor_id", vid);
   }
   return vid;
@@ -996,12 +1075,18 @@ async function recordVisitBackend() {
     fetch(`${BACKEND_API_BASE}/analytics/visit`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ visitorId, country: "UNKNOWN", device })
-    }).catch(e => console.warn("Visit log API notice:", e));
+      body: JSON.stringify({ visitorId, country: "UNKNOWN", device }),
+    }).catch((e) => console.warn("Visit log API notice:", e));
   } catch (e) {}
 }
 
-async function recordAdImpressionBackend(adConfig, durationWatched, completedFull, skipped, clickedCta) {
+async function recordAdImpressionBackend(
+  adConfig,
+  durationWatched,
+  completedFull,
+  skipped,
+  clickedCta,
+) {
   if (typeof BACKEND_API_BASE === "undefined" || !adConfig) return;
   try {
     const visitorId = getVisitorId();
@@ -1019,9 +1104,9 @@ async function recordAdImpressionBackend(adConfig, durationWatched, completedFul
         completedFull,
         skipped,
         clickedCta,
-        visitorId
-      })
-    }).catch(e => console.warn("Ad impression API notice:", e));
+        visitorId,
+      }),
+    }).catch((e) => console.warn("Ad impression API notice:", e));
   } catch (e) {}
 }
 
@@ -1032,8 +1117,12 @@ async function recordSessionTimeBackend(durationSeconds = 30) {
     fetch(`${BACKEND_API_BASE}/analytics/session-time`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ visitorId, durationSeconds, matchesCount: matchCounter })
-    }).catch(e => console.warn("Session time API notice:", e));
+      body: JSON.stringify({
+        visitorId,
+        durationSeconds,
+        matchesCount: matchCounter,
+      }),
+    }).catch((e) => console.warn("Session time API notice:", e));
   } catch (e) {}
 }
 
@@ -1056,6 +1145,7 @@ async function fetchActiveUsersBackend() {
 function updateOnlineUsersDisplay(count) {
   currentOnlineUsersCount = Math.max(1, count);
   if (elements.onlineUsersCount) {
-    elements.onlineUsersCount.textContent = currentOnlineUsersCount.toLocaleString();
+    elements.onlineUsersCount.textContent =
+      currentOnlineUsersCount.toLocaleString();
   }
 }
