@@ -71,12 +71,15 @@
               <div class="brand-watermark">
                 <i class="fa-solid fa-video-slash"></i> STRANGER CHAT
               </div>
-              <div class="online-users-badge" id="online-users-badge">
+              <div class="online-users-badge hidden" id="online-users-badge">
                 <i class="fa-solid fa-fire online-fire-icon"></i>
                 <span id="online-users-count">1</span>
                 <span class="online-label">Online</span>
               </div>
             </div>
+
+            <!-- Live In-Call Adsterra 4-Second Sponsored Banner Overlay -->
+            <div class="incall-adsterra-banner-box hidden" id="incall-adsterra-banner-container"></div>
 
             <!-- Authentic YouTube-Style Video Ad Overlay & Controls -->
             <div class="yt-ad-overlay hidden" id="sponsored-ad-overlay">
@@ -178,6 +181,7 @@
               class="btn-ctrl"
               id="btn-chat-toggle"
               title="Toggle Text Chat"
+              onclick="toggleChatDrawer()"
             >
               <i class="fa-solid fa-message"></i>
               <span class="unread-badge hidden" id="unread-badge">0</span>
@@ -200,46 +204,46 @@
               <span>Stop</span>
             </button>
           </div>
-        </section>
 
-        <!-- Slide-over Text Chat Sidebar -->
-        <aside class="chat-drawer closed" id="chat-drawer">
-          <div class="chat-header">
-            <span
-              ><i
-                class="fa-solid fa-lock"
-                style="color: var(--accent-emerald); margin-right: 6px"
-              ></i>
-              Encrypted Chat</span
-            >
-            <button
-              class="btn-ctrl"
-              id="btn-close-chat"
-              style="width: 28px; height: 28px; font-size: 0.85rem"
-            >
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-
-          <div class="chat-messages" id="chat-messages">
-            <div class="chat-msg system">
-              Messages are end-to-end encrypted and never stored on any server.
+          <!-- Slide-over Text Chat Sidebar -->
+          <aside class="chat-drawer closed" id="chat-drawer">
+            <div class="chat-header">
+              <span
+                ><i
+                  class="fa-solid fa-lock"
+                  style="color: var(--accent-emerald); margin-right: 6px"
+                ></i>
+                Encrypted Chat</span
+              >
+              <button
+                class="btn-ctrl"
+                id="btn-close-chat"
+                onclick="toggleChatDrawer()"
+                style="width: 28px; height: 28px; font-size: 0.85rem"
+              >
+                <i class="fa-solid fa-xmark"></i>
+              </button>
             </div>
-          </div>
 
-          <div class="chat-input-area">
-            <input
-              type="text"
-              id="chat-input"
-              placeholder="Type a message..."
-              disabled
-              autocomplete="off"
-            />
-            <button class="btn-send" id="btn-send-chat" disabled>
-              <i class="fa-solid fa-paper-plane"></i>
-            </button>
-          </div>
-        </aside>
+            <div class="chat-messages" id="chat-messages">
+              <div class="chat-msg system">
+                Messages are end-to-end encrypted and never stored on any server.
+              </div>
+            </div>
+
+            <div class="chat-input-area">
+              <input
+                type="text"
+                id="chat-input"
+                placeholder="Type a message..."
+                autocomplete="off"
+              />
+              <button class="btn-send" id="btn-send-chat" onclick="sendChatMessage()">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </div>
+          </aside>
+        </section>
       </main>
     </div>
 

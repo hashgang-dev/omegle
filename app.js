@@ -13,8 +13,9 @@ let isAudioMuted = false;
 let isVideoOff = false;
 let unreadMessagesCount = 0;
 
-// Native Sponsored Video Ads Config & Pool (Monetization Engine)
-const AD_FREQUENCY = 3; // Trigger a sponsored video ad every 3rd stranger match attempt
+// Native Sponsored Video Ads Config & Feature Flag
+const ENABLE_SPONSORED_VIDEO_ADS = false; // Set to true when paying sponsor video ad clients are active
+const AD_FREQUENCY = 5; // Trigger a sponsored video ad every 5th stranger match attempt when enabled
 const AD_TIMEOUT_SECONDS = 8; // 8-second auto-skip countdown timer
 
 let matchCounter = 0;
@@ -113,11 +114,53 @@ const elements = {
   onlineUsersCount: document.getElementById("online-users-count"),
 };
 
-let currentOnlineUsersCount = 1;
-
 function setMobileVh() {
   const vh = window.innerHeight * 0.01;
   document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+
+function refreshElements() {
+  elements.localVideo = document.getElementById("local");
+  elements.remoteVideo = document.getElementById("remote");
+  elements.btnMute = document.getElementById("btn-mute");
+  elements.btnVideo = document.getElementById("btn-video");
+  elements.btnNext = document.getElementById("btn-next");
+  elements.btnNextLabel = document.getElementById("btn-next-label");
+  elements.btnStop = document.getElementById("btn-stop");
+  elements.btnChatToggle = document.getElementById("btn-chat-toggle");
+  elements.btnCloseChat = document.getElementById("btn-close-chat");
+  elements.btnSendChat = document.getElementById("btn-send-chat");
+  elements.chatInput = document.getElementById("chat-input");
+  elements.chatMessages = document.getElementById("chat-messages");
+  elements.chatDrawer = document.getElementById("chat-drawer");
+  elements.unreadBadge = document.getElementById("unread-badge");
+  elements.searchingOverlay = document.getElementById("searching-overlay");
+  elements.overlayTitle = document.getElementById("overlay-status-title");
+  elements.overlaySub = document.getElementById("overlay-status-sub");
+  elements.firewallBanner = document.getElementById("firewall-banner");
+  elements.statusDot = document.getElementById("status-dot");
+  elements.btnThemeToggle = document.getElementById("btn-theme-toggle");
+  elements.themeIcon = document.getElementById("theme-icon");
+  elements.tosModal = document.getElementById("tos-modal");
+  elements.chkAge = document.getElementById("chk-age");
+  elements.chkTos = document.getElementById("chk-tos");
+  elements.btnTosAgree = document.getElementById("btn-tos-agree");
+  elements.sponsoredOverlay = document.getElementById("sponsored-ad-overlay");
+  elements.sponsoredTitle = document.getElementById("sponsored-title");
+  elements.sponsoredDesc = document.getElementById("sponsored-desc");
+  elements.sponsoredCtaLink = document.getElementById("sponsored-cta-link");
+  elements.sponsoredBadgeText = document.getElementById("sponsored-badge-text");
+  elements.btnAdSkip = document.getElementById("btn-ad-skip");
+  elements.adSkipText = document.getElementById("ad-skip-text");
+  elements.btnAdPlayPause = document.getElementById("btn-ad-play-pause");
+  elements.adPlayPauseIcon = document.getElementById("ad-play-pause-icon");
+  elements.btnAdRewind = document.getElementById("btn-ad-rewind");
+  elements.adProgressBar = document.getElementById("ad-progress-bar");
+  elements.adTimeDisplay = document.getElementById("ad-time-display");
+  elements.controlToolbar = document.getElementById("control-toolbar");
+  elements.btnReport = document.getElementById("btn-report");
+  elements.localPipContainer = document.getElementById("local-pip-container");
+  elements.onlineUsersCount = document.getElementById("online-users-count");
 }
 
 // Initialize Application
@@ -139,69 +182,152 @@ document.addEventListener("DOMContentLoaded", () => {
   if (!isTosConsentValid()) {
     showTosModal();
   }
+
+  // Anti-Bypass Check: If user refreshed page during an active ad break, resume ad break first!
+  try {
+    if (localStorage.getItem("sc_pending_ad_break") === "true") {
+      console.log("Interrupted ad break detected on reload. Resuming sponsored ad break...");
+      setTimeout(() => {
+        playSponsoredVideoAd();
+      }, 500);
+    }
+  } catch (e) {}
 });
 
 function setupEventListeners() {
-  if (elements.btnThemeToggle) {
-    elements.btnThemeToggle.addEventListener("click", toggleTheme);
-  }
+  refreshElements();
 
-  if (elements.chkAge && elements.chkTos) {
-    const updateAgreeButton = () => {
-      elements.btnTosAgree.disabled = !(
-        elements.chkAge.checked && elements.chkTos.checked
-      );
-    };
-    elements.chkAge.addEventListener("change", updateAgreeButton);
-    elements.chkTos.addEventListener("change", updateAgreeButton);
-  }
+  try {
+    if (elements.btnThemeToggle)
+      elements.btnThemeToggle.addEventListener("click", toggleTheme);
+  } catch (e) {}
 
-  if (elements.btnTosAgree) {
-    elements.btnTosAgree.addEventListener("click", acceptTosAndProceed);
-  }
+  try {
+    if (elements.chkAge && elements.chkTos) {
+      const updateAgreeButton = () => {
+        if (elements.btnTosAgree) {
+          elements.btnTosAgree.disabled = !(
+            elements.chkAge.checked && elements.chkTos.checked
+          );
+        }
+      };
+      elements.chkAge.addEventListener("change", updateAgreeButton);
+      elements.chkTos.addEventListener("change", updateAgreeButton);
+    }
+  } catch (e) {}
 
-  elements.btnNext.addEventListener("click", handleStartOrNext);
-  elements.btnStop.addEventListener("click", stopCall);
-  elements.btnMute.addEventListener("click", toggleAudio);
-  elements.btnVideo.addEventListener("click", toggleVideo);
+  try {
+    if (elements.btnTosAgree)
+      elements.btnTosAgree.addEventListener("click", acceptTosAndProceed);
+  } catch (e) {}
 
-  if (elements.btnReport) {
-    elements.btnReport.addEventListener("click", reportAndBlockStranger);
-  }
+  try {
+    if (elements.btnNext)
+      elements.btnNext.addEventListener("click", handleStartOrNext);
+  } catch (e) {}
 
-  elements.btnChatToggle.addEventListener("click", toggleChatDrawer);
-  elements.btnCloseChat.addEventListener("click", () =>
-    elements.chatDrawer.classList.add("closed"),
-  );
-  elements.btnSendChat.addEventListener("click", sendChatMessage);
+  try {
+    if (elements.btnStop) elements.btnStop.addEventListener("click", stopCall);
+  } catch (e) {}
 
-  elements.chatInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") sendChatMessage();
-  });
+  try {
+    if (elements.btnMute) elements.btnMute.addEventListener("click", toggleAudio);
+  } catch (e) {}
 
-  // Custom Ad Control Event Listeners
-  if (elements.btnAdPlayPause) {
-    elements.btnAdPlayPause.addEventListener("click", toggleAdPlayPause);
-  }
-  if (elements.btnAdRewind) {
-    elements.btnAdRewind.addEventListener("click", rewindAd5Seconds);
-  }
-  if (elements.btnAdSkip) {
-    elements.btnAdSkip.addEventListener("click", skipAdAndProceed);
-  }
-  if (elements.sponsoredCtaLink) {
-    elements.sponsoredCtaLink.addEventListener("click", () => {
-      if (isAdPlaying && currentAdConfig) {
-        recordAdImpressionBackend(
-          currentAdConfig,
-          adMaxWatchedTime,
-          false,
-          false,
-          true,
-        );
+  try {
+    if (elements.btnVideo) elements.btnVideo.addEventListener("click", toggleVideo);
+  } catch (e) {}
+
+  try {
+    if (elements.btnReport)
+      elements.btnReport.addEventListener("click", reportAndBlockStranger);
+  } catch (e) {}
+
+  // Global Event Delegation for Chat Toggle & Close Buttons (Bulletproof!)
+  try {
+    document.addEventListener("click", (e) => {
+      const toggleBtn = e.target.closest("#btn-chat-toggle");
+      if (toggleBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleChatDrawer();
+        return;
+      }
+
+      const closeBtn = e.target.closest("#btn-close-chat");
+      if (closeBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const drawer =
+          document.getElementById("chat-drawer") || elements.chatDrawer;
+        if (drawer) {
+          drawer.classList.add("closed");
+          drawer.classList.remove("open");
+        }
+        return;
       }
     });
-  }
+  } catch (e) {}
+
+  try {
+    if (elements.btnChatToggle)
+      elements.btnChatToggle.addEventListener("click", toggleChatDrawer);
+  } catch (e) {}
+
+  try {
+    if (elements.btnCloseChat) {
+      elements.btnCloseChat.addEventListener("click", () => {
+        const drawer =
+          document.getElementById("chat-drawer") || elements.chatDrawer;
+        if (drawer) {
+          drawer.classList.add("closed");
+          drawer.classList.remove("open");
+        }
+      });
+    }
+  } catch (e) {}
+
+  try {
+    if (elements.btnSendChat)
+      elements.btnSendChat.addEventListener("click", sendChatMessage);
+  } catch (e) {}
+
+  try {
+    if (elements.chatInput) {
+      elements.chatInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") sendChatMessage();
+      });
+    }
+  } catch (e) {}
+
+  // Custom Ad Control Event Listeners
+  try {
+    if (elements.btnAdPlayPause)
+      elements.btnAdPlayPause.addEventListener("click", toggleAdPlayPause);
+  } catch (e) {}
+  try {
+    if (elements.btnAdRewind)
+      elements.btnAdRewind.addEventListener("click", rewindAd5Seconds);
+  } catch (e) {}
+  try {
+    if (elements.btnAdSkip)
+      elements.btnAdSkip.addEventListener("click", skipAdAndProceed);
+  } catch (e) {}
+  try {
+    if (elements.sponsoredCtaLink) {
+      elements.sponsoredCtaLink.addEventListener("click", () => {
+        if (isAdPlaying && currentAdConfig) {
+          recordAdImpressionBackend(
+            currentAdConfig.adId,
+            adMaxWatchedTime,
+            false,
+            false,
+            true,
+          );
+        }
+      });
+    }
+  } catch (e) {}
 }
 
 /**
@@ -322,8 +448,8 @@ async function handleStartOrNext() {
   // Increment Match Counter for Frequency Control
   matchCounter++;
 
-  // Trigger Native Sponsored Video Ad every N-th match (e.g. Every 3rd match)
-  if (matchCounter % AD_FREQUENCY === 0) {
+  // Trigger Native Sponsored Video Ad every N-th match (Skipped when feature flag is false)
+  if (ENABLE_SPONSORED_VIDEO_ADS && matchCounter % AD_FREQUENCY === 0) {
     playSponsoredVideoAd();
     return;
   }
@@ -347,15 +473,30 @@ let currentAdIndex = 0;
 let adMaxWatchedTime = 0;
 let currentAdConfig = null;
 
-function playSponsoredVideoAd() {
+async function playSponsoredVideoAd() {
   isAdPlaying = true;
   adMaxWatchedTime = 0;
   hideSearchingOverlay();
   hideFirewallWarning();
 
+  // Set Anti-Bypass Ad Lock in localStorage
+  try {
+    localStorage.setItem("sc_pending_ad_break", "true");
+  } catch (e) {}
+
   // Select ad item sequentially using Round-Robin rotation
-  currentAdConfig = adsPool[currentAdIndex];
+  let adItem = adsPool[currentAdIndex];
   currentAdIndex = (currentAdIndex + 1) % adsPool.length;
+
+  // Check if adItem is a dynamic VAST XML Tag URL
+  if (adItem && adItem.videoUrl && (adItem.videoUrl.endsWith(".xml") || adItem.isVast)) {
+    const vastConfig = await fetchAndParseVastAd(adItem.videoUrl);
+    if (vastConfig) {
+      adItem = vastConfig;
+    }
+  }
+
+  currentAdConfig = adItem;
 
   // Update Ad Overlay Metadata Text & Links
   if (elements.sponsoredTitle)
@@ -559,6 +700,10 @@ function cleanupAdState() {
   adMaxWatchedTime = 0;
   currentAdConfig = null;
 
+  try {
+    localStorage.removeItem("sc_pending_ad_break");
+  } catch (e) {}
+
   const video = elements.remoteVideo;
   if (video) {
     video.removeEventListener("timeupdate", handleAdTimeUpdate);
@@ -571,6 +716,9 @@ function cleanupAdState() {
       video.load();
     } catch (e) {}
   }
+
+  const adsterraBox = document.getElementById("adsterra-banner-container");
+  if (adsterraBox) adsterraBox.innerHTML = "";
 
   if (elements.sponsoredOverlay)
     elements.sponsoredOverlay.classList.add("hidden");
@@ -812,7 +960,8 @@ function onPeerConnected(remoteStream) {
   elements.chatInput.disabled = false;
   elements.btnSendChat.disabled = false;
 
-  appendSystemChatMessage("Connected with a stranger. Say hi!");
+  // Trigger Psychological In-Call Adsterra Engine (15s Gate + Alternating Long/Short Jitter Gaps)
+  startInCallAdsterraJitterEngine();
 }
 
 /**
@@ -849,17 +998,21 @@ function setupDataConnection(conn) {
  * Send P2P Text Message over DataChannel
  */
 function sendChatMessage() {
-  const text = elements.chatInput.value.trim();
+  const input = document.getElementById("chat-input") || elements.chatInput;
+  if (!input) return;
+  const text = input.value.trim();
   if (!text) return;
 
   if (chatConn && chatConn.open) {
     chatConn.send(text);
     appendChatMessage(text, "sent");
-    elements.chatInput.value = "";
+    input.value = "";
   } else {
+    appendChatMessage(text, "sent");
     appendSystemChatMessage(
-      "Cannot send message: P2P chat connection is not active.",
+      "⚠️ Note: You are not connected to a stranger yet. Click 'Start Chat' to connect and chat!",
     );
+    input.value = "";
   }
 }
 
@@ -936,11 +1089,21 @@ function reportAndBlockStranger() {
  * Toggle Chat Sidebar Drawer
  */
 function toggleChatDrawer() {
-  elements.chatDrawer.classList.toggle("closed");
-  if (!elements.chatDrawer.classList.contains("closed")) {
+  const drawer = document.getElementById("chat-drawer") || elements.chatDrawer;
+  if (!drawer) return;
+
+  const isClosed = drawer.classList.contains("closed");
+  if (isClosed) {
+    drawer.classList.remove("closed");
+    drawer.classList.add("open");
     unreadMessagesCount = 0;
-    elements.unreadBadge.classList.add("hidden");
-    elements.chatInput.focus();
+    const badge = document.getElementById("unread-badge") || elements.unreadBadge;
+    if (badge) badge.classList.add("hidden");
+    const input = document.getElementById("chat-input") || elements.chatInput;
+    if (input) input.focus();
+  } else {
+    drawer.classList.add("closed");
+    drawer.classList.remove("open");
   }
 }
 
@@ -989,6 +1152,7 @@ function stopCall() {
  * Clean Call State & Peer Objects (No Page Reload)
  */
 function cleanupCallState() {
+  stopInCallAdsterraJitterEngine();
   cleanupAdState();
 
   if (hostConnectTimeout) {
@@ -1022,8 +1186,6 @@ function cleanupCallState() {
   }
 
   elements.remoteVideo.srcObject = null;
-  elements.chatInput.disabled = true;
-  elements.btnSendChat.disabled = true;
 
   // Wipe chat history for end-to-end privacy across strangers
   elements.chatMessages.innerHTML =
@@ -1152,8 +1314,206 @@ async function fetchActiveUsersBackend() {
 
 function updateOnlineUsersDisplay(count) {
   currentOnlineUsersCount = Math.max(1, count);
-  if (elements.onlineUsersCount) {
-    elements.onlineUsersCount.textContent =
-      currentOnlineUsersCount.toLocaleString();
+  const badgeEl = document.getElementById("online-users-badge");
+
+  if (currentOnlineUsersCount < 100) {
+    if (badgeEl) {
+      badgeEl.classList.add("hidden");
+      badgeEl.style.setProperty("display", "none", "important");
+    }
+  } else {
+    if (badgeEl) {
+      badgeEl.classList.remove("hidden");
+      badgeEl.style.setProperty("display", "inline-flex", "important");
+    }
+    if (elements.onlineUsersCount) {
+      elements.onlineUsersCount.textContent =
+        currentOnlineUsersCount.toLocaleString();
+    }
   }
 }
+
+/**
+ * VAST 2.0 / 3.0 In-Stream XML Video Ad Parser
+ */
+async function fetchAndParseVastAd(vastUrl) {
+  try {
+    const res = await fetch(vastUrl);
+    const xmlText = await res.text();
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+    // Extract MediaFile (Actual Advertiser MP4 Video Stream URL)
+    const mediaFiles = xmlDoc.getElementsByTagName("MediaFile");
+    let videoUrl = null;
+    for (let i = 0; i < mediaFiles.length; i++) {
+      const type = mediaFiles[i].getAttribute("type");
+      if (type && (type.includes("mp4") || type.includes("webm"))) {
+        videoUrl = mediaFiles[i].textContent.trim();
+        break;
+      }
+    }
+    if (!videoUrl && mediaFiles.length > 0) {
+      videoUrl = mediaFiles[0].textContent.trim();
+    }
+
+    // Extract AdTitle
+    const titleNode = xmlDoc.getElementsByTagName("AdTitle")[0];
+    const title = titleNode ? titleNode.textContent.trim() : "Sponsored Video Ad";
+
+    // Extract ClickThrough (Landing URL)
+    const clickNode = xmlDoc.getElementsByTagName("ClickThrough")[0];
+    const linkUrl = clickNode ? clickNode.textContent.trim() : "https://hashgang.com";
+
+    // Extract Description
+    const descNode = xmlDoc.getElementsByTagName("Description")[0];
+    const desc = descNode ? descNode.textContent.trim() : "Sponsored Video Content";
+
+    if (videoUrl) {
+      return {
+        adId: "vast-dynamic-ad",
+        title,
+        desc,
+        videoUrl,
+        linkUrl,
+        badgeText: "SPONSORED VIDEO AD",
+        skipAfterSeconds: 10
+      };
+    }
+  } catch (e) {
+    console.warn("VAST Video Tag fetch notice:", e);
+  }
+  return null;
+}
+
+/**
+ * Dynamic Responsive Adsterra Resolution Switcher
+ */
+function getResponsiveAdsterraConfig() {
+  const width = window.innerWidth;
+
+  if (width <= 500) {
+    // Mobile Devices: 300x250 Box
+    return {
+      key: 'c23597cf557772dd9ad6787eb714cfa5',
+      height: 250,
+      width: 300,
+      scriptUrl: 'https://www.highperformanceformat.com/c23597cf557772dd9ad6787eb714cfa5/invoke.js'
+    };
+  } else if (width <= 900) {
+    // Tablets / Mid-Size: 468x60 Banner
+    return {
+      key: 'e02dc9fb089a1d47e3f4e20804357d87',
+      height: 60,
+      width: 468,
+      scriptUrl: 'https://www.highperformanceformat.com/e02dc9fb089a1d47e3f4e20804357d87/invoke.js'
+    };
+  } else {
+    // Large Desktop Displays: 728x90 Leaderboard Banner
+    return {
+      key: 'c8f6556429a467e09b323be551181c0d',
+      height: 90,
+      width: 728,
+      scriptUrl: 'https://www.highperformanceformat.com/c8f6556429a467e09b323be551181c0d/invoke.js'
+    };
+  }
+}
+
+let inCallAdsterraTimer = null;
+
+/**
+ * Show Live In-Call Adsterra Sponsored Banner Overlay (4-Second Ultra-Fast Fade Out)
+ */
+function showInCallAdsterraBanner() {
+  const bannerBox = document.getElementById("incall-adsterra-banner-container");
+  if (!bannerBox) return;
+
+  if (inCallAdsterraTimer) clearTimeout(inCallAdsterraTimer);
+  bannerBox.innerHTML = "";
+  bannerBox.classList.remove("hidden", "fading-out");
+
+  const adConfig = getResponsiveAdsterraConfig();
+  const scriptConf = document.createElement("script");
+  scriptConf.type = "text/javascript";
+  scriptConf.text = `
+    atOptions = {
+      'key' : '${adConfig.key}',
+      'format' : 'iframe',
+      'height' : ${adConfig.height},
+      'width' : ${adConfig.width},
+      'params' : {}
+    };
+  `;
+  const scriptInvoke = document.createElement("script");
+  scriptInvoke.type = "text/javascript";
+  scriptInvoke.src = adConfig.scriptUrl;
+  bannerBox.appendChild(scriptConf);
+  bannerBox.appendChild(scriptInvoke);
+
+  // 6-Second Timer (2s Network Iframe Render Offset + 4s Full Rendered Impression View)
+  inCallAdsterraTimer = setTimeout(() => {
+    bannerBox.classList.add("fading-out");
+    setTimeout(() => {
+      bannerBox.classList.add("hidden");
+      bannerBox.innerHTML = "";
+    }, 500);
+  }, 6000);
+}
+
+function hideInCallAdsterraBanner() {
+  if (inCallAdsterraTimer) {
+    clearTimeout(inCallAdsterraTimer);
+    inCallAdsterraTimer = null;
+  }
+  const bannerBox = document.getElementById("incall-adsterra-banner-container");
+  if (bannerBox) {
+    bannerBox.classList.add("hidden");
+    bannerBox.innerHTML = "";
+  }
+}
+
+// Psychological Variable Jitter Schedule: Alternating Long (180s = 3m) & Short (60s = 1m) Gaps
+const JITTER_GAPS = [180, 60]; 
+let currentJitterIndex = 0;
+let inCallJitterTimeout = null;
+
+/**
+ * Psychological Behavioral Adsterra In-Call Monetization Engine
+ * - 1st Impression: At 15s Gate (Filters rapid visual scanning skips).
+ * - Subsequent Impressions: Alternating Long & Short Gaps (Eliminates pattern fatigue).
+ */
+function startInCallAdsterraJitterEngine() {
+  stopInCallAdsterraJitterEngine();
+  currentJitterIndex = 0;
+
+  // 15-Second Initial Engagement Gate
+  inCallJitterTimeout = setTimeout(() => {
+    showInCallAdsterraBanner();
+    currentJitterIndex++;
+    scheduleNextJitterAd();
+  }, 15000);
+}
+
+function scheduleNextJitterAd() {
+  if (inCallJitterTimeout) clearTimeout(inCallJitterTimeout);
+
+  const gapSeconds = JITTER_GAPS[(currentJitterIndex - 1) % JITTER_GAPS.length];
+  inCallJitterTimeout = setTimeout(() => {
+    showInCallAdsterraBanner();
+    currentJitterIndex++;
+    scheduleNextJitterAd();
+  }, gapSeconds * 1000);
+}
+
+function stopInCallAdsterraJitterEngine() {
+  if (inCallJitterTimeout) {
+    clearTimeout(inCallJitterTimeout);
+    inCallJitterTimeout = null;
+  }
+  currentJitterIndex = 0;
+  hideInCallAdsterraBanner();
+}
+
+// Expose Chat handlers globally on window object for HTML inline onclick attributes
+window.toggleChatDrawer = toggleChatDrawer;
+window.sendChatMessage = sendChatMessage;
