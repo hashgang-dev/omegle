@@ -1444,29 +1444,29 @@ function getResponsiveAdsterraConfig() {
   if (width <= 500) {
     // Mobile Devices: 300x250 Box
     return {
-      key: "c23597cf557772dd9ad6787eb714cfa5",
+      key: "ede40fc4ab13bf9c6140311ae9860f4f",
       height: 250,
       width: 300,
       scriptUrl:
-        "https://www.highperformanceformat.com/c23597cf557772dd9ad6787eb714cfa5/invoke.js",
+        "https://www.highperformanceformat.com/ede40fc4ab13bf9c6140311ae9860f4f/invoke.js",
     };
   } else if (width <= 900) {
     // Tablets / Mid-Size: 468x60 Banner
     return {
-      key: "e02dc9fb089a1d47e3f4e20804357d87",
+      key: "d9676c3a7d2b29be111c5b2e061f9ab2",
       height: 60,
       width: 468,
       scriptUrl:
-        "https://www.highperformanceformat.com/e02dc9fb089a1d47e3f4e20804357d87/invoke.js",
+        "https://www.highperformanceformat.com/d9676c3a7d2b29be111c5b2e061f9ab2/invoke.js",
     };
   } else {
     // Large Desktop Displays: 728x90 Leaderboard Banner
     return {
-      key: "c8f6556429a467e09b323be551181c0d",
+      key: "4f2e5f584936737065419e1ba469a31d",
       height: 90,
       width: 728,
       scriptUrl:
-        "https://www.highperformanceformat.com/c8f6556429a467e09b323be551181c0d/invoke.js",
+        "https://www.highperformanceformat.com/4f2e5f584936737065419e1ba469a31d/invoke.js",
     };
   }
 }
