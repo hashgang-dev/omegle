@@ -116,7 +116,7 @@ const elements = {
 
 function setMobileVh() {
   const vh = window.innerHeight * 0.01;
-  document.documentElement.style.setProperty('--vh', `${vh}px`);
+  document.documentElement.style.setProperty("--vh", `${vh}px`);
 }
 
 function refreshElements() {
@@ -163,13 +163,37 @@ function refreshElements() {
   elements.onlineUsersCount = document.getElementById("online-users-count");
 }
 
+/**
+ * Dynamic Alternating Brand Name Switcher ('HashGANG Chat' <-> '#GANG Chat')
+ */
+function initBrandAlternatingTitle() {
+  const titles = ["HashGANG Chat", "#GANG Chat"];
+  let index = 0;
+  const brandTitleText = document.getElementById("brand-title-text");
+
+  setInterval(() => {
+    index = (index + 1) % titles.length;
+    const currentName = titles[index];
+    document.title = currentName;
+
+    if (brandTitleText) {
+      brandTitleText.style.opacity = "0";
+      setTimeout(() => {
+        brandTitleText.textContent = currentName;
+        brandTitleText.style.opacity = "1";
+      }, 200);
+    }
+  }, 5000);
+}
+
 // Initialize Application
 document.addEventListener("DOMContentLoaded", () => {
   setMobileVh();
-  window.addEventListener('resize', setMobileVh);
-  window.addEventListener('orientationchange', setMobileVh);
+  window.addEventListener("resize", setMobileVh);
+  window.addEventListener("orientationchange", setMobileVh);
   initTheme();
   setupEventListeners();
+  initBrandAlternatingTitle();
   updateStatus("idle", "Click Start Chat to Connect");
   updateToolbarVisibility("idle");
   recordVisitBackend();
@@ -186,7 +210,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Anti-Bypass Check: If user refreshed page during an active ad break, resume ad break first!
   try {
     if (localStorage.getItem("sc_pending_ad_break") === "true") {
-      console.log("Interrupted ad break detected on reload. Resuming sponsored ad break...");
+      console.log(
+        "Interrupted ad break detected on reload. Resuming sponsored ad break...",
+      );
       setTimeout(() => {
         playSponsoredVideoAd();
       }, 500);
@@ -231,11 +257,13 @@ function setupEventListeners() {
   } catch (e) {}
 
   try {
-    if (elements.btnMute) elements.btnMute.addEventListener("click", toggleAudio);
+    if (elements.btnMute)
+      elements.btnMute.addEventListener("click", toggleAudio);
   } catch (e) {}
 
   try {
-    if (elements.btnVideo) elements.btnVideo.addEventListener("click", toggleVideo);
+    if (elements.btnVideo)
+      elements.btnVideo.addEventListener("click", toggleVideo);
   } catch (e) {}
 
   try {
@@ -489,7 +517,11 @@ async function playSponsoredVideoAd() {
   currentAdIndex = (currentAdIndex + 1) % adsPool.length;
 
   // Check if adItem is a dynamic VAST XML Tag URL
-  if (adItem && adItem.videoUrl && (adItem.videoUrl.endsWith(".xml") || adItem.isVast)) {
+  if (
+    adItem &&
+    adItem.videoUrl &&
+    (adItem.videoUrl.endsWith(".xml") || adItem.isVast)
+  ) {
     const vastConfig = await fetchAndParseVastAd(adItem.videoUrl);
     if (vastConfig) {
       adItem = vastConfig;
@@ -1097,7 +1129,8 @@ function toggleChatDrawer() {
     drawer.classList.remove("closed");
     drawer.classList.add("open");
     unreadMessagesCount = 0;
-    const badge = document.getElementById("unread-badge") || elements.unreadBadge;
+    const badge =
+      document.getElementById("unread-badge") || elements.unreadBadge;
     if (badge) badge.classList.add("hidden");
     const input = document.getElementById("chat-input") || elements.chatInput;
     if (input) input.focus();
@@ -1359,15 +1392,21 @@ async function fetchAndParseVastAd(vastUrl) {
 
     // Extract AdTitle
     const titleNode = xmlDoc.getElementsByTagName("AdTitle")[0];
-    const title = titleNode ? titleNode.textContent.trim() : "Sponsored Video Ad";
+    const title = titleNode
+      ? titleNode.textContent.trim()
+      : "Sponsored Video Ad";
 
     // Extract ClickThrough (Landing URL)
     const clickNode = xmlDoc.getElementsByTagName("ClickThrough")[0];
-    const linkUrl = clickNode ? clickNode.textContent.trim() : "https://hashgang.com";
+    const linkUrl = clickNode
+      ? clickNode.textContent.trim()
+      : "https://hashgang.com";
 
     // Extract Description
     const descNode = xmlDoc.getElementsByTagName("Description")[0];
-    const desc = descNode ? descNode.textContent.trim() : "Sponsored Video Content";
+    const desc = descNode
+      ? descNode.textContent.trim()
+      : "Sponsored Video Content";
 
     if (videoUrl) {
       return {
@@ -1377,7 +1416,7 @@ async function fetchAndParseVastAd(vastUrl) {
         videoUrl,
         linkUrl,
         badgeText: "SPONSORED VIDEO AD",
-        skipAfterSeconds: 10
+        skipAfterSeconds: 10,
       };
     }
   } catch (e) {
@@ -1395,26 +1434,29 @@ function getResponsiveAdsterraConfig() {
   if (width <= 500) {
     // Mobile Devices: 300x250 Box
     return {
-      key: 'c23597cf557772dd9ad6787eb714cfa5',
+      key: "c23597cf557772dd9ad6787eb714cfa5",
       height: 250,
       width: 300,
-      scriptUrl: 'https://www.highperformanceformat.com/c23597cf557772dd9ad6787eb714cfa5/invoke.js'
+      scriptUrl:
+        "https://www.highperformanceformat.com/c23597cf557772dd9ad6787eb714cfa5/invoke.js",
     };
   } else if (width <= 900) {
     // Tablets / Mid-Size: 468x60 Banner
     return {
-      key: 'e02dc9fb089a1d47e3f4e20804357d87',
+      key: "e02dc9fb089a1d47e3f4e20804357d87",
       height: 60,
       width: 468,
-      scriptUrl: 'https://www.highperformanceformat.com/e02dc9fb089a1d47e3f4e20804357d87/invoke.js'
+      scriptUrl:
+        "https://www.highperformanceformat.com/e02dc9fb089a1d47e3f4e20804357d87/invoke.js",
     };
   } else {
     // Large Desktop Displays: 728x90 Leaderboard Banner
     return {
-      key: 'c8f6556429a467e09b323be551181c0d',
+      key: "c8f6556429a467e09b323be551181c0d",
       height: 90,
       width: 728,
-      scriptUrl: 'https://www.highperformanceformat.com/c8f6556429a467e09b323be551181c0d/invoke.js'
+      scriptUrl:
+        "https://www.highperformanceformat.com/c8f6556429a467e09b323be551181c0d/invoke.js",
     };
   }
 }
@@ -1473,7 +1515,7 @@ function hideInCallAdsterraBanner() {
 }
 
 // Psychological Variable Jitter Schedule: Alternating Long (180s = 3m) & Short (60s = 1m) Gaps
-const JITTER_GAPS = [180, 60]; 
+const JITTER_GAPS = [180, 60];
 let currentJitterIndex = 0;
 let inCallJitterTimeout = null;
 

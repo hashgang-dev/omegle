@@ -394,6 +394,10 @@ body {
   color: var(--accent-magenta);
 }
 
+#brand-title-text {
+  transition: opacity 0.2s ease-in-out;
+}
+
 /* Media Permission Overlay on Local PIP */
 .media-perm-overlay {
   position: absolute;
