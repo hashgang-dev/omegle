@@ -4,11 +4,117 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
-    <title>HashGANG Chat</title>
+    <title>HashGANG Chat - Free Anonymous Stranger Video Chat (No Login)</title>
     <meta
       name="description"
-      content="Instant, private, anonymous video and text chat with strangers worldwide on HashGANG Chat."
+      content="Instant, private, anonymous video & text chat with strangers worldwide on HashGANG Chat. 100% free Omegle alternative with no sign-up or registration required."
     />
+    <meta
+      name="keywords"
+      content="free video chat no login, anonymous stranger chat, omegle alternative no registration, talk to strangers online free, random video chat, chroulette alternative, emerald chat alternative, coomeet alternative, monkey app alternative, camzoo alternative, hashgang chat, gang chat, live video call strangers, free stranger cam chat, no sign up video chat"
+    />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://chat.hashgang.com/" />
+    <meta name="theme-color" content="#0d0515" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="HashGANG Chat" />
+
+    <!-- Favicon & PWA Icons -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- Open Graph / Facebook / WhatsApp Meta Tags -->
+    <meta property="og:site_name" content="HashGANG Chat" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://chat.hashgang.com/" />
+    <meta property="og:title" content="HashGANG Chat - Free Anonymous Video Chat with Strangers" />
+    <meta property="og:description" content="Connect instantly with random strangers worldwide via private, 100% free, end-to-end encrypted video & text chat. No registration or login required." />
+    <meta property="og:image" content="https://chat.hashgang.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="HashGANG Chat - Free Anonymous Stranger Video Chat Platform" />
+
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://chat.hashgang.com/" />
+    <meta name="twitter:title" content="HashGANG Chat - Free Anonymous Stranger Video Chat" />
+    <meta name="twitter:description" content="Instant, private video & text chat with strangers worldwide. 100% Free, No Login Required." />
+    <meta name="twitter:image" content="https://chat.hashgang.com/og-image.png" />
+
+    <!-- Schema.org JSON-LD Structured Data for Google -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebApplication",
+          "@id": "https://chat.hashgang.com/#webapp",
+          "name": "HashGANG Chat",
+          "alternateName": ["#GANG Chat", "HashGANG Stranger Video Chat"],
+          "url": "https://chat.hashgang.com/",
+          "logo": "https://chat.hashgang.com/logo.png",
+          "image": "https://chat.hashgang.com/branding.png",
+          "description": "Free anonymous stranger video chat platform with instant worldwide matching. No registration or login required.",
+          "applicationCategory": "SocialNetworkingApplication",
+          "operatingSystem": "All",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "featureList": [
+            "100% Free Stranger Video Chat",
+            "No Registration or Sign Up Needed",
+            "End-to-End Encrypted Peer-to-Peer Calls",
+            "Worldwide Random Stranger Matching",
+            "Mobile and Desktop Browser Friendly"
+          ]
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://chat.hashgang.com/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "Is HashGANG Chat completely free to use?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes, HashGANG Chat is 100% free forever with no hidden subscriptions, limits, or credit card requirements."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Do I need to sign up or create an account?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "No registration or login is required. Simply visit https://chat.hashgang.com, accept the terms, and click Start Chat to connect instantly."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "Is HashGANG Chat safe and private?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Yes. HashGANG Chat uses WebRTC peer-to-peer end-to-end encrypted streams. Video and text messages are never recorded or stored on any server."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "What makes HashGANG Chat the best Omegle alternative?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "HashGANG Chat offers instant global matchmaking, high-definition video connections, full mobile PWA support, zero login friction, and strict user privacy protections."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
 
     <!-- Google Fonts & Font Awesome Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -69,7 +175,8 @@
             <!-- Branding TV Channel Watermark Logo & Live Online Counter Stack -->
             <div class="brand-watermark-container">
               <div class="brand-watermark" id="brand-watermark">
-                <i class="fa-solid fa-comments"></i> <span id="brand-title-text">HashGANG Chat</span>
+                <img src="logo.png" alt="HashGANG Chat Logo" class="brand-logo-icon" />
+                <span id="brand-title-text">HashGANG Chat</span>
               </div>
               <div class="online-users-badge hidden" id="online-users-badge">
                 <i class="fa-solid fa-fire online-fire-icon"></i>
@@ -247,13 +354,34 @@
       </main>
     </div>
 
+    <!-- Search Engine Indexable Content Container (Visually Hidden so Full-Screen Video UI is 100% Intact) -->
+    <div class="seo-crawler-content" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;">
+      <h1>Free Anonymous Video Chat with Strangers - No Login Required</h1>
+      <p>HashGANG Chat is the #1 free Omegle alternative for private, anonymous video and text chat with random strangers worldwide. Connect instantly with zero registration, no account sign-up, and zero subscription fees. Experience HD peer-to-peer WebRTC video calls protected by end-to-end encryption.</p>
+      <h2>Key Features of HashGANG Chat</h2>
+      <ul>
+        <li>100% Free Stranger Video Chat</li>
+        <li>No Registration, Account, or Sign Up Needed</li>
+        <li>End-to-End Encrypted Peer-to-Peer Calls</li>
+        <li>Worldwide Random Stranger Matchmaking</li>
+        <li>Mobile and Desktop Browser Friendly</li>
+      </ul>
+      <h2>Frequently Asked Questions</h2>
+      <h3>Is HashGANG Chat completely free to use?</h3>
+      <p>Yes, HashGANG Chat is 100% free forever with no hidden subscriptions, limits, or credit card requirements.</p>
+      <h3>Do I need to sign up or create an account?</h3>
+      <p>No registration or login is required. Simply visit https://chat.hashgang.com, accept the terms, and click Start Chat to connect instantly.</p>
+      <h3>Is HashGANG Chat safe and private?</h3>
+      <p>Yes. HashGANG Chat uses WebRTC peer-to-peer end-to-end encrypted streams. Video and text messages are never recorded or stored on any server.</p>
+      <h3>What makes HashGANG Chat the best Omegle alternative?</h3>
+      <p>HashGANG Chat offers instant global matchmaking, high-definition video connections, full mobile PWA support, zero login friction, and strict user privacy protections.</p>
+    </div>
+
     <!-- Terms of Service & Age Disclaimer Consent Modal -->
     <div class="modal-overlay hidden" id="tos-modal">
       <div class="modal-card">
         <div class="modal-header">
-          <div class="modal-icon">
-            <i class="fa-solid fa-shield-halved"></i>
-          </div>
+          <img src="logo.png" alt="HashGANG Chat Logo" class="modal-logo-badge" />
           <div>
             <h3>Terms of Service & Disclaimer</h3>
             <p class="modal-subtitle">User Agreement & Age Declaration</p>
@@ -305,7 +433,7 @@
 
           <div class="consent-checkboxes">
             <label class="checkbox-container">
-              <input type="checkbox" id="chk-age" />
+              <input type="checkbox" id="chk-age" checked />
               <span class="checkmark"></span>
               <span
                 >I confirm that I am
@@ -314,7 +442,7 @@
             </label>
 
             <label class="checkbox-container">
-              <input type="checkbox" id="chk-tos" />
+              <input type="checkbox" id="chk-tos" checked />
               <span class="checkmark"></span>
               <span
                 >I accept the <strong>Terms of Service</strong> and agree to
@@ -325,7 +453,7 @@
         </div>
 
         <div class="modal-footer">
-          <button class="btn-modal-agree" id="btn-tos-agree" disabled>
+          <button class="btn-modal-agree" id="btn-tos-agree">
             <i class="fa-solid fa-circle-check"></i> Accept & Continue
           </button>
         </div>

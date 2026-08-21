@@ -207,6 +207,16 @@ document.addEventListener("DOMContentLoaded", () => {
     showTosModal();
   }
 
+  // Register PWA Service Worker for Offline Shell & Fast Load
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => console.log("PWA Service Worker registered:", reg.scope))
+        .catch((err) => console.warn("PWA Service Worker registration failed:", err));
+    });
+  }
+
   // Anti-Bypass Check: If user refreshed page during an active ad break, resume ad break first!
   try {
     if (localStorage.getItem("sc_pending_ad_break") === "true") {
