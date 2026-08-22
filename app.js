@@ -161,6 +161,13 @@ function refreshElements() {
   elements.btnReport = document.getElementById("btn-report");
   elements.localPipContainer = document.getElementById("local-pip-container");
   elements.onlineUsersCount = document.getElementById("online-users-count");
+  elements.idleStageOverlay = document.getElementById("idle-stage-overlay");
+
+  if (elements.remoteVideo) {
+    elements.remoteVideo.addEventListener("loadedmetadata", adjustVideoAspectFit);
+    elements.remoteVideo.addEventListener("playing", adjustVideoAspectFit);
+  }
+  window.addEventListener("resize", adjustVideoAspectFit);
 }
 
 /**
@@ -192,6 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("resize", setMobileVh);
   window.addEventListener("orientationchange", setMobileVh);
   initTheme();
+  loadSimulatedVideosManifest();
   setupEventListeners();
   initBrandAlternatingTitle();
   updateStatus("idle", "Click Start Chat to Connect");
@@ -201,6 +209,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Poll active users count every 15 seconds
   setInterval(fetchActiveUsersBackend, 15000);
+
+  // Tab Visibility Restoration: Resume video playback when returning from background tab
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden && elements.remoteVideo) {
+      if (
+        elements.remoteVideo.paused &&
+        (isSimulatedCallActive || currentCall)
+      ) {
+        elements.remoteVideo
+          .play()
+          .catch((e) => console.warn("Background return video play error:", e));
+      }
+    }
+  });
 
   // Prompt Terms of Service & Age Consent Modal on Page Load if missing/expired
   if (!isTosConsentValid()) {
@@ -465,11 +487,19 @@ function toggleTheme() {
  */
 async function handleStartOrNext() {
   hideFirewallWarning();
+  if (elements.idleStageOverlay) elements.idleStageOverlay.classList.add("hidden");
 
   // Enforce Terms of Service & Age Consent (24-Hour Session Expiry)
   if (!isTosConsentValid()) {
     showTosModal();
     return;
+  }
+
+  // Notify connected peer before skipping so they automatically re-enter search
+  if (chatConn && chatConn.open) {
+    try {
+      chatConn.send({ type: "PEER_SKIPPED" });
+    } catch (e) {}
   }
 
   cleanupCallState();
@@ -779,6 +809,332 @@ function formatTime(seconds) {
   return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
 }
 
+// Simulated Stranger Video Pool Engine (Cold-Start Solution with Dynamic Manifest & Anti-Detection Randomization)
+let SIMULATED_VIDEOS_POOL = [
+  "assets/simulated_videos/stranger_1.mp4",
+  "assets/simulated_videos/stranger_2.mp4",
+  "assets/simulated_videos/stranger_3.mp4",
+  "assets/simulated_videos/stranger_4.mp4",
+  "assets/simulated_videos/stranger_5.mp4",
+];
+let activeShuffledPool = [];
+let poolTrackIndex = 0;
+let simulatedVideoTimer = null;
+let simulatedFallbackTimeout = null;
+let isExhaustionPauseActive = false;
+
+/**
+ * Fisher-Yates Array Shuffle Algorithm
+ */
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+/**
+ * Dynamically load simulated video list from assets/simulated_videos/manifest.json & Shuffle
+ */
+async function loadSimulatedVideosManifest() {
+  try {
+    const res = await fetch("assets/simulated_videos/manifest.json");
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        SIMULATED_VIDEOS_POOL = data;
+        console.log(
+          "Simulated videos pool dynamically loaded from manifest.json:",
+          SIMULATED_VIDEOS_POOL.length,
+          "videos",
+        );
+      }
+    }
+  } catch (e) {
+    console.warn("Using default simulated video pool list:", e);
+  }
+  activeShuffledPool = shuffleArray(SIMULATED_VIDEOS_POOL);
+  poolTrackIndex = 0;
+}
+
+/**
+ * Automatically adapt video object-fit & container layout to ensure ZERO cropping of height & width on ALL devices (Mobile, Tablet, Desktop)
+ */
+function adjustVideoAspectFit() {
+  const video = elements.remoteVideo;
+  if (!video || !video.videoWidth || !video.videoHeight) return;
+
+  const container =
+    video.parentElement || document.querySelector(".remote-video-container");
+  if (!container) return;
+
+  const videoAspect = video.videoWidth / video.videoHeight;
+  const viewportAspect = window.innerWidth / window.innerHeight;
+
+  // Calculate normalized aspect ratio mismatch ratio
+  const aspectDiff =
+    Math.abs(videoAspect - viewportAspect) /
+    Math.max(videoAspect, viewportAspect);
+
+  // If video aspect ratio differs significantly from screen aspect ratio (e.g. 16:9 widescreen video on 9:16 vertical mobile screen):
+  // Set object-fit: contain so 100% of height AND 100% of width are displayed with ZERO CROPPING!
+  if (aspectDiff > 0.15) {
+    container.classList.add("contain-fit");
+    video.style.objectFit = "contain";
+  } else {
+    container.classList.remove("contain-fit");
+    video.style.objectFit = "cover";
+  }
+}
+
+let currentSimulatedMetadataHandler = null;
+
+function playSimulatedStrangerVideo() {
+  if (currentCall || isAdPlaying) return;
+
+  // Queue Exhaustion Check (Option A + Option B Integration)
+  if (poolTrackIndex >= activeShuffledPool.length) {
+    if (!isExhaustionPauseActive) {
+      isExhaustionPauseActive = true;
+      console.log(
+        "Simulated video pool exhausted. Triggering Option B Soft Traffic Pause + Option A Re-shuffle.",
+      );
+
+      // Stage B: Soft Traffic Pause
+      updateStatus(
+        "searching",
+        "High active traffic in your region. Matching...",
+      );
+      showSearchingOverlay(
+        "High Active Traffic",
+        "Matching you with the next available stranger...",
+      );
+      updateToolbarVisibility("searching");
+
+      // Stage A: Re-shuffle & Resume after 5-second traffic pause
+      setTimeout(() => {
+        isExhaustionPauseActive = false;
+        activeShuffledPool = shuffleArray(SIMULATED_VIDEOS_POOL);
+        poolTrackIndex = 0;
+        if (!currentCall && !isAdPlaying) {
+          playSimulatedStrangerVideo();
+        }
+      }, 5000);
+      return;
+    }
+  }
+
+  isSimulatedCallActive = true;
+  hideSearchingOverlay();
+  hideFirewallWarning();
+
+  // Force hide searching overlay element so video is 100% visible on stage
+  const overlay =
+    document.getElementById("searching-overlay") || elements.searchingOverlay;
+  if (overlay) {
+    overlay.classList.add("hidden");
+    overlay.style.display = "none";
+  }
+
+  const videoUrl = activeShuffledPool[poolTrackIndex];
+  console.log(
+    `Playing simulated video [${poolTrackIndex + 1}/${activeShuffledPool.length}]:`,
+    videoUrl,
+  );
+  poolTrackIndex++;
+
+  if (elements.remoteVideo.srcObject) {
+    elements.remoteVideo.srcObject = null;
+  }
+
+  elements.remoteVideo.onerror = () => {
+    console.warn(
+      "Simulated video failed to play (404 / deleted / corrupt), auto-skipping:",
+      videoUrl,
+    );
+    if (isSimulatedCallActive && !currentCall && !isAdPlaying) {
+      setTimeout(skipSimulatedStrangerVideo, 200);
+    }
+  };
+
+  try {
+    elements.remoteVideo.pause();
+    elements.remoteVideo.src = videoUrl;
+    elements.remoteVideo.load();
+    elements.remoteVideo.muted = false; // Audio enabled by default
+    adjustVideoAspectFit();
+  } catch (e) {
+    console.warn("Video src load error:", e);
+  }
+
+  // Remove existing metadata handler if present
+  if (currentSimulatedMetadataHandler && elements.remoteVideo) {
+    elements.remoteVideo.removeEventListener(
+      "loadedmetadata",
+      currentSimulatedMetadataHandler,
+    );
+    currentSimulatedMetadataHandler = null;
+  }
+
+  // Handle Dynamic Start Offset & Play Duration once metadata is loaded
+  currentSimulatedMetadataHandler = () => {
+    if (currentSimulatedMetadataHandler && elements.remoteVideo) {
+      elements.remoteVideo.removeEventListener(
+        "loadedmetadata",
+        currentSimulatedMetadataHandler,
+      );
+      currentSimulatedMetadataHandler = null;
+    }
+
+    if (!isSimulatedCallActive || currentCall) return;
+
+    const duration = elements.remoteVideo.duration;
+    let targetPlayDurationMs = 3000;
+
+    if (!isNaN(duration) && duration > 0) {
+      if (duration <= 3.5) {
+        // Short Videos (2s - 3.5s): Start at 0s, play full duration
+        elements.remoteVideo.currentTime = 0;
+        targetPlayDurationMs = Math.max(1800, (duration - 0.2) * 1000);
+      } else {
+        // Medium/Long Videos (> 3.5s): Random start offset & 2.2s - 3.8s human jitter duration
+        const maxStart = Math.max(0, duration - 3.0);
+        elements.remoteVideo.currentTime = Math.random() * maxStart;
+        const remainingTimeMs =
+          (duration - elements.remoteVideo.currentTime) * 1000;
+        const jitterDuration = Math.floor(Math.random() * 1600) + 2200; // 2200ms - 3800ms human jitter
+        targetPlayDurationMs = Math.min(
+          jitterDuration,
+          Math.max(1800, remainingTimeMs - 200),
+        );
+      }
+    }
+
+    if (simulatedVideoTimer) clearTimeout(simulatedVideoTimer);
+    simulatedVideoTimer = setTimeout(() => {
+      if (isSimulatedCallActive && !currentCall && !isAdPlaying) {
+        skipSimulatedStrangerVideo();
+      }
+    }, targetPlayDurationMs);
+  };
+
+  elements.remoteVideo.addEventListener(
+    "loadedmetadata",
+    currentSimulatedMetadataHandler,
+  );
+
+  const playPromise = elements.remoteVideo.play();
+  if (playPromise !== undefined) {
+    playPromise.catch((err) => {
+      console.warn(
+        "Unmuted autoplay prevented by browser policy, falling back to muted playback:",
+        err,
+      );
+      elements.remoteVideo.muted = true;
+      elements.remoteVideo.play().catch((e) => console.error("Play retry failed:", e));
+    });
+  }
+
+  updateStatus("connected", "Connected with Stranger");
+  updateToolbarVisibility("connected");
+  appendSystemChatMessage("You are now chatting with a random stranger. Say hi!");
+}
+
+let simulatedSearchDelayTimeout = null;
+
+function skipSimulatedStrangerVideo() {
+  if (simulatedVideoTimer) {
+    clearTimeout(simulatedVideoTimer);
+    simulatedVideoTimer = null;
+  }
+  if (simulatedSearchDelayTimeout) {
+    clearTimeout(simulatedSearchDelayTimeout);
+    simulatedSearchDelayTimeout = null;
+  }
+
+  // Stage 1: Pause video & show disconnect state
+  if (elements.remoteVideo && !elements.remoteVideo.srcObject) {
+    try {
+      elements.remoteVideo.pause();
+      elements.remoteVideo.removeAttribute("src");
+      elements.remoteVideo.load();
+    } catch (e) {}
+  }
+
+  // Restore searching overlay element display
+  const overlay =
+    document.getElementById("searching-overlay") || elements.searchingOverlay;
+  if (overlay) {
+    overlay.style.display = "";
+    overlay.classList.remove("hidden");
+  }
+
+  // Stage 2: Show realistic Omegle searching radar transition
+  updateStatus("searching", "Stranger disconnected. Searching...");
+  showSearchingOverlay(
+    "Searching for a Stranger...",
+    "Connecting you to a random stranger worldwide...",
+  );
+  updateToolbarVisibility("searching");
+  appendSystemChatMessage("Stranger has disconnected.");
+
+  // Stage 3: Randomized 1.2s to 1.8s realistic search delay before connecting next stranger
+  const searchDelay = Math.floor(Math.random() * 600) + 1200; // 1200ms - 1800ms
+
+  simulatedSearchDelayTimeout = setTimeout(() => {
+    simulatedSearchDelayTimeout = null;
+    if (isSimulatedCallActive && !currentCall && !isAdPlaying) {
+      updateStatus("connected", "Connecting...");
+      setTimeout(() => {
+        if (isSimulatedCallActive && !currentCall && !isAdPlaying) {
+          playSimulatedStrangerVideo();
+        }
+      }, 300);
+    }
+  }, searchDelay);
+}
+
+function stopSimulatedStrangerVideo() {
+  if (simulatedVideoTimer) {
+    clearTimeout(simulatedVideoTimer);
+    simulatedVideoTimer = null;
+  }
+  if (simulatedFallbackTimeout) {
+    clearTimeout(simulatedFallbackTimeout);
+    simulatedFallbackTimeout = null;
+  }
+  if (simulatedSearchDelayTimeout) {
+    clearTimeout(simulatedSearchDelayTimeout);
+    simulatedSearchDelayTimeout = null;
+  }
+  isSimulatedCallActive = false;
+
+  if (currentSimulatedMetadataHandler && elements.remoteVideo) {
+    elements.remoteVideo.removeEventListener(
+      "loadedmetadata",
+      currentSimulatedMetadataHandler,
+    );
+    currentSimulatedMetadataHandler = null;
+  }
+
+  const overlay =
+    document.getElementById("searching-overlay") || elements.searchingOverlay;
+  if (overlay) {
+    overlay.style.display = "";
+  }
+
+  if (elements.remoteVideo) {
+    try {
+      elements.remoteVideo.pause();
+      elements.remoteVideo.srcObject = null;
+      elements.remoteVideo.removeAttribute("src");
+      elements.remoteVideo.load();
+    } catch (e) {}
+  }
+}
+
 /**
  * Capture Local User Camera and Microphone
  */
@@ -872,6 +1228,12 @@ function findAndConnectPeer() {
  * Attempt connection to a host slot or register as host
  */
 function connectToHostOrBecomeHost(hostId) {
+  if (peer && peer.id === hostId) {
+    console.warn("Self-connection prevented: current peer is already the host of this slot.");
+    becomeWaitingHost(hostId);
+    return;
+  }
+
   // Try calling the host ID
   const call = peer.call(hostId, localStream);
 
@@ -894,14 +1256,14 @@ function connectToHostOrBecomeHost(hostId) {
     hostConnectTimeout = null;
   }
 
-  // If host doesn't respond within 2.5 seconds, become the waiting host
+  // If host doesn't respond within 800ms, become the waiting host
   hostConnectTimeout = setTimeout(() => {
     hostConnectTimeout = null;
     if (!connected && currentCall !== call && !isAdPlaying) {
       call.close();
       becomeWaitingHost(hostId);
     }
-  }, 2500);
+  }, 800);
 }
 
 /**
@@ -910,6 +1272,13 @@ function connectToHostOrBecomeHost(hostId) {
 function becomeWaitingHost(hostId) {
   // Never disrupt an active Video Ad!
   if (isAdPlaying) return;
+
+  if (chatConn) {
+    try {
+      chatConn.close();
+    } catch (e) {}
+    chatConn = null;
+  }
 
   if (peer && !peer.destroyed) peer.destroy();
 
@@ -925,10 +1294,19 @@ function becomeWaitingHost(hostId) {
         "Waiting for a Stranger...",
         "You are in the waiting queue. A peer will connect shortly.",
       );
+
+      // Instant simulated video fallback if no real peer joins within 200ms
+      if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
+      simulatedFallbackTimeout = setTimeout(() => {
+        if (!currentCall && !isAdPlaying) {
+          playSimulatedStrangerVideo();
+        }
+      }, 200);
     }
   });
 
   peer.on("call", (call) => {
+    stopSimulatedStrangerVideo();
     call.answer(localStream);
     currentCall = call;
 
@@ -953,6 +1331,7 @@ function becomeWaitingHost(hostId) {
  * Handle incoming WebRTC call
  */
 function handleIncomingCall(call) {
+  stopSimulatedStrangerVideo();
   call.answer(localStream);
   currentCall = call;
 
@@ -962,28 +1341,75 @@ function handleIncomingCall(call) {
   });
 }
 
+let isAutoSearchingAfterSkip = false;
+
+function onPeerSkippedUs() {
+  if (isAutoSearchingAfterSkip) return;
+  isAutoSearchingAfterSkip = true;
+
+  appendSystemChatMessage(
+    "Stranger has left or skipped. Auto-searching next stranger...",
+  );
+  updateStatus("searching", "Stranger skipped. Auto-searching...");
+  showSearchingOverlay(
+    "Stranger Skipped You",
+    "Connecting you to the next stranger...",
+  );
+
+  cleanupCallState();
+
+  setTimeout(() => {
+    isAutoSearchingAfterSkip = false;
+    handleStartOrNext();
+  }, 400);
+}
+
 /**
  * Monitor WebRTC ICE Connection State for Disconnects & Reconnections
  */
 function monitorICEConnection(call) {
   if (!call || !call.peerConnection) return;
 
+  let iceDisconnectTimeout = null;
+
   call.peerConnection.oniceconnectionstatechange = () => {
     const state = call.peerConnection.iceConnectionState;
     console.log("ICE Connection State:", state);
 
     if (state === "connected" || state === "completed") {
+      if (iceDisconnectTimeout) {
+        clearTimeout(iceDisconnectTimeout);
+        iceDisconnectTimeout = null;
+      }
       hideSearchingOverlay();
       hideFirewallWarning();
       updateStatus("connected", "Connected with Stranger");
     } else if (state === "disconnected") {
-      // Temporary network drop (e.g. cellular signal glitch) - WebRTC auto-reconnecting
       updateStatus("searching", "Reconnecting stranger...");
+      if (!iceDisconnectTimeout) {
+        iceDisconnectTimeout = setTimeout(() => {
+          iceDisconnectTimeout = null;
+          if (
+            call.peerConnection &&
+            call.peerConnection.iceConnectionState === "disconnected"
+          ) {
+            console.warn(
+              "ICE disconnect timeout reached (4s). Auto-skipping to next stranger.",
+            );
+            if (!isAutoSearchingAfterSkip && !isSimulatedCallActive) {
+              onPeerSkippedUs();
+            }
+          }
+        }, 4000);
+      }
     } else if (state === "failed" || state === "closed") {
-      // Permanent disconnect
-      updateStatus("idle", "Stranger disconnected");
-      appendSystemChatMessage("Stranger has left or disconnected.");
-      cleanupCallState();
+      if (iceDisconnectTimeout) {
+        clearTimeout(iceDisconnectTimeout);
+        iceDisconnectTimeout = null;
+      }
+      if (!isAutoSearchingAfterSkip && !isSimulatedCallActive) {
+        onPeerSkippedUs();
+      }
     }
   };
 }
@@ -992,7 +1418,10 @@ function monitorICEConnection(call) {
  * Triggered when P2P Connection & Video Stream are successfully established
  */
 function onPeerConnected(remoteStream) {
+  stopSimulatedStrangerVideo();
   elements.remoteVideo.srcObject = remoteStream;
+  elements.remoteVideo.muted = false; // Ensure unmuted audio for live P2P stream
+  adjustVideoAspectFit();
   hideSearchingOverlay();
   hideFirewallWarning();
   updateStatus("connected", "Connected with Stranger");
@@ -1019,6 +1448,12 @@ function setupDataConnection(conn) {
   });
 
   chatConn.on("data", (data) => {
+    // Handle system signal messages
+    if (data && typeof data === "object" && data.type === "PEER_SKIPPED") {
+      onPeerSkippedUs();
+      return;
+    }
+
     appendChatMessage(data, "received");
 
     // Increment unread badge if drawer is closed
@@ -1033,6 +1468,9 @@ function setupDataConnection(conn) {
     elements.chatInput.disabled = true;
     elements.btnSendChat.disabled = true;
     appendSystemChatMessage("Stranger disconnected from chat.");
+    if (!isAutoSearchingAfterSkip && !isSimulatedCallActive && currentCall) {
+      onPeerSkippedUs();
+    }
   });
 }
 
@@ -1189,12 +1627,14 @@ function stopCall() {
   hideSearchingOverlay();
   hideFirewallWarning();
   updateToolbarVisibility("idle");
+  if (elements.idleStageOverlay) elements.idleStageOverlay.classList.remove("hidden");
 }
 
 /**
  * Clean Call State & Peer Objects (No Page Reload)
  */
 function cleanupCallState() {
+  stopSimulatedStrangerVideo();
   stopInCallAdsterraJitterEngine();
   cleanupAdState();
 
