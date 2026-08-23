@@ -1534,19 +1534,27 @@ function setupDataConnection(conn) {
   });
 
   chatConn.on("data", (data) => {
-    // Handle system signal messages
-    if (data && typeof data === "object" && data.type === "PEER_SKIPPED") {
-      onPeerSkippedUs();
-      return;
+    // Handle object payloads
+    if (data && typeof data === "object") {
+      if (data.type === "PEER_SKIPPED") {
+        onPeerSkippedUs();
+        return;
+      }
+      if (data.type === "reaction") {
+        spawnFloatingEmoji(data.emoji);
+        return;
+      }
     }
 
-    appendChatMessage(data, "received");
+    if (typeof data === "string") {
+      appendChatMessage(data, "received");
 
-    // Increment unread badge if drawer is closed
-    if (elements.chatDrawer.classList.contains("closed")) {
-      unreadMessagesCount++;
-      elements.unreadBadge.textContent = unreadMessagesCount;
-      elements.unreadBadge.classList.remove("hidden");
+      // Increment unread badge if drawer is closed
+      if (elements.chatDrawer.classList.contains("closed")) {
+        unreadMessagesCount++;
+        elements.unreadBadge.textContent = unreadMessagesCount;
+        elements.unreadBadge.classList.remove("hidden");
+      }
     }
   });
 
@@ -1558,6 +1566,74 @@ function setupDataConnection(conn) {
       onPeerSkippedUs();
     }
   });
+}
+
+/**
+ * Interactive Floating Emoji Reaction Engine (Emoji Rain)
+ */
+function toggleEmojiBar() {
+  const bar = document.getElementById("emoji-reaction-bar");
+  if (!bar) return;
+  const isClosed = bar.classList.contains("closed");
+  if (isClosed) {
+    bar.classList.remove("closed");
+  } else {
+    bar.classList.add("closed");
+  }
+}
+
+function spawnFloatingEmoji(emojiSymbol) {
+  const viewport = document.querySelector(".video-viewport");
+  if (!viewport) return;
+
+  const count = Math.floor(Math.random() * 3) + 4;
+  for (let i = 0; i < count; i++) {
+    setTimeout(() => {
+      const particle = document.createElement("div");
+      particle.className = "floating-emoji-particle";
+      particle.textContent = emojiSymbol;
+
+      const startLeft = Math.floor(Math.random() * 70) + 15;
+      const driftX = (Math.random() * 140 - 70) + "px";
+      const rotDeg = (Math.random() * 40 - 20) + "deg";
+
+      particle.style.left = `${startLeft}%`;
+      particle.style.setProperty("--drift-x", driftX);
+      particle.style.setProperty("--rot-deg", rotDeg);
+
+      viewport.appendChild(particle);
+
+      particle.addEventListener("animationend", () => {
+        particle.remove();
+      });
+    }, i * 130);
+  }
+}
+
+function sendEmojiReaction(emojiSymbol) {
+  // Auto-hide emoji reaction bar when an emoji is selected
+  const bar = document.getElementById("emoji-reaction-bar");
+  if (bar) {
+    bar.classList.add("closed");
+  }
+
+  spawnFloatingEmoji(emojiSymbol);
+
+  if (chatConn && chatConn.open) {
+    try {
+      chatConn.send({ type: "reaction", emoji: emojiSymbol });
+    } catch (e) {}
+  }
+
+  // Simulated Call Counter-Reaction: Stranger echoes back the EXACT SAME emoji selected by user!
+  if (isSimulatedCallActive && !currentCall && !isAdPlaying) {
+    const delay = Math.floor(Math.random() * 800) + 1200;
+    setTimeout(() => {
+      if (isSimulatedCallActive && !currentCall) {
+        spawnFloatingEmoji(emojiSymbol);
+      }
+    }, delay);
+  }
 }
 
 /**
@@ -2115,11 +2191,13 @@ function stopInCallAdsterraJitterEngine() {
   hideInCallAdsterraBanner();
 }
 
-// Expose Chat & Camera handlers globally on window object for HTML inline onclick attributes
+// Expose Chat & Camera & Emoji handlers globally on window object for HTML inline onclick attributes
 window.toggleChatDrawer = toggleChatDrawer;
 window.sendChatMessage = sendChatMessage;
 window.switchCamera = switchCamera;
 window.toggleVideoSwap = toggleVideoSwap;
+window.toggleEmojiBar = toggleEmojiBar;
+window.sendEmojiReaction = sendEmojiReaction;
 
 document.addEventListener("DOMContentLoaded", () => {
   detectCameraDevices();

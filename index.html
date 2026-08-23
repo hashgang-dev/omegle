@@ -306,6 +306,16 @@
             </div>
           </div>
 
+          <!-- Floating Quick Emoji Reaction Stream Bar -->
+          <div class="emoji-reaction-bar closed" id="emoji-reaction-bar">
+            <button class="btn-emoji-react" onclick="sendEmojiReaction('❤️')" title="Send Heart">❤️</button>
+            <button class="btn-emoji-react" onclick="sendEmojiReaction('👍')" title="Send Thumbs Up">👍</button>
+            <button class="btn-emoji-react" onclick="sendEmojiReaction('🔥')" title="Send Fire">🔥</button>
+            <button class="btn-emoji-react" onclick="sendEmojiReaction('😂')" title="Send Laugh">😂</button>
+            <button class="btn-emoji-react" onclick="sendEmojiReaction('👏')" title="Send Clap">👏</button>
+            <button class="btn-emoji-react" onclick="sendEmojiReaction('🎉')" title="Send Party">🎉</button>
+          </div>
+
           <!-- Floating Control Toolbar -->
           <div class="control-toolbar" id="control-toolbar">
             <button class="btn-ctrl" id="btn-mute" title="Toggle Microphone">
@@ -324,6 +334,15 @@
             <button class="btn-action-primary" id="btn-next">
               <i class="fa-solid fa-forward-step"></i>
               <span id="btn-next-label">Start Chat</span>
+            </button>
+
+            <button
+              class="btn-ctrl"
+              id="btn-emoji-toggle"
+              title="Send Emoji Reactions"
+              onclick="toggleEmojiBar()"
+            >
+              <i class="fa-solid fa-face-smile"></i>
             </button>
 
             <button
