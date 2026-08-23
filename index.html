@@ -337,6 +337,15 @@
             </button>
 
             <button
+              class="btn-ctrl beauty-active"
+              id="btn-beauty-filter"
+              title="Toggle Video Beautification (Glow / Warm / Off)"
+              onclick="cycleBeautyFilter()"
+            >
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
+
+            <button
               class="btn-ctrl"
               id="btn-emoji-toggle"
               title="Send Emoji Reactions"
@@ -498,6 +507,22 @@
         </div>
       </div>
     </div>
+
+    <!-- Native GPU SVG Skin Smoothing & Beautification Filter Definition -->
+    <svg style="display: none; height: 0; width: 0;">
+      <defs>
+        <filter id="studio-ai-smooth" x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="0.8" result="blur" />
+          <feColorMatrix type="matrix" values="
+            1.08  0     0     0  0.03
+            0     1.05  0     0  0.02
+            0     0     1.03  0  0.01
+            0     0     0     1  0
+          " in="blur" result="colorPass" />
+          <feBlend mode="screen" in="SourceGraphic" in2="colorPass" />
+        </filter>
+      </defs>
+    </svg>
 
     <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>

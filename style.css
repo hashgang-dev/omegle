@@ -743,6 +743,44 @@ video#local {
   transform: scaleX(-1);
 }
 
+/* Real-Time Live Video Beautification Shader Engine (Studio Cinema Matrix) */
+video#local.beauty-studio, video#remote.beauty-studio {
+  filter: url("#studio-ai-smooth") brightness(1.15) contrast(1.05) saturate(1.2) drop-shadow(0 0 15px rgba(240, 102, 255, 0.35));
+  -webkit-filter: url("#studio-ai-smooth") brightness(1.15) contrast(1.05) saturate(1.2) drop-shadow(0 0 15px rgba(240, 102, 255, 0.35));
+  transition: filter 0.4s ease, transform 0.4s ease;
+}
+
+video#local.beauty-glow, video#remote.beauty-glow {
+  filter: brightness(1.14) contrast(1.04) saturate(1.18) sepia(0.04) drop-shadow(0 0 12px rgba(255, 200, 230, 0.25));
+  -webkit-filter: brightness(1.14) contrast(1.04) saturate(1.18) sepia(0.04) drop-shadow(0 0 12px rgba(255, 200, 230, 0.25));
+  transition: filter 0.4s ease, transform 0.4s ease;
+}
+
+video#local.beauty-warm, video#remote.beauty-warm {
+  filter: brightness(1.16) contrast(1.08) saturate(1.28) sepia(0.14) hue-rotate(-8deg) drop-shadow(0 0 14px rgba(255, 180, 100, 0.3));
+  -webkit-filter: brightness(1.16) contrast(1.08) saturate(1.28) sepia(0.14) hue-rotate(-8deg) drop-shadow(0 0 14px rgba(255, 180, 100, 0.3));
+  transition: filter 0.4s ease, transform 0.4s ease;
+}
+
+video#local.beauty-glass, video#remote.beauty-glass {
+  filter: brightness(1.18) contrast(1.06) saturate(1.24) hue-rotate(5deg) drop-shadow(0 0 15px rgba(200, 240, 255, 0.3));
+  -webkit-filter: brightness(1.18) contrast(1.06) saturate(1.24) hue-rotate(5deg) drop-shadow(0 0 15px rgba(200, 240, 255, 0.3));
+  transition: filter 0.4s ease, transform 0.4s ease;
+}
+
+video#local.beauty-off, video#remote.beauty-off {
+  filter: none !important;
+  -webkit-filter: none !important;
+  transition: filter 0.4s ease, transform 0.4s ease;
+}
+
+.btn-ctrl.beauty-active {
+  background: rgba(153, 17, 238, 0.25) !important;
+  border-color: #f066ff !important;
+  color: #f066ff !important;
+  box-shadow: 0 0 18px rgba(240, 102, 255, 0.55);
+}
+
 .pip-label {
   position: absolute;
   bottom: 8px;

@@ -1637,6 +1637,48 @@ function sendEmojiReaction(emojiSymbol) {
 }
 
 /**
+ * Real-Time Live Video Beautification Shader Engine (Studio Cinema Matrix)
+ */
+const BEAUTY_MODES = ["studio", "glow", "warm", "glass", "off"];
+let currentBeautyIndex = 0; // Default: "studio" AI Smooth active!
+
+function applyBeautyFilter(mode) {
+  const localVid = document.getElementById("local") || elements.localVideo;
+  const remoteVid = document.getElementById("remote") || elements.remoteVideo;
+  const btnBeauty = document.getElementById("btn-beauty-filter");
+
+  BEAUTY_MODES.forEach((m) => {
+    if (localVid) localVid.classList.remove(`beauty-${m}`);
+    if (remoteVid) remoteVid.classList.remove(`beauty-${m}`);
+  });
+
+  if (mode !== "off") {
+    if (localVid) localVid.classList.add(`beauty-${mode}`);
+    if (remoteVid) remoteVid.classList.add(`beauty-${mode}`);
+    if (btnBeauty) btnBeauty.classList.add("beauty-active");
+  } else {
+    if (localVid) localVid.classList.add("beauty-off");
+    if (remoteVid) remoteVid.classList.add("beauty-off");
+    if (btnBeauty) btnBeauty.classList.remove("beauty-active");
+  }
+
+  localStorage.setItem("hashgang_beauty_mode", mode);
+}
+
+function cycleBeautyFilter() {
+  currentBeautyIndex = (currentBeautyIndex + 1) % BEAUTY_MODES.length;
+  const nextMode = BEAUTY_MODES[currentBeautyIndex];
+  applyBeautyFilter(nextMode);
+}
+
+function initBeautyFilter() {
+  const savedMode = localStorage.getItem("hashgang_beauty_mode") || "glow";
+  currentBeautyIndex = BEAUTY_MODES.indexOf(savedMode);
+  if (currentBeautyIndex === -1) currentBeautyIndex = 0;
+  applyBeautyFilter(BEAUTY_MODES[currentBeautyIndex]);
+}
+
+/**
  * Send P2P Text Message over DataChannel
  */
 function sendChatMessage() {
@@ -2198,7 +2240,9 @@ window.switchCamera = switchCamera;
 window.toggleVideoSwap = toggleVideoSwap;
 window.toggleEmojiBar = toggleEmojiBar;
 window.sendEmojiReaction = sendEmojiReaction;
+window.cycleBeautyFilter = cycleBeautyFilter;
 
 document.addEventListener("DOMContentLoaded", () => {
   detectCameraDevices();
+  initBeautyFilter();
 });
