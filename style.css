@@ -723,6 +723,39 @@ video#remote {
   border-color: #f066ff;
 }
 
+.pip-beauty-btn {
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(13, 5, 21, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  opacity: 0.85;
+  transition: all 0.25s ease;
+  z-index: 5;
+  cursor: pointer;
+}
+
+.pip-beauty-btn.beauty-active {
+  background: rgba(153, 17, 238, 0.85) !important;
+  border-color: #f066ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(240, 102, 255, 0.6);
+}
+
+.pip-beauty-btn:hover {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
 .local-pip-container:hover {
   transform: scale(1.04);
   border-color: var(--accent-magenta);
@@ -743,28 +776,120 @@ video#local {
   transform: scaleX(-1);
 }
 
-/* Real-Time Live Video Beautification Shader Engine (Studio Cinema Matrix) */
+/* Virtual Studio Ring Light Halo & Cinematic Vignette Overlays */
+.virtual-ring-light-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+  box-shadow: inset 0 0 100px rgba(255, 230, 250, 0.28), inset 0 0 40px rgba(255, 255, 255, 0.4);
+  border-radius: var(--radius-lg);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.video-viewport.beauty-active .virtual-ring-light-overlay {
+  opacity: 1;
+}
+
+.cinematic-vignette-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 11;
+  background: radial-gradient(circle at center, transparent 55%, rgba(0, 0, 0, 0.42) 100%);
+  opacity: 0.85;
+}
+
+/* Beauty Slider Popover Modal */
+.beauty-slider-popover {
+  position: absolute;
+  bottom: 85px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  padding: 12px 16px;
+  background: rgba(13, 5, 21, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  border-radius: 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+  z-index: 29;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #ffffff;
+}
+
+[data-theme="light"] .beauty-slider-popover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.18);
+  color: #18181b;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+}
+
+.beauty-slider-popover.closed {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateX(-50%) translateY(10px) !important;
+}
+
+.beauty-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #f066ff;
+}
+
+.btn-close-popover {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-size: 1.2rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.beauty-slider-row label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+  opacity: 0.9;
+}
+
+.beauty-slider-row input[type="range"] {
+  width: 100%;
+  accent-color: #f066ff;
+  cursor: pointer;
+}
+
+/* Real-Time Live Video Beautification Shader Engine (Universal Natural Calibration) */
 video#local.beauty-studio, video#remote.beauty-studio {
-  filter: url("#studio-ai-smooth") brightness(1.15) contrast(1.05) saturate(1.2) drop-shadow(0 0 15px rgba(240, 102, 255, 0.35));
-  -webkit-filter: url("#studio-ai-smooth") brightness(1.15) contrast(1.05) saturate(1.2) drop-shadow(0 0 15px rgba(240, 102, 255, 0.35));
+  filter: url("#ultimate-ai-beauty-mesh") brightness(1.05) contrast(0.99) saturate(1.08);
+  -webkit-filter: url("#ultimate-ai-beauty-mesh") brightness(1.05) contrast(0.99) saturate(1.08);
   transition: filter 0.4s ease, transform 0.4s ease;
 }
 
 video#local.beauty-glow, video#remote.beauty-glow {
-  filter: brightness(1.14) contrast(1.04) saturate(1.18) sepia(0.04) drop-shadow(0 0 12px rgba(255, 200, 230, 0.25));
-  -webkit-filter: brightness(1.14) contrast(1.04) saturate(1.18) sepia(0.04) drop-shadow(0 0 12px rgba(255, 200, 230, 0.25));
+  filter: brightness(1.04) contrast(0.98) saturate(1.06) sepia(0.02);
+  -webkit-filter: brightness(1.04) contrast(0.98) saturate(1.06) sepia(0.02);
   transition: filter 0.4s ease, transform 0.4s ease;
 }
 
 video#local.beauty-warm, video#remote.beauty-warm {
-  filter: brightness(1.16) contrast(1.08) saturate(1.28) sepia(0.14) hue-rotate(-8deg) drop-shadow(0 0 14px rgba(255, 180, 100, 0.3));
-  -webkit-filter: brightness(1.16) contrast(1.08) saturate(1.28) sepia(0.14) hue-rotate(-8deg) drop-shadow(0 0 14px rgba(255, 180, 100, 0.3));
+  filter: brightness(1.05) contrast(1.00) saturate(1.10) sepia(0.06) hue-rotate(-4deg);
+  -webkit-filter: brightness(1.05) contrast(1.00) saturate(1.10) sepia(0.06) hue-rotate(-4deg);
   transition: filter 0.4s ease, transform 0.4s ease;
 }
 
 video#local.beauty-glass, video#remote.beauty-glass {
-  filter: brightness(1.18) contrast(1.06) saturate(1.24) hue-rotate(5deg) drop-shadow(0 0 15px rgba(200, 240, 255, 0.3));
-  -webkit-filter: brightness(1.18) contrast(1.06) saturate(1.24) hue-rotate(5deg) drop-shadow(0 0 15px rgba(200, 240, 255, 0.3));
+  filter: brightness(1.06) contrast(0.99) saturate(1.08) hue-rotate(2deg);
+  -webkit-filter: brightness(1.06) contrast(0.99) saturate(1.08) hue-rotate(2deg);
   transition: filter 0.4s ease, transform 0.4s ease;
 }
 

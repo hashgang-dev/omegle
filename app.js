@@ -1640,12 +1640,13 @@ function sendEmojiReaction(emojiSymbol) {
  * Real-Time Live Video Beautification Shader Engine (Studio Cinema Matrix)
  */
 const BEAUTY_MODES = ["studio", "glow", "warm", "glass", "off"];
-let currentBeautyIndex = 0; // Default: "studio" AI Smooth active!
+let beautyIntensityPercent = 85;
 
 function applyBeautyFilter(mode) {
   const localVid = document.getElementById("local") || elements.localVideo;
   const remoteVid = document.getElementById("remote") || elements.remoteVideo;
   const btnBeauty = document.getElementById("btn-beauty-filter");
+  const viewport = document.querySelector(".video-viewport");
 
   BEAUTY_MODES.forEach((m) => {
     if (localVid) localVid.classList.remove(`beauty-${m}`);
@@ -1656,13 +1657,37 @@ function applyBeautyFilter(mode) {
     if (localVid) localVid.classList.add(`beauty-${mode}`);
     if (remoteVid) remoteVid.classList.add(`beauty-${mode}`);
     if (btnBeauty) btnBeauty.classList.add("beauty-active");
+    if (viewport) viewport.classList.add("beauty-active");
   } else {
     if (localVid) localVid.classList.add("beauty-off");
     if (remoteVid) remoteVid.classList.add("beauty-off");
     if (btnBeauty) btnBeauty.classList.remove("beauty-active");
+    if (viewport) viewport.classList.remove("beauty-active");
   }
 
+  updateBeautyIntensity(beautyIntensityPercent);
   localStorage.setItem("hashgang_beauty_mode", mode);
+}
+
+function toggleBeautySliderPopover(e) {
+  if (e) e.stopPropagation();
+  const popover = document.getElementById("beauty-slider-popover");
+  if (!popover) return;
+  popover.classList.toggle("closed");
+}
+
+function updateBeautyIntensity(val) {
+  beautyIntensityPercent = parseInt(val, 10);
+  const label = document.getElementById("beauty-val-label");
+  if (label) label.textContent = `${beautyIntensityPercent}%`;
+
+  const opacityVal = (beautyIntensityPercent / 100).toFixed(2);
+
+  // Dynamically scale Virtual Ring Light & Shader Opacity
+  const ringLight = document.getElementById("virtual-ring-light");
+  if (ringLight) ringLight.style.opacity = (opacityVal * 0.9).toFixed(2);
+
+  localStorage.setItem("hashgang_beauty_intensity", beautyIntensityPercent);
 }
 
 function cycleBeautyFilter() {
@@ -1672,7 +1697,13 @@ function cycleBeautyFilter() {
 }
 
 function initBeautyFilter() {
-  const savedMode = localStorage.getItem("hashgang_beauty_mode") || "glow";
+  const savedMode = localStorage.getItem("hashgang_beauty_mode") || "studio";
+  const savedIntensity = localStorage.getItem("hashgang_beauty_intensity") || "85";
+  beautyIntensityPercent = parseInt(savedIntensity, 10);
+
+  const rangeInput = document.getElementById("beauty-intensity-range");
+  if (rangeInput) rangeInput.value = beautyIntensityPercent;
+
   currentBeautyIndex = BEAUTY_MODES.indexOf(savedMode);
   if (currentBeautyIndex === -1) currentBeautyIndex = 0;
   applyBeautyFilter(BEAUTY_MODES[currentBeautyIndex]);
@@ -2241,6 +2272,8 @@ window.toggleVideoSwap = toggleVideoSwap;
 window.toggleEmojiBar = toggleEmojiBar;
 window.sendEmojiReaction = sendEmojiReaction;
 window.cycleBeautyFilter = cycleBeautyFilter;
+window.toggleBeautySliderPopover = toggleBeautySliderPopover;
+window.updateBeautyIntensity = updateBeautyIntensity;
 
 document.addEventListener("DOMContentLoaded", () => {
   detectCameraDevices();

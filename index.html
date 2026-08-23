@@ -274,6 +274,22 @@
             </div>
           </div>
 
+          <!-- Virtual Studio Ring Light Halo & Cinematic Vignette Overlays -->
+          <div class="virtual-ring-light-overlay" id="virtual-ring-light"></div>
+          <div class="cinematic-vignette-overlay" id="cinematic-vignette"></div>
+
+          <!-- Live Beauty Intensity & Glow Slider Overlay -->
+          <div class="beauty-slider-popover closed" id="beauty-slider-popover" onclick="event.stopPropagation()">
+            <div class="beauty-popover-header">
+              <span><i class="fa-solid fa-wand-magic-sparkles"></i> AI Beauty Level</span>
+              <button class="btn-close-popover" onclick="toggleBeautySliderPopover(event)">&times;</button>
+            </div>
+            <div class="beauty-slider-row">
+              <label for="beauty-intensity-range">Skin Smooth & Glow: <span id="beauty-val-label">85%</span></label>
+              <input type="range" id="beauty-intensity-range" min="0" max="100" value="85" oninput="updateBeautyIntensity(this.value)" />
+            </div>
+          </div>
+
           <!-- Self Local PIP Feed (Interactive Video Swap Engine) -->
           <div
             class="local-pip-container"
@@ -283,6 +299,16 @@
           >
             <video id="local" autoplay muted playsinline></video>
             <span class="pip-label" id="pip-label">You</span>
+            
+            <button
+              class="pip-beauty-btn beauty-active"
+              id="btn-beauty-filter"
+              title="Toggle Beauty & Intensity Settings"
+              onclick="event.stopPropagation(); toggleBeautySliderPopover(event)"
+            >
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
+
             <div class="pip-swap-hint" title="Enlarge Video Screen">
               <i class="fa-solid fa-expand"></i>
             </div>
@@ -334,15 +360,6 @@
             <button class="btn-action-primary" id="btn-next">
               <i class="fa-solid fa-forward-step"></i>
               <span id="btn-next-label">Start Chat</span>
-            </button>
-
-            <button
-              class="btn-ctrl beauty-active"
-              id="btn-beauty-filter"
-              title="Toggle Video Beautification (Glow / Warm / Off)"
-              onclick="cycleBeautyFilter()"
-            >
-              <i class="fa-solid fa-wand-magic-sparkles"></i>
             </button>
 
             <button
@@ -508,18 +525,30 @@
       </div>
     </div>
 
-    <!-- Native GPU SVG Skin Smoothing & Beautification Filter Definition -->
+    <!-- Universal Natural AI GPU SVG Beauty Filter Definition -->
     <svg style="display: none; height: 0; width: 0;">
       <defs>
-        <filter id="studio-ai-smooth" x="-10%" y="-10%" width="120%" height="120%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="0.8" result="blur" />
+        <filter id="ultimate-ai-beauty-mesh" x="-10%" y="-10%" width="120%" height="120%">
+          <!-- Pass 1: Gentle Gaussian Blur for Micro Skin Blemish Smoothing -->
+          <feGaussianBlur in="SourceGraphic" stdDeviation="0.7" result="skinBlur" />
+          
+          <!-- Pass 2: Natural Tone Calibration (Prevents Over-exposure & Dark Shadows) -->
           <feColorMatrix type="matrix" values="
-            1.08  0     0     0  0.03
-            0     1.05  0     0  0.02
-            0     0     1.03  0  0.01
+            1.03  0     0     0  0.015
+            0     1.02  0     0  0.010
+            0     0     1.01  0  0.005
             0     0     0     1  0
-          " in="blur" result="colorPass" />
-          <feBlend mode="screen" in="SourceGraphic" in2="colorPass" />
+          " in="skinBlur" result="naturalSkinTone" />
+
+          <!-- Pass 3: Soft Shadow Lifting & Ambient Balance -->
+          <feComponentTransfer in="naturalSkinTone" result="balancedLight">
+            <feFuncR type="linear" slope="1.03" intercept="0.01" />
+            <feFuncG type="linear" slope="1.02" intercept="0.01" />
+            <feFuncB type="linear" slope="1.01" intercept="0.01" />
+          </feComponentTransfer>
+
+          <!-- Pass 4: Soft-Light Blend (Preserves Facial Detail Without High Contrast Crushing) -->
+          <feBlend mode="soft-light" in="SourceGraphic" in2="balancedLight" />
         </filter>
       </defs>
     </svg>
