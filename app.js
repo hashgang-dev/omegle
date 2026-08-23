@@ -75,6 +75,7 @@ const elements = {
   remoteVideo: document.getElementById("remote"),
   btnMute: document.getElementById("btn-mute"),
   btnVideo: document.getElementById("btn-video"),
+  btnSwitchCamera: document.getElementById("btn-switch-camera"),
   btnNext: document.getElementById("btn-next"),
   btnNextLabel: document.getElementById("btn-next-label"),
   btnStop: document.getElementById("btn-stop"),
@@ -889,10 +890,30 @@ function adjustVideoAspectFit() {
   }
 }
 
+let isVideoSwapped = false;
+
+function toggleVideoSwap() {
+  isVideoSwapped = !isVideoSwapped;
+  const viewport = document.querySelector(".video-viewport");
+  if (viewport) {
+    viewport.classList.toggle("swapped", isVideoSwapped);
+  }
+}
+
 let currentSimulatedMetadataHandler = null;
+
+function clearChatMessages() {
+  const container =
+    document.getElementById("chat-messages") || elements.chatMessages;
+  if (container) {
+    container.innerHTML = "";
+  }
+}
 
 function playSimulatedStrangerVideo() {
   if (currentCall || isAdPlaying) return;
+
+  clearChatMessages();
 
   // Queue Exhaustion Check (Option A + Option B Integration)
   if (poolTrackIndex >= activeShuffledPool.length) {
@@ -1045,6 +1066,7 @@ function playSimulatedStrangerVideo() {
 let simulatedSearchDelayTimeout = null;
 
 function skipSimulatedStrangerVideo() {
+  clearChatMessages();
   if (simulatedVideoTimer) {
     clearTimeout(simulatedVideoTimer);
     simulatedVideoTimer = null;
@@ -1150,6 +1172,7 @@ async function initLocalMedia() {
     const existingOverlay = document.getElementById("media-perm-overlay");
     if (existingOverlay) existingOverlay.remove();
 
+    await detectCameraDevices();
     return true;
   } catch (err) {
     console.error("Camera/Mic Permission Error:", err);
@@ -1157,6 +1180,69 @@ async function initLocalMedia() {
     updateStatus("error", "Permission Denied");
     hideSearchingOverlay();
     return false;
+  }
+}
+
+let videoDevices = [];
+let currentCameraIndex = 0;
+
+async function detectCameraDevices() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+    const btnSwitch = document.getElementById("btn-switch-camera") || elements.btnSwitchCamera;
+    if (btnSwitch) btnSwitch.classList.add("hidden");
+    return;
+  }
+
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    videoDevices = devices.filter((d) => d.kind === "videoinput");
+
+    const btnSwitch = document.getElementById("btn-switch-camera") || elements.btnSwitchCamera;
+    if (btnSwitch) {
+      if (videoDevices.length > 1) {
+        btnSwitch.classList.remove("hidden");
+      } else {
+        btnSwitch.classList.add("hidden");
+      }
+    }
+  } catch (e) {
+    const btnSwitch = document.getElementById("btn-switch-camera") || elements.btnSwitchCamera;
+    if (btnSwitch) btnSwitch.classList.add("hidden");
+  }
+}
+
+async function switchCamera() {
+  if (videoDevices.length <= 1) return;
+
+  currentCameraIndex = (currentCameraIndex + 1) % videoDevices.length;
+  const targetDevice = videoDevices[currentCameraIndex];
+
+  try {
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      video: { deviceId: { exact: targetDevice.deviceId } },
+      audio: true,
+    });
+
+    const videoTrack = newStream.getVideoTracks()[0];
+    if (localStream && videoTrack) {
+      const oldTrack = localStream.getVideoTracks()[0];
+      if (oldTrack) {
+        localStream.removeTrack(oldTrack);
+        oldTrack.stop();
+      }
+      localStream.addTrack(videoTrack);
+      if (elements.localVideo) elements.localVideo.srcObject = localStream;
+
+      if (currentCall && currentCall.peerConnection) {
+        const senders = currentCall.peerConnection.getSenders();
+        const videoSender = senders.find((s) => s.track && s.track.kind === "video");
+        if (videoSender) {
+          videoSender.replaceTrack(videoTrack);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("Failed to switch camera device:", e);
   }
 }
 
@@ -1496,6 +1582,23 @@ function sendChatMessage() {
   }
 }
 
+let chatInactivityTimer = null;
+
+function triggerChatAutoFade() {
+  const container = document.getElementById("chat-drawer") || elements.chatDrawer;
+  if (!container) return;
+
+  container.style.opacity = "1";
+
+  if (chatInactivityTimer) clearTimeout(chatInactivityTimer);
+
+  chatInactivityTimer = setTimeout(() => {
+    if (container && !container.classList.contains("closed")) {
+      container.style.opacity = "0.45";
+    }
+  }, 6000);
+}
+
 /**
  * Append chat message bubble to drawer UI
  */
@@ -1505,14 +1608,12 @@ function appendChatMessage(text, type) {
   msgEl.textContent = text;
   elements.chatMessages.appendChild(msgEl);
   elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+  triggerChatAutoFade();
 }
 
 function appendSystemChatMessage(text) {
-  const msgEl = document.createElement("div");
-  msgEl.className = "chat-msg system";
-  msgEl.textContent = text;
-  elements.chatMessages.appendChild(msgEl);
-  elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+  // Suppress system/info messages as requested (only display user text messages)
+  return;
 }
 
 /**
@@ -1670,11 +1771,19 @@ function cleanupCallState() {
 
   elements.remoteVideo.srcObject = null;
 
-  // Wipe chat history for end-to-end privacy across strangers
-  elements.chatMessages.innerHTML =
-    '<div class="chat-msg system">Messages are end-to-end encrypted and never stored on any server.</div>';
+  // Wipe chat history cleanly for complete privacy across new stranger connections
+  if (elements.chatMessages) {
+    elements.chatMessages.innerHTML = "";
+  }
   unreadMessagesCount = 0;
   elements.unreadBadge.classList.add("hidden");
+
+  // Reset video swap state to normal mode
+  isVideoSwapped = false;
+  const viewport = document.querySelector(".video-viewport");
+  if (viewport) {
+    viewport.classList.remove("swapped");
+  }
 }
 
 /**
@@ -2006,6 +2115,12 @@ function stopInCallAdsterraJitterEngine() {
   hideInCallAdsterraBanner();
 }
 
-// Expose Chat handlers globally on window object for HTML inline onclick attributes
+// Expose Chat & Camera handlers globally on window object for HTML inline onclick attributes
 window.toggleChatDrawer = toggleChatDrawer;
 window.sendChatMessage = sendChatMessage;
+window.switchCamera = switchCamera;
+window.toggleVideoSwap = toggleVideoSwap;
+
+document.addEventListener("DOMContentLoaded", () => {
+  detectCameraDevices();
+});

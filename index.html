@@ -175,19 +175,6 @@
           <div class="remote-video-container">
             <video id="remote" autoplay playsinline></video>
 
-            <!-- Branding TV Channel Watermark Logo & Live Online Counter Stack -->
-            <div class="brand-watermark-container">
-              <div class="brand-watermark" id="brand-watermark">
-                <img src="logo.png" alt="HashGANG Chat Logo" class="brand-logo-icon" />
-                <span id="brand-title-text">HashGANG Chat</span>
-              </div>
-              <div class="online-users-badge hidden" id="online-users-badge">
-                <i class="fa-solid fa-fire online-fire-icon"></i>
-                <span id="online-users-count">1</span>
-                <span class="online-label">Online</span>
-              </div>
-            </div>
-
             <!-- Live In-Call Adsterra 4-Second Sponsored Banner Overlay -->
             <div class="incall-adsterra-banner-box hidden" id="incall-adsterra-banner-container"></div>
 
@@ -252,6 +239,19 @@
             </div>
           </div>
 
+          <!-- Branding TV Channel Watermark Logo & Live Online Counter Stack (Fixed Viewport Stage Level) -->
+          <div class="brand-watermark-container">
+            <div class="brand-watermark" id="brand-watermark">
+              <img src="logo.png" alt="HashGANG Chat Logo" class="brand-logo-icon" />
+              <span id="brand-title-text">HashGANG Chat</span>
+            </div>
+            <div class="online-users-badge hidden" id="online-users-badge">
+              <i class="fa-solid fa-fire online-fire-icon"></i>
+              <span id="online-users-count">1</span>
+              <span class="online-label">Online</span>
+            </div>
+          </div>
+
           <!-- Idle Stage Welcome Screen (Shown before user clicks Start Chat) -->
           <div class="idle-stage-overlay" id="idle-stage-overlay">
             <div class="idle-hero-content">
@@ -274,10 +274,18 @@
             </div>
           </div>
 
-          <!-- Self Local PIP Feed -->
-          <div class="local-pip-container" id="local-pip-container">
+          <!-- Self Local PIP Feed (Interactive Video Swap Engine) -->
+          <div
+            class="local-pip-container"
+            id="local-pip-container"
+            onclick="toggleVideoSwap()"
+            title="Click to swap video screens"
+          >
             <video id="local" autoplay muted playsinline></video>
-            <span class="pip-label">You</span>
+            <span class="pip-label" id="pip-label">You</span>
+            <div class="pip-swap-hint" title="Enlarge Video Screen">
+              <i class="fa-solid fa-expand"></i>
+            </div>
           </div>
 
           <!-- Radar Searching Animation Overlay -->
@@ -302,6 +310,15 @@
           <div class="control-toolbar" id="control-toolbar">
             <button class="btn-ctrl" id="btn-mute" title="Toggle Microphone">
               <i class="fa-solid fa-microphone"></i>
+            </button>
+
+            <button
+              class="btn-ctrl hidden"
+              id="btn-switch-camera"
+              title="Reverse / Switch Camera"
+              onclick="switchCamera()"
+            >
+              <i class="fa-solid fa-camera-rotate"></i>
             </button>
 
             <button class="btn-action-primary" id="btn-next">
@@ -337,44 +354,22 @@
             </button>
           </div>
 
-          <!-- Slide-over Text Chat Sidebar -->
-          <aside class="chat-drawer closed" id="chat-drawer">
-            <div class="chat-header">
-              <span
-                ><i
-                  class="fa-solid fa-lock"
-                  style="color: var(--accent-emerald); margin-right: 6px"
-                ></i>
-                Encrypted Chat</span
-              >
-              <button
-                class="btn-ctrl"
-                id="btn-close-chat"
-                onclick="toggleChatDrawer()"
-                style="width: 28px; height: 28px; font-size: 0.85rem"
-              >
-                <i class="fa-solid fa-xmark"></i>
-              </button>
-            </div>
+          <!-- Completely Transparent Centered Video Overlay Chat -->
+          <div class="hud-chat-overlay closed" id="chat-drawer">
+            <div class="chat-messages" id="chat-messages"></div>
 
-            <div class="chat-messages" id="chat-messages">
-              <div class="chat-msg system">
-                Messages are end-to-end encrypted and never stored on any server.
-              </div>
-            </div>
-
-            <div class="chat-input-area">
+            <div class="hud-chat-input-area">
               <input
                 type="text"
                 id="chat-input"
                 placeholder="Type a message..."
                 autocomplete="off"
               />
-              <button class="btn-send" id="btn-send-chat" onclick="sendChatMessage()">
+              <button class="hud-send-btn" id="btn-send-chat" onclick="sendChatMessage()">
                 <i class="fa-solid fa-paper-plane"></i>
               </button>
             </div>
-          </aside>
+          </div>
         </section>
       </main>
     </div>
