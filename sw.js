@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-chat-v2';
+const CACHE_NAME = 'hashgang-chat-v15';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -8,6 +8,7 @@ const ASSETS_TO_CACHE = [
   '/app.js',
   '/ads.js',
   '/logo.png',
+  '/qr-code.png',
   '/manifest.json'
 ];
 

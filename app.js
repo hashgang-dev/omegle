@@ -14,6 +14,7 @@ let currentCall = null;
 let chatConn = null;
 let isAudioMuted = false;
 let isVideoOff = false;
+let isSimulatedCallActive = false;
 let unreadMessagesCount = 0;
 let currentOnlineUsersCount = 1420;
 
@@ -299,29 +300,7 @@ function setupEventListeners() {
       elements.btnTosAgree.addEventListener("click", acceptTosAndProceed);
   } catch (e) {}
 
-  try {
-    if (elements.btnNext)
-      elements.btnNext.addEventListener("click", handleStartOrNext);
-  } catch (e) {}
-
-  try {
-    if (elements.btnStop) elements.btnStop.addEventListener("click", stopCall);
-  } catch (e) {}
-
-  try {
-    if (elements.btnMute)
-      elements.btnMute.addEventListener("click", toggleAudio);
-  } catch (e) {}
-
-  try {
-    if (elements.btnVideo)
-      elements.btnVideo.addEventListener("click", toggleVideo);
-  } catch (e) {}
-
-  try {
-    if (elements.btnReport)
-      elements.btnReport.addEventListener("click", reportAndBlockStranger);
-  } catch (e) {}
+  // Note: Toolbar buttons (btnNext, btnStop, btnMute, btnVideo, btnReport) use clean inline onclick handlers in HTML
 
   try {
     if (elements.btnSelfBrandSkip) {
@@ -1204,7 +1183,10 @@ async function detectCameraDevices() {
 }
 
 async function switchCamera() {
-  if (videoDevices.length <= 1) return;
+  if (videoDevices.length <= 1) {
+    showShareToast("1 Camera detected on device (Front/Default)");
+    return;
+  }
 
   currentCameraIndex = (currentCameraIndex + 1) % videoDevices.length;
   const targetDevice = videoDevices[currentCameraIndex];
@@ -1233,8 +1215,10 @@ async function switchCamera() {
         }
       }
     }
+    showShareToast(`Switched to: ${targetDevice.label || "Camera " + (currentCameraIndex + 1)}`);
   } catch (e) {
     console.warn("Failed to switch camera device:", e);
+    showShareToast("Could not switch camera device.");
   }
 }
 
@@ -1378,13 +1362,13 @@ function becomeWaitingHost(hostId) {
       "You are in the waiting queue. A peer will connect shortly.",
     );
 
-    // Instant simulated video fallback if no real peer joins within 200ms
+    // Synchronized simulated video fallback with 5.0s radar countdown dwell time
     if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
     simulatedFallbackTimeout = setTimeout(() => {
       if (!currentCall) {
         playSimulatedStrangerVideo();
       }
-    }, 200);
+    }, MIN_SEARCHING_DWELL_MS);
   });
 
   peer.on("call", (call) => {
@@ -1812,28 +1796,36 @@ function appendSystemChatMessage(text) {
  * Toggle Audio Mute
  */
 function toggleAudio() {
-  if (!localStream) return;
   isAudioMuted = !isAudioMuted;
-  localStream.getAudioTracks().forEach((t) => (t.enabled = !isAudioMuted));
+  if (localStream) {
+    localStream.getAudioTracks().forEach((t) => (t.enabled = !isAudioMuted));
+  }
 
-  elements.btnMute.classList.toggle("muted", isAudioMuted);
-  elements.btnMute.innerHTML = isAudioMuted
-    ? '<i class="fa-solid fa-microphone-slash"></i>'
-    : '<i class="fa-solid fa-microphone"></i>';
+  const btnMute = elements.btnMute || document.getElementById("btn-mute");
+  if (btnMute) {
+    btnMute.classList.toggle("muted", isAudioMuted);
+    btnMute.innerHTML = isAudioMuted
+      ? '<i class="fa-solid fa-microphone-slash"></i>'
+      : '<i class="fa-solid fa-microphone"></i>';
+  }
 }
 
 /**
  * Toggle Video Camera
  */
 function toggleVideo() {
-  if (!localStream) return;
   isVideoOff = !isVideoOff;
-  localStream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
+  if (localStream) {
+    localStream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
+  }
 
-  elements.btnVideo.classList.toggle("off", isVideoOff);
-  elements.btnVideo.innerHTML = isVideoOff
-    ? '<i class="fa-solid fa-video-slash"></i>'
-    : '<i class="fa-solid fa-video"></i>';
+  const btnVideo = elements.btnVideo || document.getElementById("btn-video");
+  if (btnVideo) {
+    btnVideo.classList.toggle("off", isVideoOff);
+    btnVideo.innerHTML = isVideoOff
+      ? '<i class="fa-solid fa-video-slash"></i>'
+      : '<i class="fa-solid fa-video"></i>';
+  }
 }
 
 /**
@@ -2011,6 +2003,15 @@ function showSearchingOverlay(title, sub) {
 
   searchingOverlayStartTime = Date.now();
   elements.searchingOverlay.classList.remove("hidden");
+
+  // Stop & pause background video while radar searching overlay is active
+  if (elements.remoteVideo && !elements.remoteVideo.srcObject) {
+    try {
+      elements.remoteVideo.pause();
+      elements.remoteVideo.removeAttribute("src");
+      elements.remoteVideo.load();
+    } catch (e) {}
+  }
 
   // Live 5s -> 1s Countdown Timer Ticker
   let countdownSec = 5;
@@ -2618,7 +2619,11 @@ function initScreenCaptureInterception() {
   }
 }
 
-// Expose Chat & Camera & Emoji handlers globally on window object for HTML inline onclick attributes
+// Expose Chat & Camera & Emoji & Audio handlers globally on window object for HTML inline onclick attributes
+window.toggleAudio = toggleAudio;
+window.toggleVideo = toggleVideo;
+window.stopCall = stopCall;
+window.reportAndBlockStranger = reportAndBlockStranger;
 window.toggleChatDrawer = toggleChatDrawer;
 window.sendChatMessage = sendChatMessage;
 window.switchCamera = switchCamera;
@@ -2630,12 +2635,139 @@ window.toggleBeautySliderPopover = toggleBeautySliderPopover;
 window.updateBeautyIntensity = updateBeautyIntensity;
 window.handleStartOrNext = handleStartOrNext;
 
+/**
+ * In-App Viral Referral & Sharing Engine
+ */
+function handleShareInvite() {
+  openShareModal();
+}
+
+function openShareModal() {
+  const modal = document.getElementById("share-modal");
+  if (modal) {
+    modal.classList.remove("hidden");
+  }
+}
+
+function closeShareModal(event) {
+  if (event && event.target && event.target.classList.contains("share-modal-card")) {
+    return;
+  }
+  const modal = document.getElementById("share-modal");
+  if (modal) {
+    modal.classList.add("hidden");
+  }
+}
+
+async function copyInviteLink() {
+  const shareUrl = "https://chat.hashgang.com";
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(shareUrl);
+    } else {
+      const input = document.getElementById("share-link-input");
+      if (input) {
+        input.select();
+        document.execCommand("copy");
+      }
+    }
+    showShareToast("Invite link copied to clipboard! Share on WhatsApp or Telegram 🚀");
+  } catch (err) {
+    showShareToast("Copied: https://chat.hashgang.com");
+  }
+}
+
+function shareToSocial(platform) {
+  const shareText = encodeURIComponent("Hey! Try #GANG Chat - Free anonymous stranger video chat with AI beauty filter & zero login required! 🚀 Join here:");
+  const shareUrl = encodeURIComponent("https://chat.hashgang.com");
+  
+  let targetUrl = "";
+  if (platform === "whatsapp") {
+    targetUrl = `https://api.whatsapp.com/send?text=${shareText}%20${shareUrl}`;
+  } else if (platform === "telegram") {
+    targetUrl = `https://t.me/share/url?url=${shareUrl}&text=${shareText}`;
+  } else if (platform === "twitter") {
+    targetUrl = `https://twitter.com/intent/tweet?text=${shareText}&url=${shareUrl}`;
+  } else if (platform === "facebook") {
+    targetUrl = `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}`;
+  }
+
+  if (targetUrl) {
+    window.open(targetUrl, "_blank", "noopener,noreferrer");
+  }
+}
+
+function showShareToast(message) {
+  const toast = document.getElementById("share-toast");
+  const toastText = document.getElementById("share-toast-text");
+  if (toast && toastText) {
+    toastText.textContent = message;
+    toast.classList.remove("hidden");
+    setTimeout(() => {
+      toast.classList.add("hidden");
+    }, 3500);
+  }
+}
+
+/**
+ * Mobile Soft-Keyboard Visual Viewport Engine
+ */
+function initVisualViewportHandler() {
+  const chatInput = document.getElementById("chat-input");
+  const chatDrawer = document.getElementById("chat-drawer") || elements.chatDrawer;
+
+  if (!chatInput || !chatDrawer) return;
+
+  const updateDrawerPosition = () => {
+    if (!window.visualViewport) return;
+    if (!chatDrawer.classList.contains("closed") && document.activeElement === chatInput) {
+      const vv = window.visualViewport;
+      const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
+      if (keyboardHeight > 100) {
+        chatDrawer.classList.add("keyboard-active");
+        chatDrawer.style.bottom = `${keyboardHeight + 10}px`;
+        chatDrawer.style.maxHeight = `${vv.height - 30}px`;
+      }
+    } else {
+      chatDrawer.classList.remove("keyboard-active");
+      chatDrawer.style.bottom = "";
+      chatDrawer.style.maxHeight = "";
+    }
+  };
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", updateDrawerPosition);
+    window.visualViewport.addEventListener("scroll", updateDrawerPosition);
+  }
+
+  chatInput.addEventListener("focus", () => {
+    setTimeout(updateDrawerPosition, 100);
+    const messages = document.getElementById("chat-messages") || elements.chatMessages;
+    if (messages) messages.scrollTop = messages.scrollHeight;
+  });
+
+  chatInput.addEventListener("blur", () => {
+    setTimeout(() => {
+      chatDrawer.classList.remove("keyboard-active");
+      chatDrawer.style.bottom = "";
+      chatDrawer.style.maxHeight = "";
+    }, 150);
+  });
+}
+
+window.handleShareInvite = handleShareInvite;
+window.openShareModal = openShareModal;
+window.closeShareModal = closeShareModal;
+window.copyInviteLink = copyInviteLink;
+window.shareToSocial = shareToSocial;
+
 document.addEventListener("DOMContentLoaded", () => {
   detectCameraDevices();
   initBeautyFilter();
   initAntiScreenRecording();
   initAntiDevToolsProtection();
   initScreenCaptureInterception();
+  initVisualViewportHandler();
 });
 
 

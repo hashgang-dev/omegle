@@ -182,11 +182,6 @@
           <div class="remote-video-container">
             <video id="remote" autoplay playsinline></video>
 
-            <!-- Faint Micro-Sized Corner Watermark (0.3 Opacity) -->
-            <div class="video-watermark-overlay" id="video-watermark-overlay">
-              #GANG | Trace: <span id="watermark-trace-id">8f9a2b4c</span>
-            </div>
-
             <!-- Focus Loss & Tab Switch Privacy Shield Overlay -->
             <div class="privacy-shield-overlay hidden" id="privacy-shield-overlay">
               <div class="privacy-shield-content">
@@ -217,6 +212,11 @@
             </div>
           </div>
 
+          <!-- Fixed Stage-Level Trace Code Watermark -->
+          <div class="video-watermark-overlay" id="video-watermark-overlay">
+            #GANG | Trace: <span id="watermark-trace-id">8f9a2b4c</span>
+          </div>
+
           <!-- Idle Stage Welcome Screen (Shown before user clicks Start Chat) -->
           <div class="idle-stage-overlay" id="idle-stage-overlay">
             <div class="idle-hero-content">
@@ -233,7 +233,7 @@
               </p>
               <div class="idle-feature-pills">
                 <span class="feature-chip"><i class="fa-solid fa-user-ninja"></i> 100% Anonymous</span>
-                <span class="feature-chip"><i class="fa-solid fa-bolt"></i> Instant P2P Video</span>
+                <span class="feature-chip"><i class="fa-solid fa-bolt"></i> Instant Video Call</span>
                 <span class="feature-chip"><i class="fa-solid fa-shield-halved"></i> No Registration</span>
               </div>
             </div>
@@ -265,14 +265,25 @@
             <video id="local" autoplay muted playsinline></video>
             <span class="pip-label" id="pip-label">You</span>
             
-            <button
-              class="pip-beauty-btn beauty-active"
-              id="btn-beauty-filter"
-              title="Toggle Beauty & Intensity Settings"
-              onclick="event.stopPropagation(); toggleBeautySliderPopover(event)"
-            >
-              <i class="fa-solid fa-wand-magic-sparkles"></i>
-            </button>
+            <div class="pip-action-bar">
+              <button
+                class="pip-btn"
+                id="pip-btn-switch-camera"
+                title="Switch Camera (Front / Back)"
+                onclick="event.stopPropagation(); switchCamera()"
+              >
+                <i class="fa-solid fa-camera-rotate"></i>
+              </button>
+
+              <button
+                class="pip-btn beauty-active"
+                id="btn-beauty-filter"
+                title="Toggle Beauty & Intensity Settings"
+                onclick="event.stopPropagation(); toggleBeautySliderPopover(event)"
+              >
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+              </button>
+            </div>
 
             <div class="pip-swap-hint" title="Enlarge Video Screen">
               <i class="fa-solid fa-expand"></i>
@@ -295,10 +306,18 @@
             <div class="searching-subtext" id="overlay-status-sub">
               Connecting you to a random stranger worldwide...
             </div>
+
             <!-- Live 5s -> 1s Countdown Timer Badge -->
             <div class="searching-countdown-badge" id="searching-countdown">
               <i class="fa-solid fa-clock"></i> Connecting in <span id="countdown-num">5</span>s
             </div>
+
+            <!-- In-App Viral Referral Invite Button for Searching Overlay -->
+            <button class="btn-searching-invite" id="btn-searching-invite" onclick="handleShareInvite()">
+              <i class="fa-solid fa-paper-plane"></i>
+              <span>Invite Friends While Waiting 🚀</span>
+            </button>
+
             <!-- Adsterra Sponsored Ad Banner Box for Searching Radar Overlay -->
             <div class="searching-adsterra-banner-box" id="searching-adsterra-banner-container"></div>
           </div>
@@ -315,20 +334,20 @@
 
           <!-- Floating Control Toolbar -->
           <div class="control-toolbar" id="control-toolbar">
-            <button class="btn-ctrl" id="btn-mute" title="Toggle Microphone">
+            <button class="btn-ctrl" id="btn-mute" title="Toggle Microphone" onclick="toggleAudio()">
               <i class="fa-solid fa-microphone"></i>
             </button>
 
             <button
-              class="btn-ctrl hidden"
-              id="btn-switch-camera"
-              title="Reverse / Switch Camera"
-              onclick="switchCamera()"
+              class="btn-ctrl"
+              id="btn-video"
+              title="Stop Video"
+              onclick="toggleVideo()"
             >
-              <i class="fa-solid fa-camera-rotate"></i>
+              <i class="fa-solid fa-video"></i>
             </button>
 
-            <button class="btn-action-primary" id="btn-next">
+            <button class="btn-action-primary" id="btn-next" onclick="handleStartOrNext()">
               <i class="fa-solid fa-forward-step"></i>
               <span id="btn-next-label">Start Chat</span>
             </button>
@@ -353,9 +372,19 @@
             </button>
 
             <button
-              class="btn-ctrl btn-ctrl-warning hidden"
+              class="btn-ctrl btn-ctrl-share"
+              id="btn-share-invite"
+              title="Invite Friends / Share App"
+              onclick="handleShareInvite()"
+            >
+              <i class="fa-solid fa-share-nodes"></i>
+            </button>
+
+            <button
+              class="btn-ctrl btn-ctrl-warning"
               id="btn-report"
               title="Report & Block Stranger"
+              onclick="reportAndBlockStranger()"
             >
               <i class="fa-solid fa-flag"></i>
             </button>
@@ -364,6 +393,7 @@
               class="btn-action-secondary hidden"
               id="btn-stop"
               title="Stop Call"
+              onclick="stopCall()"
             >
               <i class="fa-solid fa-phone-slash"></i>
               <span>Stop</span>
@@ -577,6 +607,73 @@
       </div>
     </div>
 
+    <!-- Interactive Viral Share Modal -->
+    <div class="share-modal-overlay hidden" id="share-modal" onclick="closeShareModal(event)">
+      <div class="share-modal-card" onclick="event.stopPropagation()">
+        <div class="share-modal-header">
+          <div class="share-modal-title-group">
+            <i class="fa-solid fa-paper-plane share-header-icon"></i>
+            <div>
+              <h3>Invite Friends to #GANG Chat</h3>
+              <p class="share-subtitle">Share the ultimate anonymous video chat platform!</p>
+            </div>
+          </div>
+          <button class="btn-close-share-modal" onclick="closeShareModal()" aria-label="Close Modal">&times;</button>
+        </div>
+
+        <div class="share-modal-body">
+          <div class="share-preview-box">
+            <i class="fa-solid fa-quote-left quote-icon"></i>
+            <p id="share-text-preview">Hey! Try <strong>#GANG Chat</strong> - Free anonymous stranger video chat with AI beauty filter &amp; zero login required! 🚀 Join here: <code>https://chat.hashgang.com</code></p>
+          </div>
+
+          <div class="social-share-grid">
+            <button class="social-btn btn-whatsapp" onclick="shareToSocial('whatsapp')">
+              <i class="fa-brands fa-whatsapp"></i>
+              <span>WhatsApp</span>
+            </button>
+            <button class="social-btn btn-telegram" onclick="shareToSocial('telegram')">
+              <i class="fa-brands fa-telegram"></i>
+              <span>Telegram</span>
+            </button>
+            <button class="social-btn btn-twitter" onclick="shareToSocial('twitter')">
+              <i class="fa-brands fa-x-twitter"></i>
+              <span>Twitter / X</span>
+            </button>
+            <button class="social-btn btn-facebook" onclick="shareToSocial('facebook')">
+              <i class="fa-brands fa-facebook"></i>
+              <span>Facebook</span>
+            </button>
+          </div>
+
+          <div class="copy-link-section">
+            <label>Direct Invite Link</label>
+            <div class="copy-link-input-group">
+              <input type="text" id="share-link-input" value="https://chat.hashgang.com" readonly />
+              <button class="btn-copy-link" id="btn-copy-link" onclick="copyInviteLink()">
+                <i class="fa-solid fa-copy"></i> Copy Link
+              </button>
+            </div>
+          </div>
+
+          <div class="qr-code-section">
+            <div class="qr-box">
+              <img src="qr-code.png" alt="Scan QR Code to open chat.hashgang.com" class="qr-code-img" />
+              <div class="qr-text-group">
+                <span>Scan QR Code on mobile camera to open instantly:</span>
+                <strong>https://chat.hashgang.com</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating Copy Toast Notification -->
+    <div class="share-toast hidden" id="share-toast">
+      <i class="fa-solid fa-circle-check"></i>
+      <span id="share-toast-text">Invite link copied to clipboard! Share on WhatsApp or Telegram 🚀</span>
+    </div>
 
     <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
