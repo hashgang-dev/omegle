@@ -3,6 +3,9 @@
  * Production-Ready WebRTC & PeerJS Matchmaking Engine
  */
 
+// Organic Matchmaking Threshold: Disable simulated videos when active users >= 300
+const SIMULATED_VIDEO_DISABLE_THRESHOLD = 300;
+
 // Application State
 let peer = null;
 let myPeerId = null;
@@ -12,31 +15,33 @@ let chatConn = null;
 let isAudioMuted = false;
 let isVideoOff = false;
 let unreadMessagesCount = 0;
+let currentOnlineUsersCount = 1420;
 
-// Native Sponsored Video Ads Config & Feature Flag
-const ENABLE_SPONSORED_VIDEO_ADS = false; // Set to true when paying sponsor video ad clients are active
-const AD_FREQUENCY = 5; // Trigger a sponsored video ad every 5th stranger match attempt when enabled
-const AD_TIMEOUT_SECONDS = 8; // 8-second auto-skip countdown timer
+// Self-Brand Video Promotion Config & Feature Flag
+const ENABLE_SELF_BRAND_ADS = true; // Set to false anytime to disable self-brand video ads
+const BRAND_AD_FREQUENCY = 7; // Trigger a self-brand video ad every 7th match attempt
+const BRAND_AD_SKIP_SECONDS = 5; // Enable skip button after 5 seconds
+
+
+const SESSION_INSTANCE_ID = "sess_" + Date.now() + "_" + Math.floor(Math.random() * 10000000);
+let previousTempClientId = null;
 
 let matchCounter = 0;
-let isAdPlaying = false;
-let adTimerInterval = null;
+let isSelfBrandAdPlaying = false;
+let selfBrandAdTimer = null;
+let selfBrandAdStartTime = 0;
+let currentPlayingSelfBrandConfig = null;
+let adPauseCount = 0;
+let adRewindCount = 0;
+let adMaxTimeWatched = 0;
+let adDwellStartTime = 0;
+
+
+let SELF_BRAND_ADS_POOL = [];
+
+
 let hostConnectTimeout = null;
 let retryMatchmakingTimeout = null;
-
-const adsPool =
-  typeof SPONSORED_ADS_POOL !== "undefined" && SPONSORED_ADS_POOL.length
-    ? SPONSORED_ADS_POOL
-    : [
-        {
-          id: "ad-1",
-          title: "CyberShield High-Speed VPN",
-          desc: "Encrypt your P2P video calls and protect your privacy worldwide.",
-          videoUrl: "assets/ads/vpn_ad.mp4",
-          linkUrl: "https://hashgang.com",
-          badgeText: "FEATURED PARTNER",
-        },
-      ];
 
 // Matchmaking Pool Config (Zero-Cost Public Lobby Slots)
 const LOBBY_PREFIX = "p2p-omegle-v1-slot-";
@@ -164,6 +169,24 @@ function refreshElements() {
   elements.onlineUsersCount = document.getElementById("online-users-count");
   elements.idleStageOverlay = document.getElementById("idle-stage-overlay");
 
+  elements.selfBrandOverlay = document.getElementById("self-brand-ad-overlay");
+  elements.selfBrandVideoPlayer = document.getElementById("self-brand-video-player");
+  elements.selfBrandTitle = document.getElementById("self-brand-title");
+  elements.selfBrandDesc = document.getElementById("self-brand-desc");
+  elements.selfBrandCtaLink = document.getElementById("self-brand-cta-link");
+  elements.selfBrandCtaText = document.getElementById("self-brand-cta-text");
+  elements.selfBrandBadgeText = document.getElementById("self-brand-badge-text");
+  elements.btnSelfBrandSkip = document.getElementById("btn-self-brand-skip");
+  elements.selfBrandSkipTimer = document.getElementById("self-brand-skip-timer");
+  elements.selfBrandProgressFill = document.getElementById("self-brand-progress-fill");
+  elements.btnSelfBrandRewind = document.getElementById("btn-self-brand-rewind");
+  elements.btnSelfBrandPause = document.getElementById("btn-self-brand-pause");
+  elements.iconSelfBrandPause = document.getElementById("icon-self-brand-pause");
+  elements.btnSelfBrandMute = document.getElementById("btn-self-brand-mute");
+  elements.iconSelfBrandMute = document.getElementById("icon-self-brand-mute");
+
+
+
   if (elements.remoteVideo) {
     elements.remoteVideo.addEventListener("loadedmetadata", adjustVideoAspectFit);
     elements.remoteVideo.addEventListener("playing", adjustVideoAspectFit);
@@ -207,9 +230,15 @@ document.addEventListener("DOMContentLoaded", () => {
   updateToolbarVisibility("idle");
   recordVisitBackend();
   fetchActiveUsersBackend();
+  fetchSelfBrandAdsFromBackend();
 
   // Poll active users count every 15 seconds
   setInterval(fetchActiveUsersBackend, 15000);
+
+  // Log 30-second session time heartbeat
+  setInterval(() => {
+    recordSessionTimeBackend(30);
+  }, 30000);
 
   // Tab Visibility Restoration: Resume video playback when returning from background tab
   document.addEventListener("visibilitychange", () => {
@@ -240,17 +269,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Anti-Bypass Check: If user refreshed page during an active ad break, resume ad break first!
-  try {
-    if (localStorage.getItem("sc_pending_ad_break") === "true") {
-      console.log(
-        "Interrupted ad break detected on reload. Resuming sponsored ad break...",
-      );
-      setTimeout(() => {
-        playSponsoredVideoAd();
-      }, 500);
-    }
-  } catch (e) {}
+  // Backend telemetry initialized cleanly
 });
 
 function setupEventListeners() {
@@ -302,6 +321,74 @@ function setupEventListeners() {
   try {
     if (elements.btnReport)
       elements.btnReport.addEventListener("click", reportAndBlockStranger);
+  } catch (e) {}
+
+  try {
+    if (elements.btnSelfBrandSkip) {
+      elements.btnSelfBrandSkip.addEventListener("click", () => {
+        if (!elements.btnSelfBrandSkip.classList.contains("disabled")) {
+          skipSelfBrandAdAndProceed(true);
+        }
+      });
+    }
+
+    if (elements.btnSelfBrandRewind) {
+      elements.btnSelfBrandRewind.addEventListener("click", () => {
+        if (elements.selfBrandVideoPlayer) {
+          elements.selfBrandVideoPlayer.currentTime = Math.max(0, elements.selfBrandVideoPlayer.currentTime - 5);
+          adRewindCount++;
+          console.log("Ad video rewound -5s. Total rewinds:", adRewindCount);
+        }
+      });
+    }
+
+    if (elements.btnSelfBrandPause) {
+      elements.btnSelfBrandPause.addEventListener("click", () => {
+        if (elements.selfBrandVideoPlayer) {
+          if (elements.selfBrandVideoPlayer.paused) {
+            elements.selfBrandVideoPlayer.play();
+            if (elements.iconSelfBrandPause) elements.iconSelfBrandPause.className = "fa-solid fa-pause";
+          } else {
+            elements.selfBrandVideoPlayer.pause();
+            adPauseCount++;
+            if (elements.iconSelfBrandPause) elements.iconSelfBrandPause.className = "fa-solid fa-play";
+            console.log("Ad video paused. Total pauses:", adPauseCount);
+          }
+        }
+      });
+    }
+
+    if (elements.btnSelfBrandMute) {
+      elements.btnSelfBrandMute.addEventListener("click", () => {
+        if (elements.selfBrandVideoPlayer) {
+          elements.selfBrandVideoPlayer.muted = !elements.selfBrandVideoPlayer.muted;
+          if (elements.iconSelfBrandMute) {
+            elements.iconSelfBrandMute.className = elements.selfBrandVideoPlayer.muted
+              ? "fa-solid fa-volume-xmark"
+              : "fa-solid fa-volume-high";
+          }
+        }
+      });
+    }
+  } catch (e) {}
+
+
+
+  try {
+    if (elements.selfBrandCtaLink) {
+      elements.selfBrandCtaLink.addEventListener("click", () => {
+        if (isSelfBrandAdPlaying && currentPlayingSelfBrandConfig) {
+          const durationWatched = (Date.now() - selfBrandAdStartTime) / 1000;
+          recordAdImpressionBackend(
+            currentPlayingSelfBrandConfig,
+            durationWatched,
+            false,
+            false,
+            true
+          );
+        }
+      });
+    }
   } catch (e) {}
 
   // Global Event Delegation for Chat Toggle & Close Buttons (Bulletproof!)
@@ -361,34 +448,8 @@ function setupEventListeners() {
     }
   } catch (e) {}
 
-  // Custom Ad Control Event Listeners
-  try {
-    if (elements.btnAdPlayPause)
-      elements.btnAdPlayPause.addEventListener("click", toggleAdPlayPause);
-  } catch (e) {}
-  try {
-    if (elements.btnAdRewind)
-      elements.btnAdRewind.addEventListener("click", rewindAd5Seconds);
-  } catch (e) {}
-  try {
-    if (elements.btnAdSkip)
-      elements.btnAdSkip.addEventListener("click", skipAdAndProceed);
-  } catch (e) {}
-  try {
-    if (elements.sponsoredCtaLink) {
-      elements.sponsoredCtaLink.addEventListener("click", () => {
-        if (isAdPlaying && currentAdConfig) {
-          recordAdImpressionBackend(
-            currentAdConfig.adId,
-            adMaxWatchedTime,
-            false,
-            false,
-            true,
-          );
-        }
-      });
-    }
-  } catch (e) {}
+
+
 }
 
 /**
@@ -487,8 +548,14 @@ function toggleTheme() {
  * Handle Start / Next Stranger Click
  */
 async function handleStartOrNext() {
+  if (isUserOnCooldown) {
+    updateStatus("error", "Matchmaking cooldown active (60s). Please wait...");
+    return;
+  }
+
   hideFirewallWarning();
   if (elements.idleStageOverlay) elements.idleStageOverlay.classList.add("hidden");
+
 
   // Enforce Terms of Service & Age Consent (24-Hour Session Expiry)
   if (!isTosConsentValid()) {
@@ -514,15 +581,6 @@ async function handleStartOrNext() {
   // Cycle lobby slot index for next stranger scan
   currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
 
-  // Increment Match Counter for Frequency Control
-  matchCounter++;
-
-  // Trigger Native Sponsored Video Ad every N-th match (Skipped when feature flag is false)
-  if (ENABLE_SPONSORED_VIDEO_ADS && matchCounter % AD_FREQUENCY === 0) {
-    playSponsoredVideoAd();
-    return;
-  }
-
   elements.btnNextLabel.textContent = "Next Stranger";
   updateStatus("searching", "Searching for a Stranger...");
   updateToolbarVisibility("searching");
@@ -530,277 +588,215 @@ async function handleStartOrNext() {
     "Searching for a Stranger...",
     "Connecting you to a random stranger worldwide...",
   );
+
+  // Increment matchCounter & trigger Self-Brand Video Ad on BRAND_AD_FREQUENCY (e.g. 7th match)
+  matchCounter++;
+  if (
+    ENABLE_SELF_BRAND_ADS &&
+    SELF_BRAND_ADS_POOL.length > 0 &&
+    matchCounter % BRAND_AD_FREQUENCY === 0
+  ) {
+    console.log(
+      `Match counter (${matchCounter}) reached BRAND_AD_FREQUENCY (${BRAND_AD_FREQUENCY}). Triggering Self-Brand Video Promotion...`,
+    );
+    playSelfBrandVideoAd();
+    return;
+  }
+
+
 
   // Start automated zero-cost matchmaking
   findAndConnectPeer();
 }
 
 /**
- * Native Sponsored Video Ad Engine (Product & Architect Specification)
+ * Dynamic Self-Brand Video Ad Engine
  */
-let currentAdIndex = 0;
-let adMaxWatchedTime = 0;
-let currentAdConfig = null;
+function playSelfBrandVideoAd() {
+  if (isSelfBrandAdPlaying || currentCall) return;
 
-async function playSponsoredVideoAd() {
-  isAdPlaying = true;
-  adMaxWatchedTime = 0;
+  stopSimulatedStrangerVideo();
   hideSearchingOverlay();
-  hideFirewallWarning();
+  isSelfBrandAdPlaying = true;
+  selfBrandAdStartTime = Date.now();
+  adDwellStartTime = Date.now();
+  adPauseCount = 0;
+  adRewindCount = 0;
+  adMaxTimeWatched = 0;
 
-  // Set Anti-Bypass Ad Lock in localStorage
-  try {
-    localStorage.setItem("sc_pending_ad_break", "true");
-  } catch (e) {}
-
-  // Select ad item sequentially using Round-Robin rotation
-  let adItem = adsPool[currentAdIndex];
-  currentAdIndex = (currentAdIndex + 1) % adsPool.length;
-
-  // Check if adItem is a dynamic VAST XML Tag URL
-  if (
-    adItem &&
-    adItem.videoUrl &&
-    (adItem.videoUrl.endsWith(".xml") || adItem.isVast)
-  ) {
-    const vastConfig = await fetchAndParseVastAd(adItem.videoUrl);
-    if (vastConfig) {
-      adItem = vastConfig;
-    }
-  }
-
-  currentAdConfig = adItem;
-
-  // Update Ad Overlay Metadata Text & Links
-  if (elements.sponsoredTitle)
-    elements.sponsoredTitle.textContent = currentAdConfig.title;
-  if (elements.sponsoredDesc)
-    elements.sponsoredDesc.textContent = currentAdConfig.desc;
-  if (elements.sponsoredBadgeText)
-    elements.sponsoredBadgeText.textContent = currentAdConfig.badgeText;
-  if (elements.sponsoredCtaLink)
-    elements.sponsoredCtaLink.href = currentAdConfig.linkUrl;
-
-  // Initialize Skip Button State
-  updateSkipButtonState(0);
-
-  // Show Ad Overlay Card & Hide Main Control Toolbar and Local PIP Feed
-  if (elements.sponsoredOverlay)
-    elements.sponsoredOverlay.classList.remove("hidden");
-  if (elements.controlToolbar) elements.controlToolbar.classList.add("hidden");
-  if (elements.localPipContainer)
-    elements.localPipContainer.classList.add("hidden");
-
-  // Setup Remote Video
-  const video = elements.remoteVideo;
-  video.srcObject = null;
-  video.src = currentAdConfig.videoUrl;
-  video.loop = false; // Video must play to end so ended event fires!
-  video.muted = false; // Mute NOT allowed!
-
-  // Attach Video Event Listeners
-  video.addEventListener("timeupdate", handleAdTimeUpdate);
-  video.addEventListener("seeking", handleAdSeeking);
-  video.addEventListener("volumechange", handleAdVolumeChange);
-  video.addEventListener("ended", handleAdEnded);
-
-  video.play().catch((e) => console.warn("Video Ad Autoplay Notice:", e));
-
-  if (elements.adPlayPauseIcon)
-    elements.adPlayPauseIcon.className = "fa-solid fa-pause";
-  updateStatus("connected", "Connected with Sponsored Partner");
-  elements.btnNextLabel.textContent = "Next Stranger";
-}
-
-function handleAdTimeUpdate() {
-  if (!isAdPlaying) return;
-  const video = elements.remoteVideo;
-  if (!video.duration) return;
-
-  // 1. Anti-Forward Seeking Enforcement:
-  // If user attempts to jump forward beyond highest watched time, force back to max watched time
-  if (video.currentTime > adMaxWatchedTime + 0.5) {
-    video.currentTime = adMaxWatchedTime;
-    return;
-  }
-
-  // Track highest watched playback time
-  if (video.currentTime > adMaxWatchedTime) {
-    adMaxWatchedTime = video.currentTime;
-  }
-
-  // 2. Timeline Progress Bar & Time Display (00:04 / 00:15)
-  const progressPercent = (video.currentTime / video.duration) * 100;
-  if (elements.adProgressBar)
-    elements.adProgressBar.style.width = `${progressPercent}%`;
-
-  const currentFmt = formatTime(video.currentTime);
-  const durationFmt = formatTime(video.duration);
-  if (elements.adTimeDisplay)
-    elements.adTimeDisplay.textContent = `${currentFmt} / ${durationFmt}`;
-
-  // 3. Skip Threshold Evaluation
-  updateSkipButtonState(video.currentTime);
-}
-
-function updateSkipButtonState(currentTime) {
-  if (!currentAdConfig || !elements.btnAdSkip || !elements.adSkipText) return;
-
-  const video = elements.remoteVideo;
-  const videoDuration =
-    video && video.duration && !isNaN(video.duration) ? video.duration : null;
-  const rawThreshold = currentAdConfig.skipAfterSeconds;
-
-  // Smart Edge Case Handling: If ad video duration is shorter than skip threshold (e.g. 6s video vs 10s skip),
-  // treat it as a short unskippable ad that finishes naturally!
-  let threshold = rawThreshold;
-  if (
-    videoDuration &&
-    typeof rawThreshold === "number" &&
-    videoDuration <= rawThreshold
-  ) {
-    threshold = null;
-  }
-
-  if (typeof threshold === "number" && threshold > 0) {
-    const remainingToSkip = Math.ceil(threshold - currentTime);
-    if (remainingToSkip > 0) {
-      elements.btnAdSkip.disabled = true;
-      elements.adSkipText.innerHTML = `Skip in ${remainingToSkip}s`;
-    } else {
-      elements.btnAdSkip.disabled = false;
-      elements.adSkipText.innerHTML = `Skip Ad &nbsp;<i class="fa-solid fa-forward-step"></i>`;
-    }
-  } else {
-    // Short / Full Duration Video Ad - Finish naturally
-    elements.btnAdSkip.disabled = true;
-    elements.adSkipText.innerHTML = `Ad plays full duration`;
-  }
-}
-
-function handleAdSeeking() {
-  if (!isAdPlaying) return;
-  const video = elements.remoteVideo;
-  // Block forward seek beyond adMaxWatchedTime
-  if (video.currentTime > adMaxWatchedTime + 0.5) {
-    video.currentTime = adMaxWatchedTime;
-  }
-}
-
-function handleAdVolumeChange() {
-  if (!isAdPlaying) return;
-  // Enforce NO Muting allowed
-  if (elements.remoteVideo.muted) {
-    elements.remoteVideo.muted = false;
-  }
-}
-
-function toggleAdPlayPause() {
-  if (!isAdPlaying) return;
-  const video = elements.remoteVideo;
-  if (video.paused) {
-    video.play();
-    if (elements.adPlayPauseIcon)
-      elements.adPlayPauseIcon.className = "fa-solid fa-pause";
-  } else {
-    video.pause();
-    if (elements.adPlayPauseIcon)
-      elements.adPlayPauseIcon.className = "fa-solid fa-play";
-  }
-}
-
-function rewindAd5Seconds() {
-  if (!isAdPlaying) return;
-  const video = elements.remoteVideo;
-  // Rewind 5 seconds (Backward seeking is allowed!)
-  video.currentTime = Math.max(0, video.currentTime - 5);
-}
-
-function skipAdAndProceed() {
-  if (!isAdPlaying) return;
-  console.log("Skip Ad clicked! Transitioning directly to stranger search...");
-  if (currentAdConfig) {
-    recordAdImpressionBackend(
-      currentAdConfig,
-      adMaxWatchedTime,
-      false,
-      true,
-      false,
-    );
-  }
-  cleanupAdState();
-
-  // Directly start searching for stranger (bypass handleStartOrNext matchCounter trigger)
-  elements.btnNextLabel.textContent = "Next Stranger";
-  updateStatus("searching", "Searching for a Stranger...");
-  updateToolbarVisibility("searching");
-  showSearchingOverlay(
-    "Searching for a Stranger...",
-    "Connecting you to a random stranger worldwide...",
-  );
-  findAndConnectPeer();
-}
-
-function handleAdEnded() {
-  if (!isAdPlaying) return;
-  console.log(
-    "Ad video ended naturally. Transitioning directly to stranger search...",
-  );
-  if (currentAdConfig) {
-    recordAdImpressionBackend(
-      currentAdConfig,
-      adMaxWatchedTime,
-      true,
-      false,
-      false,
-    );
-  }
-  cleanupAdState();
-
-  // Directly start searching for stranger
-  elements.btnNextLabel.textContent = "Next Stranger";
-  updateStatus("searching", "Searching for a Stranger...");
-  updateToolbarVisibility("searching");
-  showSearchingOverlay(
-    "Searching for a Stranger...",
-    "Connecting you to a random stranger worldwide...",
-  );
-  findAndConnectPeer();
-}
-
-function cleanupAdState() {
-  isAdPlaying = false;
-  adMaxWatchedTime = 0;
-  currentAdConfig = null;
-
-  try {
-    localStorage.removeItem("sc_pending_ad_break");
-  } catch (e) {}
-
-  const video = elements.remoteVideo;
-  if (video) {
-    video.removeEventListener("timeupdate", handleAdTimeUpdate);
-    video.removeEventListener("seeking", handleAdSeeking);
-    video.removeEventListener("volumechange", handleAdVolumeChange);
-    video.removeEventListener("ended", handleAdEnded);
+  // CPU/Battery Saver: Mute/disable local camera track while full-screen ad overlay plays
+  if (localStream) {
     try {
-      video.pause();
-      video.removeAttribute("src");
-      video.load();
+      localStream.getVideoTracks().forEach((track) => (track.enabled = false));
     } catch (e) {}
   }
 
-  const adsterraBox = document.getElementById("adsterra-banner-container");
-  if (adsterraBox) adsterraBox.innerHTML = "";
 
-  if (elements.sponsoredOverlay)
-    elements.sponsoredOverlay.classList.add("hidden");
-  if (elements.controlToolbar)
-    elements.controlToolbar.classList.remove("hidden");
-  if (elements.localPipContainer)
-    elements.localPipContainer.classList.remove("hidden");
-  if (elements.adPlayPauseIcon)
-    elements.adPlayPauseIcon.className = "fa-solid fa-pause";
+  if (elements.iconSelfBrandPause) {
+    elements.iconSelfBrandPause.className = "fa-solid fa-pause";
+  }
+  if (elements.iconSelfBrandMute && elements.selfBrandVideoPlayer) {
+    elements.iconSelfBrandMute.className = elements.selfBrandVideoPlayer.muted
+      ? "fa-solid fa-volume-xmark"
+      : "fa-solid fa-volume-high";
+  }
+
+
+  const adIndex =
+    Math.floor(matchCounter / BRAND_AD_FREQUENCY - 1) %
+    SELF_BRAND_ADS_POOL.length;
+  const adConfig = SELF_BRAND_ADS_POOL[adIndex] || SELF_BRAND_ADS_POOL[0];
+  currentPlayingSelfBrandConfig = adConfig;
+
+  if (elements.selfBrandTitle)
+    elements.selfBrandTitle.textContent = adConfig.title;
+  if (elements.selfBrandDesc)
+    elements.selfBrandDesc.textContent = adConfig.desc;
+  if (elements.selfBrandBadgeText)
+    elements.selfBrandBadgeText.textContent =
+      adConfig.badgeText || "FEATURED PROMOTION";
+  if (elements.selfBrandCtaText)
+    elements.selfBrandCtaText.textContent = adConfig.ctaText || "Visit Website";
+  if (elements.selfBrandCtaLink)
+    elements.selfBrandCtaLink.href = adConfig.linkUrl || "#";
+
+  if (elements.selfBrandVideoPlayer) {
+    elements.selfBrandVideoPlayer.src = adConfig.videoUrl;
+    elements.selfBrandVideoPlayer.currentTime = 0;
+  }
+
+  if (elements.btnSelfBrandSkip) {
+    elements.btnSelfBrandSkip.classList.add("disabled");
+  }
+  if (elements.selfBrandSkipTimer) {
+    elements.selfBrandSkipTimer.textContent = `Skip in ${BRAND_AD_SKIP_SECONDS}s`;
+  }
+  if (elements.selfBrandProgressFill) {
+    elements.selfBrandProgressFill.style.width = "0%";
+  }
+
+  if (elements.selfBrandOverlay) {
+    elements.selfBrandOverlay.classList.remove("hidden");
+  }
+
+  let countdownSec = BRAND_AD_SKIP_SECONDS;
+  if (selfBrandAdTimer) clearInterval(selfBrandAdTimer);
+  selfBrandAdTimer = setInterval(() => {
+    countdownSec--;
+    if (elements.selfBrandSkipTimer) {
+      if (countdownSec > 0) {
+        elements.selfBrandSkipTimer.textContent = `Skip in ${countdownSec}s`;
+      } else {
+        elements.selfBrandSkipTimer.textContent = "Skip Ad ⏭️";
+        if (elements.btnSelfBrandSkip) {
+          elements.btnSelfBrandSkip.classList.remove("disabled");
+        }
+        clearInterval(selfBrandAdTimer);
+        selfBrandAdTimer = null;
+      }
+    }
+  }, 1000);
+
+  if (elements.selfBrandVideoPlayer) {
+    const playPromise = elements.selfBrandVideoPlayer.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((e) => {
+        if (elements.selfBrandVideoPlayer) {
+          elements.selfBrandVideoPlayer.muted = true;
+          elements.selfBrandVideoPlayer
+            .play()
+            .catch((err) => console.warn("Self-brand play error:", err));
+        }
+      });
+    }
+
+    elements.selfBrandVideoPlayer.onended = () => {
+      skipSelfBrandAdAndProceed();
+    };
+
+    // Prevent manual forward seeking (anti-skipping protection)
+    elements.selfBrandVideoPlayer.onseeking = () => {
+      if (
+        elements.selfBrandVideoPlayer &&
+        elements.selfBrandVideoPlayer.currentTime > adMaxTimeWatched + 0.5
+      ) {
+        elements.selfBrandVideoPlayer.currentTime = adMaxTimeWatched;
+      }
+    };
+
+    elements.selfBrandVideoPlayer.ontimeupdate = () => {
+      if (elements.selfBrandVideoPlayer) {
+        if (elements.selfBrandVideoPlayer.currentTime > adMaxTimeWatched) {
+          adMaxTimeWatched = elements.selfBrandVideoPlayer.currentTime;
+        }
+        if (elements.selfBrandProgressFill && elements.selfBrandVideoPlayer.duration) {
+          const pct =
+            (elements.selfBrandVideoPlayer.currentTime /
+              elements.selfBrandVideoPlayer.duration) *
+            100;
+          elements.selfBrandProgressFill.style.width = `${pct}%`;
+        }
+      }
+    };
+  }
+}
+
+function skipSelfBrandAdAndProceed(skippedByClick = false) {
+  if (currentPlayingSelfBrandConfig) {
+    const durationWatched = (Date.now() - selfBrandAdStartTime) / 1000;
+    const totalTimeSpent = (Date.now() - adDwellStartTime) / 1000;
+    const skipSec = currentPlayingSelfBrandConfig.skipAfterSeconds || BRAND_AD_SKIP_SECONDS;
+    const completedFull = !skippedByClick && durationWatched >= skipSec;
+    recordAdImpressionBackend(
+      currentPlayingSelfBrandConfig,
+      durationWatched,
+      completedFull,
+      skippedByClick,
+      false,
+      totalTimeSpent,
+      adPauseCount,
+      adRewindCount,
+      adMaxTimeWatched
+    );
+  }
+  cleanupSelfBrandAdState();
+
+  updateStatus("searching", "Searching for a Stranger...");
+  showSearchingOverlay(
+    "Searching for a Stranger...",
+    "Connecting you to a random stranger worldwide...",
+  );
+  updateToolbarVisibility("searching");
+
+  findAndConnectPeer();
+}
+
+
+function cleanupSelfBrandAdState() {
+  isSelfBrandAdPlaying = false;
+
+  // CPU/Battery Saver: Re-enable local camera track when ad overlay closes
+  if (localStream) {
+    try {
+      localStream.getVideoTracks().forEach((track) => (track.enabled = true));
+    } catch (e) {}
+  }
+
+  if (selfBrandAdTimer) {
+    clearInterval(selfBrandAdTimer);
+    selfBrandAdTimer = null;
+  }
+
+  if (elements.selfBrandVideoPlayer) {
+    try {
+      elements.selfBrandVideoPlayer.pause();
+      elements.selfBrandVideoPlayer.onended = null;
+      elements.selfBrandVideoPlayer.ontimeupdate = null;
+    } catch (e) {}
+  }
+  if (elements.selfBrandOverlay) {
+    elements.selfBrandOverlay.classList.add("hidden");
+  }
 }
 
 function formatTime(seconds) {
@@ -911,7 +907,20 @@ function clearChatMessages() {
 }
 
 function playSimulatedStrangerVideo() {
-  if (currentCall || isAdPlaying) return;
+  if (currentCall) return;
+
+  // Threshold Guard: When active online users count >= 300, disable simulated videos to force 100% organic stranger matching
+  if (currentOnlineUsersCount >= SIMULATED_VIDEO_DISABLE_THRESHOLD) {
+    console.log(
+      `Active online users (${currentOnlineUsersCount}) >= ${SIMULATED_VIDEO_DISABLE_THRESHOLD}. Disabling simulated videos to force 100% organic stranger matching.`,
+    );
+    updateStatus("searching", "High traffic: Matching real strangers...");
+    showSearchingOverlay(
+      "Searching Organic Strangers...",
+      "High live user traffic. Connecting you directly to an organic stranger...",
+    );
+    return;
+  }
 
   clearChatMessages();
 
@@ -939,7 +948,7 @@ function playSimulatedStrangerVideo() {
         isExhaustionPauseActive = false;
         activeShuffledPool = shuffleArray(SIMULATED_VIDEOS_POOL);
         poolTrackIndex = 0;
-        if (!currentCall && !isAdPlaying) {
+        if (!currentCall) {
           playSimulatedStrangerVideo();
         }
       }, 5000);
@@ -950,14 +959,6 @@ function playSimulatedStrangerVideo() {
   isSimulatedCallActive = true;
   hideSearchingOverlay();
   hideFirewallWarning();
-
-  // Force hide searching overlay element so video is 100% visible on stage
-  const overlay =
-    document.getElementById("searching-overlay") || elements.searchingOverlay;
-  if (overlay) {
-    overlay.classList.add("hidden");
-    overlay.style.display = "none";
-  }
 
   const videoUrl = activeShuffledPool[poolTrackIndex];
   console.log(
@@ -975,7 +976,7 @@ function playSimulatedStrangerVideo() {
       "Simulated video failed to play (404 / deleted / corrupt), auto-skipping:",
       videoUrl,
     );
-    if (isSimulatedCallActive && !currentCall && !isAdPlaying) {
+    if (isSimulatedCallActive && !currentCall) {
       setTimeout(skipSimulatedStrangerVideo, 200);
     }
   };
@@ -1011,31 +1012,22 @@ function playSimulatedStrangerVideo() {
 
     if (!isSimulatedCallActive || currentCall) return;
 
+    // 1. Always start videos from 0:00 (beginning) for 100% natural greetings
+    elements.remoteVideo.currentTime = 0;
+
+    // 2. Smooth call duration: 8.0s to 12.0s (or full video length if video is shorter)
     const duration = elements.remoteVideo.duration;
-    let targetPlayDurationMs = 3000;
+    let targetPlayDurationMs = 9000;
 
     if (!isNaN(duration) && duration > 0) {
-      if (duration <= 3.5) {
-        // Short Videos (2s - 3.5s): Start at 0s, play full duration
-        elements.remoteVideo.currentTime = 0;
-        targetPlayDurationMs = Math.max(1800, (duration - 0.2) * 1000);
-      } else {
-        // Medium/Long Videos (> 3.5s): Random start offset & 2.2s - 3.8s human jitter duration
-        const maxStart = Math.max(0, duration - 3.0);
-        elements.remoteVideo.currentTime = Math.random() * maxStart;
-        const remainingTimeMs =
-          (duration - elements.remoteVideo.currentTime) * 1000;
-        const jitterDuration = Math.floor(Math.random() * 1600) + 2200; // 2200ms - 3800ms human jitter
-        targetPlayDurationMs = Math.min(
-          jitterDuration,
-          Math.max(1800, remainingTimeMs - 200),
-        );
-      }
+      const fullDurationMs = Math.max(2000, (duration - 0.2) * 1000);
+      const randomCallDurationMs = Math.floor(Math.random() * 4000) + 8000; // 8000ms - 12000ms (8s - 12s)
+      targetPlayDurationMs = Math.min(fullDurationMs, randomCallDurationMs);
     }
 
     if (simulatedVideoTimer) clearTimeout(simulatedVideoTimer);
     simulatedVideoTimer = setTimeout(() => {
-      if (isSimulatedCallActive && !currentCall && !isAdPlaying) {
+      if (isSimulatedCallActive && !currentCall) {
         skipSimulatedStrangerVideo();
       }
     }, targetPlayDurationMs);
@@ -1067,6 +1059,8 @@ let simulatedSearchDelayTimeout = null;
 
 function skipSimulatedStrangerVideo() {
   clearChatMessages();
+  stopInCallAdsterraJitterEngine();
+
   if (simulatedVideoTimer) {
     clearTimeout(simulatedVideoTimer);
     simulatedVideoTimer = null;
@@ -1076,46 +1070,44 @@ function skipSimulatedStrangerVideo() {
     simulatedSearchDelayTimeout = null;
   }
 
-  // Stage 1: Pause video & show disconnect state
+  // Stage 1: Pause & clear previous remote video completely (Prevents background audio/video playback & error loops)
   if (elements.remoteVideo && !elements.remoteVideo.srcObject) {
     try {
+      elements.remoteVideo.onerror = null;
       elements.remoteVideo.pause();
       elements.remoteVideo.removeAttribute("src");
       elements.remoteVideo.load();
     } catch (e) {}
   }
 
-  // Restore searching overlay element display
-  const overlay =
-    document.getElementById("searching-overlay") || elements.searchingOverlay;
-  if (overlay) {
-    overlay.style.display = "";
-    overlay.classList.remove("hidden");
-  }
-
-  // Stage 2: Show realistic Omegle searching radar transition
-  updateStatus("searching", "Stranger disconnected. Searching...");
+  // Stage 2: Show searching radar overlay with 4.0s guaranteed dwell time & ad banner
+  updateStatus("searching", "Searching for a Stranger...");
   showSearchingOverlay(
     "Searching for a Stranger...",
     "Connecting you to a random stranger worldwide...",
   );
   updateToolbarVisibility("searching");
-  appendSystemChatMessage("Stranger has disconnected.");
 
-  // Stage 3: Randomized 1.2s to 1.8s realistic search delay before connecting next stranger
-  const searchDelay = Math.floor(Math.random() * 600) + 1200; // 1200ms - 1800ms
-
+  // Stage 3: Perfectly synchronized 4.0s dwell time before launching next video
   simulatedSearchDelayTimeout = setTimeout(() => {
     simulatedSearchDelayTimeout = null;
-    if (isSimulatedCallActive && !currentCall && !isAdPlaying) {
-      updateStatus("connected", "Connecting...");
-      setTimeout(() => {
-        if (isSimulatedCallActive && !currentCall && !isAdPlaying) {
-          playSimulatedStrangerVideo();
-        }
-      }, 300);
+    if (isSimulatedCallActive && !currentCall) {
+      matchCounter++;
+      if (
+        ENABLE_SELF_BRAND_ADS &&
+        SELF_BRAND_ADS_POOL.length > 0 &&
+        matchCounter % BRAND_AD_FREQUENCY === 0
+      ) {
+        console.log(
+          `Auto-next match counter (${matchCounter}) reached BRAND_AD_FREQUENCY (${BRAND_AD_FREQUENCY}). Triggering Self-Brand Video Promotion...`,
+        );
+        playSelfBrandVideoAd();
+        return;
+      }
+      playSimulatedStrangerVideo();
     }
-  }, searchDelay);
+  }, MIN_SEARCHING_DWELL_MS);
+
 }
 
 function stopSimulatedStrangerVideo() {
@@ -1275,6 +1267,7 @@ function findAndConnectPeer() {
 
   // Create client Peer instance
   const tempClientId = "client-" + Math.floor(Math.random() * 1000000);
+  previousTempClientId = tempClientId;
 
   peer = new Peer(tempClientId, STUN_CONFIG);
 
@@ -1314,14 +1307,16 @@ function findAndConnectPeer() {
  * Attempt connection to a host slot or register as host
  */
 function connectToHostOrBecomeHost(hostId) {
-  if (peer && peer.id === hostId) {
+  if ((peer && peer.id === hostId) || hostId === previousTempClientId) {
     console.warn("Self-connection prevented: current peer is already the host of this slot.");
     becomeWaitingHost(hostId);
     return;
   }
 
-  // Try calling the host ID
-  const call = peer.call(hostId, localStream);
+  // Try calling the host ID with session metadata
+  const call = peer.call(hostId, localStream, {
+    metadata: { sessionInstanceId: SESSION_INSTANCE_ID, callerId: peer.id }
+  });
 
   let connected = false;
 
@@ -1333,7 +1328,9 @@ function connectToHostOrBecomeHost(hostId) {
   });
 
   // Establish P2P DataChannel for chat
-  const conn = peer.connect(hostId);
+  const conn = peer.connect(hostId, {
+    metadata: { sessionInstanceId: SESSION_INSTANCE_ID, callerId: peer.id }
+  });
   setupDataConnection(conn);
 
   // Track & manage host connection timeout
@@ -1345,7 +1342,7 @@ function connectToHostOrBecomeHost(hostId) {
   // If host doesn't respond within 800ms, become the waiting host
   hostConnectTimeout = setTimeout(() => {
     hostConnectTimeout = null;
-    if (!connected && currentCall !== call && !isAdPlaying) {
+    if (!connected && currentCall !== call) {
       call.close();
       becomeWaitingHost(hostId);
     }
@@ -1356,8 +1353,6 @@ function connectToHostOrBecomeHost(hostId) {
  * Register current peer as the waiting Host on a public slot
  */
 function becomeWaitingHost(hostId) {
-  // Never disrupt an active Video Ad!
-  if (isAdPlaying) return;
 
   if (chatConn) {
     try {
@@ -1366,7 +1361,10 @@ function becomeWaitingHost(hostId) {
     chatConn = null;
   }
 
-  if (peer && !peer.destroyed) peer.destroy();
+  if (peer && !peer.destroyed) {
+    previousTempClientId = peer.id;
+    peer.destroy();
+  }
 
   // Initialize peer with the host slot ID
   peer = new Peer(hostId, STUN_CONFIG);
@@ -1374,24 +1372,30 @@ function becomeWaitingHost(hostId) {
   peer.on("open", (id) => {
     myPeerId = id;
     console.log("Waiting as Host on slot:", id);
-    if (!isAdPlaying) {
-      updateStatus("searching", "Waiting for a stranger to join...");
-      showSearchingOverlay(
-        "Waiting for a Stranger...",
-        "You are in the waiting queue. A peer will connect shortly.",
-      );
+    updateStatus("searching", "Waiting for a stranger to join...");
+    showSearchingOverlay(
+      "Waiting for a Stranger...",
+      "You are in the waiting queue. A peer will connect shortly.",
+    );
 
-      // Instant simulated video fallback if no real peer joins within 200ms
-      if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
-      simulatedFallbackTimeout = setTimeout(() => {
-        if (!currentCall && !isAdPlaying) {
-          playSimulatedStrangerVideo();
-        }
-      }, 200);
-    }
+    // Instant simulated video fallback if no real peer joins within 200ms
+    if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
+    simulatedFallbackTimeout = setTimeout(() => {
+      if (!currentCall) {
+        playSimulatedStrangerVideo();
+      }
+    }, 200);
   });
 
   peer.on("call", (call) => {
+    const callerSessionId = call.metadata && call.metadata.sessionInstanceId;
+    const callerId = call.peer || (call.metadata && call.metadata.callerId);
+    if (callerSessionId === SESSION_INSTANCE_ID || callerId === previousTempClientId || callerId === myPeerId) {
+      console.warn("Self-call detected & blocked in becomeWaitingHost:", callerId);
+      try { call.close(); } catch (e) {}
+      return;
+    }
+
     stopSimulatedStrangerVideo();
     call.answer(localStream);
     currentCall = call;
@@ -1403,20 +1407,37 @@ function becomeWaitingHost(hostId) {
   });
 
   peer.on("connection", (conn) => {
+    const callerSessionId = conn.metadata && conn.metadata.sessionInstanceId;
+    const callerId = conn.peer || (conn.metadata && conn.metadata.callerId);
+    if (callerSessionId === SESSION_INSTANCE_ID || callerId === previousTempClientId || callerId === myPeerId) {
+      console.warn("Self DataConnection detected & blocked:", callerId);
+      try { conn.close(); } catch (e) {}
+      return;
+    }
     setupDataConnection(conn);
   });
 
   peer.on("error", (err) => {
     console.warn("Host Slot Conflict, retrying another slot...", err);
+    currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
     if (retryMatchmakingTimeout) clearTimeout(retryMatchmakingTimeout);
     retryMatchmakingTimeout = setTimeout(findAndConnectPeer, 500);
   });
+
 }
 
 /**
  * Handle incoming WebRTC call
  */
 function handleIncomingCall(call) {
+  const callerSessionId = call.metadata && call.metadata.sessionInstanceId;
+  const callerId = call.peer || (call.metadata && call.metadata.callerId);
+  if (callerSessionId === SESSION_INSTANCE_ID || callerId === previousTempClientId || callerId === myPeerId) {
+    console.warn("Self-call detected & blocked in handleIncomingCall:", callerId);
+    try { call.close(); } catch (e) {}
+    return;
+  }
+
   stopSimulatedStrangerVideo();
   call.answer(localStream);
   currentCall = call;
@@ -1428,6 +1449,7 @@ function handleIncomingCall(call) {
 }
 
 let isAutoSearchingAfterSkip = false;
+
 
 function onPeerSkippedUs() {
   if (isAutoSearchingAfterSkip) return;
@@ -1504,6 +1526,17 @@ function monitorICEConnection(call) {
  * Triggered when P2P Connection & Video Stream are successfully established
  */
 function onPeerConnected(remoteStream) {
+  if (localStream && remoteStream) {
+    const localTrack = localStream.getVideoTracks()[0] || localStream.getAudioTracks()[0];
+    const remoteTrack = remoteStream.getVideoTracks()[0] || remoteStream.getAudioTracks()[0];
+    if (localTrack && remoteTrack && localTrack.id === remoteTrack.id) {
+      console.warn("Self-stream loop detected on remote stream! Dropping self-connection...");
+      cleanupCallState();
+      becomeWaitingHost(LOBBY_PREFIX + currentSlotScanIndex);
+      return;
+    }
+  }
+
   stopSimulatedStrangerVideo();
   elements.remoteVideo.srcObject = remoteStream;
   elements.remoteVideo.muted = false; // Ensure unmuted audio for live P2P stream
@@ -1513,13 +1546,18 @@ function onPeerConnected(remoteStream) {
   updateStatus("connected", "Connected with Stranger");
   updateToolbarVisibility("connected");
 
+
   // Enable Chat Input
   elements.chatInput.disabled = false;
   elements.btnSendChat.disabled = false;
 
   // Trigger Psychological In-Call Adsterra Engine (15s Gate + Alternating Long/Short Jitter Gaps)
   startInCallAdsterraJitterEngine();
+
+  // Start In-Call Control Toolbar Auto-Hider (Full Video UX)
+  startInCallToolbarAutoHider();
 }
+
 
 /**
  * Setup WebRTC P2P DataConnection for Text Messaging
@@ -1540,10 +1578,15 @@ function setupDataConnection(conn) {
         onPeerSkippedUs();
         return;
       }
+      if (data.type === "PRIVACY_VIOLATION_ATTEMPT") {
+        showPeerPrivacyViolationAlert(data.reason || "restricted_action");
+        return;
+      }
       if (data.type === "reaction") {
         spawnFloatingEmoji(data.emoji);
         return;
       }
+
     }
 
     if (typeof data === "string") {
@@ -1626,7 +1669,7 @@ function sendEmojiReaction(emojiSymbol) {
   }
 
   // Simulated Call Counter-Reaction: Stranger echoes back the EXACT SAME emoji selected by user!
-  if (isSimulatedCallActive && !currentCall && !isAdPlaying) {
+  if (isSimulatedCallActive && !currentCall) {
     const delay = Math.floor(Math.random() * 800) + 1200;
     setTimeout(() => {
       if (isSimulatedCallActive && !currentCall) {
@@ -1886,7 +1929,8 @@ function stopCall() {
 function cleanupCallState() {
   stopSimulatedStrangerVideo();
   stopInCallAdsterraJitterEngine();
-  cleanupAdState();
+  stopInCallToolbarAutoHider();
+
 
   if (hostConnectTimeout) {
     clearTimeout(hostConnectTimeout);
@@ -1943,16 +1987,66 @@ function updateStatus(state, text) {
   if (elements.statusText) elements.statusText.textContent = text;
 }
 
+let searchingOverlayStartTime = 0;
+const MIN_SEARCHING_DWELL_MS = 5000; // 5.0s Guaranteed Impression Gate with Live Countdown
+let searchingCountdownInterval = null;
+
+function renderSearchingAdsterraBanner() {
+  const box = document.getElementById("searching-adsterra-banner-container");
+  if (!box) return;
+  renderMediationAdInContainer(box);
+}
+
+
 function showSearchingOverlay(title, sub) {
   elements.overlayTitle.textContent = title;
   elements.overlaySub.textContent =
     sub ||
     `Connecting you to 1 stranger among ${currentOnlineUsersCount.toLocaleString()} online strangers worldwide...`;
+
+  // If Searching Overlay is ALREADY visible, update text without restarting 5s countdown or ad banner
+  if (!elements.searchingOverlay.classList.contains("hidden")) {
+    return;
+  }
+
+  searchingOverlayStartTime = Date.now();
   elements.searchingOverlay.classList.remove("hidden");
+
+  // Live 5s -> 1s Countdown Timer Ticker
+  let countdownSec = 5;
+  const numSpan = document.getElementById("countdown-num");
+  if (numSpan) numSpan.textContent = countdownSec;
+
+  if (searchingCountdownInterval) clearInterval(searchingCountdownInterval);
+  searchingCountdownInterval = setInterval(() => {
+    countdownSec--;
+    if (numSpan) numSpan.textContent = Math.max(1, countdownSec);
+    if (countdownSec <= 1) {
+      clearInterval(searchingCountdownInterval);
+      searchingCountdownInterval = null;
+    }
+  }, 1000);
+
+  // Render Adsterra Banner synchronously at 0ms for maximum 5.0s screen time
+  renderSearchingAdsterraBanner();
 }
 
 function hideSearchingOverlay() {
-  elements.searchingOverlay.classList.add("hidden");
+  if (searchingCountdownInterval) {
+    clearInterval(searchingCountdownInterval);
+    searchingCountdownInterval = null;
+  }
+
+  const elapsed = Date.now() - searchingOverlayStartTime;
+  const remaining = MIN_SEARCHING_DWELL_MS - elapsed;
+
+  if (remaining > 0) {
+    setTimeout(() => {
+      elements.searchingOverlay.classList.add("hidden");
+    }, remaining);
+  } else {
+    elements.searchingOverlay.classList.add("hidden");
+  }
 }
 
 function showFirewallWarning() {
@@ -1987,37 +2081,7 @@ async function recordVisitBackend() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ visitorId, country: "UNKNOWN", device }),
-    }).catch((e) => console.warn("Visit log API notice:", e));
-  } catch (e) {}
-}
-
-async function recordAdImpressionBackend(
-  adConfig,
-  durationWatched,
-  completedFull,
-  skipped,
-  clickedCta,
-) {
-  if (typeof BACKEND_API_BASE === "undefined" || !adConfig) return;
-  try {
-    const visitorId = getVisitorId();
-    const device = window.innerWidth <= 768 ? "mobile" : "desktop";
-    const adId = adConfig.adId || adConfig.id || "unknown-ad";
-
-    fetch(`${BACKEND_API_BASE}/ad-impression`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        adId,
-        country: "UNKNOWN",
-        device,
-        durationWatched: Math.round(durationWatched),
-        completedFull,
-        skipped,
-        clickedCta,
-        visitorId,
-      }),
-    }).catch((e) => console.warn("Ad impression API notice:", e));
+    }).catch((e) => {});
   } catch (e) {}
 }
 
@@ -2031,16 +2095,10 @@ async function recordSessionTimeBackend(durationSeconds = 30) {
       body: JSON.stringify({
         visitorId,
         durationSeconds,
-        matchesCount: matchCounter,
       }),
-    }).catch((e) => console.warn("Session time API notice:", e));
+    }).catch((e) => {});
   } catch (e) {}
 }
-
-// Start 30-second session time tracking heartbeat
-setInterval(() => {
-  recordSessionTimeBackend(30);
-}, 30000);
 
 async function fetchActiveUsersBackend() {
   if (typeof BACKEND_API_BASE === "undefined") return;
@@ -2050,14 +2108,87 @@ async function fetchActiveUsersBackend() {
     if (data && data.success && typeof data.activeUsers === "number") {
       updateOnlineUsersDisplay(data.activeUsers);
     }
+  } catch (e) {
+    // If backend server is offline during dev/test, fallback gracefully to 1
+    updateOnlineUsersDisplay(1);
+  }
+}
+
+async function fetchSelfBrandAdsFromBackend() {
+  if (typeof BACKEND_API_BASE === "undefined") return;
+  try {
+    const res = await fetch(`${BACKEND_API_BASE}/ads`);
+    const data = await res.json();
+    if (data && data.success && Array.isArray(data.ads)) {
+      SELF_BRAND_ADS_POOL = data.ads;
+      console.log("Self-brand ads pool synced from MongoDB DB:", SELF_BRAND_ADS_POOL.length, "active ads");
+    } else {
+      SELF_BRAND_ADS_POOL = [];
+    }
+  } catch (e) {
+    SELF_BRAND_ADS_POOL = [];
+  }
+
+  // Sync dynamic ad mediation config from backend API if available
+  try {
+    fetch(`${BACKEND_API_BASE}/ads/mediation-config`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success && data.config) {
+          window.AD_MEDIATION_CONFIG = data.config;
+          console.log("Ad mediation config synced dynamically from backend server");
+        }
+      })
+      .catch((e) => {});
   } catch (e) {}
 }
+
+
+
+async function recordAdImpressionBackend(
+  adConfig,
+  durationWatched = 0,
+  completedFull = false,
+  skipped = false,
+  clickedCta = false,
+  totalTimeSpent = 0,
+  pauseCount = 0,
+  rewindCount = 0,
+  maxTimeWatched = 0
+) {
+  if (typeof BACKEND_API_BASE === "undefined" || !adConfig) return;
+  try {
+    const visitorId = getVisitorId();
+    const device = window.innerWidth <= 768 ? "mobile" : "desktop";
+    const adId = adConfig.adId || adConfig.id || "brand-ad-unknown";
+
+    fetch(`${BACKEND_API_BASE}/ad-impression`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        adId,
+        country: "UNKNOWN",
+        device,
+        durationWatched: Math.round(durationWatched),
+        completedFull,
+        skipped,
+        clickedCta,
+        visitorId,
+        totalTimeSpent: Math.round(totalTimeSpent || durationWatched),
+        pauseCount,
+        rewindCount,
+        maxTimeWatched: Math.round(maxTimeWatched || durationWatched),
+      }),
+    }).catch((e) => console.warn("Ad impression API notice:", e));
+  } catch (e) {}
+}
+
 
 function updateOnlineUsersDisplay(count) {
   currentOnlineUsersCount = Math.max(1, count);
   const badgeEl = document.getElementById("online-users-badge");
 
-  if (currentOnlineUsersCount < 100) {
+  if (currentOnlineUsersCount < 700) {
     if (badgeEl) {
       badgeEl.classList.add("hidden");
       badgeEl.style.setProperty("display", "none", "important");
@@ -2074,146 +2205,192 @@ function updateOnlineUsersDisplay(count) {
   }
 }
 
-/**
- * VAST 2.0 / 3.0 In-Stream XML Video Ad Parser
- */
-async function fetchAndParseVastAd(vastUrl) {
-  try {
-    const res = await fetch(vastUrl);
-    const xmlText = await res.text();
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
-    // Extract MediaFile (Actual Advertiser MP4 Video Stream URL)
-    const mediaFiles = xmlDoc.getElementsByTagName("MediaFile");
-    let videoUrl = null;
-    for (let i = 0; i < mediaFiles.length; i++) {
-      const type = mediaFiles[i].getAttribute("type");
-      if (type && (type.includes("mp4") || type.includes("webm"))) {
-        videoUrl = mediaFiles[i].textContent.trim();
-        break;
+
+/**
+ * Dynamic Waterfall Ad Mediation Engine (N-Providers Support + Self-Brand Fallback)
+ */
+function getTodayMediationStorageKey() {
+  const today = new Date().toISOString().slice(0, 10);
+  const targetKey = `sc_mediation_tracker_${today}`;
+  
+  // Cleanup old mediation tracking keys from previous days
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith("sc_mediation_tracker_") && k !== targetKey) {
+        localStorage.removeItem(k);
       }
     }
-    if (!videoUrl && mediaFiles.length > 0) {
-      videoUrl = mediaFiles[0].textContent.trim();
-    }
+  } catch (e) {}
 
-    // Extract AdTitle
-    const titleNode = xmlDoc.getElementsByTagName("AdTitle")[0];
-    const title = titleNode
-      ? titleNode.textContent.trim()
-      : "Sponsored Video Ad";
+  return targetKey;
+}
 
-    // Extract ClickThrough (Landing URL)
-    const clickNode = xmlDoc.getElementsByTagName("ClickThrough")[0];
-    const linkUrl = clickNode
-      ? clickNode.textContent.trim()
-      : "https://hashgang.com";
-
-    // Extract Description
-    const descNode = xmlDoc.getElementsByTagName("Description")[0];
-    const desc = descNode
-      ? descNode.textContent.trim()
-      : "Sponsored Video Content";
-
-    if (videoUrl) {
-      return {
-        adId: "vast-dynamic-ad",
-        title,
-        desc,
-        videoUrl,
-        linkUrl,
-        badgeText: "SPONSORED VIDEO AD",
-        skipAfterSeconds: 10,
-      };
-    }
+function getMediationDailyTracker() {
+  try {
+    const data = localStorage.getItem(getTodayMediationStorageKey());
+    return data ? JSON.parse(data) : {};
   } catch (e) {
-    console.warn("VAST Video Tag fetch notice:", e);
+    return {};
   }
+}
+
+function incrementMediationImpressionCount(providerId) {
+  try {
+    const key = getTodayMediationStorageKey();
+    const tracker = getMediationDailyTracker();
+    tracker[providerId] = (tracker[providerId] || 0) + 1;
+    localStorage.setItem(key, JSON.stringify(tracker));
+  } catch (e) {}
+}
+
+function selectWaterfallAdProvider() {
+  const config = window.AD_MEDIATION_CONFIG;
+  if (!config) return null;
+
+  const isLocalhost =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+
+  // If localhost and skipOnLocalhost is enabled, bypass paid third-party ads and serve self-brand fallback directly
+  if (isLocalhost && config.settings && config.settings.skipOnLocalhost) {
+    if (config.selfBrandFallback && config.selfBrandFallback.enabled !== false) {
+      return { type: "selfBrandFallback", data: config.selfBrandFallback };
+    }
+    return null;
+  }
+
+  const tracker = getMediationDailyTracker();
+  const providers = config.providers || [];
+
+  // Dynamically loop through N providers (Index 0 to N-1)
+  for (let i = 0; i < providers.length; i++) {
+    const p = providers[i];
+    if (p && p.enabled !== false) {
+      const userDailyCount = tracker[p.id] || 0;
+      if (userDailyCount < p.dailyCapPerUser) {
+        return { type: "provider", data: p };
+      }
+    }
+  }
+
+  // All N paid providers exhausted or disabled -> Fallback to Self-Brand Promotion!
+  if (config.selfBrandFallback && config.selfBrandFallback.enabled !== false) {
+    return { type: "selfBrandFallback", data: config.selfBrandFallback };
+  }
+
   return null;
 }
 
-/**
- * Dynamic Responsive Adsterra Resolution Switcher
- */
-function getResponsiveAdsterraConfig() {
-  const width = window.innerWidth;
+function renderMediationAdInContainer(containerBox) {
+  if (!containerBox) return;
+  containerBox.innerHTML = "";
 
-  if (width <= 500) {
-    // Mobile Devices: 300x250 Box
-    return {
-      key: "ede40fc4ab13bf9c6140311ae9860f4f",
-      height: 250,
-      width: 300,
-      scriptUrl:
-        "https://www.highperformanceformat.com/ede40fc4ab13bf9c6140311ae9860f4f/invoke.js",
-    };
-  } else if (width <= 900) {
-    // Tablets / Mid-Size: 468x60 Banner
-    return {
-      key: "d9676c3a7d2b29be111c5b2e061f9ab2",
-      height: 60,
-      width: 468,
-      scriptUrl:
-        "https://www.highperformanceformat.com/d9676c3a7d2b29be111c5b2e061f9ab2/invoke.js",
-    };
-  } else {
-    // Large Desktop Displays: 728x90 Leaderboard Banner
-    return {
-      key: "4f2e5f584936737065419e1ba469a31d",
-      height: 90,
-      width: 728,
-      scriptUrl:
-        "https://www.highperformanceformat.com/4f2e5f584936737065419e1ba469a31d/invoke.js",
-    };
+  const selection = selectWaterfallAdProvider();
+  if (!selection) {
+    containerBox.classList.add("hidden");
+    return;
+  }
+
+  containerBox.classList.remove("hidden", "fading-out");
+
+  if (selection.type === "provider") {
+    const p = selection.data;
+    incrementMediationImpressionCount(p.id);
+
+    try {
+      const iframe = document.createElement("iframe");
+      iframe.style.width = `${p.width || 300}px`;
+      iframe.style.height = `${p.height || 250}px`;
+      iframe.style.border = "none";
+      iframe.style.overflow = "hidden";
+      iframe.style.borderRadius = "8px";
+      iframe.scrolling = "no";
+
+      const htmlString = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; overflow: hidden; }</style>
+          </head>
+          <body>
+            <script type="text/javascript">
+              atOptions = {
+                'key' : '${p.invokeKey}',
+                'format' : 'iframe',
+                'height' : ${p.height || 250},
+                'width' : ${p.width || 300},
+                'params' : {}
+              };
+            </script>
+            <script type="text/javascript" src="${p.scriptUrl}"></script>
+          </body>
+        </html>
+      `;
+
+      if ("srcdoc" in iframe) {
+        iframe.srcdoc = htmlString;
+      }
+
+      containerBox.appendChild(iframe);
+
+      if (!("srcdoc" in iframe) && iframe.contentWindow) {
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(htmlString);
+        doc.close();
+      }
+    } catch (e) {
+      console.warn("Mediation ad render notice:", e);
+    }
+  } else if (selection.type === "selfBrandFallback") {
+
+    const sb = selection.data;
+    const card = document.createElement("div");
+    card.className = "mediation-self-brand-card";
+    card.innerHTML = `
+      <span class="mediation-self-brand-badge">${sb.badgeText || "FEATURED PROMOTION"}</span>
+      <h4 class="mediation-self-brand-title">${sb.title}</h4>
+      <p class="mediation-self-brand-desc">${sb.desc}</p>
+      <a href="${sb.linkUrl}" target="_blank" rel="noopener noreferrer" class="mediation-self-brand-cta">
+        <span>${sb.ctaText}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <line x1="10" y1="14" x2="21" y2="3"></line>
+        </svg>
+      </a>
+    `;
+    containerBox.appendChild(card);
   }
 }
 
 let inCallAdsterraTimer = null;
+let inCallAdsterraHideTimer = null;
 
 /**
- * Show Live In-Call Adsterra Sponsored Banner Overlay (4-Second Ultra-Fast Fade Out)
+ * Show Live In-Call Adsterra Sponsored Banner Overlay (Auto-disappears after 4.0s viewability threshold)
  */
 function showInCallAdsterraBanner() {
+  hideInCallAdsterraBanner();
+
   const bannerBox = document.getElementById("incall-adsterra-banner-container");
   if (!bannerBox) return;
 
-  if (inCallAdsterraTimer) clearTimeout(inCallAdsterraTimer);
-  bannerBox.innerHTML = "";
-  bannerBox.classList.remove("hidden", "fading-out");
+  renderMediationAdInContainer(bannerBox);
 
-  const adConfig = getResponsiveAdsterraConfig();
-  const scriptConf = document.createElement("script");
-  scriptConf.type = "text/javascript";
-  scriptConf.text = `
-    atOptions = {
-      'key' : '${adConfig.key}',
-      'format' : 'iframe',
-      'height' : ${adConfig.height},
-      'width' : ${adConfig.width},
-      'params' : {}
-    };
-  `;
-  const scriptInvoke = document.createElement("script");
-  scriptInvoke.type = "text/javascript";
-  scriptInvoke.src = adConfig.scriptUrl;
-  bannerBox.appendChild(scriptConf);
-  bannerBox.appendChild(scriptInvoke);
-
-  // 6-Second Timer (2s Network Iframe Render Offset + 4s Full Rendered Impression View)
-  inCallAdsterraTimer = setTimeout(() => {
-    bannerBox.classList.add("fading-out");
-    setTimeout(() => {
-      bannerBox.classList.add("hidden");
-      bannerBox.innerHTML = "";
-    }, 500);
-  }, 6000);
+  // Impression Record & Disappear: Auto-hide after 4.0s viewability threshold
+  inCallAdsterraHideTimer = setTimeout(() => {
+    hideInCallAdsterraBanner();
+  }, 4000);
 }
 
+
 function hideInCallAdsterraBanner() {
-  if (inCallAdsterraTimer) {
-    clearTimeout(inCallAdsterraTimer);
-    inCallAdsterraTimer = null;
+  if (inCallAdsterraHideTimer) {
+    clearTimeout(inCallAdsterraHideTimer);
+    inCallAdsterraHideTimer = null;
   }
   const bannerBox = document.getElementById("incall-adsterra-banner-container");
   if (bannerBox) {
@@ -2222,46 +2399,223 @@ function hideInCallAdsterraBanner() {
   }
 }
 
-// Psychological Variable Jitter Schedule: Alternating Long (180s = 3m) & Short (60s = 1m) Gaps
-const JITTER_GAPS = [180, 60];
-let currentJitterIndex = 0;
-let inCallJitterTimeout = null;
-
 /**
- * Psychological Behavioral Adsterra In-Call Monetization Engine
- * - 1st Impression: At 15s Gate (Filters rapid visual scanning skips).
- * - Subsequent Impressions: Alternating Long & Short Gaps (Eliminates pattern fatigue).
+ * Standardized Synchronized In-Call Adsterra Schedule:
+ * - 1st Ad: Displays 15 seconds after call starts (Disappears after 4s impression dwell).
+ * - Subsequent Ads: Displays every 60 seconds thereafter (Disappears after 4s impression dwell).
  */
 function startInCallAdsterraJitterEngine() {
   stopInCallAdsterraJitterEngine();
-  currentJitterIndex = 0;
 
-  // 15-Second Initial Engagement Gate
-  inCallJitterTimeout = setTimeout(() => {
+  // First Ad at 15 Seconds
+  inCallAdsterraTimer = setTimeout(() => {
     showInCallAdsterraBanner();
-    currentJitterIndex++;
-    scheduleNextJitterAd();
+
+    // Subsequent Ads Every 60 Seconds
+    inCallAdsterraTimer = setInterval(() => {
+      showInCallAdsterraBanner();
+    }, 60000);
   }, 15000);
 }
 
-function scheduleNextJitterAd() {
-  if (inCallJitterTimeout) clearTimeout(inCallJitterTimeout);
-
-  const gapSeconds = JITTER_GAPS[(currentJitterIndex - 1) % JITTER_GAPS.length];
-  inCallJitterTimeout = setTimeout(() => {
-    showInCallAdsterraBanner();
-    currentJitterIndex++;
-    scheduleNextJitterAd();
-  }, gapSeconds * 1000);
+function stopInCallAdsterraJitterEngine() {
+  if (inCallAdsterraTimer) {
+    clearTimeout(inCallAdsterraTimer);
+    clearInterval(inCallAdsterraTimer);
+    inCallAdsterraTimer = null;
+  }
+  hideInCallAdsterraBanner();
 }
 
-function stopInCallAdsterraJitterEngine() {
-  if (inCallJitterTimeout) {
-    clearTimeout(inCallJitterTimeout);
-    inCallJitterTimeout = null;
+/**
+ * In-Call Toolbar Auto-Hiding (Full Video UX)
+ */
+let inCallToolbarAutoHideTimer = null;
+
+function startInCallToolbarAutoHider() {
+  resetInCallToolbarAutoHide();
+  window.addEventListener("mousemove", resetInCallToolbarAutoHide);
+  window.addEventListener("touchstart", resetInCallToolbarAutoHide);
+  window.addEventListener("touchmove", resetInCallToolbarAutoHide);
+}
+
+function stopInCallToolbarAutoHider() {
+  if (inCallToolbarAutoHideTimer) {
+    clearTimeout(inCallToolbarAutoHideTimer);
+    inCallToolbarAutoHideTimer = null;
   }
-  currentJitterIndex = 0;
-  hideInCallAdsterraBanner();
+  window.removeEventListener("mousemove", resetInCallToolbarAutoHide);
+  window.removeEventListener("touchstart", resetInCallToolbarAutoHide);
+  window.removeEventListener("touchmove", resetInCallToolbarAutoHide);
+  if (elements.controlToolbar) {
+    elements.controlToolbar.classList.remove("autohidden");
+  }
+}
+
+function resetInCallToolbarAutoHide() {
+  if (elements.controlToolbar) {
+    elements.controlToolbar.classList.remove("autohidden");
+  }
+  if (inCallToolbarAutoHideTimer) {
+    clearTimeout(inCallToolbarAutoHideTimer);
+  }
+  if (currentCall || isSimulatedCallActive) {
+    inCallToolbarAutoHideTimer = setTimeout(() => {
+      if ((currentCall || isSimulatedCallActive) && elements.controlToolbar) {
+        elements.controlToolbar.classList.add("autohidden");
+      }
+    }, 3500);
+  }
+}
+
+/**
+ * User Anonymity & P2P Real-Time Privacy Security Suite
+ */
+
+let userViolationStrikeCount = 0;
+let userMatchmakingCooldownTimer = null;
+let isUserOnCooldown = false;
+let traceIdSessionKey = null;
+
+function getSessionTraceId() {
+  if (!traceIdSessionKey) {
+    traceIdSessionKey = Math.random().toString(36).substring(2, 10).toUpperCase();
+  }
+  return traceIdSessionKey;
+}
+
+function updateWatermarkDisplay() {
+  const traceEl = document.getElementById("watermark-trace-id");
+  if (traceEl) {
+    traceEl.textContent = getSessionTraceId();
+  }
+}
+
+function broadcastPrivacyViolationToPeer(reason = "restricted_action") {
+  userViolationStrikeCount++;
+
+  if (chatConn && chatConn.open) {
+    try {
+      chatConn.send({ type: "PRIVACY_VIOLATION_ATTEMPT", reason });
+    } catch (e) {}
+  }
+
+  // 3-Strike Auto-Disconnect Penalty for Repeat Violators
+  if (userViolationStrikeCount >= 3) {
+    userViolationStrikeCount = 0;
+    triggerViolationCooldownPenalty();
+  }
+}
+
+function triggerViolationCooldownPenalty() {
+  isUserOnCooldown = true;
+  cleanupCallState();
+  updateStatus("error", "Call ended due to repeated security violation attempts");
+
+  const modal = document.getElementById("privacy-violation-alert-modal");
+  if (modal) {
+    modal.className = "privacy-violation-alert-modal";
+    modal.innerHTML = `
+      <div class="privacy-violation-toast-text">
+        ⛔ Call ended due to multiple restricted actions. Please respect stranger privacy. 60s cooldown active.
+      </div>
+    `;
+    setTimeout(() => {
+      modal.classList.add("hidden");
+    }, 6000);
+  }
+
+  if (userMatchmakingCooldownTimer) clearTimeout(userMatchmakingCooldownTimer);
+  userMatchmakingCooldownTimer = setTimeout(() => {
+    isUserOnCooldown = false;
+    updateStatus("idle", "Cooldown complete. Click Start Chat to connect");
+  }, 60000);
+}
+
+function showPeerPrivacyViolationAlert(reason = "restricted_action") {
+  const modal = document.getElementById("privacy-violation-alert-modal");
+  if (!modal) return;
+
+  modal.className = "privacy-violation-alert-modal";
+  modal.innerHTML = `
+    <div class="privacy-violation-toast-text">
+      🔒 Privacy Notice: Stranger attempted a restricted action. You can skip if uncomfortable.
+    </div>
+    <button class="privacy-violation-toast-btn" onclick="handleStartOrNext()">Skip Peer ⏭️</button>
+  `;
+
+  setTimeout(() => {
+    modal.classList.add("hidden");
+  }, 7000);
+}
+
+function initAntiScreenRecording() {
+  updateWatermarkDisplay();
+
+  // Focus Loss & Tab Switch Privacy Shield
+  const shield = document.getElementById("privacy-shield-overlay");
+
+  function handleFocusLoss() {
+    if ((currentCall || isSimulatedCallActive) && shield) {
+      shield.classList.remove("hidden");
+      if (elements.remoteVideo) {
+        elements.remoteVideo.muted = true;
+      }
+      broadcastPrivacyViolationToPeer("tab_switch_focus_loss");
+    }
+  }
+
+  function handleFocusGain() {
+    if (shield) {
+      shield.classList.add("hidden");
+      if (elements.remoteVideo && !isAudioMuted) {
+        elements.remoteVideo.muted = false;
+      }
+    }
+  }
+
+  window.addEventListener("blur", handleFocusLoss);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      handleFocusLoss();
+    } else {
+      handleFocusGain();
+    }
+  });
+  window.addEventListener("focus", handleFocusGain);
+}
+
+function initAntiDevToolsProtection() {
+  document.addEventListener("contextmenu", (e) => {
+    if (currentCall || isSelfBrandAdPlaying) {
+      e.preventDefault();
+      broadcastPrivacyViolationToPeer("right_click");
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (currentCall || isSelfBrandAdPlaying) {
+      const key = e.key ? e.key.toLowerCase() : "";
+      if (
+        key === "f12" ||
+        (e.ctrlKey && e.shiftKey && (key === "i" || key === "j" || key === "c")) ||
+        (e.ctrlKey && key === "u")
+      ) {
+        e.preventDefault();
+        broadcastPrivacyViolationToPeer("shortcut_key_" + key);
+      }
+    }
+  });
+}
+
+function initScreenCaptureInterception() {
+  if (navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) {
+    const origGetDisplayMedia = navigator.mediaDevices.getDisplayMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getDisplayMedia = function (...args) {
+      broadcastPrivacyViolationToPeer("screen_capture_api");
+      return Promise.reject(new Error("Screen capture disabled on #GANG Chat for user privacy."));
+    };
+  }
 }
 
 // Expose Chat & Camera & Emoji handlers globally on window object for HTML inline onclick attributes
@@ -2274,8 +2628,14 @@ window.sendEmojiReaction = sendEmojiReaction;
 window.cycleBeautyFilter = cycleBeautyFilter;
 window.toggleBeautySliderPopover = toggleBeautySliderPopover;
 window.updateBeautyIntensity = updateBeautyIntensity;
+window.handleStartOrNext = handleStartOrNext;
 
 document.addEventListener("DOMContentLoaded", () => {
   detectCameraDevices();
   initBeautyFilter();
+  initAntiScreenRecording();
+  initAntiDevToolsProtection();
+  initScreenCaptureInterception();
 });
+
+

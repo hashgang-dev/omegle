@@ -148,6 +148,12 @@
               >
             </div>
 
+            <!-- Warm Reassuring Privacy Trust Badge -->
+            <div class="privacy-trust-badge" id="privacy-trust-badge" title="100% Private, Encrypted & Anti-Capture Protected">
+              <i class="fa-solid fa-shield-halved"></i>
+              <span>Encrypted & Privacy Protected</span>
+            </div>
+
             <button
               class="theme-toggle-btn"
               id="btn-theme-toggle"
@@ -157,6 +163,7 @@
               <i class="fa-solid fa-moon" id="theme-icon"></i>
             </button>
           </div>
+
 
           <!-- Firewall Restricted Banner -->
           <div class="firewall-banner hidden" id="firewall-banner">
@@ -175,69 +182,27 @@
           <div class="remote-video-container">
             <video id="remote" autoplay playsinline></video>
 
-            <!-- Live In-Call Adsterra 4-Second Sponsored Banner Overlay -->
-            <div class="incall-adsterra-banner-box hidden" id="incall-adsterra-banner-container"></div>
+            <!-- Faint Micro-Sized Corner Watermark (0.3 Opacity) -->
+            <div class="video-watermark-overlay" id="video-watermark-overlay">
+              #GANG | Trace: <span id="watermark-trace-id">8f9a2b4c</span>
+            </div>
 
-            <!-- Authentic YouTube-Style Video Ad Overlay & Controls -->
-            <div class="yt-ad-overlay hidden" id="sponsored-ad-overlay">
-              <!-- YouTube Skip Ad Button (Bottom Right) -->
-              <button class="yt-skip-btn" id="btn-ad-skip" disabled>
-                <span id="ad-skip-text">Skip in 10s</span>
-                <i class="fa-solid fa-forward-step yt-skip-icon"></i>
-              </button>
-
-              <!-- YouTube Sponsor Info Card (Bottom Left) -->
-              <div class="yt-sponsor-card">
-                <div class="yt-sponsor-badge-row">
-                  <span class="yt-ad-tag">Ad</span>
-                  <span class="yt-ad-count">1 of 1</span>
-                  <span class="yt-ad-timer" id="ad-time-display"
-                    >0:00 / 0:00</span
-                  >
-                </div>
-
-                <div class="yt-sponsor-details">
-                  <h4 id="sponsored-title">CyberShield Unlimited VPN</h4>
-                  <p id="sponsored-desc">
-                    Protect your IP address and encrypt your video chat sessions
-                    worldwide.
-                  </p>
-                </div>
-
-                <div class="yt-sponsor-actions">
-                  <a
-                    href="https://hashgang.com"
-                    class="yt-cta-btn"
-                    id="sponsored-cta-link"
-                    target="_blank"
-                    rel="noopener"
-                  >
-                    Visit Site
-                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                  </a>
-                  <button
-                    class="yt-ctrl-btn"
-                    id="btn-ad-play-pause"
-                    title="Play/Pause"
-                  >
-                    <i class="fa-solid fa-pause" id="ad-play-pause-icon"></i>
-                  </button>
-                  <button
-                    class="yt-ctrl-btn"
-                    id="btn-ad-rewind"
-                    title="Rewind 5 Seconds"
-                  >
-                    <i class="fa-solid fa-rotate-left"></i> 5s
-                  </button>
-                </div>
-              </div>
-
-              <!-- YouTube Iconic Yellow Progress Timeline at Bottom Video Edge -->
-              <div class="yt-ad-progress-container">
-                <div class="yt-ad-progress-bar" id="ad-progress-bar"></div>
+            <!-- Focus Loss & Tab Switch Privacy Shield Overlay -->
+            <div class="privacy-shield-overlay hidden" id="privacy-shield-overlay">
+              <div class="privacy-shield-content">
+                <i class="fa-solid fa-user-shield"></i>
+                <h3>Privacy Shield Active</h3>
+                <p>Video is blurred while window focus is away to protect stranger privacy.</p>
               </div>
             </div>
+
+            <!-- Polite P2P Real-Time Privacy Violation Alert Modal -->
+            <div class="privacy-violation-alert-modal hidden" id="privacy-violation-alert-modal"></div>
+
+            <!-- Live In-Call Adsterra 4-Second Sponsored Banner Overlay -->
+            <div class="incall-adsterra-banner-box hidden" id="incall-adsterra-banner-container"></div>
           </div>
+
 
           <!-- Branding TV Channel Watermark Logo & Live Online Counter Stack (Fixed Viewport Stage Level) -->
           <div class="brand-watermark-container">
@@ -330,6 +295,12 @@
             <div class="searching-subtext" id="overlay-status-sub">
               Connecting you to a random stranger worldwide...
             </div>
+            <!-- Live 5s -> 1s Countdown Timer Badge -->
+            <div class="searching-countdown-badge" id="searching-countdown">
+              <i class="fa-solid fa-clock"></i> Connecting in <span id="countdown-num">5</span>s
+            </div>
+            <!-- Adsterra Sponsored Ad Banner Box for Searching Radar Overlay -->
+            <div class="searching-adsterra-banner-box" id="searching-adsterra-banner-container"></div>
           </div>
 
           <!-- Floating Quick Emoji Reaction Stream Bar -->
@@ -553,11 +524,69 @@
       </defs>
     </svg>
 
+    <!-- Dynamic Self-Brand Video Ad Overlay -->
+    <div class="self-brand-ad-overlay hidden" id="self-brand-ad-overlay">
+      <div class="self-brand-player-wrapper">
+        <video id="self-brand-video-player" playsinline muted autoplay></video>
+        
+        <!-- Top Left Badge Only -->
+        <div class="self-brand-top-bar">
+          <span class="self-brand-badge" id="self-brand-badge-text">FEATURED PROMOTION</span>
+        </div>
+
+        <!-- Unified Bottom Controls & Info Container -->
+        <div class="self-brand-bottom-card">
+          <!-- Row 1: Player Controls & Skip Button -->
+          <div class="self-brand-controls-row">
+            <div class="self-brand-playback-ctrls">
+              <button class="self-brand-ctrl-btn" id="btn-self-brand-rewind" title="Rewind 5s">
+                <i class="fa-solid fa-rotate-left"></i> <span>-5s</span>
+              </button>
+              <button class="self-brand-ctrl-btn" id="btn-self-brand-pause" title="Play/Pause">
+                <i class="fa-solid fa-pause" id="icon-self-brand-pause"></i>
+              </button>
+              <button class="self-brand-ctrl-btn" id="btn-self-brand-mute" title="Mute/Unmute Audio">
+                <i class="fa-solid fa-volume-high" id="icon-self-brand-mute"></i>
+              </button>
+            </div>
+
+            <button class="self-brand-skip-btn disabled" id="btn-self-brand-skip">
+              <span id="self-brand-skip-timer">Skip in 5s</span>
+            </button>
+          </div>
+
+          <!-- Row 2: Ad Meta & CTA Link Button -->
+          <div class="self-brand-info-row">
+            <div class="self-brand-meta">
+              <h3 class="self-brand-title" id="self-brand-title">Brand Promotion</h3>
+              <p class="self-brand-desc" id="self-brand-desc">Check out our featured product and services.</p>
+            </div>
+            <a href="#" target="_blank" rel="noopener noreferrer" class="self-brand-cta-btn" id="self-brand-cta-link">
+              <span id="self-brand-cta-text">Visit Website</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+          </div>
+        </div>
+
+        <div class="self-brand-progress-bar-track">
+          <div class="self-brand-progress-bar-fill" id="self-brand-progress-fill"></div>
+        </div>
+      </div>
+    </div>
+
+
     <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <!-- Ads Configuration Data -->
+    <!-- StrangerChat API Config -->
     <script src="ads.js"></script>
+    <!-- Ad Waterfall Mediation Config -->
+    <script src="ad_mediation_config.js"></script>
     <!-- App Logic -->
     <script src="app.js"></script>
+
   </body>
 </html>

@@ -982,6 +982,36 @@ video#local.beauty-off, video#remote.beauty-off {
   object-fit: cover !important;
 }
 
+.video-viewport.swapped .pip-beauty-btn {
+  position: absolute !important;
+  top: 75px !important;
+  right: 24px !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: 25 !important;
+}
+
+@media (max-width: 1024px) {
+  .video-viewport.swapped .pip-beauty-btn {
+    top: 72px !important;
+    right: 20px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .video-viewport.swapped .pip-beauty-btn {
+    top: 70px !important;
+    right: 16px !important;
+  }
+}
+
+@media (max-width: 500px) {
+  .video-viewport.swapped .pip-beauty-btn {
+    top: 68px !important;
+    right: 14px !important;
+  }
+}
+
 /* Radar Searching Screen Overlay */
 .searching-overlay {
   position: absolute;
@@ -992,7 +1022,7 @@ video#local.beauty-off, video#remote.beauty-off {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 24px;
+  gap: 20px;
   z-index: 5;
   transition: var(--transition);
 }
@@ -1000,6 +1030,62 @@ video#local.beauty-off, video#remote.beauty-off {
 .searching-overlay.hidden {
   opacity: 0;
   pointer-events: none;
+}
+
+/* Adsterra Banner Box for Searching Overlay */
+.searching-adsterra-banner-box {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 250px;
+  min-width: 300px;
+  width: 100%;
+  z-index: 25;
+}
+
+
+/* Live 5s -> 1s Searching Countdown Timer Pill Badge */
+.searching-countdown-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: rgba(153, 17, 238, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(240, 102, 255, 0.5);
+  border-radius: var(--radius-full);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(240, 102, 255, 0.35);
+  animation: pulseCountdownPill 1.5s infinite ease-in-out;
+}
+
+.searching-countdown-badge i {
+  color: #f066ff;
+  font-size: 0.95rem;
+}
+
+.searching-countdown-badge span#countdown-num {
+  color: #f066ff;
+  font-size: 1.15rem;
+  font-weight: 800;
+  display: inline-block;
+  min-width: 14px;
+  text-align: center;
+}
+
+@keyframes pulseCountdownPill {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 16px rgba(240, 102, 255, 0.3);
+  }
+  50% {
+    transform: scale(1.04);
+    box-shadow: 0 0 26px rgba(240, 102, 255, 0.6);
+  }
 }
 
 .radar-spinner {
@@ -1103,7 +1189,7 @@ video#local.beauty-off, video#remote.beauty-off {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 18px;
+  padding: 10px 20px;
   background: var(--bg-card);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -1112,6 +1198,43 @@ video#local.beauty-off, video#remote.beauty-off {
   box-shadow: 0 16px 40px var(--shadow-color);
   z-index: 15;
   transition: var(--transition);
+  max-width: calc(100vw - 20px);
+  width: max-content;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.control-toolbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Tablet & iPad Responsive Alignment (600px - 1024px) */
+@media (max-width: 1024px) {
+  .control-toolbar {
+    bottom: 20px;
+    padding: 8px 16px;
+    gap: 10px;
+    max-width: calc(100vw - 16px);
+    border-radius: 38px;
+    width: max-content;
+  }
+
+  .btn-ctrl {
+    width: 44px;
+    height: 44px;
+    font-size: 1.05rem;
+    flex-shrink: 0;
+  }
+
+  .btn-action-primary, .btn-action-secondary {
+    height: 44px;
+    padding: 0 18px;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
 }
 
 /* Quick Emoji Reaction Bar (Floating Pills) */
@@ -1832,66 +1955,6 @@ video#local.beauty-off, video#remote.beauty-off {
    Monetization Native Sponsored Video Ads Styling
    ========================================================================== */
 
-/* ==========================================================================
-   Authentic YouTube-Style Video Ad Experience
-   ========================================================================== */
-
-.yt-ad-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 15;
-  pointer-events: none;
-}
-
-.yt-ad-overlay.hidden {
-  display: none;
-}
-
-/* YouTube Bottom-Right Skip Button */
-.yt-skip-btn {
-  position: absolute;
-  bottom: 14px;
-  right: 0;
-  z-index: 30;
-  pointer-events: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  border-right: none;
-  border-radius: 4px 0 0 4px;
-  padding: 10px 16px;
-  color: #fff;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: not-allowed;
-  transition: all 0.2s ease-in-out;
-  box-shadow: -4px 4px 15px rgba(0, 0, 0, 0.6);
-}
-
-.yt-skip-btn:not(:disabled) {
-  background: rgba(15, 15, 15, 0.95);
-  border-color: rgba(255, 255, 255, 0.4);
-  cursor: pointer;
-}
-
-.yt-skip-btn:not(:disabled):hover {
-  background: rgba(255, 255, 255, 0.95);
-  color: #0f0f0f;
-  transform: translateX(-4px);
-}
-
-.yt-skip-icon {
-  font-size: 0.85rem;
-}
-
 /* Live In-Call Adsterra 4-Second Ultra-Fast Sponsored Banner Overlay (Bottom-Left) */
 .incall-adsterra-banner-box {
   position: absolute;
@@ -1899,9 +1962,10 @@ video#local.beauty-off, video#remote.beauty-off {
   left: 16px;
   z-index: 18;
   min-width: 300px;
-  min-height: 50px;
+  min-height: 250px;
   max-width: calc(100vw - 32px);
   border-radius: 12px;
+
   overflow: hidden;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -1929,167 +1993,7 @@ video#local.beauty-off, video#remote.beauty-off {
   pointer-events: none !important;
 }
 
-/* YouTube Bottom-Left Sponsor Info Card (Right above yellow progress line) */
-.yt-sponsor-card {
-  position: absolute;
-  bottom: 14px;
-  left: 16px;
-  z-index: 25;
-  pointer-events: auto;
-  max-width: 360px;
-  background: rgba(15, 15, 15, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 8px;
-  padding: 10px 14px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.yt-sponsor-badge-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.yt-ad-tag {
-  background: #ffcc00;
-  color: #000;
-  font-size: 0.65rem;
-  font-weight: 900;
-  text-transform: uppercase;
-  padding: 2px 6px;
-  border-radius: 3px;
-  letter-spacing: 0.05em;
-}
-
-.yt-ad-count {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.yt-ad-timer {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: #fff;
-  font-family: monospace;
-  margin-left: auto;
-}
-
-.yt-sponsor-details h4 {
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: #fff;
-  line-height: 1.3;
-}
-
-.yt-sponsor-details p {
-  font-size: 0.76rem;
-  color: rgba(255, 255, 255, 0.75);
-  line-height: 1.3;
-  margin-top: 2px;
-}
-
-.yt-sponsor-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.yt-cta-btn {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 7px 12px;
-  background: #3ea6ff;
-  color: #0f0f0f;
-  text-decoration: none;
-  font-size: 0.8rem;
-  font-weight: 700;
-  border-radius: 18px;
-  transition: all 0.2s ease;
-}
-
-.yt-cta-btn:hover {
-  background: #65b8ff;
-  transform: translateY(-1px);
-}
-
-.yt-ctrl-btn {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
-  border-radius: 18px;
-  padding: 6px 12px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  transition: all 0.2s ease;
-}
-
-.yt-ctrl-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
-  border-color: rgba(255, 255, 255, 0.4);
-}
-
-/* YouTube Iconic Yellow Video Progress Bar (Bottom Video Edge) */
-.yt-ad-progress-container {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  z-index: 20;
-}
-
-.yt-ad-progress-bar {
-  height: 100%;
-  width: 0%;
-  background: #ffcc00;
-  box-shadow: 0 0 8px rgba(255, 204, 0, 0.8);
-  transition: width 0.15s linear;
-}
-
-/* Mobile View Adjustments for Ad Overlay */
 @media (max-width: 768px) {
-  .yt-sponsor-card {
-    bottom: 14px;
-    left: 12px;
-    max-width: calc(100vw - 165px);
-    padding: 8px 10px;
-  }
-
-  .yt-sponsor-details h4 {
-    font-size: 0.82rem;
-  }
-
-  .yt-sponsor-details p {
-    font-size: 0.68rem;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .yt-skip-btn {
-    bottom: 14px;
-    right: 0;
-    z-index: 30;
-    padding: 8px 12px;
-    font-size: 0.78rem;
-  }
-
   .brand-watermark-container {
     top: 14px;
     left: 14px;
@@ -2120,10 +2024,11 @@ video#local.beauty-off, video#remote.beauty-off {
   .control-toolbar {
     bottom: 14px;
     bottom: max(14px, env(safe-area-inset-bottom));
-    padding: 6px 12px;
+    padding: 6px 14px;
     gap: 8px;
-    width: auto;
-    max-width: calc(100vw - 16px);
+    width: max-content;
+    max-width: calc(100vw - 12px);
+    flex-wrap: nowrap;
     overflow-x: auto;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
@@ -2172,4 +2077,509 @@ video#local.beauty-off, video#remote.beauty-off {
   margin-right: 10px;
   border-radius: 8px;
 }
+
+/* ==========================================================================
+   Dynamic Self-Brand Video Ad Overlay Styles
+   ========================================================================== */
+
+.self-brand-ad-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+
+.self-brand-ad-overlay.hidden {
+  display: none !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none !important;
+}
+
+.self-brand-player-wrapper {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  background: #000;
+  border-radius: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+#self-brand-video-player {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 1;
+  background: #000;
+}
+
+.self-brand-top-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  padding: 24px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  pointer-events: none;
+}
+
+.self-brand-badge {
+  pointer-events: auto;
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border-radius: 20px;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.5);
+}
+
+.self-brand-bottom-card {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 25;
+  padding: 32px 36px 24px 36px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.96) 0%, rgba(0, 0, 0, 0.8) 75%, rgba(0, 0, 0, 0) 100%);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.self-brand-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.self-brand-playback-ctrls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.self-brand-ctrl-btn {
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.self-brand-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.95);
+  color: #000;
+  transform: translateY(-1px);
+}
+
+.self-brand-skip-btn {
+  background: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 9px 22px;
+  border-radius: 30px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.self-brand-skip-btn:not(.disabled):hover {
+  background: rgba(255, 255, 255, 0.95);
+  color: #000;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.3);
+}
+
+.self-brand-skip-btn.disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.self-brand-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.self-brand-meta {
+  flex: 1;
+}
+
+.self-brand-title {
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.self-brand-desc {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.45;
+  max-width: 750px;
+}
+
+.self-brand-cta-btn {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #fff !important;
+  text-decoration: none !important;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 13px 26px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+  box-shadow: 0 4px 18px rgba(16, 185, 129, 0.5);
+  transition: all 0.25s ease;
+}
+
+.self-brand-cta-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(16, 185, 129, 0.7);
+}
+
+.self-brand-progress-bar-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.self-brand-progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
+  transition: width 0.1s linear;
+}
+
+@media (max-width: 768px) {
+  .self-brand-top-bar {
+    padding: 16px 18px;
+  }
+
+  .self-brand-badge {
+    font-size: 0.68rem;
+    padding: 4px 10px;
+  }
+
+  .self-brand-bottom-card {
+    padding: 20px 18px 18px 18px;
+    gap: 14px;
+  }
+
+  .self-brand-skip-btn {
+    font-size: 0.78rem;
+    padding: 7px 14px;
+  }
+
+  .self-brand-info-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .self-brand-title {
+    font-size: 1.1rem;
+  }
+
+  .self-brand-desc {
+    font-size: 0.82rem;
+  }
+
+  .self-brand-cta-btn {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+    padding: 12px 18px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Universal 300x250 Mediation Self-Brand Promo Card */
+.mediation-self-brand-card {
+  width: 300px;
+  height: 250px;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, #1e1b4b 0%, #311042 100%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: center;
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+}
+
+.mediation-self-brand-badge {
+  align-self: center;
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+.mediation-self-brand-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 8px 0 4px 0;
+  color: #ffffff;
+}
+
+.mediation-self-brand-desc {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 1.35;
+  margin: 0;
+}
+
+.mediation-self-brand-cta {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: #fff !important;
+  text-decoration: none !important;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 10px 16px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+/* In-Call Controls Auto-Hiding Transition (Full Video UX) */
+.control-toolbar {
+  transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.control-toolbar.autohidden {
+  opacity: 0 !important;
+  transform: translate(-50%, 20px) scale(0.95) !important;
+  pointer-events: none !important;
+}
+
+/* Floating Emoji Particle Animation */
+.floating-emoji-particle {
+  position: absolute;
+  pointer-events: none;
+  z-index: 99;
+  font-size: 2rem;
+  animation: emojiParticleFloat 2.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+}
+
+@keyframes emojiParticleFloat {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(0.6) rotate(0deg);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-80px) scale(1.2) rotate(8deg);
+  }
+  70% {
+    opacity: 0.8;
+    transform: translateY(-180px) scale(1) rotate(-8deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-280px) scale(0.7) rotate(15deg);
+  }
+}
+
+/* Privacy Trust Badge (Top-Bar Glassmorphism Pill) */
+.privacy-trust-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 14px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  border-radius: 20px;
+  color: #10b981;
+  font-size: 0.75rem;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.15);
+}
+
+.privacy-trust-badge i {
+  font-size: 0.82rem;
+}
+
+/* Faint Micro-Sized Corner Watermark (0.3 Opacity) */
+.video-watermark-overlay {
+  position: absolute;
+  bottom: 12px;
+  right: 14px;
+  z-index: 15;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.35);
+  font-family: monospace;
+  pointer-events: none;
+  user-select: none;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Focus Loss & Tab Switch Privacy Shield Overlay */
+.privacy-shield-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 28;
+  background: rgba(10, 10, 15, 0.92);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  color: #fff;
+  transition: opacity 0.3s ease;
+}
+
+.privacy-shield-overlay.hidden {
+  display: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.privacy-shield-content {
+  max-width: 320px;
+}
+
+.privacy-shield-content i {
+  font-size: 3rem;
+  color: #6366f1;
+  margin-bottom: 12px;
+}
+
+.privacy-shield-content h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.privacy-shield-content p {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.4;
+}
+
+/* Polite P2P Real-Time Privacy Violation Alert Modal Toast */
+.privacy-violation-alert-modal {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 35;
+  background: rgba(30, 27, 75, 0.95);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+  border-radius: 12px;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 90vw;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: slideDownToast 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.privacy-violation-alert-modal.hidden {
+  display: none !important;
+}
+
+@keyframes slideDownToast {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.privacy-violation-toast-text {
+  font-size: 0.82rem;
+  color: #fbbf24;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.privacy-violation-toast-btn {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+}
+
+
+
+
+
 
