@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-chat-v15';
+const CACHE_NAME = 'hashgang-chat-v19';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -9,7 +9,25 @@ const ASSETS_TO_CACHE = [
   '/ads.js',
   '/logo.png',
   '/qr-code.png',
-  '/manifest.json'
+  '/manifest.json',
+  '/sitemap.xml',
+  '/robots.txt',
+  '/blog/index.html',
+  '/blog/top-omegle-alternatives.html',
+  '/blog/free-video-chat-no-login.html',
+  '/blog/ometv-vs-hashgang-chat.html',
+  '/blog/ai-beauty-filter-video-chat-guide.html',
+  '/blog/mobile-pwa-stranger-video-chat.html',
+  '/blog/p2p-webrtc-video-chat-explained.html',
+  '/blog/safe-anonymous-video-chat-guide.html',
+  '/blog/end-to-end-encryption-anonymous-chat.html',
+  '/blog/global-stranger-chat-tips.html',
+  '/blog/faq-frequently-asked-questions.html',
+  '/blog/best-stranger-chat-apps-for-college-students.html',
+  '/blog/how-to-fix-camera-permission-issues.html',
+  '/blog/language-exchange-video-chat.html',
+  '/blog/is-stranger-video-chat-safe-for-women.html',
+  '/blog/how-p2p-reduces-server-lag-and-buffering.html'
 ];
 
 self.addEventListener('install', (event) => {

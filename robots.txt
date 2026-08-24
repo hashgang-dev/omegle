@@ -1,4 +1,6 @@
 User-agent: *
 Allow: /
+Allow: /blog/
+Allow: /sitemap.xml
 
 Sitemap: https://chat.hashgang.com/sitemap.xml
