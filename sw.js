@@ -2,6 +2,8 @@ const CACHE_NAME = 'hashgang-chat-v2';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
+  '/terms-of-service.html',
+  '/privacy-policy.html',
   '/style.css',
   '/app.js',
   '/ads.js',
