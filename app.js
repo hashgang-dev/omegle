@@ -2393,40 +2393,38 @@ function renderMediationAdInContainer(containerBox) {
     incrementMediationImpressionCount(p.id);
 
     try {
-      const iframe = document.createElement("iframe");
-      iframe.style.width = `${p.width || 300}px`;
-      iframe.style.height = `${p.height || 250}px`;
-      iframe.style.border = "none";
-      iframe.style.overflow = "hidden";
-      iframe.style.borderRadius = "8px";
-      iframe.style.background = "rgba(13, 5, 21, 0.5)";
-      iframe.scrolling = "no";
+      if (p.id === "adsterra_300x250") {
+        // Adsterra uses atOptions iframe format
+        const iframe = document.createElement("iframe");
+        iframe.style.width = `${p.width || 300}px`;
+        iframe.style.height = `${p.height || 250}px`;
+        iframe.style.border = "none";
+        iframe.style.overflow = "hidden";
+        iframe.style.borderRadius = "8px";
+        iframe.style.background = "rgba(13, 5, 21, 0.5)";
+        iframe.scrolling = "no";
 
-      const htmlString = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; color: #fff; overflow: hidden; height: 100vh; font-family: sans-serif; }</style>
-          </head>
-          <body>
-            ${p.rawHtml || ""}
-          </body>
-        </html>
-      `;
+        const htmlString = `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; color: #fff; overflow: hidden; height: 100vh; font-family: sans-serif; }</style>
+            </head>
+            <body>
+              ${p.rawHtml || ""}
+            </body>
+          </html>
+        `;
 
-      if ("srcdoc" in iframe) {
-        iframe.srcdoc = htmlString;
+        if ("srcdoc" in iframe) {
+          iframe.srcdoc = htmlString;
+        }
+        containerBox.appendChild(iframe);
+      } else {
+        // Direct main document script execution for HilltopAds & Monetag (bypasses about:srcdoc iframe referrer block)
+        const fragment = document.createRange().createContextualFragment(p.rawHtml || "");
+        containerBox.appendChild(fragment);
       }
-
-      containerBox.appendChild(iframe);
-
-      if (!("srcdoc" in iframe) && iframe.contentWindow) {
-        const doc = iframe.contentWindow.document;
-        doc.open();
-        doc.write(htmlString);
-        doc.close();
-      }
-
     } catch (e) {
       console.warn("Mediation ad render notice:", e);
     }
