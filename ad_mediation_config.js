@@ -1,9 +1,6 @@
 /**
  * HashGANG StrangerChat - Dynamic Ad Waterfall Mediation Configuration
  * File Location: omegle/ad_mediation_config.js
- *
- * NOTE: This is a JavaScript file, so you can freely use comments (// or /* * /)
- * to disable/comment out specific providers or settings without syntax errors!
  */
 window.AD_MEDIATION_CONFIG = {
   settings: {
@@ -14,9 +11,7 @@ window.AD_MEDIATION_CONFIG = {
   },
 
   /**
-   * Dynamic N-Providers Waterfall Array
-   * Engine iterates from index 0 to N-1. Picks first enabled provider where user's
-   * daily impression count < dailyCapPerUser.
+   * Adsterra 300x250 Medium Rectangle Banner
    */
   providers: [
     {
@@ -24,6 +19,10 @@ window.AD_MEDIATION_CONFIG = {
       name: "Adsterra",
       enabled: true,
       dailyCapPerUser: 5,
+      type: "script",
+      scriptUrl:
+        "https://www.highperformanceformat.com/ede40fc4ab13bf9c6140311ae9860f4f/invoke.js",
+      invokeKey: "ede40fc4ab13bf9c6140311ae9860f4f",
       rawHtml: `<script type="text/javascript">
         atOptions = {
           'key' : 'ede40fc4ab13bf9c6140311ae9860f4f',
@@ -33,38 +32,7 @@ window.AD_MEDIATION_CONFIG = {
           'params' : {}
         };
       </script>
-      <script type="text/javascript" src="https://www.highrevenueformat.com/ede40fc4ab13bf9c6140311ae9860f4f/invoke.js" onerror="window.parent.postMessage('adsterra_load_failed', '*')"></script>`,
-      width: 300,
-      height: 250,
-    },
-
-    {
-      id: "hilltopads_300x250",
-      name: "HilltopAds",
-      enabled: true,
-      dailyCapPerUser: 5,
-      rawHtml: `<script type="text/javascript">
-      (function(dqivx){
-      var d = document,
-          s = d.createElement('script'),
-          l = d.getElementsByTagName('script')[0] || d.body;
-      s.settings = dqivx || {};
-      s.src = "https://wise-belt.com/b.XAVQsodJGrlL0/YWWuci/Genmg9kuHZbUElqkiPsT/cszgN-TLEHxRMvj/krthN/zJMJ1KMTTYEiztM/wi";
-      s.async = true;
-      s.referrerPolicy = 'no-referrer-when-downgrade';
-      if (l.parentNode) { l.parentNode.insertBefore(s, l); } else { (d.head || d.body).appendChild(s); }
-      })({})
-      </script>`,
-      width: 300,
-      height: 250,
-    },
-
-    {
-      id: "monetag_vignette_11650177",
-      name: "Monetag",
-      enabled: true,
-      dailyCapPerUser: 5,
-      rawHtml: `<script type="text/javascript">(function(s){s.dataset.zone='11650177',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`,
+      <script type="text/javascript" src="https://www.highperformanceformat.com/ede40fc4ab13bf9c6140311ae9860f4f/invoke.js" onerror="window.parent.postMessage('adsterra_load_failed', '*')"></script>`,
       width: 300,
       height: 250,
     },
@@ -72,8 +40,7 @@ window.AD_MEDIATION_CONFIG = {
 
   /**
    * Fallback Self-Brand Promotion Banner
-   * Displays automatically when ALL third-party ad providers reach their daily cap for a user.
-   * Ensures ad space is never left empty or wasted!
+   * Displays automatically when third-party ad provider reaches daily cap or when AdBlocker is detected.
    */
   selfBrandFallback: {
     enabled: true,
