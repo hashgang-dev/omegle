@@ -2406,13 +2406,19 @@ function renderMediationAdInContainer(containerBox) {
         <!DOCTYPE html>
         <html>
           <head>
-            <meta charset="utf-8">
-            <style>
-              html, body { margin: 0; padding: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: transparent; color: #fff; overflow: hidden; font-family: sans-serif; }
-            </style>
+            <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; color: #fff; overflow: hidden; height: 100vh; font-family: sans-serif; }</style>
           </head>
           <body>
-            ${p.rawHtml || ""}
+            <script type="text/javascript">
+              atOptions = {
+                'key' : '${p.invokeKey}',
+                'format' : 'iframe',
+                'height' : ${p.height || 250},
+                'width' : ${p.width || 300},
+                'params' : {}
+              };
+            </script>
+            <script type="text/javascript" src="${p.scriptUrl}"></script>
           </body>
         </html>
       `;
