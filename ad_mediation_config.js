@@ -39,16 +39,6 @@ window.AD_MEDIATION_CONFIG = {
     },
 
     {
-      id: "monetag_vignette_11650177",
-      name: "Monetag",
-      enabled: true,
-      dailyCapPerUser: 5,
-      rawHtml: `<script type="text/javascript">(function(s){s.dataset.zone='11650177',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`,
-      width: 300,
-      height: 250,
-    },
-
-    {
       id: "hilltopads_300x250",
       name: "HilltopAds",
       enabled: true,
@@ -65,6 +55,16 @@ window.AD_MEDIATION_CONFIG = {
       if (l.parentNode) { l.parentNode.insertBefore(s, l); } else { (d.head || d.body).appendChild(s); }
       })({})
       </script>`,
+      width: 300,
+      height: 250,
+    },
+
+    {
+      id: "monetag_vignette_11650177",
+      name: "Monetag",
+      enabled: true,
+      dailyCapPerUser: 5,
+      rawHtml: `<script type="text/javascript">(function(s){s.dataset.zone='11650177',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`,
       width: 300,
       height: 250,
     },

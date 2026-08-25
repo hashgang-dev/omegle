@@ -2427,22 +2427,8 @@ function renderMediationAdInContainer(containerBox) {
         doc.close();
       }
 
-      // AdBlocker 1.5s Load Verification Timeout
-      setTimeout(() => {
-        try {
-          const iframeDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-          if (iframeDoc && iframeDoc.body && iframeDoc.body.children.length === 0) {
-            // Empty body without cross-origin error means script failed to render
-            renderSelfBrandCard(containerBox);
-          }
-        } catch (e) {
-          // Cross-origin access error occurs when ad script successfully loads third-party domain content into iframe.
-          // This confirms the ad loaded successfully - DO NOT trigger AdBlocker flag!
-        }
-      }, 1500);
-
     } catch (e) {
-      renderSelfBrandCard(containerBox);
+      console.warn("Mediation ad render notice:", e);
     }
   } else if (selection.type === "selfBrandFallback") {
     renderSelfBrandCard(containerBox);
