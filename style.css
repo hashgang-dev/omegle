@@ -735,8 +735,20 @@ video#remote {
 }
 
 /* Hide local PIP action buttons when stranger video is swapped into PIP card */
-.video-viewport.swapped .local-pip-container .pip-action-bar {
+.video-viewport.swapped .local-pip-container .pip-action-bar,
+.video-viewport.swapped .local-pip-container .pip-bottom-bar {
   display: none !important;
+}
+
+/* Hide PIP bottom camera bar on Desktop & Tablet (shown only in main control toolbar) */
+.pip-bottom-bar {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  display: none;
+  align-items: center;
+  gap: 5px;
+  z-index: 6;
 }
 
 .pip-btn {
@@ -768,6 +780,13 @@ video#remote {
   border-color: #f066ff !important;
   color: #ffffff !important;
   box-shadow: 0 0 12px rgba(240, 102, 255, 0.6);
+}
+
+.pip-btn.off {
+  background: rgba(244, 63, 94, 0.9) !important;
+  border-color: #f43f5e !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.6);
 }
 
 .local-pip-container:hover {
@@ -1669,12 +1688,22 @@ video#local.beauty-off, video#remote.beauty-off {
 }
 
 /* Responsive Breakpoints */
+@media (min-width: 768px) {
+  /* Tablet (iPad 768px) & Desktop: Camera button stays in bottom toolbar, hidden in PIP window */
+  .control-toolbar #btn-video {
+    display: inline-flex !important;
+  }
+  .pip-bottom-bar {
+    display: none !important;
+  }
+}
+
 @media (max-width: 1024px) {
-  .app-container { padding: 12px; gap: 12px; }
+  .app-container { padding: 0 !important; gap: 0 !important; }
   .local-pip-container { width: 140px; height: 95px; top: 72px; right: 20px; }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
   .main-stage { flex-direction: column; }
   
   .local-pip-container {
@@ -1696,6 +1725,17 @@ video#local.beauty-off, video#remote.beauty-off {
     -webkit-overflow-scrolling: touch;
   }
   .control-toolbar::-webkit-scrollbar { display: none; }
+
+  /* On Mobile (phones < 768px): Hide camera button in bottom toolbar to prevent clutter, show in PIP window */
+  .control-toolbar #btn-video {
+    display: none !important;
+  }
+  .pip-bottom-bar {
+    display: flex !important;
+  }
+  .video-viewport.swapped .local-pip-container .pip-bottom-bar {
+    display: none !important;
+  }
 
   .btn-ctrl { width: 40px; height: 40px; font-size: 1rem; flex-shrink: 0; }
   .btn-action-primary, .btn-action-secondary { height: 40px; padding: 0 16px; font-size: 0.85rem; flex-shrink: 0; }

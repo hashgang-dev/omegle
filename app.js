@@ -1826,6 +1826,14 @@ function toggleVideo() {
       ? '<i class="fa-solid fa-video-slash"></i>'
       : '<i class="fa-solid fa-video"></i>';
   }
+
+  const pipBtnVideo = document.getElementById("pip-btn-toggle-video");
+  if (pipBtnVideo) {
+    pipBtnVideo.classList.toggle("off", isVideoOff);
+    pipBtnVideo.innerHTML = isVideoOff
+      ? '<i class="fa-solid fa-video-slash"></i>'
+      : '<i class="fa-solid fa-video"></i>';
+  }
 }
 
 /**

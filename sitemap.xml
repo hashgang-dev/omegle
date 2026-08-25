@@ -110,7 +110,49 @@
   </url>
   <url>
     <loc>https://chat.hashgang.com/blog/how-p2p-reduces-server-lag-and-buffering.html</loc>
-    <lastmod>2026-08-24</lastmod>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://chat.hashgang.com/blog/camsurf-vs-hashgang-chat.html</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://chat.hashgang.com/blog/emerald-chat-vs-hashgang-chat.html</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://chat.hashgang.com/blog/chatroulette-vs-hashgang-chat.html</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://chat.hashgang.com/blog/how-anti-screen-recording-trace-watermark-works.html</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://chat.hashgang.com/blog/why-free-unlimited-video-chat-beats-coin-paywalls.html</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://chat.hashgang.com/blog/zero-wait-instant-video-chat-matchmaking.html</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://chat.hashgang.com/blog/virtual-ring-light-dark-room-video-chat.html</loc>
+    <lastmod>2026-08-25</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>

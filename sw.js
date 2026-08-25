@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-chat-v19';
+const CACHE_NAME = 'hashgang-chat-v30';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -27,7 +27,14 @@ const ASSETS_TO_CACHE = [
   '/blog/how-to-fix-camera-permission-issues.html',
   '/blog/language-exchange-video-chat.html',
   '/blog/is-stranger-video-chat-safe-for-women.html',
-  '/blog/how-p2p-reduces-server-lag-and-buffering.html'
+  '/blog/how-p2p-reduces-server-lag-and-buffering.html',
+  '/blog/camsurf-vs-hashgang-chat.html',
+  '/blog/emerald-chat-vs-hashgang-chat.html',
+  '/blog/chatroulette-vs-hashgang-chat.html',
+  '/blog/how-anti-screen-recording-trace-watermark-works.html',
+  '/blog/why-free-unlimited-video-chat-beats-coin-paywalls.html',
+  '/blog/zero-wait-instant-video-chat-matchmaking.html',
+  '/blog/virtual-ring-light-dark-room-video-chat.html'
 ];
 
 self.addEventListener('install', (event) => {
