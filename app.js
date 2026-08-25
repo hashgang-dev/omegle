@@ -2399,7 +2399,7 @@ function renderMediationAdInContainer(containerBox) {
       iframe.style.border = "none";
       iframe.style.overflow = "hidden";
       iframe.style.borderRadius = "8px";
-      iframe.style.background = "rgba(13, 5, 21, 0.5)";
+      iframe.style.background = "transparent";
       iframe.scrolling = "no";
 
       const htmlString = `
