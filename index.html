@@ -119,17 +119,36 @@
     }
     </script>
 
+    <!-- Preload Critical LCP Image -->
+    <link rel="preload" href="logo-sm.webp" as="image" type="image/webp" fetchpriority="high" />
+
     <!-- Google Fonts & Font Awesome Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
       rel="stylesheet"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+      />
+    </noscript>
 
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -202,7 +221,7 @@
           <!-- Branding TV Channel Watermark Logo & Live Online Counter Stack (Fixed Viewport Stage Level) -->
           <div class="brand-watermark-container">
             <div class="brand-watermark" id="brand-watermark">
-              <img src="logo.png" alt="HashGANG Chat Logo" class="brand-logo-icon" />
+              <img src="logo-sm.webp" alt="HashGANG Chat Logo" class="brand-logo-icon" width="32" height="32" />
               <span id="brand-title-text">HashGANG Chat</span>
             </div>
             <div class="online-users-badge hidden" id="online-users-badge">
@@ -222,9 +241,12 @@
             <div class="idle-hero-content">
               <div class="idle-logo-wrapper">
                 <img
-                  src="logo.png"
+                  src="logo-sm.webp"
                   alt="HashGANG Chat Logo"
                   class="idle-brand-logo"
+                  width="80"
+                  height="80"
+                  fetchpriority="high"
                 />
               </div>
               <h2 class="idle-hero-title">Ready to Meet Strangers?</h2>
@@ -458,7 +480,7 @@
     <div class="modal-overlay hidden" id="tos-modal">
       <div class="modal-card">
         <div class="modal-header">
-          <img src="logo.png" alt="HashGANG Chat Logo" class="modal-logo-badge" />
+          <img src="logo-sm.webp" alt="HashGANG Chat Logo" class="modal-logo-badge" width="40" height="40" />
           <div>
             <h3>Terms of Service & Disclaimer</h3>
             <p class="modal-subtitle">User Agreement & Age Declaration</p>
@@ -669,7 +691,7 @@
 
           <div class="qr-code-section">
             <div class="qr-box">
-              <img src="qr-code.png" alt="Scan QR Code to open chat.hashgang.com" class="qr-code-img" />
+              <img src="qr-code.png" alt="Scan QR Code to open chat.hashgang.com" class="qr-code-img" width="120" height="120" loading="lazy" />
               <div class="qr-text-group">
                 <span>Scan QR Code on mobile camera to open instantly:</span>
                 <strong>https://chat.hashgang.com</strong>
@@ -687,13 +709,13 @@
     </div>
 
     <!-- PeerJS CDN -->
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js" defer></script>
     <!-- StrangerChat API Config -->
-    <script src="ads.js"></script>
+    <script src="ads.js" defer></script>
     <!-- Ad Waterfall Mediation Config -->
-    <script src="ad_mediation_config.js"></script>
+    <script src="ad_mediation_config.js" defer></script>
     <!-- App Logic -->
-    <script src="app.js"></script>
+    <script src="app.js" defer></script>
 
   </body>
 </html>

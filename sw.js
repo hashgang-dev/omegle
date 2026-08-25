@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-chat-v30';
+const CACHE_NAME = 'hashgang-chat-v31';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -7,6 +7,10 @@ const ASSETS_TO_CACHE = [
   '/style.css',
   '/app.js',
   '/ads.js',
+  '/logo.webp',
+  '/logo-sm.webp',
+  '/og-image.webp',
+  '/apple-touch-icon.webp',
   '/logo.png',
   '/qr-code.png',
   '/manifest.json',
@@ -65,18 +69,45 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-First for HTML/CSS/JS so code updates load immediately
-  event.respondWith(
-    fetch(event.request)
-      .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+  const url = new URL(event.request.url);
+  const isStaticAsset = url.pathname.match(/\.(webp|png|jpg|jpeg|ico|svg|css|woff2?|ttf|eot)$/i);
+
+  if (isStaticAsset) {
+    // Cache-First with Network Fallback for static assets (images, fonts, styles)
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) {
+          // Serve from cache immediately, update cache in background
+          fetch(event.request).then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
+            }
+          }).catch(() => {});
+          return cachedResponse;
         }
-        return networkResponse;
+        return fetch(event.request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+          return networkResponse;
+        });
       })
-      .catch(() => {
-        return caches.match(event.request);
-      })
-  );
+    );
+  } else {
+    // Network-First for HTML/JS
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          return caches.match(event.request);
+        })
+    );
+  }
 });
