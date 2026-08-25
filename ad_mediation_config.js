@@ -33,13 +33,13 @@ window.AD_MEDIATION_CONFIG = {
     },
 
     {
-      id: "monetag_multitag_11649732",
+      id: "monetag_vignette_11650177",
       name: "Monetag",
       enabled: true,
       dailyCapPerUser: 5,
       type: "script",
-      scriptUrl: "https://nap5k.com/tag.min.js",
-      invokeKey: "11649732",
+      scriptUrl: "https://n6wxm.com/vignette.min.js",
+      invokeKey: "11650177",
       width: 300,
       height: 250,
     },

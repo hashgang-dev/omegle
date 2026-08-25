@@ -2423,28 +2423,46 @@ function renderMediationAdInContainer(containerBox) {
       iframe.style.background = "rgba(13, 5, 21, 0.5)";
       iframe.scrolling = "no";
 
-      const htmlString = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <style>
-              body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; color: #fff; overflow: hidden; height: 100vh; font-family: sans-serif; }
-            </style>
-          </head>
-          <body>
-            <script type="text/javascript">
-              atOptions = {
-                'key' : '${p.invokeKey}',
-                'format' : 'iframe',
-                'height' : ${p.height || 250},
-                'width' : ${p.width || 300},
-                'params' : {}
-              };
-            </script>
-            <script type="text/javascript" src="${p.scriptUrl}" onerror="window.parent.postMessage('adsterra_load_failed', '*')"></script>
-          </body>
-        </html>
-      `;
+      let htmlString = "";
+      if (p.invokeKey && p.invokeKey.length > 20) {
+        // Standard atOptions format (e.g. Adsterra)
+        htmlString = `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; color: #fff; overflow: hidden; height: 100vh; font-family: sans-serif; }</style>
+            </head>
+            <body>
+              <script type="text/javascript">
+                atOptions = {
+                  'key' : '${p.invokeKey}',
+                  'format' : 'iframe',
+                  'height' : ${p.height || 250},
+                  'width' : ${p.width || 300},
+                  'params' : {}
+                };
+              </script>
+              <script type="text/javascript" src="${p.scriptUrl}" onerror="window.parent.postMessage('adsterra_load_failed', '*')"></script>
+            </body>
+          </html>
+        `;
+      } else {
+        // Dataset & Direct script format (e.g. Monetag & HilltopAds)
+        htmlString = `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; color: #fff; overflow: hidden; height: 100vh; font-family: sans-serif; }</style>
+            </head>
+            <body>
+              <script type="text/javascript">
+                (function(s){s.dataset.zone='${p.invokeKey}',s.src='${p.scriptUrl}'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')));
+              </script>
+              <script type="text/javascript" src="${p.scriptUrl}" onerror="window.parent.postMessage('adsterra_load_failed', '*')"></script>
+            </body>
+          </html>
+        `;
+      }
 
       if ("srcdoc" in iframe) {
         iframe.srcdoc = htmlString;
