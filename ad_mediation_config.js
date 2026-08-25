@@ -23,11 +23,17 @@ window.AD_MEDIATION_CONFIG = {
       id: "adsterra_300x250",
       name: "Adsterra",
       enabled: true,
-      dailyCapPerUser: 5, // Max 5 high-CPM impressions per user/IP per day
-      type: "script",
-      scriptUrl:
-        "https://www.highperformanceformat.com/ede40fc4ab13bf9c6140311ae9860f4f/invoke.js",
-      invokeKey: "ede40fc4ab13bf9c6140311ae9860f4f",
+      dailyCapPerUser: 5,
+      rawHtml: `<script type="text/javascript">
+        atOptions = {
+          'key' : 'ede40fc4ab13bf9c6140311ae9860f4f',
+          'format' : 'iframe',
+          'height' : 250,
+          'width' : 300,
+          'params' : {}
+        };
+      </script>
+      <script type="text/javascript" src="https://www.highrevenueformat.com/ede40fc4ab13bf9c6140311ae9860f4f/invoke.js" onerror="window.parent.postMessage('adsterra_load_failed', '*')"></script>`,
       width: 300,
       height: 250,
     },
@@ -37,9 +43,7 @@ window.AD_MEDIATION_CONFIG = {
       name: "Monetag",
       enabled: true,
       dailyCapPerUser: 5,
-      type: "script",
-      scriptUrl: "https://n6wxm.com/vignette.min.js",
-      invokeKey: "11650177",
+      rawHtml: `<script type="text/javascript">(function(s){s.dataset.zone='11650177',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`,
       width: 300,
       height: 250,
     },
@@ -49,9 +53,18 @@ window.AD_MEDIATION_CONFIG = {
       name: "HilltopAds",
       enabled: true,
       dailyCapPerUser: 5,
-      type: "script",
-      scriptUrl: "https://wise-belt.com/b.XAVQsodJGrlL0/YWWuci/Genmg9kuHZbUElqkiPsT/cszgN-TLEHxRMvj/krthN/zJMJ1KMTTYEiztM/wi",
-      invokeKey: "hilltopads_zone_1",
+      rawHtml: `<script type="text/javascript">
+      (function(dqivx){
+      var d = document,
+          s = d.createElement('script'),
+          l = d.getElementsByTagName('script')[0] || d.body;
+      s.settings = dqivx || {};
+      s.src = "//wise-belt.com/b.XAVQsodJGrlL0/YWWuci/Genmg9kuHZbUElqkiPsT/cszgN-TLEHxRMvj/krthN/zJMJ1KMTTYEiztM/wi";
+      s.async = true;
+      s.referrerPolicy = 'no-referrer-when-downgrade';
+      if (l.parentNode) { l.parentNode.insertBefore(s, l); } else { (d.head || d.body).appendChild(s); }
+      })({})
+      </script>`,
       width: 300,
       height: 250,
     },
