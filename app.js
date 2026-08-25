@@ -2266,11 +2266,9 @@ let isAdBlockerDetected = false;
 
 /**
  * Universal Browser-Agnostic AdBlocker Detector
- * Probes common ad network resource patterns & DOM element traps.
- * Works on: Brave, Chrome (uBlock, AdGuard, ABP), Firefox, Safari/iOS, Opera, Vivaldi, Pi-hole DNS.
+ * Checks DOM trap element hiding (used by Brave, uBlock, AdGuard, ABP).
  */
 function runUniversalAdBlockerProbe() {
-  // 1. DOM Trap Element Check
   try {
     const trap = document.createElement("div");
     trap.className = "adsbygoogle ad-banner ad-unit google-ad sponsor-ad";
@@ -2291,15 +2289,7 @@ function runUniversalAdBlockerProbe() {
         isAdBlockerDetected = true;
       }
       try { trap.remove(); } catch (e) {}
-    }, 100);
-  } catch (e) {}
-
-  // 2. Resource Network Fetch Probe to Adsterra Script Domain
-  try {
-    fetch("https://www.highperformanceformat.com/invoke.js", { method: "HEAD", mode: "no-cors" })
-      .catch(() => {
-        isAdBlockerDetected = true;
-      });
+    }, 200);
   } catch (e) {}
 }
 
@@ -2308,17 +2298,6 @@ if (document.readyState === "loading") {
 } else {
   runUniversalAdBlockerProbe();
 }
-
-// Global window message listener for ad load failures from iframe
-window.addEventListener("message", (event) => {
-  if (event.data === "adsterra_load_failed") {
-    isAdBlockerDetected = true;
-    const searchingBox = document.getElementById("searching-adsterra-banner-container");
-    const incallBox = document.getElementById("incall-adsterra-banner-container");
-    if (searchingBox && !searchingBox.classList.contains("hidden")) renderSelfBrandCard(searchingBox);
-    if (incallBox && !incallBox.classList.contains("hidden")) renderSelfBrandCard(incallBox);
-  }
-});
 
 function renderSelfBrandCard(containerBox) {
   if (!containerBox) return;
@@ -2448,19 +2427,19 @@ function renderMediationAdInContainer(containerBox) {
         doc.close();
       }
 
-      // AdBlocker 1.2s Load Verification Timeout
+      // AdBlocker 1.5s Load Verification Timeout
       setTimeout(() => {
         try {
           const iframeDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-          if (!iframeDoc || !iframeDoc.body || iframeDoc.body.children.length <= 1) {
-            isAdBlockerDetected = true;
+          if (iframeDoc && iframeDoc.body && iframeDoc.body.children.length === 0) {
+            // Empty body without cross-origin error means script failed to render
             renderSelfBrandCard(containerBox);
           }
         } catch (e) {
-          isAdBlockerDetected = true;
-          renderSelfBrandCard(containerBox);
+          // Cross-origin access error occurs when ad script successfully loads third-party domain content into iframe.
+          // This confirms the ad loaded successfully - DO NOT trigger AdBlocker flag!
         }
-      }, 1200);
+      }, 1500);
 
     } catch (e) {
       renderSelfBrandCard(containerBox);
