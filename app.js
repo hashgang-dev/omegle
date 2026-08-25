@@ -1244,8 +1244,16 @@ function showMediaPermissionError() {
  * Automated Smart Matchmaking Lobby Protocol
  */
 let currentSlotScanIndex = 1;
+let lastConnectAttemptTime = 0;
 
 function findAndConnectPeer() {
+  const now = Date.now();
+  if (now - lastConnectAttemptTime < 800) {
+    console.warn("Throttling peer connection attempt - rate limit cooldown active.");
+    return;
+  }
+  lastConnectAttemptTime = now;
+
   // Target slot 1 primary lobby (or current index) so 2 active users always land on the same slot
   const targetHostId = LOBBY_PREFIX + currentSlotScanIndex;
 
@@ -2254,9 +2262,106 @@ function incrementMediationImpressionCount(providerId) {
   } catch (e) {}
 }
 
+let isAdBlockerDetected = false;
+
+/**
+ * Universal Browser-Agnostic AdBlocker Detector
+ * Probes common ad network resource patterns & DOM element traps.
+ * Works on: Brave, Chrome (uBlock, AdGuard, ABP), Firefox, Safari/iOS, Opera, Vivaldi, Pi-hole DNS.
+ */
+function runUniversalAdBlockerProbe() {
+  // 1. DOM Trap Element Check
+  try {
+    const trap = document.createElement("div");
+    trap.className = "adsbygoogle ad-banner ad-unit google-ad sponsor-ad";
+    trap.style.position = "absolute";
+    trap.style.top = "-9999px";
+    trap.style.left = "-9999px";
+    trap.style.height = "1px";
+    trap.style.width = "1px";
+    document.body.appendChild(trap);
+
+    setTimeout(() => {
+      if (
+        trap.offsetHeight === 0 ||
+        trap.clientWidth === 0 ||
+        window.getComputedStyle(trap).display === "none" ||
+        window.getComputedStyle(trap).visibility === "hidden"
+      ) {
+        isAdBlockerDetected = true;
+      }
+      try { trap.remove(); } catch (e) {}
+    }, 100);
+  } catch (e) {}
+
+  // 2. Resource Network Fetch Probe to Adsterra Script Domain
+  try {
+    fetch("https://www.highperformanceformat.com/invoke.js", { method: "HEAD", mode: "no-cors" })
+      .catch(() => {
+        isAdBlockerDetected = true;
+      });
+  } catch (e) {}
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", runUniversalAdBlockerProbe);
+} else {
+  runUniversalAdBlockerProbe();
+}
+
+// Global window message listener for ad load failures from iframe
+window.addEventListener("message", (event) => {
+  if (event.data === "adsterra_load_failed") {
+    isAdBlockerDetected = true;
+    const searchingBox = document.getElementById("searching-adsterra-banner-container");
+    const incallBox = document.getElementById("incall-adsterra-banner-container");
+    if (searchingBox && !searchingBox.classList.contains("hidden")) renderSelfBrandCard(searchingBox);
+    if (incallBox && !incallBox.classList.contains("hidden")) renderSelfBrandCard(incallBox);
+  }
+});
+
+function renderSelfBrandCard(containerBox) {
+  if (!containerBox) return;
+  const config = window.AD_MEDIATION_CONFIG;
+  const sb = (config && config.selfBrandFallback) || {
+    title: "MyLeader AI Platform",
+    desc: "Streamline leadership workflows & team collaboration with AI.",
+    linkUrl: "https://hashgang.com",
+    ctaText: "Explore MyLeader 🚀",
+    badgeText: "FEATURED PROMOTION"
+  };
+
+  containerBox.innerHTML = "";
+  containerBox.classList.remove("hidden", "fading-out");
+
+  const card = document.createElement("div");
+  card.className = "mediation-self-brand-card";
+  card.innerHTML = `
+    <span class="mediation-self-brand-badge">${sb.badgeText || "FEATURED PROMOTION"}</span>
+    <h4 class="mediation-self-brand-title">${sb.title}</h4>
+    <p class="mediation-self-brand-desc">${sb.desc}</p>
+    <a href="${sb.linkUrl}" target="_blank" rel="noopener noreferrer" class="mediation-self-brand-cta">
+      <span>${sb.ctaText}</span>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+        <polyline points="15 3 21 3 21 9"></polyline>
+        <line x1="10" y1="14" x2="21" y2="3"></line>
+      </svg>
+    </a>
+  `;
+  containerBox.appendChild(card);
+}
+
 function selectWaterfallAdProvider() {
   const config = window.AD_MEDIATION_CONFIG;
   if (!config) return null;
+
+  // If AdBlocker / Brave is detected, bypass third-party ads and serve self-brand internal promotion directly!
+  if (isAdBlockerDetected) {
+    if (config.selfBrandFallback && config.selfBrandFallback.enabled !== false) {
+      return { type: "selfBrandFallback", data: config.selfBrandFallback };
+    }
+  }
 
   const isLocalhost =
     window.location.hostname === "localhost" ||
@@ -2315,13 +2420,16 @@ function renderMediationAdInContainer(containerBox) {
       iframe.style.border = "none";
       iframe.style.overflow = "hidden";
       iframe.style.borderRadius = "8px";
+      iframe.style.background = "rgba(13, 5, 21, 0.5)";
       iframe.scrolling = "no";
 
       const htmlString = `
         <!DOCTYPE html>
         <html>
           <head>
-            <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; overflow: hidden; }</style>
+            <style>
+              body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; color: #fff; overflow: hidden; height: 100vh; font-family: sans-serif; }
+            </style>
           </head>
           <body>
             <script type="text/javascript">
@@ -2333,7 +2441,7 @@ function renderMediationAdInContainer(containerBox) {
                 'params' : {}
               };
             </script>
-            <script type="text/javascript" src="${p.scriptUrl}"></script>
+            <script type="text/javascript" src="${p.scriptUrl}" onerror="window.parent.postMessage('adsterra_load_failed', '*')"></script>
           </body>
         </html>
       `;
@@ -2350,28 +2458,26 @@ function renderMediationAdInContainer(containerBox) {
         doc.write(htmlString);
         doc.close();
       }
+
+      // AdBlocker 1.2s Load Verification Timeout
+      setTimeout(() => {
+        try {
+          const iframeDoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+          if (!iframeDoc || !iframeDoc.body || iframeDoc.body.children.length <= 1) {
+            isAdBlockerDetected = true;
+            renderSelfBrandCard(containerBox);
+          }
+        } catch (e) {
+          isAdBlockerDetected = true;
+          renderSelfBrandCard(containerBox);
+        }
+      }, 1200);
+
     } catch (e) {
-      console.warn("Mediation ad render notice:", e);
+      renderSelfBrandCard(containerBox);
     }
   } else if (selection.type === "selfBrandFallback") {
-
-    const sb = selection.data;
-    const card = document.createElement("div");
-    card.className = "mediation-self-brand-card";
-    card.innerHTML = `
-      <span class="mediation-self-brand-badge">${sb.badgeText || "FEATURED PROMOTION"}</span>
-      <h4 class="mediation-self-brand-title">${sb.title}</h4>
-      <p class="mediation-self-brand-desc">${sb.desc}</p>
-      <a href="${sb.linkUrl}" target="_blank" rel="noopener noreferrer" class="mediation-self-brand-cta">
-        <span>${sb.ctaText}</span>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-          <polyline points="15 3 21 3 21 9"></polyline>
-          <line x1="10" y1="14" x2="21" y2="3"></line>
-        </svg>
-      </a>
-    `;
-    containerBox.appendChild(card);
+    renderSelfBrandCard(containerBox);
   }
 }
 
