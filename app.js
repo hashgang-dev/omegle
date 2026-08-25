@@ -2393,7 +2393,22 @@ function renderMediationAdInContainer(containerBox) {
     incrementMediationImpressionCount(p.id);
 
     try {
-      if (p.id === "adsterra_300x250") {
+      if (p.id === "hilltopads_300x250") {
+        // HilltopAds direct container injection
+        const targetScript = document.createElement("script");
+        containerBox.appendChild(targetScript);
+
+        (function(dqivx){
+          var d = document,
+              s = d.createElement('script'),
+              l = targetScript;
+          s.settings = dqivx || {};
+          s.src = "https://wise-belt.com/b.XAVQsodJGrlL0/YWWuci/Genmg9kuHZbUElqkiPsT/cszgN-TLEHxRMvj/krthN/zJMJ1KMTTYEiztM/wi";
+          s.async = true;
+          s.referrerPolicy = 'no-referrer-when-downgrade';
+          if (l.parentNode) { l.parentNode.insertBefore(s, l); } else { containerBox.appendChild(s); }
+        })({});
+      } else if (p.id === "adsterra_300x250") {
         // Adsterra uses atOptions iframe format
         const iframe = document.createElement("iframe");
         iframe.style.width = `${p.width || 300}px`;
@@ -2421,7 +2436,7 @@ function renderMediationAdInContainer(containerBox) {
         }
         containerBox.appendChild(iframe);
       } else {
-        // Direct main document script execution for HilltopAds & Monetag (bypasses about:srcdoc iframe referrer block)
+        // Direct fragment execution for other providers
         const fragment = document.createRange().createContextualFragment(p.rawHtml || "");
         containerBox.appendChild(fragment);
       }

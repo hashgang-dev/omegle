@@ -49,7 +49,7 @@ window.AD_MEDIATION_CONFIG = {
           s = d.createElement('script'),
           l = d.getElementsByTagName('script')[0] || d.body;
       s.settings = dqivx || {};
-      s.src = "//wise-belt.com/b.XAVQsodJGrlL0/YWWuci/Genmg9kuHZbUElqkiPsT/cszgN-TLEHxRMvj/krthN/zJMJ1KMTTYEiztM/wi";
+      s.src = "https://wise-belt.com/b.XAVQsodJGrlL0/YWWuci/Genmg9kuHZbUElqkiPsT/cszgN-TLEHxRMvj/krthN/zJMJ1KMTTYEiztM/wi";
       s.async = true;
       s.referrerPolicy = 'no-referrer-when-downgrade';
       if (l.parentNode) { l.parentNode.insertBefore(s, l); } else { (d.head || d.body).appendChild(s); }
@@ -62,7 +62,7 @@ window.AD_MEDIATION_CONFIG = {
     {
       id: "monetag_vignette_11650177",
       name: "Monetag",
-      enabled: true,
+      enabled: false,
       dailyCapPerUser: 5,
       rawHtml: `<script type="text/javascript">(function(s){s.dataset.zone='11650177',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`,
       width: 300,
