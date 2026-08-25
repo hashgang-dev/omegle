@@ -2393,52 +2393,40 @@ function renderMediationAdInContainer(containerBox) {
     incrementMediationImpressionCount(p.id);
 
     try {
-      if (p.id === "hilltopads_300x250") {
-        // HilltopAds direct container injection
-        const targetScript = document.createElement("script");
-        containerBox.appendChild(targetScript);
+      const iframe = document.createElement("iframe");
+      iframe.style.width = `${p.width || 300}px`;
+      iframe.style.height = `${p.height || 250}px`;
+      iframe.style.border = "none";
+      iframe.style.overflow = "hidden";
+      iframe.style.borderRadius = "8px";
+      iframe.style.background = "rgba(13, 5, 21, 0.5)";
+      iframe.scrolling = "no";
 
-        (function(dqivx){
-          var d = document,
-              s = d.createElement('script'),
-              l = targetScript;
-          s.settings = dqivx || {};
-          s.src = "https://wise-belt.com/b.XAVQsodJGrlL0/YWWuci/Genmg9kuHZbUElqkiPsT/cszgN-TLEHxRMvj/krthN/zJMJ1KMTTYEiztM/wi";
-          s.async = true;
-          s.referrerPolicy = 'no-referrer-when-downgrade';
-          if (l.parentNode) { l.parentNode.insertBefore(s, l); } else { containerBox.appendChild(s); }
-        })({});
-      } else if (p.id === "adsterra_300x250") {
-        // Adsterra uses atOptions iframe format
-        const iframe = document.createElement("iframe");
-        iframe.style.width = `${p.width || 300}px`;
-        iframe.style.height = `${p.height || 250}px`;
-        iframe.style.border = "none";
-        iframe.style.overflow = "hidden";
-        iframe.style.borderRadius = "8px";
-        iframe.style.background = "rgba(13, 5, 21, 0.5)";
-        iframe.scrolling = "no";
+      const htmlString = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <style>
+              html, body { margin: 0; padding: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: transparent; color: #fff; overflow: hidden; font-family: sans-serif; }
+            </style>
+          </head>
+          <body>
+            ${p.rawHtml || ""}
+          </body>
+        </html>
+      `;
 
-        const htmlString = `
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; color: #fff; overflow: hidden; height: 100vh; font-family: sans-serif; }</style>
-            </head>
-            <body>
-              ${p.rawHtml || ""}
-            </body>
-          </html>
-        `;
+      if ("srcdoc" in iframe) {
+        iframe.srcdoc = htmlString;
+      }
+      containerBox.appendChild(iframe);
 
-        if ("srcdoc" in iframe) {
-          iframe.srcdoc = htmlString;
-        }
-        containerBox.appendChild(iframe);
-      } else {
-        // Direct fragment execution for other providers
-        const fragment = document.createRange().createContextualFragment(p.rawHtml || "");
-        containerBox.appendChild(fragment);
+      if (!("srcdoc" in iframe) && iframe.contentWindow) {
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(htmlString);
+        doc.close();
       }
     } catch (e) {
       console.warn("Mediation ad render notice:", e);

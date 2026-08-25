@@ -62,7 +62,7 @@ window.AD_MEDIATION_CONFIG = {
     {
       id: "monetag_vignette_11650177",
       name: "Monetag",
-      enabled: false,
+      enabled: true,
       dailyCapPerUser: 5,
       rawHtml: `<script type="text/javascript">(function(s){s.dataset.zone='11650177',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`,
       width: 300,
