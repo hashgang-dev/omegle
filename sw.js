@@ -1,12 +1,4 @@
-/* Monetag / PropellerAds Service Worker Integration */
-self.options = {
-    "domain": "3nbf4.com",
-    "zoneId": 11649579
-};
-self.lary = "";
-importScripts('https://3nbf4.com/act/files/service-worker.min.js?r=sw');
-
-const CACHE_NAME = 'hashgang-chat-v32';
+const CACHE_NAME = 'hashgang-chat-v33';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
