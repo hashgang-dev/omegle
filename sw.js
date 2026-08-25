@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-chat-v39';
+const CACHE_NAME = 'hashgang-chat-v40';
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
