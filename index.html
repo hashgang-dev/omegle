@@ -158,10 +158,10 @@
 
     <link rel="stylesheet" href="style.css?v=40" />
 
-    <!-- Firebase Analytics -->
+    <!-- Firebase Analytics & Automatic Error Tracking ($0 Unlimited) -->
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-      import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-analytics.js";
+      import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-analytics.js";
 
       const firebaseConfig = {
         apiKey: "AIzaSyCC-S1jxZYr7nXMKS9QEKGqdVbS5YxMzuE",
@@ -175,6 +175,30 @@
 
       const app = initializeApp(firebaseConfig);
       const analytics = getAnalytics(app);
+
+      // Global error logging function to Firebase Analytics
+      window.logAppError = (errorMsg, errorSource, lineNo) => {
+        try {
+          logEvent(analytics, 'app_exception', {
+            description: String(errorMsg || 'Unknown Error').substring(0, 100),
+            source: String(errorSource || 'script').substring(0, 80),
+            line: lineNo || 0
+          });
+        } catch (e) {
+          console.error('Firebase error logging failed:', e);
+        }
+      };
+
+      // Catch uncaught JS errors
+      window.addEventListener('error', (event) => {
+        window.logAppError(event.message, event.filename, event.lineno);
+      });
+
+      // Catch unhandled Promise rejections (WebRTC / Async call drops)
+      window.addEventListener('unhandledrejection', (event) => {
+        const reason = event.reason ? (event.reason.message || String(event.reason)) : 'Unhandled Promise Rejection';
+        window.logAppError(reason, 'unhandledrejection', 0);
+      });
     </script>
 
     <!-- Microsoft Clarity -->
