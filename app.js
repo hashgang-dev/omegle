@@ -413,8 +413,26 @@ function setupEventListeners() {
           beautyPopover.classList.add("closed");
         }
       }
+
+      // Auto-dismiss App Navigation Popover on Outside Click
+      const appNavPopover = document.getElementById("app-nav-popover");
+      if (appNavPopover && !appNavPopover.classList.contains("hidden")) {
+        const isInsideNavPopover = appNavPopover.contains(e.target);
+        const isAppMenuBtn = e.target.closest("#btn-app-menu-toggle");
+        if (!isInsideNavPopover && !isAppMenuBtn) {
+          appNavPopover.classList.add("hidden");
+        }
+      }
     });
   } catch (e) {}
+
+  window.toggleAppNavMenu = function (e) {
+    if (e) e.stopPropagation();
+    const appNavPopover = document.getElementById("app-nav-popover");
+    if (appNavPopover) {
+      appNavPopover.classList.toggle("hidden");
+    }
+  };
 
   try {
     if (elements.btnChatToggle)
@@ -3060,6 +3078,8 @@ let userMatchmakingCooldownTimer = null;
 let isUserOnCooldown = false;
 let traceIdSessionKey = null;
 
+let dynamicWatermarkTimer = null;
+
 function getSessionTraceId() {
   if (!traceIdSessionKey) {
     traceIdSessionKey = Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -3068,9 +3088,25 @@ function getSessionTraceId() {
 }
 
 function updateWatermarkDisplay() {
-  const traceEl = document.getElementById("watermark-trace-id");
-  if (traceEl) {
-    traceEl.textContent = getSessionTraceId();
+  const code = getSessionTraceId();
+  const els = document.querySelectorAll(".trace-code-val");
+  els.forEach((el) => {
+    el.textContent = code;
+  });
+
+  if (!dynamicWatermarkTimer) {
+    shiftDynamicWatermarkNodes();
+    dynamicWatermarkTimer = setInterval(shiftDynamicWatermarkNodes, 3500);
+  }
+}
+
+function shiftDynamicWatermarkNodes() {
+  const node = document.getElementById("watermark-single-node");
+  if (node) {
+    const top = Math.floor(Math.random() * 70) + 10; // 10% to 80%
+    const left = Math.floor(Math.random() * 70) + 10; // 10% to 80%
+    node.style.top = top + "%";
+    node.style.left = left + "%";
   }
 }
 

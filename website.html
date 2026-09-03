@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' http: https: data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; connect-src 'self' http: https: wss: ws:;"
+    />
+    <title>HashGANG Chat - Free Anonymous Stranger Video Chat App</title>
+    <meta
+      name="description"
+      content="Experience HashGANG Chat - the premier free stranger video chat featuring AI Virtual Backgrounds, Gen-Z Neon Aura Glow, and Studio Beauty Filters with 100% P2P privacy."
+    />
+    <meta
+      name="keywords"
+      content="free video chat no login, anonymous stranger chat, omegle alternative, virtual background video chat, neon aura glow, beauty filter cam"
+    />
+
+    <!-- OpenGraph SEO Tags -->
+    <meta
+      property="og:title"
+      content="HashGANG Chat - Free Anonymous Stranger Video Chat App"
+    />
+    <meta
+      property="og:description"
+      content="Talk to random strangers online with AI Virtual Backgrounds, Gen-Z Neon Aura Glow, and 60 FPS HD P2P video quality."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://chat.hashgang.com/website.html" />
+    <meta
+      property="og:image"
+      content="https://chat.hashgang.com/assets/website_virtual_bg_showcase.jpg"
+    />
+
+    <!-- Twitter Card SEO Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="HashGANG Chat - Free Anonymous Stranger Video Chat"
+    />
+    <meta
+      name="twitter:description"
+      content="Connect instantly with strangers worldwide. 100% free, no login required."
+    />
+    <meta
+      name="twitter:image"
+      content="https://chat.hashgang.com/assets/website_virtual_bg_showcase.jpg"
+    />
+
+    <!-- Schema.org JSON-LD Structured Data -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "HashGANG Chat",
+        "operatingSystem": "All Web Browsers (WebRTC)",
+        "applicationCategory": "CommunicationApplication",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": "4.9",
+          "ratingCount": "12850"
+        }
+      }
+    </script>
+
+    <meta name="theme-color" content="#0d0515" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <!-- FontAwesome 6 -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <!-- Main Style CSS -->
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body class="website-landing-page">
+    <!-- Navbar Header (Exact match with Privacy Policy page header) -->
+    <header class="website-header">
+      <a href="website.html" class="brand-logo">
+        <img src="logo-sm.webp" alt="HashGANG Logo" width="38" height="38" />
+        <span id="brand-title-text" style="transition: opacity 0.3s ease"
+          >#GANG Chat</span
+        >
+      </a>
+
+      <div style="position: relative">
+        <button
+          class="nav-hamburger-btn"
+          id="btn-mobile-nav-toggle"
+          onclick="toggleMobileNavMenu(event)"
+          aria-label="Toggle Navigation Menu"
+        >
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="nav-hamburger-dropdown closed" id="website-mobile-menu">
+          <a href="index.html" onclick="toggleMobileNavMenu()"
+            ><i class="fa-solid fa-video"></i> Start Chat</a
+          >
+          <a href="website.html" onclick="toggleMobileNavMenu()"
+            ><i class="fa-solid fa-house"></i> Home</a
+          >
+          <a href="#features" onclick="toggleMobileNavMenu()"
+            ><i class="fa-solid fa-bolt"></i> Features</a
+          >
+          <a href="#showcase" onclick="toggleMobileNavMenu()"
+            ><i class="fa-solid fa-images"></i> Feature Showcase</a
+          >
+          <a href="blog/index.html"
+            ><i class="fa-solid fa-newspaper"></i> Blog & Articles</a
+          >
+          <a href="terms-of-service.html"
+            ><i class="fa-solid fa-file-contract"></i> Terms of Service</a
+          >
+          <a href="privacy-policy.html"
+            ><i class="fa-solid fa-user-shield"></i> Privacy Policy</a
+          >
+        </div>
+      </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="website-hero-section" id="hero">
+      <div class="website-container">
+        <div class="hero-content">
+          <div class="hero-badge">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> AI Backgrounds •
+            Gen-Z Neon Aura • Studio Beauty Filters
+          </div>
+          <h1 class="hero-title">
+            Meet Strangers Worldwide in
+            <span class="gradient-text">Next-Gen Aesthetic HD Video</span>
+          </h1>
+          <p class="hero-description">
+            Experience the internet's most attractive, privacy-first stranger
+            video chat. Powered by WebRTC P2P encryption, client-side MediaPipe
+            selfie segmentation, and vibrant Gen-Z RGB aura lighting.
+          </p>
+
+          <div class="hero-cta-group">
+            <a href="index.html" class="btn-hero-primary">
+              <i class="fa-solid fa-video"></i>
+              <span>Start Video Chat Now (Free)</span>
+            </a>
+            <a href="#showcase" class="btn-hero-secondary">
+              <i class="fa-solid fa-images"></i>
+              <span>View Feature Showcase</span>
+            </a>
+          </div>
+
+          <!-- Highlight Metrics Bar -->
+          <div class="hero-metrics-bar">
+            <div class="metric-item">
+              <span class="metric-val">100%</span>
+              <span class="metric-lbl">Free & Anonymous</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric-item">
+              <span class="metric-val">0ms</span>
+              <span class="metric-lbl">Sign-Up Delay</span>
+            </div>
+            <div class="metric-divider"></div>
+            <div class="metric-item">
+              <span class="metric-val">60 FPS</span>
+              <span class="metric-lbl">Adaptive Video</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Visual Feature Showcase Gallery Section -->
+    <section
+      class="website-features-section"
+      id="showcase"
+      style="background: rgba(0, 0, 0, 0.25)"
+    >
+      <div class="website-container">
+        <div class="section-header">
+          <span class="section-subtitle">VISUAL SHOWCASE</span>
+          <h2 class="section-title">Designed for Gen-Z & Modern Streamers</h2>
+          <p class="section-desc">
+            Explore our state-of-the-art camera enhancement features operating
+            in real-time right inside your browser.
+          </p>
+        </div>
+
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+          "
+        >
+          <!-- Image Card 1: Virtual Backgrounds -->
+          <div class="feature-card showcase-img-card" style="padding: 20px">
+            <img
+              src="assets/website_virtual_bg_showcase.jpg"
+              alt="AI Virtual Background Showcase in HashGANG Chat"
+              style="
+                width: 100%;
+                height: 210px;
+                object-fit: cover;
+                border-radius: 14px;
+                margin-bottom: 16px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+              "
+              loading="lazy"
+            />
+            <div
+              class="blog-tag"
+              style="background: rgba(139, 92, 246, 0.25); color: #c084fc"
+            >
+              AI Background Replacement
+            </div>
+            <h3 class="feature-title" style="margin-top: 8px">
+              6 Photo Presets & Custom Uploads
+            </h3>
+            <p class="feature-text">
+              Replace messy rooms with high-definition modern office, nature, or
+              neon city backgrounds featuring 2-pass soft edge feathering.
+            </p>
+          </div>
+
+          <!-- Image Card 2: Gen-Z Neon Aura Glow -->
+          <div class="feature-card showcase-img-card" style="padding: 20px">
+            <img
+              src="assets/website_neon_aura_showcase.jpg"
+              alt="Gen-Z Neon Silhouette Aura Glow Showcase"
+              style="
+                width: 100%;
+                height: 210px;
+                object-fit: cover;
+                border-radius: 14px;
+                margin-bottom: 16px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+              "
+              loading="lazy"
+            />
+            <div
+              class="blog-tag"
+              style="background: rgba(6, 182, 212, 0.25); color: #38bdf8"
+            >
+              Aesthetic Aura Lighting
+            </div>
+            <h3 class="feature-title" style="margin-top: 8px">
+              Electric Neon Silhouette Aura Glow
+            </h3>
+            <p class="feature-text">
+              Transform your stream into a trendy RGB gaming setup with an
+              electric cyan and magenta halo outline surrounding your
+              silhouette.
+            </p>
+          </div>
+
+          <!-- Image Card 3: AI Studio Beauty Filter -->
+          <div class="feature-card showcase-img-card" style="padding: 20px">
+            <img
+              src="assets/website_beauty_filter_showcase.jpg"
+              alt="AI Studio Beauty Filter & Virtual Ring Light"
+              style="
+                width: 100%;
+                height: 210px;
+                object-fit: cover;
+                border-radius: 14px;
+                margin-bottom: 16px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+              "
+              loading="lazy"
+            />
+            <div
+              class="blog-tag"
+              style="background: rgba(244, 63, 94, 0.25); color: #fb7185"
+            >
+              Studio Camera Enhancement
+            </div>
+            <h3 class="feature-title" style="margin-top: 8px">
+              Skin Smoothing & Virtual Ring Light
+            </h3>
+            <p class="feature-text">
+              Look flawless in dark rooms with instant real-time skin portrait
+              smoothing and adjustable virtual ring light illumination.
+            </p>
+          </div>
+
+          <!-- Image Card 4: End-to-End P2P Privacy -->
+          <div class="feature-card showcase-img-card" style="padding: 20px">
+            <img
+              src="assets/website_p2p_privacy_showcase.jpg"
+              alt="P2P WebRTC Privacy & Global Matchmaking"
+              style="
+                width: 100%;
+                height: 210px;
+                object-fit: cover;
+                border-radius: 14px;
+                margin-bottom: 16px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+              "
+              loading="lazy"
+            />
+            <div
+              class="blog-tag"
+              style="background: rgba(16, 185, 129, 0.25); color: #34d399"
+            >
+              Zero Storage Privacy
+            </div>
+            <h3 class="feature-title" style="margin-top: 8px">
+              Encrypted P2P WebRTC Matchmaking
+            </h3>
+            <p class="feature-text">
+              Direct peer-to-peer video streaming ensures no video streams or
+              messages are ever saved or recorded on central servers.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Core Features Section -->
+    <section class="website-features-section" id="features">
+      <div class="website-container">
+        <div class="section-header">
+          <span class="section-subtitle">PLATFORM HIGHLIGHTS</span>
+          <h2 class="section-title">Why Users Love HashGANG Chat</h2>
+        </div>
+
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon-box bg-gradient-purple">
+              <i class="fa-solid fa-bolt"></i>
+            </div>
+            <h3 class="feature-title">Zero Wait Instant Matchmaking</h3>
+            <p class="feature-text">
+              Jump into video conversations in under 1 second with our
+              intelligent regional WebRTC matchmaker.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-box bg-gradient-cyan">
+              <i class="fa-solid fa-keyboard"></i>
+            </div>
+            <h3 class="feature-title">Keyboard Hotkey Controls</h3>
+            <p class="feature-text">
+              Press 'B' to toggle background ON/OFF instantly, or press
+              'Spacebar' to skip to the next stranger.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-box bg-gradient-pink">
+              <i class="fa-solid fa-mobile-screen-button"></i>
+            </div>
+            <h3 class="feature-title">Mobile PWA Optimized</h3>
+            <p class="feature-text">
+              Works seamlessly on iPhone, Android, iPads, and Desktops without
+              downloading any mobile app.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-box bg-gradient-emerald">
+              <i class="fa-solid fa-shield-virus"></i>
+            </div>
+            <h3 class="feature-title">Privacy Shield Protection</h3>
+            <p class="feature-text">
+              Auto-blurs video feed whenever you switch browser tabs to protect
+              stranger privacy.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Blog Preview Section -->
+    <section class="website-blog-section">
+      <div class="website-container">
+        <div class="section-header">
+          <span class="section-subtitle">KNOWLEDGE HUB</span>
+          <h2 class="section-title">Latest Blog Articles</h2>
+        </div>
+
+        <div class="blog-preview-grid">
+          <a href="blog/safe-anonymous-video-chat-guide.html" class="blog-card">
+            <div class="blog-tag">Safety</div>
+            <h4 class="blog-title">
+              The Complete Guide to Safe Anonymous Video Chat
+            </h4>
+            <p class="blog-snippet">
+              Essential privacy practices for talking to strangers online
+              without exposing personal data.
+            </p>
+          </a>
+
+          <a
+            href="blog/ai-beauty-filter-video-chat-guide.html"
+            class="blog-card"
+          >
+            <div class="blog-tag">Technology</div>
+            <h4 class="blog-title">
+              How Real-Time AI Beauty Filters Work in Web Browsers
+            </h4>
+            <p class="blog-snippet">
+              Discover how client-side WebGL canvas shaders deliver smooth skin
+              filters at 60 FPS.
+            </p>
+          </a>
+
+          <a href="blog/top-omegle-alternatives.html" class="blog-card">
+            <div class="blog-tag">Comparisons</div>
+            <h4 class="blog-title">Top Omegle Alternatives in 2026</h4>
+            <p class="blog-snippet">
+              Why HashGANG Chat leads the next generation of random video chat
+              platforms.
+            </p>
+          </a>
+        </div>
+
+        <div class="blog-more-wrap">
+          <a href="blog/index.html" class="btn-blog-more">
+            <span>Explore All 20+ Blog Articles</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="website-footer">
+      <div class="website-container">
+        <div class="footer-top">
+          <div class="footer-brand-wrap">
+            <a href="website.html" class="website-brand">
+              <img
+                src="logo-sm.webp"
+                alt="HashGANG Chat Logo"
+                class="website-logo-img"
+                width="36"
+                height="36"
+              />
+              <span
+                class="brand-logo"
+                id="footer-brand-title-text"
+                style="transition: opacity 0.3s ease"
+                >#GANG Chat</span
+              >
+            </a>
+            <p class="footer-desc">
+              The modern, safe, and aesthetic way to meet random strangers
+              worldwide.
+            </p>
+          </div>
+
+          <div class="footer-links-group">
+            <div class="footer-col">
+              <span class="footer-col-title">Navigation</span>
+              <a href="#hero">Home</a>
+              <a href="#features">Features</a>
+              <a href="#showcase">Showcase</a>
+              <a href="index.html">Launch Video Chat</a>
+            </div>
+
+            <div class="footer-col">
+              <span class="footer-col-title">Resources</span>
+              <a href="blog/index.html">Blog & Articles</a>
+              <a href="terms-of-service.html">Terms of Service</a>
+              <a href="privacy-policy.html">Privacy Policy</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <p class="footer-copy">&copy; 2026 HashGANG. All rights reserved.</p>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Floating Back-to-Top Button -->
+    <button
+      class="btn-back-to-top"
+      id="btn-back-to-top"
+      onclick="window.scrollTo({top: 0, behavior: 'smooth'})"
+      title="Back to Top"
+      aria-label="Back to Top"
+    >
+      <i class="fa-solid fa-arrow-up"></i>
+    </button>
+
+    <script>
+      function toggleMobileNavMenu(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById("website-mobile-menu");
+        if (menu) menu.classList.toggle("closed");
+      }
+
+      document.addEventListener("click", function (e) {
+        const menu = document.getElementById("website-mobile-menu");
+        if (
+          menu &&
+          !menu.classList.contains("closed") &&
+          !e.target.closest("#btn-mobile-nav-toggle")
+        ) {
+          menu.classList.add("closed");
+        }
+      });
+
+      // Show/Hide Back-to-Top Floating Button on Scroll
+      const btnBackToTop = document.getElementById("btn-back-to-top");
+      window.addEventListener("scroll", function () {
+        if (window.scrollY > 300) {
+          if (btnBackToTop) btnBackToTop.classList.add("visible");
+        } else {
+          if (btnBackToTop) btnBackToTop.classList.remove("visible");
+        }
+      });
+
+      // Dynamic Alternating Brand Name Switcher ('HashGANG Chat' <-> '#GANG Chat')
+      function initBrandAlternatingTitle() {
+        const names = ["HashGANG Chat", "#GANG Chat"];
+        let currentIndex = 0;
+        const brandTitleText = document.getElementById("brand-title-text");
+        const footerBrandText = document.getElementById(
+          "footer-brand-title-text",
+        );
+
+        setInterval(() => {
+          currentIndex = (currentIndex + 1) % names.length;
+          const currentName = names[currentIndex];
+
+          if (brandTitleText) {
+            brandTitleText.style.opacity = "0";
+            setTimeout(() => {
+              brandTitleText.textContent = currentName;
+              brandTitleText.style.opacity = "1";
+            }, 300);
+          }
+          if (footerBrandText) {
+            footerBrandText.style.opacity = "0";
+            setTimeout(() => {
+              footerBrandText.textContent = currentName;
+              footerBrandText.style.opacity = "1";
+            }, 300);
+          }
+        }, 4000);
+      }
+
+      document.addEventListener("DOMContentLoaded", initBrandAlternatingTitle);
+    </script>
+  </body>
+</html>

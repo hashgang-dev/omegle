@@ -1,56 +1,77 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Blog & Knowledge Hub - HashGANG Chat | Free Anonymous Video Chat</title>
+    <title>
+      Blog & Knowledge Hub - HashGANG Chat | Free Anonymous Video Chat
+    </title>
     <meta
       name="description"
       content="Explore guides, technology insights, privacy tips, and Omegle alternatives on the official HashGANG Chat Blog & Knowledge Hub."
     />
-    <meta name="keywords" content="Omegle alternative, free video chat blog, anonymous chat safety, WebRTC P2P video chat, AI beauty filter" />
+    <meta
+      name="keywords"
+      content="Omegle alternative, free video chat blog, anonymous chat safety, WebRTC P2P video chat, AI beauty filter"
+    />
     <link rel="canonical" href="https://chat.hashgang.com/blog/index.html" />
     <meta property="og:title" content="Blog & Knowledge Hub - HashGANG Chat" />
-    <meta property="og:description" content="Guides, privacy tutorials, and Omegle alternative comparisons for anonymous stranger video chat." />
-    <meta property="og:url" content="https://chat.hashgang.com/blog/index.html" />
+    <meta
+      property="og:description"
+      content="Guides, privacy tutorials, and Omegle alternative comparisons for anonymous stranger video chat."
+    />
+    <meta
+      property="og:url"
+      content="https://chat.hashgang.com/blog/index.html"
+    />
     <meta property="og:type" content="website" />
     <meta name="theme-color" content="#9911ee" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
 
     <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "BreadcrumbList",
-      "itemListElement": [
-        {
-          "@type": "ListItem",
-          "position": 1,
-          "name": "Home",
-          "item": "https://chat.hashgang.com/"
-        },
-        {
-          "@type": "ListItem",
-          "position": 2,
-          "name": "Blog & Knowledge Hub",
-          "item": "https://chat.hashgang.com/blog/index.html"
-        }
-      ]
-    }
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": "https://chat.hashgang.com/"
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Blog & Knowledge Hub",
+            "item": "https://chat.hashgang.com/blog/index.html"
+          }
+        ]
+      }
     </script>
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
     <style>
-      html, body {
+      html,
+      body {
         height: auto !important;
         min-height: 100vh !important;
         overflow-x: hidden !important;
         overflow-y: auto !important;
         background: #0d0515 !important;
         color: #f1f5f9 !important;
-        font-family: 'Outfit', sans-serif !important;
+        font-family: "Outfit", sans-serif !important;
         line-height: 1.6 !important;
         margin: 0 !important;
         padding: 0 !important;
@@ -77,40 +98,96 @@
         background: rgba(153, 17, 238, 0.35);
         transform: translateY(-2px);
       }
-      .blog-navbar {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 18px 32px;
-        background: rgba(13, 5, 21, 0.9);
-        backdrop-filter: blur(16px);
+      header.site-header {
+        background: rgba(13, 5, 21, 0.85);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding: 16px 24px;
         position: sticky;
         top: 0;
         z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
       }
-      .blog-brand {
+      .brand-logo {
         display: flex;
         align-items: center;
         gap: 12px;
         text-decoration: none;
-        color: #fff;
-        font-weight: 700;
+        color: #ffffff;
+        font-weight: 800;
         font-size: 1.25rem;
+        font-family: 'Outfit', sans-serif;
       }
-      .blog-brand img { width: 34px; height: 34px; border-radius: 8px; }
-      .btn-start-chat-nav {
-        background: linear-gradient(135deg, #9911ee, #f066ff);
-        color: #fff;
-        padding: 8px 18px;
-        border-radius: 20px;
-        text-decoration: none;
+      .brand-logo img {
+        height: 38px;
+        width: 38px;
+        border-radius: 8px;
+        object-fit: contain;
+      }
+      .nav-hamburger-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: #ffffff;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .nav-hamburger-btn:hover {
+        background: rgba(153, 17, 238, 0.3);
+        border-color: #f066ff;
+        color: #ffffff;
+      }
+      .nav-hamburger-dropdown {
+        position: absolute;
+        top: 48px;
+        right: 0;
+        width: 220px;
+        background: rgba(18, 7, 30, 0.98);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 14px;
+        padding: 10px;
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.85);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .nav-hamburger-dropdown.closed {
+        display: none !important;
+      }
+      .nav-hamburger-dropdown a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.88rem;
         font-weight: 600;
-        font-size: 0.9rem;
-        transition: all 0.25s ease;
+        text-decoration: none;
+        transition: all 0.2s ease;
       }
-      .btn-start-chat-nav:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(240, 102, 255, 0.4); }
-      
+      .nav-hamburger-dropdown a i {
+        color: #f066ff;
+        width: 16px;
+        text-align: center;
+      }
+      .nav-hamburger-dropdown a:hover {
+        background: rgba(153, 17, 238, 0.25);
+        color: #ffffff;
+      }
+
       .blog-hero {
         text-align: center;
         padding: 60px 20px 40px;
@@ -125,8 +202,11 @@
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
       }
-      .blog-hero p { font-size: 1.15rem; color: #94a3b8; }
-      
+      .blog-hero p {
+        font-size: 1.15rem;
+        color: #94a3b8;
+      }
+
       .blog-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -163,10 +243,27 @@
         border-radius: 12px;
         margin-bottom: 14px;
       }
-      .blog-card h3 { font-size: 1.25rem; font-weight: 700; margin: 0 0 10px; line-height: 1.4; color: #fff; }
-      .blog-card p { font-size: 0.9rem; color: #94a3b8; margin-bottom: 20px; flex-grow: 1; }
-      .blog-card-meta { display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; color: #64748b; }
-      
+      .blog-card h3 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin: 0 0 10px;
+        line-height: 1.4;
+        color: #fff;
+      }
+      .blog-card p {
+        font-size: 0.9rem;
+        color: #94a3b8;
+        margin-bottom: 20px;
+        flex-grow: 1;
+      }
+      .blog-card-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        color: #64748b;
+      }
+
       .blog-footer {
         border-top: 1px solid rgba(255, 255, 255, 0.08);
         text-align: center;
@@ -174,21 +271,79 @@
         color: #64748b;
         font-size: 0.85rem;
       }
-      .blog-footer a { color: #f066ff; text-decoration: none; }
+      .blog-footer a {
+        color: #f066ff;
+        text-decoration: none;
+      }
     </style>
   </head>
   <body>
-    <nav class="blog-navbar">
-      <a href="../index.html" class="blog-brand">
-        <img src="../logo-sm.webp" alt="HashGANG Logo" width="36" height="36" />
-        <span>HashGANG Chat Blog</span>
+    <header class="site-header">
+      <a href="../website.html" class="brand-logo">
+        <img src="../logo-sm.webp" alt="HashGANG Logo" width="38" height="38" />
+        <span id="brand-title-text" style="transition: opacity 0.3s ease;">#GANG Chat</span>
       </a>
-      <a href="../index.html" class="btn-start-chat-nav"><i class="fa-solid fa-video"></i> Start Chat Now</a>
-    </nav>
+      <div style="position: relative;">
+        <button
+          class="nav-hamburger-btn"
+          onclick="toggleBlogNavMenu(event)"
+          aria-label="Toggle Navigation Menu"
+        >
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="nav-hamburger-dropdown closed" id="blog-nav-menu">
+          <a href="../index.html"><i class="fa-solid fa-video"></i> Start Chat</a>
+          <a href="../website.html"><i class="fa-solid fa-house"></i> Home</a>
+          <a href="../website.html#features"><i class="fa-solid fa-bolt"></i> Features</a>
+          <a href="../website.html#showcase"><i class="fa-solid fa-images"></i> Feature Showcase</a>
+          <a href="index.html"><i class="fa-solid fa-newspaper"></i> Blog & Articles</a>
+          <a href="../terms-of-service.html"><i class="fa-solid fa-file-contract"></i> Terms of Service</a>
+          <a href="../privacy-policy.html"><i class="fa-solid fa-user-shield"></i> Privacy Policy</a>
+        </div>
+      </div>
+    </header>
+    <script>
+      function toggleBlogNavMenu(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById("blog-nav-menu");
+        if (menu) menu.classList.toggle("closed");
+      }
+      document.addEventListener("click", function (e) {
+        const menu = document.getElementById("blog-nav-menu");
+        if (
+          menu &&
+          !menu.classList.contains("closed") &&
+          !e.target.closest(".nav-hamburger-btn")
+        ) {
+          menu.classList.add("closed");
+        }
+      });
 
-    <header class="blog-hero">
+      function initBrandAlternatingTitle() {
+        const names = ["HashGANG Chat", "#GANG Chat"];
+        let currentIndex = 0;
+        const brandTitleText = document.getElementById("brand-title-text");
+        setInterval(() => {
+          currentIndex = (currentIndex + 1) % names.length;
+          const currentName = names[currentIndex];
+          if (brandTitleText) {
+            brandTitleText.style.opacity = "0";
+            setTimeout(() => {
+              brandTitleText.textContent = currentName;
+              brandTitleText.style.opacity = "1";
+            }, 300);
+          }
+        }, 4000);
+      }
+      document.addEventListener("DOMContentLoaded", initBrandAlternatingTitle);
+    </script>
+
+    <section class="blog-hero">
       <h1>Knowledge Hub &amp; Guides</h1>
-      <p>Discover articles on online privacy, WebRTC technology, Omegle alternatives, and making international friends safely.</p>
+      <p>
+        Discover articles on online privacy, WebRTC technology, Omegle
+        alternatives, and making international friends safely.
+      </p>
       <div class="hashtag-bar">
         <span class="hashtag-pill">#GANG</span>
         <span class="hashtag-pill">#StrangerChat</span>
@@ -198,7 +353,7 @@
         <span class="hashtag-pill">#WebRTC</span>
         <span class="hashtag-pill">#PWA</span>
       </div>
-    </header>
+    </section>
 
     <main class="blog-grid">
       <!-- Article 1 -->
@@ -206,7 +361,10 @@
         <div>
           <span class="blog-badge">Alternatives</span>
           <h3>10 Best Free Omegle Alternatives in 2026: 100% Anonymous</h3>
-          <p>Looking for a safe, free Omegle replacement? Compare top anonymous stranger video chat platforms featuring zero registration.</p>
+          <p>
+            Looking for a safe, free Omegle replacement? Compare top anonymous
+            stranger video chat platforms featuring zero registration.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -219,7 +377,10 @@
         <div>
           <span class="blog-badge">Privacy</span>
           <h3>Why No-Registration Video Chat is the Future of Privacy</h3>
-          <p>Discover how 0-click video chat platforms protect your identity without storing email, phone, or personal data.</p>
+          <p>
+            Discover how 0-click video chat platforms protect your identity
+            without storing email, phone, or personal data.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 4 min read</span>
@@ -232,7 +393,10 @@
         <div>
           <span class="blog-badge">Comparison</span>
           <h3>OmeTV vs HashGANG Chat: Feature & Safety Review</h3>
-          <p>An in-depth breakdown comparing OmeTV and HashGANG Chat on mobile responsiveness, AI beauty filters, and encryption.</p>
+          <p>
+            An in-depth breakdown comparing OmeTV and HashGANG Chat on mobile
+            responsiveness, AI beauty filters, and encryption.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 6 min read</span>
@@ -245,7 +409,10 @@
         <div>
           <span class="blog-badge">Technology</span>
           <h3>The Science of Real-Time WebGL AI Beauty Filters</h3>
-          <p>Learn how hardware-accelerated WebGL shaders smooth skin and boost confidence during stranger video calls in real-time.</p>
+          <p>
+            Learn how hardware-accelerated WebGL shaders smooth skin and boost
+            confidence during stranger video calls in real-time.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -258,7 +425,10 @@
         <div>
           <span class="blog-badge">Mobile Tech</span>
           <h3>How Progressive Web Apps Bring Desktop Chat to Mobile</h3>
-          <p>No App Store download required! Explore how PWAs deliver smooth full-screen stranger video chat directly inside mobile browsers.</p>
+          <p>
+            No App Store download required! Explore how PWAs deliver smooth
+            full-screen stranger video chat directly inside mobile browsers.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 4 min read</span>
@@ -271,7 +441,10 @@
         <div>
           <span class="blog-badge">WebRTC Security</span>
           <h3>How WebRTC Direct Video Connections Protect Your Privacy</h3>
-          <p>Understand how Peer-to-Peer mesh networks route video directly between devices with zero central server recording.</p>
+          <p>
+            Understand how Peer-to-Peer mesh networks route video directly
+            between devices with zero central server recording.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -284,7 +457,10 @@
         <div>
           <span class="blog-badge">Safety</span>
           <h3>The Ultimate Safety Guide for Stranger Video Chatting</h3>
-          <p>Essential safety rules, blocking tools, watermarks, and privacy shields to protect yourself while chatting online.</p>
+          <p>
+            Essential safety rules, blocking tools, watermarks, and privacy
+            shields to protect yourself while chatting online.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 6 min read</span>
@@ -297,7 +473,10 @@
         <div>
           <span class="blog-badge">Encryption</span>
           <h3>End-to-End Encryption in Stranger Chat Explained</h3>
-          <p>How cryptographic key exchanges ensure nobody—not even the platform—can listen to or record your video calls.</p>
+          <p>
+            How cryptographic key exchanges ensure nobody—not even the
+            platform—can listen to or record your video calls.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -310,7 +489,10 @@
         <div>
           <span class="blog-badge">Guides</span>
           <h3>How to Make International Friends via Random Video Chat</h3>
-          <p>Fun conversation starters, icebreakers, and cultural exchange tips for connecting with strangers worldwide.</p>
+          <p>
+            Fun conversation starters, icebreakers, and cultural exchange tips
+            for connecting with strangers worldwide.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 4 min read</span>
@@ -323,7 +505,10 @@
         <div>
           <span class="blog-badge">FAQ</span>
           <h3>HashGANG Chat FAQ: Everything You Need to Know</h3>
-          <p>Got questions? Read our comprehensive FAQ covering device setup, camera troubleshooting, safety rules, and free usage.</p>
+          <p>
+            Got questions? Read our comprehensive FAQ covering device setup,
+            camera troubleshooting, safety rules, and free usage.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 7 min read</span>
@@ -332,11 +517,17 @@
       </a>
 
       <!-- Article 11 -->
-      <a href="best-stranger-chat-apps-for-college-students.html" class="blog-card">
+      <a
+        href="best-stranger-chat-apps-for-college-students.html"
+        class="blog-card"
+      >
         <div>
           <span class="blog-badge">Campus & Youth</span>
           <h3>Best Anonymous Video Chat Apps for College Students</h3>
-          <p>Discover how university students socialise safely on zero-registration video chat platforms with zero email required.</p>
+          <p>
+            Discover how university students socialise safely on
+            zero-registration video chat platforms with zero email required.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -349,7 +540,10 @@
         <div>
           <span class="blog-badge">Technical Support</span>
           <h3>How to Fix Camera & Mic Permission Denied Errors</h3>
-          <p>Step-by-step troubleshooting guide for unblocking blocked camera permissions on Chrome, Safari, Android & iOS.</p>
+          <p>
+            Step-by-step troubleshooting guide for unblocking blocked camera
+            permissions on Chrome, Safari, Android & iOS.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 6 min read</span>
@@ -362,7 +556,10 @@
         <div>
           <span class="blog-badge">Language Learning</span>
           <h3>Master a New Language Free via Stranger Video Chat</h3>
-          <p>Practice speaking English, Spanish & Japanese fluently with native speakers worldwide in 100% free video calls.</p>
+          <p>
+            Practice speaking English, Spanish & Japanese fluently with native
+            speakers worldwide in 100% free video calls.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -375,7 +572,10 @@
         <div>
           <span class="blog-badge">Safety & Privacy</span>
           <h3>Safety Controls & Privacy Shields for Female Users</h3>
-          <p>Learn about focus loss blur shields, watermarks, 1-tap skips, and reporting controls designed for total safety.</p>
+          <p>
+            Learn about focus loss blur shields, watermarks, 1-tap skips, and
+            reporting controls designed for total safety.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -388,7 +588,10 @@
         <div>
           <span class="blog-badge">Performance</span>
           <h3>Why Direct P2P Mesh Connections Eliminate Video Lag</h3>
-          <p>Discover how WebRTC direct ICE candidate routing delivers 60 FPS video calls with zero server buffering delays.</p>
+          <p>
+            Discover how WebRTC direct ICE candidate routing delivers 60 FPS
+            video calls with zero server buffering delays.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -401,7 +604,10 @@
         <div>
           <span class="blog-badge">Comparison</span>
           <h3>CamSurf vs HashGANG Chat: Complete 2026 Feature Review</h3>
-          <p>An in-depth, objective breakdown comparing CamSurf and HashGANG Chat on mobile PWA, AI beauty filters & WebRTC encryption.</p>
+          <p>
+            An in-depth, objective breakdown comparing CamSurf and HashGANG Chat
+            on mobile PWA, AI beauty filters & WebRTC encryption.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -414,7 +620,10 @@
         <div>
           <span class="blog-badge">Comparison</span>
           <h3>Emerald Chat vs HashGANG Chat: Free Features & Privacy</h3>
-          <p>Objective feature comparison between Emerald Chat and HashGANG Chat regarding zero login, free accessibility & WebRTC security.</p>
+          <p>
+            Objective feature comparison between Emerald Chat and HashGANG Chat
+            regarding zero login, free accessibility & WebRTC security.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -427,7 +636,10 @@
         <div>
           <span class="blog-badge">Comparison</span>
           <h3>Chatroulette vs HashGANG Chat: Modern Video Chat Review</h3>
-          <p>A detailed comparison between classic Chatroulette coin systems and HashGANG Chat's 100% free unlimited P2P video chat.</p>
+          <p>
+            A detailed comparison between classic Chatroulette coin systems and
+            HashGANG Chat's 100% free unlimited P2P video chat.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -436,11 +648,17 @@
       </a>
 
       <!-- Article 19 -->
-      <a href="how-anti-screen-recording-trace-watermark-works.html" class="blog-card">
+      <a
+        href="how-anti-screen-recording-trace-watermark-works.html"
+        class="blog-card"
+      >
         <div>
           <span class="blog-badge">Privacy & Safety</span>
           <h3>How Anti-Screen Recording & Watermarks Prevent Leaks</h3>
-          <p>Discover how focus loss blur shields and dynamic session trace overlays protect users from video recording and leaks.</p>
+          <p>
+            Discover how focus loss blur shields and dynamic session trace
+            overlays protect users from video recording and leaks.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 6 min read</span>
@@ -449,11 +667,17 @@
       </a>
 
       <!-- Article 20 -->
-      <a href="why-free-unlimited-video-chat-beats-coin-paywalls.html" class="blog-card">
+      <a
+        href="why-free-unlimited-video-chat-beats-coin-paywalls.html"
+        class="blog-card"
+      >
         <div>
           <span class="blog-badge">User Experience</span>
           <h3>Why Free Unlimited Video Chat Beats Coin Paywalls</h3>
-          <p>Explore why zero subscription fees, zero coins, and 100% free unlimited WebRTC calls deliver the best user experience.</p>
+          <p>
+            Explore why zero subscription fees, zero coins, and 100% free
+            unlimited WebRTC calls deliver the best user experience.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -466,7 +690,10 @@
         <div>
           <span class="blog-badge">Matchmaking Tech</span>
           <h3>Zero-Wait Matchmaking: Connect Instantly 24/7</h3>
-          <p>Discover how zero-wait matchmaking algorithms and fallback engines ensure instant video connections 24/7.</p>
+          <p>
+            Discover how zero-wait matchmaking algorithms and fallback engines
+            ensure instant video connections 24/7.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -479,7 +706,10 @@
         <div>
           <span class="blog-badge">Camera Tech</span>
           <h3>Virtual Ring Light Halos & Studio Lighting in Dark Rooms</h3>
-          <p>Learn how virtual ring light halos and cinematic vignette shaders brighten dark rooms during late-night calls.</p>
+          <p>
+            Learn how virtual ring light halos and cinematic vignette shaders
+            brighten dark rooms during late-night calls.
+          </p>
         </div>
         <div class="blog-card-meta">
           <span><i class="fa-regular fa-clock"></i> 5 min read</span>
@@ -489,7 +719,34 @@
     </main>
 
     <footer class="blog-footer">
-      <p>&copy; 2026 HashGANG Chat. All Rights Reserved. | <a href="../terms-of-service.html">Terms of Service</a> | <a href="../privacy-policy.html">Privacy Policy</a> | <a href="../index.html">Start Video Chat</a></p>
+      <p>
+        &copy; 2026 HashGANG. All Rights Reserved. |
+        <a href="../terms-of-service.html">Terms of Service</a> |
+        <a href="../privacy-policy.html">Privacy Policy</a> |
+        <a href="../index.html">Start Chat</a>
+      </p>
     </footer>
+
+    <!-- Floating Back-to-Top Button -->
+    <button
+      class="btn-back-to-top"
+      id="btn-back-to-top"
+      onclick="window.scrollTo({top: 0, behavior: 'smooth'})"
+      title="Back to Top"
+      aria-label="Back to Top"
+    >
+      <i class="fa-solid fa-arrow-up"></i>
+    </button>
+
+    <script>
+      const btnBackToTop = document.getElementById("btn-back-to-top");
+      window.addEventListener("scroll", function () {
+        if (window.scrollY > 300) {
+          if (btnBackToTop) btnBackToTop.classList.add("visible");
+        } else {
+          if (btnBackToTop) btnBackToTop.classList.remove("visible");
+        }
+      });
+    </script>
   </body>
 </html>
