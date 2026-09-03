@@ -393,6 +393,26 @@ function setupEventListeners() {
         }
         return;
       }
+
+      // Auto-dismiss Popovers on Outside Click
+      const bgPopover = document.getElementById("bg-effects-popover");
+      if (bgPopover && !bgPopover.classList.contains("closed")) {
+        const isInsideBgPopover = bgPopover.contains(e.target);
+        const isBgBtnDesktop = e.target.closest("#btn-bg-effects");
+        const isBgBtnMobile = e.target.closest("#btn-bg-effects-mobile");
+        if (!isInsideBgPopover && !isBgBtnDesktop && !isBgBtnMobile) {
+          bgPopover.classList.add("closed");
+        }
+      }
+
+      const beautyPopover = document.getElementById("beauty-slider-popover");
+      if (beautyPopover && !beautyPopover.classList.contains("closed")) {
+        const isInsideBeautyPopover = beautyPopover.contains(e.target);
+        const isBeautyBtn = e.target.closest("#btn-beauty-filter");
+        if (!isInsideBeautyPopover && !isBeautyBtn) {
+          beautyPopover.classList.add("closed");
+        }
+      }
     });
   } catch (e) {}
 
@@ -1032,6 +1052,7 @@ function playSimulatedStrangerVideo() {
   updateStatus("connected", "Connected with Stranger");
   updateToolbarVisibility("connected");
   appendSystemChatMessage("You are now chatting with a random stranger. Say hi!");
+  onStrangerConnectedMatch();
 }
 
 let simulatedSearchDelayTimeout = null;
@@ -1137,13 +1158,14 @@ async function initLocalMedia() {
       video: { width: { ideal: 1280 }, height: { ideal: 720 } },
       audio: true,
     });
-    elements.localVideo.srcObject = localStream;
+    elements.localVideo.srcObject = getActiveStream();
 
     // Remove permission overlay if previously shown
     const existingOverlay = document.getElementById("media-perm-overlay");
     if (existingOverlay) existingOverlay.remove();
 
     await detectCameraDevices();
+    await setupBgSegmentationPipeline();
     return true;
   } catch (err) {
     console.error("Camera/Mic Permission Error:", err);
@@ -1205,15 +1227,8 @@ async function switchCamera() {
         oldTrack.stop();
       }
       localStream.addTrack(videoTrack);
-      if (elements.localVideo) elements.localVideo.srcObject = localStream;
-
-      if (currentCall && currentCall.peerConnection) {
-        const senders = currentCall.peerConnection.getSenders();
-        const videoSender = senders.find((s) => s.track && s.track.kind === "video");
-        if (videoSender) {
-          videoSender.replaceTrack(videoTrack);
-        }
-      }
+      if (bgRawVideo) bgRawVideo.srcObject = localStream;
+      applyBgEffectToStreams();
     }
     showShareToast(`Switched to: ${targetDevice.label || "Camera " + (currentCameraIndex + 1)}`);
   } catch (e) {
@@ -1306,7 +1321,7 @@ function connectToHostOrBecomeHost(hostId) {
   }
 
   // Try calling the host ID with session metadata
-  const call = peer.call(hostId, localStream, {
+  const call = peer.call(hostId, getActiveStream(), {
     metadata: { sessionInstanceId: SESSION_INSTANCE_ID, callerId: peer.id }
   });
 
@@ -1389,7 +1404,7 @@ function becomeWaitingHost(hostId) {
     }
 
     stopSimulatedStrangerVideo();
-    call.answer(localStream);
+    call.answer(getActiveStream());
     currentCall = call;
 
     call.on("stream", (remoteStream) => {
@@ -1431,7 +1446,7 @@ function handleIncomingCall(call) {
   }
 
   stopSimulatedStrangerVideo();
-  call.answer(localStream);
+  call.answer(getActiveStream());
   currentCall = call;
 
   call.on("stream", (remoteStream) => {
@@ -1548,6 +1563,8 @@ function onPeerConnected(remoteStream) {
 
   // Start In-Call Control Toolbar Auto-Hider (Full Video UX)
   startInCallToolbarAutoHider();
+
+  onStrangerConnectedMatch();
 }
 
 
@@ -1709,6 +1726,11 @@ function toggleBeautySliderPopover(e) {
   const popover = document.getElementById("beauty-slider-popover");
   if (!popover) return;
   popover.classList.toggle("closed");
+
+  const bgPopover = document.getElementById("bg-effects-popover");
+  if (bgPopover && !bgPopover.classList.contains("closed")) {
+    bgPopover.classList.add("closed");
+  }
 }
 
 function updateBeautyIntensity(val) {
@@ -1742,6 +1764,488 @@ function initBeautyFilter() {
   currentBeautyIndex = BEAUTY_MODES.indexOf(savedMode);
   if (currentBeautyIndex === -1) currentBeautyIndex = 0;
   applyBeautyFilter(BEAUTY_MODES[currentBeautyIndex]);
+}
+
+/**
+ * Real-Time Virtual Background & Segmentation Engine (MediaPipe + Canvas WebGL)
+ */
+const BG_PRESETS = [
+  { 
+    id: "office", 
+    name: "Modern Office", 
+    category: "office",
+    url: "https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200&q=80",
+    thumb: "url('https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=300&q=80') center/cover"
+  },
+  { 
+    id: "nature", 
+    name: "Lush Forest", 
+    category: "nature",
+    url: "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1200&q=80",
+    thumb: "url('https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=300&q=80') center/cover"
+  },
+  { 
+    id: "mountains", 
+    name: "Mountains", 
+    category: "nature",
+    url: "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=1200&q=80",
+    thumb: "url('https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=300&q=80') center/cover"
+  },
+  { 
+    id: "sea", 
+    name: "Tropical Sea", 
+    category: "nature",
+    url: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80",
+    thumb: "url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=300&q=80') center/cover"
+  },
+  { 
+    id: "living_room", 
+    name: "Cozy Room", 
+    category: "cyber",
+    url: "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=1200&q=80",
+    thumb: "url('https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=300&q=80') center/cover"
+  },
+  { 
+    id: "cyberpunk", 
+    name: "Neon City", 
+    category: "cyber",
+    url: "https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=1200&q=80",
+    thumb: "url('https://images.unsplash.com/photo-1519501025264-65ba15a82390?auto=format&fit=crop&w=300&q=80') center/cover"
+  }
+];
+
+// Preload high-res preset background images for instant rendering
+BG_PRESETS.forEach((preset) => {
+  if (preset.url) {
+    preset.imgObj = new Image();
+    preset.imgObj.crossOrigin = "anonymous";
+    preset.imgObj.src = preset.url;
+  }
+});
+
+let selfieSegmentationInstance = null;
+let currentBgEffectType = "preset"; // "preset", "blur", "custom", "none"
+let currentBgPresetIndex = 0;
+let currentBlurRadius = 16; // Dynamic blur radius 5px - 35px
+let currentBgCategory = "all"; // Category tab: "all", "office", "nature", "cyber"
+let isNeonAuraActive = false; // Gen-Z Silhouette Aura Glow toggle
+let customBgImageObj = null;
+let previousNonOffBgType = "preset";
+
+let bgCanvas = null;
+let bgCtx = null;
+let bgRawVideo = null;
+let bgProcessedStream = null;
+let isBgProcessingLoopActive = false;
+
+function getActiveStream() {
+  if (currentBgEffectType !== "none" && bgProcessedStream) {
+    return bgProcessedStream;
+  }
+  return localStream;
+}
+
+let strangerMatchCount = 0;
+
+function onStrangerConnectedMatch() {
+  strangerMatchCount++;
+  console.log(`Stranger connection #${strangerMatchCount} established.`);
+
+  const userInteracted = localStorage.getItem("hashgang_bg_user_interacted") === "true";
+
+  if (!userInteracted) {
+    if (strangerMatchCount <= 2) {
+      currentBgEffectType = "preset";
+      isNeonAuraActive = true; // Neon Aura Glow enabled by default for WOW factor
+      if (strangerMatchCount === 1) {
+        setTimeout(() => {
+          showShareToast("✨ Virtual Background & Neon Aura Active! Click 🖼️ icon to customize.");
+        }, 1200);
+      }
+    } else {
+      // 3rd stranger connection onwards -> Default to 'none' & turn off aura to conserve CPU
+      currentBgEffectType = "none";
+      isNeonAuraActive = false;
+    }
+    renderBgPresetsGrid();
+    updateBgUIControls();
+    applyBgEffectToStreams();
+  }
+}
+
+function initBgEffectState() {
+  const userInteracted = localStorage.getItem("hashgang_bg_user_interacted") === "true";
+  const savedType = localStorage.getItem("hashgang_bg_type");
+  const savedPreset = localStorage.getItem("hashgang_bg_preset");
+  const savedBlurRadius = localStorage.getItem("hashgang_bg_blur_radius");
+  const savedAura = localStorage.getItem("hashgang_bg_aura");
+  const savedCustomData = localStorage.getItem("hashgang_bg_custom_data");
+
+  if (userInteracted && savedType) {
+    currentBgEffectType = savedType;
+    isNeonAuraActive = savedAura === "true";
+  } else {
+    // Initial start before 1st stranger match: Background + Neon Aura BOTH DEFAULT ON!
+    currentBgEffectType = "preset";
+    isNeonAuraActive = true;
+  }
+
+  if (savedPreset !== null && !isNaN(parseInt(savedPreset, 10))) {
+    currentBgPresetIndex = parseInt(savedPreset, 10) % BG_PRESETS.length;
+  } else {
+    currentBgPresetIndex = Math.floor(Math.random() * BG_PRESETS.length);
+  }
+
+  if (savedBlurRadius) {
+    currentBlurRadius = parseInt(savedBlurRadius, 10);
+    const rangeInput = document.getElementById("bg-blur-range");
+    const label = document.getElementById("bg-blur-val");
+    if (rangeInput) rangeInput.value = currentBlurRadius;
+    if (label) label.textContent = `${currentBlurRadius}px`;
+  }
+
+  renderBgPresetsGrid();
+  updateBgUIControls();
+  initBgKeyboardShortcut();
+}
+
+function drawPresetBackground(ctx, index, width, height) {
+  const preset = BG_PRESETS[index % BG_PRESETS.length];
+  ctx.save();
+
+  if (preset && preset.imgObj && preset.imgObj.complete && preset.imgObj.naturalWidth > 0) {
+    ctx.drawImage(preset.imgObj, 0, 0, width, height);
+  } else {
+    // Elegant dark glassmorphism fallback gradient while image loads
+    let grad = ctx.createLinearGradient(0, 0, width, height);
+    grad.addColorStop(0, "#1e1b4b");
+    grad.addColorStop(0.5, "#312e81");
+    grad.addColorStop(1, "#0f172a");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  ctx.restore();
+}
+
+function detectOptimalSegmentationResolution() {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  const cores = navigator.hardwareConcurrency || 4;
+  if (isMobile || cores <= 2) {
+    return { width: 640, height: 360 };
+  }
+  return { width: 960, height: 540 };
+}
+
+async function setupBgSegmentationPipeline() {
+  initBgEffectState();
+
+  if (!bgCanvas) {
+    const res = detectOptimalSegmentationResolution();
+    bgCanvas = document.createElement("canvas");
+    bgCanvas.width = res.width;
+    bgCanvas.height = res.height;
+    bgCtx = bgCanvas.getContext("2d", { willReadFrequently: true });
+  }
+
+  if (!bgRawVideo) {
+    bgRawVideo = document.createElement("video");
+    bgRawVideo.autoplay = true;
+    bgRawVideo.muted = true;
+    bgRawVideo.playsInline = true;
+  }
+
+  if (localStream) {
+    bgRawVideo.srcObject = localStream;
+    try { await bgRawVideo.play(); } catch (e) {}
+  }
+
+  if (!bgProcessedStream && bgCanvas) {
+    bgProcessedStream = bgCanvas.captureStream(30);
+  }
+
+  if (localStream && bgProcessedStream) {
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack) {
+      const existingAudio = bgProcessedStream.getAudioTracks()[0];
+      if (existingAudio) bgProcessedStream.removeTrack(existingAudio);
+      bgProcessedStream.addTrack(audioTrack);
+    }
+  }
+
+  if (elements.localVideo) {
+    elements.localVideo.srcObject = getActiveStream();
+  }
+
+  if (typeof SelfieSegmentation !== "undefined" && !selfieSegmentationInstance) {
+    try {
+      selfieSegmentationInstance = new SelfieSegmentation({
+        locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`
+      });
+      selfieSegmentationInstance.setOptions({
+        modelSelection: 1
+      });
+      selfieSegmentationInstance.onResults(handleSegmentationResults);
+    } catch (err) {
+      console.warn("SelfieSegmentation init error:", err);
+    }
+  }
+
+  startBgProcessingLoop();
+}
+
+function startBgProcessingLoop() {
+  if (isBgProcessingLoopActive) return;
+  isBgProcessingLoopActive = true;
+
+  async function loop() {
+    if (!isBgProcessingLoopActive) return;
+
+    if (localStream && bgRawVideo && bgRawVideo.readyState >= 2) {
+      if (currentBgEffectType !== "none" && selfieSegmentationInstance) {
+        try {
+          await selfieSegmentationInstance.send({ image: bgRawVideo });
+        } catch (e) {}
+      } else if (bgCtx && bgCanvas) {
+        bgCtx.drawImage(bgRawVideo, 0, 0, bgCanvas.width, bgCanvas.height);
+      }
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+function handleSegmentationResults(results) {
+  if (!bgCtx || !bgCanvas) return;
+
+  const w = bgCanvas.width;
+  const h = bgCanvas.height;
+
+  bgCtx.save();
+  bgCtx.clearRect(0, 0, w, h);
+
+  if (currentBgEffectType === "none") {
+    bgCtx.drawImage(results.image, 0, 0, w, h);
+    bgCtx.restore();
+    return;
+  }
+
+  // 1. Draw core human segmentation mask
+  bgCtx.globalCompositeOperation = "copy";
+  bgCtx.drawImage(results.segmentationMask, 0, 0, w, h);
+
+  // 2. Soft Edge Dilation & Feathering (prevents hair, ear, and face clipping)
+  bgCtx.globalCompositeOperation = "destination-over";
+  bgCtx.filter = "blur(3px)";
+  bgCtx.drawImage(results.segmentationMask, 0, 0, w, h);
+  bgCtx.filter = "none";
+
+  // 2b. Optional Gen-Z Neon Silhouette Aura Glow Layer
+  if (isNeonAuraActive) {
+    bgCtx.save();
+    bgCtx.shadowColor = "#06b6d4";
+    bgCtx.shadowBlur = 20;
+    bgCtx.globalCompositeOperation = "destination-over";
+    bgCtx.drawImage(results.segmentationMask, 0, 0, w, h);
+    bgCtx.restore();
+  }
+
+  // 3. Composite human video frame into the feathered mask
+  bgCtx.globalCompositeOperation = "source-in";
+  bgCtx.drawImage(results.image, 0, 0, w, h);
+
+  // 4. Draw background layer behind human
+  bgCtx.globalCompositeOperation = "destination-over";
+
+  if (currentBgEffectType === "blur") {
+    bgCtx.filter = `blur(${currentBlurRadius}px)`;
+    bgCtx.drawImage(results.image, 0, 0, w, h);
+    bgCtx.filter = "none";
+  } else if (currentBgEffectType === "preset") {
+    drawPresetBackground(bgCtx, currentBgPresetIndex, w, h);
+  } else if (currentBgEffectType === "custom" && customBgImageObj && customBgImageObj.complete) {
+    bgCtx.drawImage(customBgImageObj, 0, 0, w, h);
+  } else {
+    drawPresetBackground(bgCtx, 0, w, h);
+  }
+
+  bgCtx.restore();
+}
+
+function toggleBgEffectsPopover(e) {
+  if (e) e.stopPropagation();
+  const popover = document.getElementById("bg-effects-popover");
+  if (!popover) return;
+  popover.classList.toggle("closed");
+
+  const beautyPopover = document.getElementById("beauty-slider-popover");
+  if (beautyPopover && !beautyPopover.classList.contains("closed")) {
+    beautyPopover.classList.add("closed");
+  }
+}
+
+function filterBgCategory(cat) {
+  currentBgCategory = cat;
+  document.querySelectorAll(".bg-tab-btn").forEach((btn) => {
+    btn.classList.toggle("active", btn.id === `bg-tab-${cat}`);
+  });
+  renderBgPresetsGrid();
+}
+
+function updateBgBlurRadius(val) {
+  currentBlurRadius = parseInt(val, 10);
+  const label = document.getElementById("bg-blur-val");
+  if (label) label.textContent = `${currentBlurRadius}px`;
+  localStorage.setItem("hashgang_bg_blur_radius", currentBlurRadius);
+  selectBgEffect("blur");
+}
+
+function toggleNeonAuraGlow() {
+  isNeonAuraActive = !isNeonAuraActive;
+  localStorage.setItem("hashgang_bg_aura", isNeonAuraActive ? "true" : "false");
+  updateBgUIControls();
+  applyBgEffectToStreams();
+  showShareToast(isNeonAuraActive ? "✨ Neon Silhouette Aura Glow: ON" : "Neon Aura Glow: OFF");
+}
+
+let isBgKeyboardListenerAdded = false;
+function initBgKeyboardShortcut() {
+  if (isBgKeyboardListenerAdded) return;
+  isBgKeyboardListenerAdded = true;
+
+  document.addEventListener("keydown", (e) => {
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.isContentEditable)) {
+      return;
+    }
+    if (e.key === "b" || e.key === "B") {
+      if (currentBgEffectType !== "none") {
+        previousNonOffBgType = currentBgEffectType;
+        selectBgEffect("none");
+        showShareToast("Key [B]: Virtual Background OFF 🚫");
+      } else {
+        selectBgEffect(previousNonOffBgType || "preset");
+        showShareToast("Key [B]: Virtual Background ON 🎨");
+      }
+    }
+  });
+}
+
+function renderBgPresetsGrid() {
+  const container = document.getElementById("bg-presets-grid");
+  if (!container) return;
+
+  const filteredPresets = BG_PRESETS.filter((p) => {
+    if (currentBgCategory === "all") return true;
+    return p.category === currentBgCategory;
+  });
+
+  container.innerHTML = "";
+  filteredPresets.forEach((preset) => {
+    const idx = BG_PRESETS.indexOf(preset);
+    const card = document.createElement("div");
+    card.className = `bg-preset-card ${currentBgEffectType === "preset" && currentBgPresetIndex === idx ? "active" : ""}`;
+    card.style.background = preset.thumb;
+    card.onclick = (e) => {
+      e.stopPropagation();
+      selectBgEffect("preset", idx);
+    };
+
+    const label = document.createElement("span");
+    label.className = "bg-preset-label";
+    label.textContent = preset.name;
+    card.appendChild(label);
+
+    if (currentBgPresetIndex === idx && currentBgEffectType === "preset") {
+      const badge = document.createElement("span");
+      badge.className = "bg-preset-badge";
+      badge.textContent = "ON";
+      card.appendChild(badge);
+    }
+
+    container.appendChild(card);
+  });
+}
+
+function selectBgEffect(type, detail) {
+  currentBgEffectType = type;
+
+  // Record that user explicitly interacted with background options
+  localStorage.setItem("hashgang_bg_user_interacted", "true");
+
+  if (type === "preset") {
+    if (typeof detail === "number") currentBgPresetIndex = detail;
+  } else if (type === "blur") {
+    if (typeof detail === "number") currentBlurRadius = detail;
+  }
+
+  localStorage.setItem("hashgang_bg_type", currentBgEffectType);
+  localStorage.setItem("hashgang_bg_preset", currentBgPresetIndex);
+  localStorage.setItem("hashgang_bg_blur_radius", currentBlurRadius);
+
+  renderBgPresetsGrid();
+  updateBgUIControls();
+  applyBgEffectToStreams();
+}
+
+function handleCustomBgUpload(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    const dataUrl = evt.target.result;
+    customBgImageObj = new Image();
+    customBgImageObj.onload = () => {
+      try {
+        localStorage.setItem("hashgang_bg_custom_data", dataUrl);
+      } catch (err) {
+        console.warn("Image too large for localStorage:", err);
+      }
+      selectBgEffect("custom");
+    };
+    customBgImageObj.src = dataUrl;
+  };
+  reader.readAsDataURL(file);
+}
+
+function updateBgUIControls() {
+  const btnEffectsList = [
+    document.getElementById("btn-bg-effects"),
+    document.getElementById("btn-bg-effects-mobile")
+  ];
+  const btnAura = document.getElementById("bg-btn-aura-glow");
+  const lblCustom = document.getElementById("bg-lbl-custom");
+  const btnOff = document.getElementById("bg-btn-off");
+
+  if (btnAura) btnAura.classList.toggle("active", isNeonAuraActive);
+  if (lblCustom) lblCustom.classList.toggle("active", currentBgEffectType === "custom");
+  if (btnOff) btnOff.classList.toggle("active", currentBgEffectType === "none");
+
+  const isBgActive = currentBgEffectType !== "none" || isNeonAuraActive;
+  btnEffectsList.forEach((btn) => {
+    if (btn) btn.classList.toggle("bg-effect-active", isBgActive);
+  });
+}
+
+function applyBgEffectToStreams() {
+  const activeStream = getActiveStream();
+
+  if (elements.localVideo && elements.localVideo.srcObject !== activeStream) {
+    elements.localVideo.srcObject = activeStream;
+  }
+
+  if (currentCall && currentCall.peerConnection && activeStream) {
+    const videoTrack = activeStream.getVideoTracks()[0];
+    if (videoTrack) {
+      const senders = currentCall.peerConnection.getSenders();
+      const videoSender = senders.find((s) => s.track && s.track.kind === "video");
+      if (videoSender) {
+        videoSender.replaceTrack(videoTrack);
+      }
+    }
+  }
 }
 
 /**
@@ -1825,6 +2329,9 @@ function toggleVideo() {
   isVideoOff = !isVideoOff;
   if (localStream) {
     localStream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
+  }
+  if (bgProcessedStream) {
+    bgProcessedStream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
   }
 
   const btnVideo = elements.btnVideo || document.getElementById("btn-video");
@@ -2835,10 +3342,17 @@ window.openShareModal = openShareModal;
 window.closeShareModal = closeShareModal;
 window.copyInviteLink = copyInviteLink;
 window.shareToSocial = shareToSocial;
+window.toggleBgEffectsPopover = toggleBgEffectsPopover;
+window.selectBgEffect = selectBgEffect;
+window.handleCustomBgUpload = handleCustomBgUpload;
+window.filterBgCategory = filterBgCategory;
+window.updateBgBlurRadius = updateBgBlurRadius;
+window.toggleNeonAuraGlow = toggleNeonAuraGlow;
 
 document.addEventListener("DOMContentLoaded", () => {
   detectCameraDevices();
   initBeautyFilter();
+  initBgEffectState();
   initAntiScreenRecording();
   initAntiDevToolsProtection();
   initScreenCaptureInterception();

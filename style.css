@@ -697,23 +697,22 @@ video#remote {
 }
 
 .pip-swap-hint {
-  position: absolute;
-  top: 6px;
-  right: 6px;
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: rgba(13, 5, 21, 0.75);
+  background: rgba(13, 5, 21, 0.85);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
   color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.7rem;
-  opacity: 0.85;
+  opacity: 0.9;
   transition: all 0.25s ease;
-  z-index: 6;
+  z-index: 8;
+  cursor: pointer;
 }
 
 .local-pip-container:hover .pip-swap-hint {
@@ -725,13 +724,21 @@ video#remote {
 
 .pip-action-bar {
   position: absolute;
-  top: 35px;
+  top: 6px;
   right: 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 5px;
-  z-index: 6;
+  z-index: 10;
+}
+
+.pip-desktop-only-btn {
+  display: flex !important;
+}
+
+.pip-mobile-only-btn {
+  display: none !important;
 }
 
 /* Hide local PIP action buttons when stranger video is swapped into PIP card */
@@ -740,15 +747,15 @@ video#remote {
   display: none !important;
 }
 
-/* Hide PIP bottom camera bar on Desktop & Tablet (shown only in main control toolbar) */
+/* PIP bottom-left bar for mobile camera toggle & mobile background icon */
 .pip-bottom-bar {
   position: absolute;
   bottom: 6px;
   left: 6px;
   display: none;
   align-items: center;
-  gap: 5px;
-  z-index: 6;
+  gap: 4px;
+  z-index: 10;
 }
 
 .pip-btn {
@@ -899,6 +906,228 @@ video#local {
   width: 100%;
   accent-color: #f066ff;
   cursor: pointer;
+}
+
+/* Background Effects Popover Modal */
+.bg-effects-popover {
+  position: absolute;
+  bottom: 85px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  max-width: 90vw;
+  padding: 14px 16px;
+  background: rgba(13, 5, 21, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass, rgba(255, 255, 255, 0.15));
+  border-radius: 20px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+  z-index: 30;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  color: #ffffff;
+}
+
+[data-theme="light"] .bg-effects-popover {
+  background: rgba(255, 255, 255, 0.95);
+  border-color: rgba(0, 0, 0, 0.18);
+  color: #18181b;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+}
+
+.bg-effects-popover.closed {
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: translateX(-50%) translateY(10px) !important;
+}
+
+.bg-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: #a855f7;
+}
+
+.bg-section-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
+  margin-bottom: 6px;
+}
+
+.bg-presets-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.bg-preset-card {
+  position: relative;
+  height: 52px;
+  border-radius: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  padding: 4px 6px;
+  transition: all 0.2s ease;
+  background-size: cover;
+  background-position: center;
+}
+
+.bg-preset-card:hover {
+  transform: scale(1.04);
+  border-color: #a855f7;
+}
+
+.bg-preset-card.active {
+  border-color: #a855f7;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.6);
+}
+
+.bg-preset-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  line-height: 1.1;
+  z-index: 2;
+}
+
+.bg-preset-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  background: #a855f7;
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.bg-actions-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.bg-tabs-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 3px;
+  border-radius: 8px;
+}
+
+.bg-tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 4px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+[data-theme="light"] .bg-tab-btn {
+  color: #52525b;
+}
+
+.bg-tab-btn.active {
+  background: #a855f7;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(168, 85, 247, 0.4);
+}
+
+.bg-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.bg-slider-row input[type="range"] {
+  flex: 1;
+  accent-color: #a855f7;
+}
+
+.bg-val-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  min-width: 34px;
+  text-align: right;
+  color: #a855f7;
+}
+
+.bg-kbd-hint {
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: rgba(168, 85, 247, 0.2);
+  color: #a855f7;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+#bg-btn-aura-glow.active {
+  background: linear-gradient(135deg, #06b6d4, #ec4899);
+  color: #ffffff;
+  border-color: #ec4899;
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.6);
+}
+
+.bg-action-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: inherit;
+  padding: 6px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.bg-action-btn:hover {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: #a855f7;
+}
+
+.bg-action-btn.active {
+  background: #a855f7;
+  color: #ffffff;
+  border-color: #a855f7;
+}
+
+.bg-btn-off.active {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+.pip-btn.bg-effect-active {
+  color: #a855f7;
+  background: rgba(168, 85, 247, 0.25);
+  border-color: #a855f7;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
 }
 
 /* Real-Time Live Video Beautification Shader Engine (Universal Natural Calibration) */
@@ -1688,32 +1917,90 @@ video#local.beauty-off, video#remote.beauty-off {
 }
 
 /* Responsive Breakpoints */
-@media (min-width: 768px) {
-  /* Tablet (iPad 768px) & Desktop: Camera button stays in bottom toolbar, hidden in PIP window */
-  .control-toolbar #btn-video {
-    display: inline-flex !important;
+/* Desktop Screens (min-width: 1025px) */
+@media (min-width: 1025px) {
+  .pip-desktop-only-btn {
+    display: flex !important;
+  }
+  .pip-mobile-only-btn {
+    display: none !important;
   }
   .pip-bottom-bar {
     display: none !important;
   }
 }
 
+/* Mobile & Tablet Screens (max-width: 1024px) */
 @media (max-width: 1024px) {
   .app-container { padding: 0 !important; gap: 0 !important; }
-  .local-pip-container { width: 140px; height: 95px; top: 72px; right: 20px; }
-}
-
-@media (max-width: 767px) {
-  .main-stage { flex-direction: column; }
   
   .local-pip-container {
-    width: 115px;
-    height: 80px;
-    top: 70px;
-    right: 16px;
-    border-radius: 12px;
+    width: 125px !important;
+    height: 88px !important;
+    top: 68px !important;
+    right: 12px !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  .pip-label {
+    top: 3px !important;
+    left: 4px !important;
+    font-size: 0.58rem !important;
+    padding: 1px 4px !important;
   }
   
+  .pip-action-bar {
+    top: 4px !important;
+    right: 4px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 3px !important;
+  }
+
+  .pip-desktop-only-btn {
+    display: none !important;
+  }
+
+  .pip-mobile-only-btn {
+    display: flex !important;
+  }
+
+  .pip-btn, .pip-swap-hint {
+    width: 22px !important;
+    height: 22px !important;
+    font-size: 0.65rem !important;
+    flex-shrink: 0 !important;
+    opacity: 1 !important;
+  }
+
+  .pip-bottom-bar {
+    position: absolute !important;
+    bottom: 4px !important;
+    left: 4px !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 3px !important;
+    z-index: 10 !important;
+  }
+
+  /* Hide camera button in bottom toolbar on mobile/tablet, show in PIP bottom-left bar */
+  .control-toolbar #btn-video {
+    display: none !important;
+  }
+
+  .bg-effects-popover, .beauty-slider-popover {
+    position: fixed !important;
+    bottom: 72px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    width: 92vw !important;
+    max-width: 320px !important;
+    z-index: 9999 !important;
+  }
+
   .control-toolbar {
     bottom: 16px;
     padding: 8px 12px;
@@ -1729,9 +2016,6 @@ video#local.beauty-off, video#remote.beauty-off {
   /* On Mobile (phones < 768px): Hide camera button in bottom toolbar to prevent clutter, show in PIP window */
   .control-toolbar #btn-video {
     display: none !important;
-  }
-  .pip-bottom-bar {
-    display: flex !important;
   }
   .video-viewport.swapped .local-pip-container .pip-bottom-bar {
     display: none !important;
