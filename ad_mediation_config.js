@@ -11,6 +11,9 @@ window.AD_MEDIATION_CONFIG = {
     universalBannerHeight: 250,
     skipOnLocalhost: true,            // Automatically skip paid third-party ads on localhost/dev mode
     viewabilityThresholdSeconds: 5.0, // IAB 5-second viewability threshold
+    hourlyCapPerUser: 4,              // Max 4 high-CPM impressions per rolling 60 minutes
+    minAdIntervalMs: 40000,           // 40 seconds minimum between Adsterra ad starts (35s post-ad end)
+    adLoadTimeoutMs: 2500,            // 2.5s timeout for background ad script load before keeping fallback
   },
 
   /**

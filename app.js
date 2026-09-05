@@ -2787,6 +2787,40 @@ function incrementMediationImpressionCount(providerId) {
   } catch (e) {}
 }
 
+const ADSTERRA_TIMESTAMPS_KEY = "sc_adsterra_impression_timestamps";
+
+function getAdsterraImpressionTimestamps() {
+  try {
+    const raw = localStorage.getItem(ADSTERRA_TIMESTAMPS_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    const now = Date.now();
+    // Filter timestamps within last rolling 60 minutes (3,600,000 ms)
+    return Array.isArray(arr) ? arr.filter((ts) => now - ts < 3600000) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function recordAdsterraImpression() {
+  try {
+    const timestamps = getAdsterraImpressionTimestamps();
+    timestamps.push(Date.now());
+    localStorage.setItem(ADSTERRA_TIMESTAMPS_KEY, JSON.stringify(timestamps));
+  } catch (e) {}
+}
+
+function getRollingHourlyImpressionCount() {
+  return getAdsterraImpressionTimestamps().length;
+}
+
+function getTimeSinceLastAdsterraStart() {
+  const timestamps = getAdsterraImpressionTimestamps();
+  if (timestamps.length === 0) return Infinity;
+  const lastStart = timestamps[timestamps.length - 1];
+  return Date.now() - lastStart;
+}
+
 let isAdBlockerDetected = false;
 
 /**
@@ -2860,7 +2894,14 @@ function selectWaterfallAdProvider() {
   const config = window.AD_MEDIATION_CONFIG;
   if (!config) return null;
 
-  // If AdBlocker / Brave is detected, bypass third-party ads and serve self-brand internal promotion directly!
+  // 1. Tab Visibility Check: If page is in background/minimized, serve selfBrandFallback directly!
+  if (document.visibilityState && document.visibilityState !== "visible") {
+    if (config.selfBrandFallback && config.selfBrandFallback.enabled !== false) {
+      return { type: "selfBrandFallback", data: config.selfBrandFallback };
+    }
+  }
+
+  // 2. AdBlocker / Brave Detection Check
   if (isAdBlockerDetected) {
     if (config.selfBrandFallback && config.selfBrandFallback.enabled !== false) {
       return { type: "selfBrandFallback", data: config.selfBrandFallback };
@@ -2871,7 +2912,6 @@ function selectWaterfallAdProvider() {
     window.location.hostname === "localhost" ||
     window.location.hostname === "127.0.0.1";
 
-  // If localhost and skipOnLocalhost is enabled, bypass paid third-party ads and serve self-brand fallback directly
   if (isLocalhost && config.settings && config.settings.skipOnLocalhost) {
     if (config.selfBrandFallback && config.selfBrandFallback.enabled !== false) {
       return { type: "selfBrandFallback", data: config.selfBrandFallback };
@@ -2879,21 +2919,34 @@ function selectWaterfallAdProvider() {
     return null;
   }
 
-  const tracker = getMediationDailyTracker();
-  const providers = config.providers || [];
+  const settings = config.settings || {};
+  const hourlyCap = settings.hourlyCapPerUser || 4;
+  const minInterval = settings.minAdIntervalMs || 40000; // 40s total interval (35s post-end)
 
-  // Dynamically loop through N providers (Index 0 to N-1)
-  for (let i = 0; i < providers.length; i++) {
-    const p = providers[i];
-    if (p && p.enabled !== false) {
-      const userDailyCount = tracker[p.id] || 0;
-      if (userDailyCount < p.dailyCapPerUser) {
-        return { type: "provider", data: p };
-      }
+  // 3. Rolling Hourly Impression Cap (max 4 per 60 mins across all screens)
+  const hourlyCount = getRollingHourlyImpressionCount();
+  if (hourlyCount >= hourlyCap) {
+    if (config.selfBrandFallback && config.selfBrandFallback.enabled !== false) {
+      return { type: "selfBrandFallback", data: config.selfBrandFallback };
     }
   }
 
-  // All N paid providers exhausted or disabled -> Fallback to Self-Brand Promotion!
+  // 4. Minimum Deduplication Interval (40 seconds minimum between Adsterra ad starts)
+  const elapsedSinceLastAd = getTimeSinceLastAdsterraStart();
+  if (elapsedSinceLastAd < minInterval) {
+    if (config.selfBrandFallback && config.selfBrandFallback.enabled !== false) {
+      return { type: "selfBrandFallback", data: config.selfBrandFallback };
+    }
+  }
+
+  const providers = config.providers || [];
+  for (let i = 0; i < providers.length; i++) {
+    const p = providers[i];
+    if (p && p.enabled !== false) {
+      return { type: "provider", data: p };
+    }
+  }
+
   if (config.selfBrandFallback && config.selfBrandFallback.enabled !== false) {
     return { type: "selfBrandFallback", data: config.selfBrandFallback };
   }
@@ -2903,19 +2956,21 @@ function selectWaterfallAdProvider() {
 
 function renderMediationAdInContainer(containerBox) {
   if (!containerBox) return;
-  containerBox.innerHTML = "";
 
+  // Step 1: INSTANTLY render Self-Brand Card at 0ms so user sees a clean banner immediately!
+  renderSelfBrandCard(containerBox);
+
+  // Step 2: Select waterfall ad provider
   const selection = selectWaterfallAdProvider();
-  if (!selection) {
-    containerBox.classList.add("hidden");
+  if (!selection || selection.type === "selfBrandFallback") {
+    // Keep 0ms Self-Brand card in place
     return;
   }
 
-  containerBox.classList.remove("hidden", "fading-out");
-
   if (selection.type === "provider") {
     const p = selection.data;
-    incrementMediationImpressionCount(p.id);
+    const config = window.AD_MEDIATION_CONFIG || {};
+    const loadTimeoutMs = (config.settings && config.settings.adLoadTimeoutMs) || 2500;
 
     try {
       const iframe = document.createElement("iframe");
@@ -2926,6 +2981,29 @@ function renderMediationAdInContainer(containerBox) {
       iframe.style.borderRadius = "8px";
       iframe.style.background = "transparent";
       iframe.scrolling = "no";
+
+      let hasSwapped = false;
+      const swapToAdsterra = () => {
+        if (hasSwapped) return;
+        hasSwapped = true;
+        recordAdsterraImpression();
+        incrementMediationImpressionCount(p.id);
+
+        containerBox.innerHTML = "";
+        containerBox.appendChild(iframe);
+      };
+
+      // 2.5s Timeout Guard: If iframe load takes longer than 2.5s or fails, keep Self-Brand card
+      const loadTimeout = setTimeout(() => {
+        if (!hasSwapped) {
+          try { iframe.remove(); } catch (e) {}
+        }
+      }, loadTimeoutMs);
+
+      iframe.onload = () => {
+        clearTimeout(loadTimeout);
+        swapToAdsterra();
+      };
 
       const htmlString = `
         <!DOCTYPE html>
@@ -2951,7 +3029,6 @@ function renderMediationAdInContainer(containerBox) {
       if ("srcdoc" in iframe) {
         iframe.srcdoc = htmlString;
       }
-      containerBox.appendChild(iframe);
 
       if (!("srcdoc" in iframe) && iframe.contentWindow) {
         const doc = iframe.contentWindow.document;
@@ -2962,8 +3039,6 @@ function renderMediationAdInContainer(containerBox) {
     } catch (e) {
       console.warn("Mediation ad render notice:", e);
     }
-  } else if (selection.type === "selfBrandFallback") {
-    renderSelfBrandCard(containerBox);
   }
 }
 
@@ -2971,7 +3046,7 @@ let inCallAdsterraTimer = null;
 let inCallAdsterraHideTimer = null;
 
 /**
- * Show Live In-Call Adsterra Sponsored Banner Overlay (Auto-disappears after 4.0s viewability threshold)
+ * Show Live In-Call Adsterra Sponsored Banner Overlay (Auto-disappears after 5.0s viewability threshold)
  */
 function showInCallAdsterraBanner() {
   hideInCallAdsterraBanner();
@@ -2981,10 +3056,10 @@ function showInCallAdsterraBanner() {
 
   renderMediationAdInContainer(bannerBox);
 
-  // Impression Record & Disappear: Auto-hide after 4.0s viewability threshold
+  // Impression Record & Disappear: Auto-hide after 5.0s viewability threshold
   inCallAdsterraHideTimer = setTimeout(() => {
     hideInCallAdsterraBanner();
-  }, 4000);
+  }, 5000);
 }
 
 
