@@ -1416,6 +1416,9 @@ function findAndConnectPeer() {
 /**
  * Attempt connection to a host slot or register as host
  */
+/**
+ * Attempt connection to a host slot or register as host
+ */
 function connectToHostOrBecomeHost(hostId) {
   if ((peer && peer.id === hostId) || hostId === previousTempClientId || isPeerRecentlyMatched(hostId)) {
     console.warn("Self-connection or recently skipped peer connection prevented on slot:", hostId);
@@ -1441,11 +1444,44 @@ function connectToHostOrBecomeHost(hostId) {
 
   let connected = false;
 
+  const handleCallerFailure = (reason) => {
+    if (!connected && currentCall !== call) {
+      console.warn("Host connection failed (" + reason + ") on slot:", hostId);
+      try { call.close(); } catch (e) {}
+      if (hostConnectTimeout) {
+        clearTimeout(hostConnectTimeout);
+        hostConnectTimeout = null;
+      }
+      // Increment slot and scan next available slot rather than colliding on the same host slot
+      currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
+      if (peer && !peer.destroyed) {
+        peer.destroy();
+      }
+      if (retryMatchmakingTimeout) clearTimeout(retryMatchmakingTimeout);
+      retryMatchmakingTimeout = setTimeout(findAndConnectPeer, 300);
+    }
+  };
+
   call.on("stream", (remoteStream) => {
     connected = true;
     currentCall = call;
+    if (hostConnectTimeout) {
+      clearTimeout(hostConnectTimeout);
+      hostConnectTimeout = null;
+    }
     onPeerConnected(remoteStream);
     monitorICEConnection(call);
+  });
+
+  call.on("error", (err) => {
+    console.warn("Call error on slot:", hostId, err);
+    handleCallerFailure("error");
+  });
+
+  call.on("close", () => {
+    if (!connected) {
+      handleCallerFailure("closed");
+    }
   });
 
   // Establish P2P DataChannel for chat
@@ -1460,14 +1496,11 @@ function connectToHostOrBecomeHost(hostId) {
     hostConnectTimeout = null;
   }
 
-  // If host doesn't respond within 800ms, become the waiting host
+  // Allow 4.5 seconds for WebRTC STUN/TURN ICE candidate gathering and offer/answer exchange
   hostConnectTimeout = setTimeout(() => {
     hostConnectTimeout = null;
-    if (!connected && currentCall !== call) {
-      call.close();
-      becomeWaitingHost(hostId);
-    }
-  }, 800);
+    handleCallerFailure("timeout_4500ms");
+  }, 4500);
 }
 
 /**
@@ -1517,6 +1550,13 @@ function becomeWaitingHost(hostId) {
       return;
     }
 
+    // Reject call if host is already connected to another live peer call
+    if (currentCall && currentCall.open && elements.remoteVideo.srcObject && !isSimulatedCallActive) {
+      console.warn("Host is already in an active call, rejecting new caller:", callerId);
+      try { call.close(); } catch (e) {}
+      return;
+    }
+
     stopSimulatedStrangerVideo();
     call.answer(getActiveStream());
     currentCall = call;
@@ -1535,6 +1575,13 @@ function becomeWaitingHost(hostId) {
       try { conn.close(); } catch (e) {}
       return;
     }
+
+    if (chatConn && chatConn.open) {
+      console.warn("Host already has active chat connection, closing new incoming data connection:", callerId);
+      try { conn.close(); } catch (e) {}
+      return;
+    }
+
     setupDataConnection(conn);
   });
 
