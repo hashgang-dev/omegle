@@ -2098,60 +2098,36 @@ function drawPresetBackground(ctx, index, width, height) {
   ctx.restore();
 }
 
-function detectOptimalSegmentationResolution(videoEl) {
+function detectOptimalSegmentationResolution() {
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   const cores = navigator.hardwareConcurrency || 4;
-  const maxDim = (isMobile || cores <= 2) ? 640 : 960;
-
-  const rawVideo = videoEl || bgRawVideo;
-  if (rawVideo && rawVideo.videoWidth && rawVideo.videoHeight) {
-    const vW = rawVideo.videoWidth;
-    const vH = rawVideo.videoHeight;
-    if (vW < vH) {
-      // Portrait stream (e.g. 720x1280 vertical mobile video)
-      return { width: Math.round(maxDim * (vW / vH)), height: maxDim };
-    } else {
-      // Landscape stream (e.g. 1280x720 horizontal video)
-      return { width: maxDim, height: Math.round(maxDim * (vH / vW)) };
-    }
+  if (isMobile || cores <= 2) {
+    return { width: 640, height: 360 };
   }
-
-  return { width: maxDim, height: Math.round(maxDim * (9 / 16)) };
-}
-
-function updateBgCanvasDimensions() {
-  if (!bgRawVideo || !bgRawVideo.videoWidth || !bgRawVideo.videoHeight || !bgCanvas) return;
-  const res = detectOptimalSegmentationResolution(bgRawVideo);
-  if (bgCanvas.width !== res.width || bgCanvas.height !== res.height) {
-    console.log(`Adapting bgCanvas dimensions to source stream aspect ratio (${bgRawVideo.videoWidth}x${bgRawVideo.videoHeight}): ${res.width}x${res.height}`);
-    bgCanvas.width = res.width;
-    bgCanvas.height = res.height;
-  }
+  return { width: 960, height: 540 };
 }
 
 async function setupBgSegmentationPipeline() {
   initBgEffectState();
+
+  if (!bgCanvas) {
+    const res = detectOptimalSegmentationResolution();
+    bgCanvas = document.createElement("canvas");
+    bgCanvas.width = res.width;
+    bgCanvas.height = res.height;
+    bgCtx = bgCanvas.getContext("2d", { willReadFrequently: true });
+  }
 
   if (!bgRawVideo) {
     bgRawVideo = document.createElement("video");
     bgRawVideo.autoplay = true;
     bgRawVideo.muted = true;
     bgRawVideo.playsInline = true;
-    bgRawVideo.addEventListener("loadedmetadata", updateBgCanvasDimensions);
-    bgRawVideo.addEventListener("resize", updateBgCanvasDimensions);
   }
 
   if (localStream) {
     bgRawVideo.srcObject = localStream;
     try { await bgRawVideo.play(); } catch (e) {}
-  }
-
-  if (!bgCanvas) {
-    const res = detectOptimalSegmentationResolution(bgRawVideo);
-    bgCanvas = document.createElement("canvas");
-    bgCanvas.width = res.width;
-    bgCanvas.height = res.height;
-    bgCtx = bgCanvas.getContext("2d", { willReadFrequently: true });
   }
 
   if (!bgProcessedStream && bgCanvas) {
@@ -2196,7 +2172,6 @@ function startBgProcessingLoop() {
     if (!isBgProcessingLoopActive) return;
 
     if (localStream && bgRawVideo && bgRawVideo.readyState >= 2) {
-      updateBgCanvasDimensions();
       if (currentBgEffectType !== "none" && selfieSegmentationInstance) {
         try {
           await selfieSegmentationInstance.send({ image: bgRawVideo });
