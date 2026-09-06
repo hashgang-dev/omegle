@@ -701,6 +701,14 @@ async function handleStartOrNext() {
 
 
 
+  // Set searching safety fallback timer (3.5s for instant fallback if no peer is waiting)
+  if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
+  simulatedFallbackTimeout = setTimeout(() => {
+    if (!currentCall) {
+      playSimulatedStrangerVideo();
+    }
+  }, 3500);
+
   // Start automated zero-cost matchmaking
   findAndConnectPeer();
 }
@@ -971,7 +979,7 @@ function adjustVideoAspectFit() {
     Math.abs(videoAspect - viewportAspect) /
     Math.max(videoAspect, viewportAspect);
 
-  // If video aspect ratio differs significantly from screen aspect ratio (e.g. 16:9 widescreen video on 9:16 vertical mobile screen):
+  // If video aspect ratio differs significantly from container/screen aspect ratio (e.g. 16:9 widescreen simulation video on 9:16 vertical mobile screen):
   // Set object-fit: contain so 100% of height AND 100% of width are displayed with ZERO CROPPING!
   if (aspectDiff > 0.15) {
     container.classList.add("contain-fit");
@@ -1053,6 +1061,15 @@ function playSimulatedStrangerVideo() {
   }
 
   isSimulatedCallActive = true;
+  if (hostConnectTimeout) {
+    clearTimeout(hostConnectTimeout);
+    hostConnectTimeout = null;
+  }
+  if (retryMatchmakingTimeout) {
+    clearTimeout(retryMatchmakingTimeout);
+    retryMatchmakingTimeout = null;
+  }
+
   hideSearchingOverlay();
   hideFirewallWarning();
 
@@ -1067,13 +1084,17 @@ function playSimulatedStrangerVideo() {
     elements.remoteVideo.srcObject = null;
   }
 
-  elements.remoteVideo.onerror = () => {
+  // Handle actual load errors (ignoring transient AbortError / user interruptions)
+  elements.remoteVideo.onerror = (e) => {
+    const err = elements.remoteVideo.error;
+    if (err && err.code === 2) return; // Ignore MEDIA_ERR_ABORTED
     console.warn(
-      "Simulated video failed to play (404 / deleted / corrupt), auto-skipping:",
+      "Simulated video load error, auto-skipping:",
       videoUrl,
+      err
     );
     if (isSimulatedCallActive && !currentCall) {
-      setTimeout(skipSimulatedStrangerVideo, 200);
+      setTimeout(skipSimulatedStrangerVideo, 500);
     }
   };
 
@@ -1091,7 +1112,7 @@ function playSimulatedStrangerVideo() {
   if (currentSimulatedMetadataHandler && elements.remoteVideo) {
     elements.remoteVideo.removeEventListener(
       "loadedmetadata",
-      currentSimulatedMetadataHandler,
+      currentSimulatedMetadataHandler
     );
     currentSimulatedMetadataHandler = null;
   }
@@ -1101,19 +1122,18 @@ function playSimulatedStrangerVideo() {
     if (currentSimulatedMetadataHandler && elements.remoteVideo) {
       elements.remoteVideo.removeEventListener(
         "loadedmetadata",
-        currentSimulatedMetadataHandler,
+        currentSimulatedMetadataHandler
       );
       currentSimulatedMetadataHandler = null;
     }
 
     if (!isSimulatedCallActive || currentCall) return;
 
-    // 1. Always start videos from 0:00 (beginning) for 100% natural greetings
     elements.remoteVideo.currentTime = 0;
 
-    // 2. Smooth call duration: 8.0s to 12.0s (or full video length if video is shorter)
+    // Smooth call duration: 8.0s to 12.0s (or full video length if video is shorter)
     const duration = elements.remoteVideo.duration;
-    let targetPlayDurationMs = 9000;
+    let targetPlayDurationMs = 10000;
 
     if (!isNaN(duration) && duration > 0) {
       if (duration < 5.0) {
@@ -1121,7 +1141,7 @@ function playSimulatedStrangerVideo() {
         targetPlayDurationMs = Math.floor(Math.random() * 4000) + 8000; // 8s - 12s normalized duration
       } else {
         elements.remoteVideo.loop = false;
-        const fullDurationMs = Math.max(2000, (duration - 0.2) * 1000);
+        const fullDurationMs = Math.max(3000, (duration - 0.2) * 1000);
         const randomCallDurationMs = Math.floor(Math.random() * 4000) + 8000; // 8s - 12s
         targetPlayDurationMs = Math.min(fullDurationMs, randomCallDurationMs);
       }
@@ -1137,15 +1157,16 @@ function playSimulatedStrangerVideo() {
 
   elements.remoteVideo.addEventListener(
     "loadedmetadata",
-    currentSimulatedMetadataHandler,
+    currentSimulatedMetadataHandler
   );
 
   const playPromise = elements.remoteVideo.play();
   if (playPromise !== undefined) {
     playPromise.catch((err) => {
+      if (err && err.name === "AbortError") return; // Interrupted play request, safe to ignore
       console.warn(
         "Unmuted autoplay prevented by browser policy, falling back to muted playback:",
-        err,
+        err
       );
       elements.remoteVideo.muted = true;
       elements.remoteVideo.play().catch((e) => console.error("Play retry failed:", e));
@@ -1365,15 +1386,18 @@ let currentSlotScanIndex = 1;
 let lastConnectAttemptTime = 0;
 
 function findAndConnectPeer() {
-  const now = Date.now();
-  if (now - lastConnectAttemptTime < 800) {
-    console.warn("Throttling peer connection attempt - rate limit cooldown active.");
-    return;
-  }
-  lastConnectAttemptTime = now;
+  lastConnectAttemptTime = Date.now();
 
   // Target slot 1 primary lobby (or current index) so 2 active users always land on the same slot
   const targetHostId = LOBBY_PREFIX + currentSlotScanIndex;
+
+  // Clean up any existing peer instance before creating a new one
+  if (peer && !peer.destroyed) {
+    try {
+      peer.destroy();
+    } catch (e) {}
+    peer = null;
+  }
 
   // Create client Peer instance
   const tempClientId = "client-" + Math.floor(Math.random() * 1000000);
@@ -1408,14 +1432,14 @@ function findAndConnectPeer() {
       // Host slot is empty; become the waiting host!
       becomeWaitingHost(targetHostId);
     } else {
-      updateStatus("error", "Connection error");
+      console.warn("PeerJS connection error (" + (err ? err.type : "unknown") + "), retrying matchmaking...");
+      updateStatus("searching", "Reconnecting to lobby...");
+      if (retryMatchmakingTimeout) clearTimeout(retryMatchmakingTimeout);
+      retryMatchmakingTimeout = setTimeout(findAndConnectPeer, 1500);
     }
   });
 }
 
-/**
- * Attempt connection to a host slot or register as host
- */
 /**
  * Attempt connection to a host slot or register as host
  */
@@ -1445,7 +1469,7 @@ function connectToHostOrBecomeHost(hostId) {
   let connected = false;
 
   const handleCallerFailure = (reason) => {
-    if (!connected && currentCall !== call) {
+    if (!connected && currentCall !== call && !isSimulatedCallActive) {
       console.warn("Host connection failed (" + reason + ") on slot:", hostId);
       try { call.close(); } catch (e) {}
       if (hostConnectTimeout) {
@@ -1532,13 +1556,13 @@ function becomeWaitingHost(hostId) {
       "You are in the waiting queue. A peer will connect shortly.",
     );
 
-    // Fallback to simulated video only if no real peer connects within 12 seconds (allows STUN/TURN ICE traversal)
+    // Fallback to simulated video if no real peer connects within 3.5 seconds
     if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
     simulatedFallbackTimeout = setTimeout(() => {
       if (!currentCall) {
         playSimulatedStrangerVideo();
       }
-    }, 12000);
+    }, 3500);
   });
 
   peer.on("call", (call) => {
@@ -2482,6 +2506,9 @@ function toggleAudio() {
   if (localStream) {
     localStream.getAudioTracks().forEach((t) => (t.enabled = !isAudioMuted));
   }
+  if (bgProcessedStream) {
+    bgProcessedStream.getAudioTracks().forEach((t) => (t.enabled = !isAudioMuted));
+  }
 
   const btnMute = elements.btnMute || document.getElementById("btn-mute");
   if (btnMute) {
@@ -2625,6 +2652,10 @@ function cleanupCallState() {
   if (retryMatchmakingTimeout) {
     clearTimeout(retryMatchmakingTimeout);
     retryMatchmakingTimeout = null;
+  }
+  if (simulatedFallbackTimeout) {
+    clearTimeout(simulatedFallbackTimeout);
+    simulatedFallbackTimeout = null;
   }
 
   if (currentCall) {
