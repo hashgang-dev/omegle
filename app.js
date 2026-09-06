@@ -27,6 +27,32 @@ const BRAND_AD_SKIP_SECONDS = 5; // Enable skip button after 5 seconds
 const SESSION_INSTANCE_ID = "sess_" + Date.now() + "_" + Math.floor(Math.random() * 10000000);
 let previousTempClientId = null;
 
+// Anti-Repetitive Peer Blacklist Engine (3-Minute Cooldown Memory)
+const RECENTLY_MATCHED_PEERS_COOLDOWN_MS = 180000; // 3 Minutes (180,000ms)
+const recentlyMatchedPeers = new Map();
+
+function addPeerToRecentlyMatchedBlacklist(peerId) {
+  if (!peerId) return;
+  recentlyMatchedPeers.set(peerId, Date.now());
+  const now = Date.now();
+  for (const [id, ts] of recentlyMatchedPeers.entries()) {
+    if (now - ts > RECENTLY_MATCHED_PEERS_COOLDOWN_MS) {
+      recentlyMatchedPeers.delete(id);
+    }
+  }
+}
+
+function isPeerRecentlyMatched(peerId) {
+  if (!peerId) return false;
+  const ts = recentlyMatchedPeers.get(peerId);
+  if (!ts) return false;
+  if (Date.now() - ts > RECENTLY_MATCHED_PEERS_COOLDOWN_MS) {
+    recentlyMatchedPeers.delete(peerId);
+    return false;
+  }
+  return true;
+}
+
 let matchCounter = 0;
 let isSelfBrandAdPlaying = false;
 let selfBrandAdTimer = null;
@@ -588,6 +614,11 @@ async function handleStartOrNext() {
     } catch (e) {}
   }
 
+  // Blacklist skipped peer ID for 3 minutes to prevent immediate re-matching
+  if (currentCall && currentCall.peer) {
+    addPeerToRecentlyMatchedBlacklist(currentCall.peer);
+  }
+
   cleanupCallState();
 
   // Ensure local media stream is captured
@@ -1038,9 +1069,15 @@ function playSimulatedStrangerVideo() {
     let targetPlayDurationMs = 9000;
 
     if (!isNaN(duration) && duration > 0) {
-      const fullDurationMs = Math.max(2000, (duration - 0.2) * 1000);
-      const randomCallDurationMs = Math.floor(Math.random() * 4000) + 8000; // 8000ms - 12000ms (8s - 12s)
-      targetPlayDurationMs = Math.min(fullDurationMs, randomCallDurationMs);
+      if (duration < 5.0) {
+        elements.remoteVideo.loop = true;
+        targetPlayDurationMs = Math.floor(Math.random() * 4000) + 8000; // 8s - 12s normalized duration
+      } else {
+        elements.remoteVideo.loop = false;
+        const fullDurationMs = Math.max(2000, (duration - 0.2) * 1000);
+        const randomCallDurationMs = Math.floor(Math.random() * 4000) + 8000; // 8s - 12s
+        targetPlayDurationMs = Math.min(fullDurationMs, randomCallDurationMs);
+      }
     }
 
     if (simulatedVideoTimer) clearTimeout(simulatedVideoTimer);
@@ -1333,8 +1370,8 @@ function findAndConnectPeer() {
  * Attempt connection to a host slot or register as host
  */
 function connectToHostOrBecomeHost(hostId) {
-  if ((peer && peer.id === hostId) || hostId === previousTempClientId) {
-    console.warn("Self-connection prevented: current peer is already the host of this slot.");
+  if ((peer && peer.id === hostId) || hostId === previousTempClientId || isPeerRecentlyMatched(hostId)) {
+    console.warn("Self-connection or recently skipped peer connection prevented on slot:", hostId);
     becomeWaitingHost(hostId);
     return;
   }
@@ -1416,8 +1453,8 @@ function becomeWaitingHost(hostId) {
   peer.on("call", (call) => {
     const callerSessionId = call.metadata && call.metadata.sessionInstanceId;
     const callerId = call.peer || (call.metadata && call.metadata.callerId);
-    if (callerSessionId === SESSION_INSTANCE_ID || callerId === previousTempClientId || callerId === myPeerId) {
-      console.warn("Self-call detected & blocked in becomeWaitingHost:", callerId);
+    if (callerSessionId === SESSION_INSTANCE_ID || callerId === previousTempClientId || callerId === myPeerId || isPeerRecentlyMatched(callerId)) {
+      console.warn("Self-call or recently skipped peer call blocked in becomeWaitingHost:", callerId);
       try { call.close(); } catch (e) {}
       return;
     }
@@ -1435,8 +1472,8 @@ function becomeWaitingHost(hostId) {
   peer.on("connection", (conn) => {
     const callerSessionId = conn.metadata && conn.metadata.sessionInstanceId;
     const callerId = conn.peer || (conn.metadata && conn.metadata.callerId);
-    if (callerSessionId === SESSION_INSTANCE_ID || callerId === previousTempClientId || callerId === myPeerId) {
-      console.warn("Self DataConnection detected & blocked:", callerId);
+    if (callerSessionId === SESSION_INSTANCE_ID || callerId === previousTempClientId || callerId === myPeerId || isPeerRecentlyMatched(callerId)) {
+      console.warn("Self DataConnection or recently skipped peer blocked:", callerId);
       try { conn.close(); } catch (e) {}
       return;
     }
@@ -1458,8 +1495,8 @@ function becomeWaitingHost(hostId) {
 function handleIncomingCall(call) {
   const callerSessionId = call.metadata && call.metadata.sessionInstanceId;
   const callerId = call.peer || (call.metadata && call.metadata.callerId);
-  if (callerSessionId === SESSION_INSTANCE_ID || callerId === previousTempClientId || callerId === myPeerId) {
-    console.warn("Self-call detected & blocked in handleIncomingCall:", callerId);
+  if (callerSessionId === SESSION_INSTANCE_ID || callerId === previousTempClientId || callerId === myPeerId || isPeerRecentlyMatched(callerId)) {
+    console.warn("Self-call or recently skipped peer call blocked in handleIncomingCall:", callerId);
     try { call.close(); } catch (e) {}
     return;
   }
@@ -1489,6 +1526,10 @@ function onPeerSkippedUs() {
     "Stranger Skipped You",
     "Connecting you to the next stranger...",
   );
+
+  if (currentCall && currentCall.peer) {
+    addPeerToRecentlyMatchedBlacklist(currentCall.peer);
+  }
 
   cleanupCallState();
 
@@ -1565,8 +1606,13 @@ function onPeerConnected(remoteStream) {
 
   stopSimulatedStrangerVideo();
   elements.remoteVideo.srcObject = remoteStream;
-  elements.remoteVideo.muted = false; // Ensure unmuted audio for live P2P stream
+  elements.remoteVideo.muted = false; // Ensure unmuted audio for live P2P stream (Curiosity Hook!)
   adjustVideoAspectFit();
+
+  if (currentCall && currentCall.peer) {
+    addPeerToRecentlyMatchedBlacklist(currentCall.peer);
+  }
+
   hideSearchingOverlay();
   hideFirewallWarning();
   updateStatus("connected", "Connected with Stranger");
