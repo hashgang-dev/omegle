@@ -145,6 +145,13 @@ const elements = {
   btnReport: document.getElementById("btn-report"),
   localPipContainer: document.getElementById("local-pip-container"),
   onlineUsersCount: document.getElementById("online-users-count"),
+  pwaInstallModal: document.getElementById("pwa-install-modal"),
+  btnPwaInstall: document.getElementById("btn-pwa-install"),
+  btnPwaDismiss: document.getElementById("btn-pwa-dismiss"),
+  btnPwaClose: document.getElementById("btn-pwa-close"),
+  pwaIosInstructions: document.getElementById("pwa-ios-instructions"),
+  pwaInstallBtnText: document.getElementById("pwa-install-btn-text"),
+  pwaInstallIcon: document.getElementById("pwa-install-icon"),
 };
 
 function setMobileVh() {
@@ -211,6 +218,16 @@ function refreshElements() {
   elements.iconSelfBrandPause = document.getElementById("icon-self-brand-pause");
   elements.btnSelfBrandMute = document.getElementById("btn-self-brand-mute");
   elements.iconSelfBrandMute = document.getElementById("icon-self-brand-mute");
+
+  elements.pwaInstallModal = document.getElementById("pwa-install-modal");
+  elements.btnPwaInstall = document.getElementById("btn-pwa-install");
+  elements.btnPwaDismiss = document.getElementById("btn-pwa-dismiss");
+  elements.btnPwaClose = document.getElementById("btn-pwa-close");
+  elements.pwaIosInstructions = document.getElementById("pwa-ios-instructions");
+  elements.pwaLinuxNote = document.getElementById("pwa-linux-note");
+  elements.pwaInstallBtnText = document.getElementById("pwa-install-btn-text");
+  elements.pwaInstallIcon = document.getElementById("pwa-install-icon");
+  elements.menuBtnInstallPwa = document.getElementById("menu-btn-install-pwa");
 
 
 
@@ -287,15 +304,33 @@ document.addEventListener("DOMContentLoaded", () => {
     showTosModal();
   }
 
-  // Register PWA Service Worker for Offline Shell & Fast Load
+  // Register PWA Service Worker for Offline Shell, Fast Load & Automatic Live Updates
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker
         .register("/sw.js")
-        .then((reg) => console.log("PWA Service Worker registered:", reg.scope))
+        .then((reg) => {
+          console.log("PWA Service Worker registered:", reg.scope);
+          
+          // Auto-Update Engine: Detect new release and activate immediately without re-installation
+          reg.addEventListener("updatefound", () => {
+            const newWorker = reg.installing;
+            if (newWorker) {
+              newWorker.addEventListener("statechange", () => {
+                if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                  console.log("New PWA deployment release detected! Auto-refreshing app shell...");
+                  window.location.reload();
+                }
+              });
+            }
+          });
+        })
         .catch((err) => console.warn("PWA Service Worker registration failed:", err));
     });
   }
+
+  // Initialize Delayed PWA Installation Engine
+  initPwaInstallEngine();
 
   // Backend telemetry initialized cleanly
 });
@@ -394,6 +429,18 @@ function setupEventListeners() {
           );
         }
       });
+    }
+  } catch (e) {}
+
+  try {
+    if (elements.btnPwaInstall) {
+      elements.btnPwaInstall.addEventListener("click", handlePwaInstallAction);
+    }
+    if (elements.btnPwaDismiss) {
+      elements.btnPwaDismiss.addEventListener("click", handlePwaDismissAction);
+    }
+    if (elements.btnPwaClose) {
+      elements.btnPwaClose.addEventListener("click", handlePwaDismissAction);
     }
   } catch (e) {}
 
@@ -1376,10 +1423,21 @@ function connectToHostOrBecomeHost(hostId) {
     return;
   }
 
+  if (!peer) {
+    becomeWaitingHost(hostId);
+    return;
+  }
+
   // Try calling the host ID with session metadata
   const call = peer.call(hostId, getActiveStream(), {
     metadata: { sessionInstanceId: SESSION_INSTANCE_ID, callerId: peer.id }
   });
+
+  if (!call) {
+    console.warn("Could not initiate call to host slot:", hostId);
+    becomeWaitingHost(hostId);
+    return;
+  }
 
   let connected = false;
 
@@ -3542,6 +3600,246 @@ window.handleCustomBgUpload = handleCustomBgUpload;
 window.filterBgCategory = filterBgCategory;
 window.updateBgBlurRadius = updateBgBlurRadius;
 window.toggleNeonAuraGlow = toggleNeonAuraGlow;
+window.showPwaInstallPrompt = showPwaInstallPrompt;
+window.hidePwaInstallPrompt = hidePwaInstallPrompt;
+window.handlePwaInstallAction = handlePwaInstallAction;
+window.handlePwaDismissAction = handlePwaDismissAction;
+window.handlePwaMenuClick = handlePwaMenuClick;
+
+/* ==========================================================================
+   Delayed PWA Installation Engine
+   (Condition A: 4-min connected call OR Condition B: 6-min active site usage)
+   ========================================================================== */
+
+const PWA_CALL_ELIGIBILITY_MS = 240000; // 4 Minutes (240,000ms) of connected call duration
+const PWA_ACTIVE_USAGE_ELIGIBILITY_MS = 360000; // 6 Minutes (360,000ms) of active site usage
+let deferredInstallPrompt = null;
+let activeWebsiteUsageMs = 0;
+let connectedCallUsageMs = 0;
+let isPwaEligible = false;
+let isPwaPromptShowing = false;
+let pwaEligibilityTimer = null;
+
+function getBrowserPlatformInfo() {
+  const ua = window.navigator.userAgent || "";
+  const platform = window.navigator.platform || "";
+  
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(ua);
+  const isLinux = /Linux|Ubuntu/i.test(ua);
+  const isMac = /Macintosh|MacIntel|MacPPC|Mac68K/i.test(ua) && !isIOS;
+  const isWindows = /Win32|Win64|Windows|WinCE/i.test(ua);
+
+  const isChrome = /Chrome|CriOS|HeadlessChrome/i.test(ua) && !/Edg|OPR|Brave/i.test(ua);
+  const isEdge = /Edg/i.test(ua);
+  const isSafari = (isIOS || /Safari/i.test(ua)) && !/Chrome|CriOS|HeadlessChrome|Edg|OPR|Brave|Android/i.test(ua);
+
+  return { isIOS, isAndroid, isLinux, isMac, isWindows, isChrome, isEdge, isSafari };
+}
+
+function isSafariBrowser() {
+  return getBrowserPlatformInfo().isSafari;
+}
+
+function isIOSUserAgent() {
+  return getBrowserPlatformInfo().isIOS;
+}
+
+function isPwaAlreadyInstalled() {
+  if (localStorage.getItem("pwa_installed") === "true") return true;
+  if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
+  if (window.navigator.standalone === true) return true;
+  return false;
+}
+
+function getTodayDateString() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function isPwaDismissedToday() {
+  const dismissedDate = localStorage.getItem("pwa_dismissed_date");
+  return dismissedDate === getTodayDateString();
+}
+
+function showPwaInstallPrompt(force = false) {
+  if (isPwaAlreadyInstalled() && !force) {
+    refreshElements();
+    if (elements.menuBtnInstallPwa) elements.menuBtnInstallPwa.style.display = "none";
+    return;
+  }
+  if (isPwaDismissedToday() && !force) return;
+  if (isPwaPromptShowing) return;
+
+  refreshElements();
+  if (!elements.pwaInstallModal) return;
+
+  isPwaPromptShowing = true;
+
+  const { isIOS, isSafari, isLinux } = getBrowserPlatformInfo();
+
+  // Safari / iOS Safari Guidance (Hidden strictly on Linux / Windows / Android Chrome)
+  if ((isIOS || isSafari) && !deferredInstallPrompt) {
+    if (elements.pwaIosInstructions) {
+      elements.pwaIosInstructions.style.display = "flex";
+      elements.pwaIosInstructions.classList.remove("hidden");
+    }
+    if (elements.pwaInstallBtnText) elements.pwaInstallBtnText.textContent = "Got It";
+    if (elements.pwaInstallIcon) elements.pwaInstallIcon.className = "fa-solid fa-check";
+  } else {
+    if (elements.pwaIosInstructions) {
+      elements.pwaIosInstructions.style.display = "none";
+      elements.pwaIosInstructions.classList.add("hidden");
+    }
+    if (elements.pwaInstallBtnText) elements.pwaInstallBtnText.textContent = "Install App";
+    if (elements.pwaInstallIcon) elements.pwaInstallIcon.className = "fa-solid fa-download";
+  }
+
+  // Linux OS Desktop Shortcut Hint (Shown strictly on Linux)
+  if (isLinux) {
+    if (elements.pwaLinuxNote) {
+      elements.pwaLinuxNote.style.display = "flex";
+      elements.pwaLinuxNote.classList.remove("hidden");
+    }
+  } else {
+    if (elements.pwaLinuxNote) {
+      elements.pwaLinuxNote.style.display = "none";
+      elements.pwaLinuxNote.classList.add("hidden");
+    }
+  }
+
+  elements.pwaInstallModal.style.display = "flex";
+  elements.pwaInstallModal.classList.remove("hidden");
+}
+
+function handlePwaMenuClick(e) {
+  if (e) e.preventDefault();
+  const popover = document.getElementById("app-nav-popover");
+  if (popover) popover.classList.add("hidden");
+
+  // Open the PWA Install Card UI consistently
+  showPwaInstallPrompt(true);
+}
+
+function hidePwaInstallPrompt() {
+  isPwaPromptShowing = false;
+  refreshElements();
+  if (elements.pwaInstallModal) {
+    elements.pwaInstallModal.style.display = "none";
+    elements.pwaInstallModal.classList.add("hidden");
+  }
+}
+
+async function handlePwaInstallAction() {
+  if (isIOSUserAgent()) {
+    localStorage.setItem("pwa_dismissed_date", getTodayDateString());
+    hidePwaInstallPrompt();
+    return;
+  }
+
+  if (deferredInstallPrompt) {
+    try {
+      deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      console.log("PWA install prompt user choice outcome:", outcome);
+      if (outcome === "accepted") {
+        localStorage.setItem("pwa_installed", "true");
+      } else {
+        localStorage.setItem("pwa_dismissed_date", getTodayDateString());
+      }
+    } catch (e) {
+      console.warn("PWA install prompt error:", e);
+      localStorage.setItem("pwa_dismissed_date", getTodayDateString());
+    }
+    deferredInstallPrompt = null;
+  } else {
+    localStorage.setItem("pwa_dismissed_date", getTodayDateString());
+  }
+
+  hidePwaInstallPrompt();
+}
+
+function handlePwaDismissAction() {
+  localStorage.setItem("pwa_dismissed_date", getTodayDateString());
+  hidePwaInstallPrompt();
+}
+
+function initPwaInstallEngine() {
+  // Capture Chromium beforeinstallprompt event immediately without showing UI
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    console.log("PWA beforeinstallprompt event captured & deferred.");
+  });
+
+  window.addEventListener("appinstalled", () => {
+    console.log("PWA appinstalled event detected.");
+    localStorage.setItem("pwa_installed", "true");
+    deferredInstallPrompt = null;
+    hidePwaInstallPrompt();
+    refreshElements();
+    if (elements.menuBtnInstallPwa) elements.menuBtnInstallPwa.style.display = "none";
+  });
+
+  if (isPwaAlreadyInstalled()) {
+    refreshElements();
+    if (elements.menuBtnInstallPwa) elements.menuBtnInstallPwa.style.display = "none";
+  }
+
+  if (pwaEligibilityTimer) clearInterval(pwaEligibilityTimer);
+  pwaEligibilityTimer = setInterval(() => {
+    if (isPwaAlreadyInstalled() || isPwaPromptShowing) return;
+
+    // Track active website usage (only when tab is visible)
+    if (!document.hidden) {
+      activeWebsiteUsageMs += 1000;
+    }
+
+    // Track connected call usage (only when call stream is active & connected)
+    const isCallConnected = (currentCall && currentCall.open) || isSimulatedCallActive;
+    if (isCallConnected && !document.hidden) {
+      connectedCallUsageMs += 1000;
+    }
+
+    // Evaluate eligibility: 4-min connected call OR 6-min active site usage
+    if (!isPwaEligible) {
+      if (connectedCallUsageMs >= PWA_CALL_ELIGIBILITY_MS || activeWebsiteUsageMs >= PWA_ACTIVE_USAGE_ELIGIBILITY_MS) {
+        isPwaEligible = true;
+        console.log(`PWA install eligibility satisfied! (Call connected: ${connectedCallUsageMs / 1000}s, Active site usage: ${activeWebsiteUsageMs / 1000}s)`);
+      }
+    }
+
+    // Show prompt at natural break points (when call is not actively ongoing)
+    if (isPwaEligible && !isPwaDismissedToday()) {
+      const isUserInActiveCall = currentCall && currentCall.open;
+      if (!isUserInActiveCall) {
+        showPwaInstallPrompt();
+      }
+    }
+  }, 1000);
+}
+
+window.pwaEngine = {
+  getStats: () => ({
+    activeWebsiteUsageMs,
+    connectedCallUsageMs,
+    isPwaEligible,
+    isPwaPromptShowing,
+    isInstalled: isPwaAlreadyInstalled(),
+    isDismissedToday: isPwaDismissedToday(),
+    hasDeferredPrompt: !!deferredInstallPrompt
+  }),
+  simulateEligibility: (callMs = 240000, siteMs = 360000) => {
+    connectedCallUsageMs = callMs;
+    activeWebsiteUsageMs = siteMs;
+    isPwaEligible = true;
+    showPwaInstallPrompt();
+  },
+  resetDismissed: () => {
+    localStorage.removeItem("pwa_dismissed_date");
+    localStorage.removeItem("pwa_installed");
+  }
+};
 
 document.addEventListener("DOMContentLoaded", () => {
   detectCameraDevices();

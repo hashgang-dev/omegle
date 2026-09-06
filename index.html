@@ -194,7 +194,7 @@
       />
     </noscript>
 
-    <link rel="stylesheet" href="style.css?v=40" />
+    <link rel="stylesheet" href="style.css?v=42" />
 
     <!-- Firebase Analytics & Automatic Error Tracking ($0 Unlimited) -->
     <script type="module">
@@ -322,6 +322,9 @@
               >
               <a href="press.html"
                 ><i class="fa-solid fa-bullhorn"></i> Press & Coverage</a
+              >
+              <a href="#" id="menu-btn-install-pwa" onclick="handlePwaMenuClick(event)"
+                ><i class="fa-solid fa-download text-indigo-400"></i> Install App</a
               >
               <a href="terms-of-service.html"
                 ><i class="fa-solid fa-file-contract"></i> Terms of Service</a
@@ -1281,6 +1284,55 @@
       </div>
     </div>
 
+    <!-- Compact Floating PWA Installation Card / Banner -->
+    <div class="pwa-modal-overlay hidden" id="pwa-install-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="pwa-modal-title">
+      <div class="pwa-modal-card">
+        <button class="pwa-modal-close" id="btn-pwa-close" aria-label="Close installation prompt">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+        
+        <div class="pwa-modal-header">
+          <div class="pwa-app-icon-wrapper">
+            <img src="logo-sm.webp" alt="HashGANG Chat App Icon" class="pwa-app-icon" width="42" height="42" />
+            <div class="pwa-badge-verified"><i class="fa-solid fa-shield-halved"></i></div>
+          </div>
+          <div class="pwa-header-text">
+            <h3 id="pwa-modal-title" class="pwa-modal-title">Install as an App?</h3>
+            <p class="pwa-modal-desc">
+              Get a faster experience.
+            </p>
+          </div>
+        </div>
+
+        <!-- iOS Safari Step-by-Step Guidance Panel (Shown strictly on iOS Safari) -->
+        <div class="pwa-ios-instructions hidden" id="pwa-ios-instructions">
+          <div class="pwa-ios-step">
+            <span class="pwa-step-num">1</span>
+            <span>Tap <strong>Share</strong> <i class="fa-solid fa-arrow-up-from-bracket text-indigo-400"></i> in Safari</span>
+          </div>
+          <div class="pwa-ios-step">
+            <span class="pwa-step-num">2</span>
+            <span>Select <strong>Add to Home Screen</strong> <i class="fa-regular fa-square-plus text-indigo-400"></i></span>
+          </div>
+        </div>
+
+        <!-- Linux OS Desktop Shortcut Hint (Shown strictly on Linux) -->
+        <div class="pwa-linux-note hidden" id="pwa-linux-note">
+          <i class="fa-solid fa-circle-info text-emerald-400"></i>
+          <span>Linux Tip: Right-click desktop icon & select <strong>Allow Launching</strong></span>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="pwa-modal-actions">
+          <button class="btn-pwa-dismiss" id="btn-pwa-dismiss">Not Now</button>
+          <button class="btn-pwa-install" id="btn-pwa-install">
+            <i class="fa-solid fa-download" id="pwa-install-icon"></i>
+            <span id="pwa-install-btn-text">Install App</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Floating Copy Toast Notification -->
     <div class="share-toast hidden" id="share-toast">
       <i class="fa-solid fa-circle-check"></i>
@@ -1305,10 +1357,10 @@
       defer
     ></script>
     <!-- StrangerChat API Config -->
-    <script src="ads.js?v=40" defer></script>
+    <script src="ads.js?v=42" defer></script>
     <!-- Ad Waterfall Mediation Config -->
-    <script src="ad_mediation_config.js?v=40" defer></script>
+    <script src="ad_mediation_config.js?v=42" defer></script>
     <!-- App Logic -->
-    <script src="app.js?v=40" defer></script>
+    <script src="app.js?v=42" defer></script>
   </body>
 </html>
