@@ -1404,13 +1404,13 @@ function becomeWaitingHost(hostId) {
       "You are in the waiting queue. A peer will connect shortly.",
     );
 
-    // Synchronized simulated video fallback with 5.0s radar countdown dwell time
+    // Fallback to simulated video only if no real peer connects within 12 seconds (allows STUN/TURN ICE traversal)
     if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
     simulatedFallbackTimeout = setTimeout(() => {
       if (!currentCall) {
         playSimulatedStrangerVideo();
       }
-    }, MIN_SEARCHING_DWELL_MS);
+    }, 12000);
   });
 
   peer.on("call", (call) => {
