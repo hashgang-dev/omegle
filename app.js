@@ -232,6 +232,7 @@ document.addEventListener("DOMContentLoaded", () => {
   recordVisitBackend();
   fetchActiveUsersBackend();
   fetchSelfBrandAdsFromBackend();
+  setTimeout(prefetchNextAdsterraAd, 1500);
 
   // Poll active users count every 15 seconds
   setInterval(fetchActiveUsersBackend, 15000);
@@ -2454,6 +2455,7 @@ function stopCall() {
   hideFirewallWarning();
   updateToolbarVisibility("idle");
   if (elements.idleStageOverlay) elements.idleStageOverlay.classList.remove("hidden");
+  setTimeout(prefetchNextAdsterraAd, 1000);
 }
 
 /**
@@ -2521,13 +2523,81 @@ function updateStatus(state, text) {
 }
 
 let searchingOverlayStartTime = 0;
-const MIN_SEARCHING_DWELL_MS = 5000; // 5.0s Guaranteed Impression Gate with Live Countdown
+const MIN_SEARCHING_DWELL_MS = 4200; // 4.2s Guaranteed Impression Gate (3s Adsterra + 1.2s safety buffer)
 let searchingCountdownInterval = null;
 
 function renderSearchingAdsterraBanner() {
   const box = document.getElementById("searching-adsterra-banner-container");
   if (!box) return;
   renderMediationAdInContainer(box);
+}
+
+// Background Adsterra Pre-Fetch Buffer State
+let prefetchedAdElement = null;
+let prefetchedProviderId = null;
+
+/**
+ * Pre-fetch Adsterra/Waterfall Ad in Background Buffer for Instant (0ms) Display
+ */
+function prefetchNextAdsterraAd() {
+  const buffer = document.getElementById("adsterra-prefetch-buffer");
+  if (!buffer) return;
+
+  // Don't overwrite if buffer already has a fresh pre-fetched ad ready
+  if (prefetchedAdElement && buffer.contains(prefetchedAdElement)) return;
+
+  const selection = selectWaterfallAdProvider();
+  if (!selection || selection.type !== "provider") return;
+
+  const p = selection.data;
+  try {
+    buffer.innerHTML = "";
+    const iframe = document.createElement("iframe");
+    iframe.style.width = `${p.width || 300}px`;
+    iframe.style.height = `${p.height || 250}px`;
+    iframe.style.border = "none";
+    iframe.style.overflow = "hidden";
+    iframe.style.borderRadius = "8px";
+    iframe.style.background = "transparent";
+    iframe.scrolling = "no";
+
+    buffer.appendChild(iframe);
+
+    const htmlString = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; color: #fff; overflow: hidden; height: 100vh; font-family: sans-serif; }</style>
+        </head>
+        <body>
+          <script type="text/javascript">
+            atOptions = {
+              'key' : '${p.invokeKey}',
+              'format' : 'iframe',
+              'height' : ${p.height || 250},
+              'width' : ${p.width || 300},
+              'params' : {}
+            };
+          </script>
+          <script type="text/javascript" src="${p.scriptUrl}"></script>
+        </body>
+      </html>
+    `;
+
+    if ("srcdoc" in iframe) {
+      iframe.srcdoc = htmlString;
+    } else if (iframe.contentWindow) {
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(htmlString);
+      doc.close();
+    }
+
+    prefetchedAdElement = iframe;
+    prefetchedProviderId = p.id;
+  } catch (e) {
+    console.warn("Ad pre-fetch notice:", e);
+  }
 }
 
 
@@ -2829,21 +2899,27 @@ let isAdBlockerDetected = false;
  */
 function runUniversalAdBlockerProbe() {
   try {
+    const isLocalhost =
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1";
+    if (isLocalhost) {
+      isAdBlockerDetected = false;
+      return;
+    }
+
     const trap = document.createElement("div");
-    trap.className = "adsbygoogle ad-banner ad-unit google-ad sponsor-ad";
+    trap.className = "adsbygoogle";
     trap.style.position = "absolute";
     trap.style.top = "-9999px";
     trap.style.left = "-9999px";
-    trap.style.height = "1px";
-    trap.style.width = "1px";
+    trap.style.height = "10px";
+    trap.style.width = "10px";
     document.body.appendChild(trap);
 
     setTimeout(() => {
       if (
         trap.offsetHeight === 0 ||
-        trap.clientWidth === 0 ||
-        window.getComputedStyle(trap).display === "none" ||
-        window.getComputedStyle(trap).visibility === "hidden"
+        window.getComputedStyle(trap).display === "none"
       ) {
         isAdBlockerDetected = true;
       }
@@ -2939,10 +3015,15 @@ function selectWaterfallAdProvider() {
     }
   }
 
+  const tracker = getMediationDailyTracker();
   const providers = config.providers || [];
   for (let i = 0; i < providers.length; i++) {
     const p = providers[i];
     if (p && p.enabled !== false) {
+      const dailyCount = tracker[p.id] || 0;
+      if (p.dailyCapPerUser && dailyCount >= p.dailyCapPerUser) {
+        continue;
+      }
       return { type: "provider", data: p };
     }
   }
@@ -2957,87 +3038,43 @@ function selectWaterfallAdProvider() {
 function renderMediationAdInContainer(containerBox) {
   if (!containerBox) return;
 
-  // Step 1: INSTANTLY render Self-Brand Card at 0ms so user sees a clean banner immediately!
-  renderSelfBrandCard(containerBox);
-
-  // Step 2: Select waterfall ad provider
   const selection = selectWaterfallAdProvider();
   if (!selection || selection.type === "selfBrandFallback") {
-    // Keep 0ms Self-Brand card in place
+    renderSelfBrandCard(containerBox);
     return;
   }
 
   if (selection.type === "provider") {
     const p = selection.data;
-    const config = window.AD_MEDIATION_CONFIG || {};
-    const loadTimeoutMs = (config.settings && config.settings.adLoadTimeoutMs) || 2500;
 
     try {
-      const iframe = document.createElement("iframe");
-      iframe.style.width = `${p.width || 300}px`;
-      iframe.style.height = `${p.height || 250}px`;
-      iframe.style.border = "none";
-      iframe.style.overflow = "hidden";
-      iframe.style.borderRadius = "8px";
-      iframe.style.background = "transparent";
-      iframe.scrolling = "no";
+      containerBox.innerHTML = "";
+      containerBox.classList.remove("hidden", "fading-out");
 
-      let hasSwapped = false;
-      const swapToAdsterra = () => {
-        if (hasSwapped) return;
-        hasSwapped = true;
-        recordAdsterraImpression();
-        incrementMediationImpressionCount(p.id);
-
-        containerBox.innerHTML = "";
-        containerBox.appendChild(iframe);
-      };
-
-      // 2.5s Timeout Guard: If iframe load takes longer than 2.5s or fails, keep Self-Brand card
-      const loadTimeout = setTimeout(() => {
-        if (!hasSwapped) {
-          try { iframe.remove(); } catch (e) {}
-        }
-      }, loadTimeoutMs);
-
-      iframe.onload = () => {
-        clearTimeout(loadTimeout);
-        swapToAdsterra();
-      };
-
-      const htmlString = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; color: #fff; overflow: hidden; height: 100vh; font-family: sans-serif; }</style>
-          </head>
-          <body>
-            <script type="text/javascript">
-              atOptions = {
-                'key' : '${p.invokeKey}',
-                'format' : 'iframe',
-                'height' : ${p.height || 250},
-                'width' : ${p.width || 300},
-                'params' : {}
-              };
-            </script>
-            <script type="text/javascript" src="${p.scriptUrl}"></script>
-          </body>
-        </html>
+      const scriptOpts = document.createElement("script");
+      scriptOpts.type = "text/javascript";
+      scriptOpts.text = `
+        atOptions = {
+          'key' : '${p.invokeKey}',
+          'format' : 'iframe',
+          'height' : ${p.height || 250},
+          'width' : ${p.width || 300},
+          'params' : {}
+        };
       `;
 
-      if ("srcdoc" in iframe) {
-        iframe.srcdoc = htmlString;
-      }
+      const scriptInvoke = document.createElement("script");
+      scriptInvoke.type = "text/javascript";
+      scriptInvoke.src = p.scriptUrl;
 
-      if (!("srcdoc" in iframe) && iframe.contentWindow) {
-        const doc = iframe.contentWindow.document;
-        doc.open();
-        doc.write(htmlString);
-        doc.close();
-      }
+      containerBox.appendChild(scriptOpts);
+      containerBox.appendChild(scriptInvoke);
+
+      recordAdsterraImpression();
+      incrementMediationImpressionCount(p.id);
     } catch (e) {
       console.warn("Mediation ad render notice:", e);
+      renderSelfBrandCard(containerBox);
     }
   }
 }
@@ -3046,7 +3083,7 @@ let inCallAdsterraTimer = null;
 let inCallAdsterraHideTimer = null;
 
 /**
- * Show Live In-Call Adsterra Sponsored Banner Overlay (Auto-disappears after 5.0s viewability threshold)
+ * Show Live In-Call Adsterra Sponsored Banner Overlay (Auto-disappears after 4.2s viewability threshold)
  */
 function showInCallAdsterraBanner() {
   hideInCallAdsterraBanner();
@@ -3056,10 +3093,10 @@ function showInCallAdsterraBanner() {
 
   renderMediationAdInContainer(bannerBox);
 
-  // Impression Record & Disappear: Auto-hide after 5.0s viewability threshold
+  // Impression Record & Disappear: Auto-hide after 4.2s viewability threshold (3.0s Adsterra + 1.2s safety buffer)
   inCallAdsterraHideTimer = setTimeout(() => {
     hideInCallAdsterraBanner();
-  }, 5000);
+  }, 4200);
 }
 
 
@@ -3078,7 +3115,7 @@ function hideInCallAdsterraBanner() {
 /**
  * Standardized Synchronized In-Call Adsterra Schedule:
  * - 1st Ad: Displays 15 seconds after call starts (Disappears after 4s impression dwell).
- * - Subsequent Ads: Displays every 60 seconds thereafter (Disappears after 4s impression dwell).
+ * - Subsequent Ads: Displays every 3 minutes (180 seconds) thereafter (Disappears after 4s impression dwell).
  */
 function startInCallAdsterraJitterEngine() {
   stopInCallAdsterraJitterEngine();
@@ -3087,10 +3124,10 @@ function startInCallAdsterraJitterEngine() {
   inCallAdsterraTimer = setTimeout(() => {
     showInCallAdsterraBanner();
 
-    // Subsequent Ads Every 60 Seconds
+    // Subsequent Ads Every 3 Minutes (180,000 ms)
     inCallAdsterraTimer = setInterval(() => {
       showInCallAdsterraBanner();
-    }, 60000);
+    }, 180000);
   }, 15000);
 }
 
