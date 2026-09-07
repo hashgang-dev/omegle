@@ -1808,8 +1808,9 @@ function onPeerConnected(remoteStream) {
   elements.chatInput.disabled = false;
   elements.btnSendChat.disabled = false;
 
-  // Trigger Psychological In-Call Adsterra Engine (15s Gate + Alternating Long/Short Jitter Gaps)
-  startInCallAdsterraJitterEngine();
+  // Option B: Disable in-call ads during active calls for 100% clean video chat UX
+  stopInCallAdsterraJitterEngine();
+  hideInCallAdsterraBanner();
 
   // Start In-Call Control Toolbar Auto-Hider (Full Video UX)
   startInCallToolbarAutoHider();
@@ -3319,18 +3320,7 @@ let inCallAdsterraHideTimer = null;
  */
 function showInCallAdsterraBanner() {
   hideInCallAdsterraBanner();
-
-  const bannerBox = document.getElementById("incall-adsterra-banner-container");
-  if (!bannerBox) return;
-
-  renderMediationAdInContainer(bannerBox);
-
-  // Impression Record & Disappear: Auto-hide after 4.2s viewability threshold (3.0s Adsterra + 1.2s safety buffer)
-  inCallAdsterraHideTimer = setTimeout(() => {
-    hideInCallAdsterraBanner();
-  }, 4200);
 }
-
 
 function hideInCallAdsterraBanner() {
   if (inCallAdsterraHideTimer) {
@@ -3344,23 +3334,8 @@ function hideInCallAdsterraBanner() {
   }
 }
 
-/**
- * Standardized Synchronized In-Call Adsterra Schedule:
- * - 1st Ad: Displays 15 seconds after call starts (Disappears after 4s impression dwell).
- * - Subsequent Ads: Displays every 3 minutes (180 seconds) thereafter (Disappears after 4s impression dwell).
- */
 function startInCallAdsterraJitterEngine() {
   stopInCallAdsterraJitterEngine();
-
-  // First Ad at 15 Seconds
-  inCallAdsterraTimer = setTimeout(() => {
-    showInCallAdsterraBanner();
-
-    // Subsequent Ads Every 3 Minutes (180,000 ms)
-    inCallAdsterraTimer = setInterval(() => {
-      showInCallAdsterraBanner();
-    }, 180000);
-  }, 15000);
 }
 
 function stopInCallAdsterraJitterEngine() {

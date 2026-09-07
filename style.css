@@ -2325,29 +2325,11 @@ video#local.beauty-off, video#remote.beauty-off {
    Monetization Native Sponsored Video Ads Styling
    ========================================================================== */
 
-/* Live In-Call Adsterra 4-Second Ultra-Fast Sponsored Banner Overlay (Bottom-Left) */
+/* Option B: Live In-Call Sponsored Banner Overlay Disabled for 100% Clean Video Chat UX */
 .incall-adsterra-banner-box {
-  position: absolute;
-  bottom: 84px;
-  left: 16px;
-  z-index: 18;
-  min-width: 300px;
-  min-height: 250px;
-  max-width: calc(100vw - 32px);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: none;
-  border: none;
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: auto;
-  padding: 4px;
-  opacity: 1;
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  display: none !important;
+  opacity: 0;
+  pointer-events: none !important;
 }
 
 .incall-adsterra-banner-box.hidden {
