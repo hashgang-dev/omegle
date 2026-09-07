@@ -350,6 +350,8 @@ document.addEventListener("DOMContentLoaded", () => {
         .register("/sw.js")
         .then((reg) => {
           console.log("PWA Service Worker registered:", reg.scope);
+          // Force update check for new release on server
+          try { reg.update(); } catch (e) {}
           
           // Auto-Update Engine: Detect new release and activate immediately without re-installation
           reg.addEventListener("updatefound", () => {
@@ -358,13 +360,24 @@ document.addEventListener("DOMContentLoaded", () => {
               newWorker.addEventListener("statechange", () => {
                 if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
                   console.log("New PWA deployment release detected! Auto-refreshing app shell...");
-                  window.location.reload();
+                  showShareToast("🚀 New App Update Available! Applying latest release...");
+                  setTimeout(() => {
+                    window.location.reload();
+                  }, 1000);
                 }
               });
             }
           });
         })
         .catch((err) => console.warn("PWA Service Worker registration failed:", err));
+
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
     });
   }
 
@@ -740,13 +753,13 @@ async function handleStartOrNext() {
 
 
 
-  // Set searching safety fallback timer (10s for WebRTC ICE traversal across cellular networks)
+  // Set searching safety fallback timer (4.0s for instant match/simulation transition)
   if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
   simulatedFallbackTimeout = setTimeout(() => {
     if (!currentCall) {
       playSimulatedStrangerVideo();
     }
-  }, 10000);
+  }, 4000);
 
   // Start automated zero-cost matchmaking
   findAndConnectPeer();
@@ -1168,22 +1181,28 @@ function playSimulatedStrangerVideo() {
 
     if (!isSimulatedCallActive || currentCall) return;
 
-    elements.remoteVideo.currentTime = 0;
-
-    // Smooth call duration: 8.0s to 12.0s (or full video length if video is shorter)
     const duration = elements.remoteVideo.duration;
-    let targetPlayDurationMs = 10000;
+    // Dynamic ultra-realistic duration: 2.5s to 3.8s (randomized jitter)
+    let targetPlayDurationMs = Math.floor(Math.random() * 1300) + 2500; // 2500ms - 3800ms
+
+    elements.remoteVideo.loop = false; // NEVER loop or repeat video clips
 
     if (!isNaN(duration) && duration > 0) {
-      if (duration < 5.0) {
-        elements.remoteVideo.loop = true;
-        targetPlayDurationMs = Math.floor(Math.random() * 4000) + 8000; // 8s - 12s normalized duration
+      if (duration > 4.0) {
+        // Pick a random start offset for long videos so it feels like joining an ongoing live stream!
+        const maxStartOffset = Math.max(0, duration - 4.0);
+        const randomStartOffset = Math.random() * maxStartOffset;
+        try {
+          elements.remoteVideo.currentTime = randomStartOffset;
+        } catch (e) {}
       } else {
-        elements.remoteVideo.loop = false;
-        const fullDurationMs = Math.max(3000, (duration - 0.2) * 1000);
-        const randomCallDurationMs = Math.floor(Math.random() * 4000) + 8000; // 8s - 12s
-        targetPlayDurationMs = Math.min(fullDurationMs, randomCallDurationMs);
+        // For short videos (< 4s), play naturally for its duration without looping
+        elements.remoteVideo.currentTime = 0;
+        const naturalDurationMs = Math.max(1500, (duration - 0.1) * 1000);
+        targetPlayDurationMs = Math.min(naturalDurationMs, targetPlayDurationMs);
       }
+    } else {
+      elements.remoteVideo.currentTime = 0;
     }
 
     if (simulatedVideoTimer) clearTimeout(simulatedVideoTimer);
@@ -1332,6 +1351,17 @@ async function initLocalMedia() {
     return true;
   } catch (err) {
     console.error("Camera/Mic Permission Error:", err);
+    if (err.name === "NotReadableError" || err.name === "TrackStartError" || err.name === "OverconstrainedError") {
+      console.warn("Camera occupied or overconstrained, attempting Audio-Only fallback...");
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+        elements.localVideo.srcObject = localStream;
+        showShareToast("✨ Camera unavailable (in use). Continuing with Audio-Only Call!");
+        return true;
+      } catch (audioErr) {
+        console.error("Audio-Only fallback failed:", audioErr);
+      }
+    }
     showMediaPermissionError();
     updateStatus("error", "Permission Denied");
     hideSearchingOverlay();
@@ -1424,13 +1454,37 @@ function showMediaPermissionError() {
 let currentSlotScanIndex = 1;
 let lastConnectAttemptTime = 0;
 
+let peerServerFallbackMode = false;
+
+function createPeerInstance(id) {
+  if (peerServerFallbackMode) {
+    console.log("🌐 Connecting using Public Cloud PeerServer (Fallback Mode)...");
+    return new Peer(id, STUN_CONFIG);
+  }
+
+  const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  const serverHost = window.PEER_SERVER_HOST || (isLocal ? "localhost" : "api.hashgang.com");
+  const serverPort = window.PEER_SERVER_PORT || (isLocal ? 5000 : 443);
+  const serverPath = window.PEER_SERVER_PATH || "/peerjs";
+  const isSecure = window.location.protocol === "https:" || (!isLocal && window.location.protocol === "https:");
+
+  console.log(`⚡ Connecting to Primary Dedicated PeerServer (${serverHost}:${serverPort}${serverPath})...`);
+
+  const customPeerOptions = Object.assign({}, STUN_CONFIG, {
+    host: serverHost,
+    port: serverPort,
+    path: serverPath,
+    secure: isSecure,
+    debug: 1
+  });
+
+  return new Peer(id, customPeerOptions);
+}
+
 function findAndConnectPeer() {
   lastConnectAttemptTime = Date.now();
-
-  // Target slot 1 primary lobby (or current index) so 2 active users always land on the same slot
   const targetHostId = LOBBY_PREFIX + currentSlotScanIndex;
 
-  // Clean up any existing peer instance before creating a new one
   if (peer && !peer.destroyed) {
     try {
       peer.destroy();
@@ -1438,23 +1492,24 @@ function findAndConnectPeer() {
     peer = null;
   }
 
-  // Create client Peer instance
-  const tempClientId = "client-" + Math.floor(Math.random() * 1000000);
-  previousTempClientId = tempClientId;
-
-  peer = new Peer(tempClientId, STUN_CONFIG);
+  // Attempt to register as Host on targetHostId FIRST
+  peer = createPeerInstance(targetHostId);
 
   peer.on("open", (id) => {
     myPeerId = id;
-    console.log(
-      "Registered Peer ID:",
-      id,
-      "Targeting Lobby Slot:",
-      targetHostId,
+    console.log("Registered as Waiting Host on slot:", id);
+    updateStatus("searching", "Waiting for a stranger to join...");
+    showSearchingOverlay(
+      "Waiting for a Stranger...",
+      "You are in the waiting queue. A peer will connect shortly.",
     );
 
-    // Attempt to call the target host slot
-    connectToHostOrBecomeHost(targetHostId);
+    if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
+    simulatedFallbackTimeout = setTimeout(() => {
+      if (!currentCall) {
+        playSimulatedStrangerVideo();
+      }
+    }, 4000);
   });
 
   peer.on("call", (call) => {
@@ -1466,196 +1521,125 @@ function findAndConnectPeer() {
   });
 
   peer.on("error", (err) => {
-    console.warn("PeerJS Error:", err);
-    if (err.type === "peer-unavailable") {
-      // Host slot is empty; become the waiting host!
-      becomeWaitingHost(targetHostId);
+    const errType = err ? err.type : "";
+    console.warn("Host Slot Registration Event (" + errType + ") on slot:", targetHostId, err);
+
+    if (errType === "unavailable-id" || errType === "id-taken" || errType === "peer-unavailable") {
+      // Host slot is already occupied by a waiting Host! Connect as Client to this Host!
+      console.log("Host slot occupied. Connecting as Client to Host slot:", targetHostId);
+      connectAsClientToHost(targetHostId);
     } else {
-      console.warn("PeerJS connection error (" + (err ? err.type : "unknown") + "), retrying matchmaking...");
-      updateStatus("searching", "Reconnecting to lobby...");
+      console.warn("PeerJS Host Error (" + errType + "), retrying next slot...");
+      currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
       if (retryMatchmakingTimeout) clearTimeout(retryMatchmakingTimeout);
-      retryMatchmakingTimeout = setTimeout(findAndConnectPeer, 1500);
+      retryMatchmakingTimeout = setTimeout(findAndConnectPeer, 500);
     }
   });
 }
 
 /**
- * Attempt connection to a host slot or register as host
+ * Connect to an occupied Host Slot as a Client
  */
-function connectToHostOrBecomeHost(hostId) {
-  if ((peer && peer.id === hostId) || hostId === previousTempClientId || isPeerRecentlyMatched(hostId)) {
-    console.warn("Self-connection or recently skipped peer connection prevented on slot:", hostId);
-    becomeWaitingHost(hostId);
-    return;
+function connectAsClientToHost(hostId) {
+  if (peer && !peer.destroyed) {
+    try {
+      peer.destroy();
+    } catch (e) {}
+    peer = null;
   }
 
-  if (!peer) {
-    becomeWaitingHost(hostId);
-    return;
-  }
+  const tempClientId = "client-" + Math.floor(Math.random() * 1000000);
+  previousTempClientId = tempClientId;
 
-  // Try calling the host ID with session metadata
-  const call = peer.call(hostId, getActiveStream(), {
-    metadata: { sessionInstanceId: SESSION_INSTANCE_ID, callerId: peer.id }
-  });
+  peer = createPeerInstance(tempClientId);
 
-  if (!call) {
-    console.warn("Could not initiate call to host slot:", hostId);
-    becomeWaitingHost(hostId);
-    return;
-  }
+  peer.on("open", (id) => {
+    myPeerId = id;
+    console.log("Registered Client Peer ID:", id, "Calling Host Slot:", hostId);
 
-  let connected = false;
+    if (isPeerRecentlyMatched(hostId)) {
+      console.warn("Recently matched peer on slot:", hostId, "Advancing slot...");
+      currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
+      findAndConnectPeer();
+      return;
+    }
 
-  const handleCallerFailure = (reason) => {
-    if (!connected && currentCall !== call) {
-      console.warn("Host connection failed (" + reason + ") on slot:", hostId);
-      try { call.close(); } catch (e) {}
+    const call = peer.call(hostId, getActiveStream(), {
+      metadata: { sessionInstanceId: SESSION_INSTANCE_ID, callerId: peer.id }
+    });
+
+    if (!call) {
+      console.warn("Could not initiate call to host slot:", hostId);
+      currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
+      findAndConnectPeer();
+      return;
+    }
+
+    let connected = false;
+
+    const handleCallerFailure = (reason) => {
+      if (!connected && currentCall !== call) {
+        console.warn("Host connection failed (" + reason + ") on slot:", hostId);
+        try { call.close(); } catch (e) {}
+        if (hostConnectTimeout) {
+          clearTimeout(hostConnectTimeout);
+          hostConnectTimeout = null;
+        }
+        currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
+        if (retryMatchmakingTimeout) clearTimeout(retryMatchmakingTimeout);
+        retryMatchmakingTimeout = setTimeout(findAndConnectPeer, 300);
+      }
+    };
+
+    call.on("stream", (remoteStream) => {
+      connected = true;
+      currentCall = call;
       if (hostConnectTimeout) {
         clearTimeout(hostConnectTimeout);
         hostConnectTimeout = null;
       }
       stopSimulatedStrangerVideo();
-      // Increment slot and scan next available slot rather than colliding on the same host slot
-      currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
-      if (peer && !peer.destroyed) {
-        peer.destroy();
-      }
-      if (retryMatchmakingTimeout) clearTimeout(retryMatchmakingTimeout);
-      retryMatchmakingTimeout = setTimeout(findAndConnectPeer, 300);
-    }
-  };
+      onPeerConnected(remoteStream);
+      monitorICEConnection(call);
+    });
 
-  call.on("stream", (remoteStream) => {
-    connected = true;
-    currentCall = call;
+    call.on("error", (err) => {
+      console.warn("Client Call Error on slot:", hostId, err);
+      handleCallerFailure("error");
+    });
+
+    call.on("close", () => {
+      if (!connected) {
+        handleCallerFailure("closed");
+      }
+    });
+
+    const conn = peer.connect(hostId, {
+      metadata: { sessionInstanceId: SESSION_INSTANCE_ID, callerId: peer.id }
+    });
+    setupDataConnection(conn);
+
     if (hostConnectTimeout) {
       clearTimeout(hostConnectTimeout);
       hostConnectTimeout = null;
     }
-    onPeerConnected(remoteStream);
-    monitorICEConnection(call);
-  });
 
-  call.on("error", (err) => {
-    console.warn("Call error on slot:", hostId, err);
-    handleCallerFailure("error");
-  });
-
-  call.on("close", () => {
-    if (!connected) {
-      handleCallerFailure("closed");
-    }
-  });
-
-  // Establish P2P DataChannel for chat
-  const conn = peer.connect(hostId, {
-    metadata: { sessionInstanceId: SESSION_INSTANCE_ID, callerId: peer.id }
-  });
-  setupDataConnection(conn);
-
-  // Track & manage host connection timeout
-  if (hostConnectTimeout) {
-    clearTimeout(hostConnectTimeout);
-    hostConnectTimeout = null;
-  }
-
-  // Allow 6.5 seconds for WebRTC STUN/TURN ICE candidate gathering and offer/answer exchange across global cellular networks
-  hostConnectTimeout = setTimeout(() => {
-    hostConnectTimeout = null;
-    handleCallerFailure("timeout_6500ms");
-  }, 6500);
-}
-
-/**
- * Register current peer as the waiting Host on a public slot
- */
-function becomeWaitingHost(hostId) {
-
-  if (chatConn) {
-    try {
-      chatConn.close();
-    } catch (e) {}
-    chatConn = null;
-  }
-
-  if (peer && !peer.destroyed) {
-    previousTempClientId = peer.id;
-    peer.destroy();
-  }
-
-  // Initialize peer with the host slot ID
-  peer = new Peer(hostId, STUN_CONFIG);
-
-  peer.on("open", (id) => {
-    myPeerId = id;
-    console.log("Waiting as Host on slot:", id);
-    updateStatus("searching", "Waiting for a stranger to join...");
-    showSearchingOverlay(
-      "Waiting for a Stranger...",
-      "You are in the waiting queue. A peer will connect shortly.",
-    );
-
-    // Fallback to simulated video if no real peer connects within 10 seconds (allows global WebRTC ICE traversal)
-    if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
-    simulatedFallbackTimeout = setTimeout(() => {
-      if (!currentCall) {
-        playSimulatedStrangerVideo();
-      }
-    }, 10000);
-  });
-
-  peer.on("call", (call) => {
-    const callerSessionId = call.metadata && call.metadata.sessionInstanceId;
-    const callerId = call.peer || (call.metadata && call.metadata.callerId);
-    if (callerSessionId === SESSION_INSTANCE_ID || callerId === previousTempClientId || callerId === myPeerId || isPeerRecentlyMatched(callerId)) {
-      console.warn("Self-call or recently skipped peer call blocked in becomeWaitingHost:", callerId);
-      try { call.close(); } catch (e) {}
-      return;
-    }
-
-    // Reject call if host is already connected to another live peer call
-    if (currentCall && currentCall.open && elements.remoteVideo.srcObject && !isSimulatedCallActive) {
-      console.warn("Host is already in an active call, rejecting new caller:", callerId);
-      try { call.close(); } catch (e) {}
-      return;
-    }
-
-    stopSimulatedStrangerVideo();
-    call.answer(getActiveStream());
-    currentCall = call;
-
-    call.on("stream", (remoteStream) => {
-      onPeerConnected(remoteStream);
-      monitorICEConnection(call);
-    });
-  });
-
-  peer.on("connection", (conn) => {
-    const callerSessionId = conn.metadata && conn.metadata.sessionInstanceId;
-    const callerId = conn.peer || (conn.metadata && conn.metadata.callerId);
-    if (callerSessionId === SESSION_INSTANCE_ID || callerId === previousTempClientId || callerId === myPeerId || isPeerRecentlyMatched(callerId)) {
-      console.warn("Self DataConnection or recently skipped peer blocked:", callerId);
-      try { conn.close(); } catch (e) {}
-      return;
-    }
-
-    if (chatConn && chatConn.open) {
-      console.warn("Host already has active chat connection, closing new incoming data connection:", callerId);
-      try { conn.close(); } catch (e) {}
-      return;
-    }
-
-    setupDataConnection(conn);
+    hostConnectTimeout = setTimeout(() => {
+      hostConnectTimeout = null;
+      handleCallerFailure("timeout_6500ms");
+    }, 6500);
   });
 
   peer.on("error", (err) => {
-    console.warn("Host Slot Conflict, retrying another slot...", err);
+    console.warn("Client Peer Error:", err);
     currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
     if (retryMatchmakingTimeout) clearTimeout(retryMatchmakingTimeout);
     retryMatchmakingTimeout = setTimeout(findAndConnectPeer, 500);
   });
+}
 
+function becomeWaitingHost(hostId) {
+  findAndConnectPeer();
 }
 
 /**
@@ -2088,19 +2072,8 @@ function onStrangerConnectedMatch() {
   const userInteracted = localStorage.getItem("hashgang_bg_user_interacted") === "true";
 
   if (!userInteracted) {
-    if (strangerMatchCount <= 2) {
-      currentBgEffectType = "preset";
-      isNeonAuraActive = true; // Neon Aura Glow enabled by default for WOW factor
-      if (strangerMatchCount === 1) {
-        setTimeout(() => {
-          showShareToast("✨ Virtual Background & Neon Aura Active! Click 🖼️ icon to customize.");
-        }, 1200);
-      }
-    } else {
-      // 3rd stranger connection onwards -> Default to 'none' & turn off aura to conserve CPU
-      currentBgEffectType = "none";
-      isNeonAuraActive = false;
-    }
+    currentBgEffectType = "none";
+    isNeonAuraActive = false;
     renderBgPresetsGrid();
     updateBgUIControls();
     applyBgEffectToStreams();
@@ -2234,6 +2207,11 @@ function startBgProcessingLoop() {
 
   async function loop() {
     if (!isBgProcessingLoopActive) return;
+
+    if (document.hidden) {
+      // Pause heavy segmentation in background tab to save CPU while keeping WebRTC audio/video stream active
+      return requestAnimationFrame(loop);
+    }
 
     if (localStream && bgRawVideo && bgRawVideo.readyState >= 2) {
       if (currentBgEffectType !== "none" && selfieSegmentationInstance) {
