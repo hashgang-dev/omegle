@@ -31,14 +31,30 @@ let previousTempClientId = null;
 const RECENTLY_MATCHED_PEERS_COOLDOWN_MS = 180000; // 3 Minutes (180,000ms)
 const recentlyMatchedPeers = new Map();
 
+let currentRemoteSessionId = null;
+let currentRemotePeerId = null;
+
 function addPeerToRecentlyMatchedBlacklist(peerId) {
   if (!peerId) return;
   recentlyMatchedPeers.set(peerId, Date.now());
+  console.log("🚫 [Blacklist] Cooldown activated for 3 mins on peer/session:", peerId);
   const now = Date.now();
   for (const [id, ts] of recentlyMatchedPeers.entries()) {
     if (now - ts > RECENTLY_MATCHED_PEERS_COOLDOWN_MS) {
       recentlyMatchedPeers.delete(id);
     }
+  }
+}
+
+function blacklistCurrentPeerSession() {
+  if (currentRemoteSessionId) {
+    addPeerToRecentlyMatchedBlacklist(currentRemoteSessionId);
+  }
+  if (currentRemotePeerId) {
+    addPeerToRecentlyMatchedBlacklist(currentRemotePeerId);
+  }
+  if (currentCall && currentCall.peer) {
+    addPeerToRecentlyMatchedBlacklist(currentCall.peer);
   }
 }
 
@@ -713,10 +729,8 @@ async function handleStartOrNext() {
     } catch (e) {}
   }
 
-  // Blacklist skipped peer ID for 3 minutes to prevent immediate re-matching
-  if (currentCall && currentCall.peer) {
-    addPeerToRecentlyMatchedBlacklist(currentCall.peer);
-  }
+  // Blacklist skipped peer ID & Session ID for 3 minutes to prevent immediate re-matching
+  blacklistCurrentPeerSession();
 
   cleanupCallState();
 
@@ -1594,6 +1608,10 @@ function connectAsClientToHost(hostId) {
     call.on("stream", (remoteStream) => {
       connected = true;
       currentCall = call;
+      currentRemotePeerId = hostId;
+      if (call && call.metadata && call.metadata.sessionInstanceId) {
+        currentRemoteSessionId = call.metadata.sessionInstanceId;
+      }
       if (hostConnectTimeout) {
         clearTimeout(hostConnectTimeout);
         hostConnectTimeout = null;
@@ -1648,11 +1666,20 @@ function becomeWaitingHost(hostId) {
 function handleIncomingCall(call) {
   const callerSessionId = call.metadata && call.metadata.sessionInstanceId;
   const callerId = call.peer || (call.metadata && call.metadata.callerId);
-  if (callerSessionId === SESSION_INSTANCE_ID || callerId === previousTempClientId || callerId === myPeerId || isPeerRecentlyMatched(callerId)) {
-    console.warn("Self-call or recently skipped peer call blocked in handleIncomingCall:", callerId);
+  if (
+    callerSessionId === SESSION_INSTANCE_ID ||
+    callerId === previousTempClientId ||
+    callerId === myPeerId ||
+    isPeerRecentlyMatched(callerSessionId) ||
+    isPeerRecentlyMatched(callerId)
+  ) {
+    console.warn("🚫 Self-call or 3-minute blacklisted peer call blocked in handleIncomingCall (Session:", callerSessionId, "Peer:", callerId, ")");
     try { call.close(); } catch (e) {}
     return;
   }
+
+  currentRemoteSessionId = callerSessionId;
+  currentRemotePeerId = callerId;
 
   stopSimulatedStrangerVideo();
   call.answer(getActiveStream());
@@ -1680,10 +1707,7 @@ function onPeerSkippedUs() {
     "Connecting you to the next stranger...",
   );
 
-  if (currentCall && currentCall.peer) {
-    addPeerToRecentlyMatchedBlacklist(currentCall.peer);
-  }
-
+  blacklistCurrentPeerSession();
   cleanupCallState();
 
   setTimeout(() => {
@@ -3442,6 +3466,7 @@ function triggerViolationCooldownPenalty() {
   isUserOnCooldown = true;
   cleanupCallState();
   updateStatus("error", "Call ended due to repeated security violation attempts");
+  showShareToast("⛔ Security Cooldown: Multiple tab switches or restricted actions detected. 60s cooldown active to protect stranger privacy.", 6000);
 
   const modal = document.getElementById("privacy-violation-alert-modal");
   if (modal) {
@@ -3460,10 +3485,12 @@ function triggerViolationCooldownPenalty() {
   userMatchmakingCooldownTimer = setTimeout(() => {
     isUserOnCooldown = false;
     updateStatus("idle", "Cooldown complete. Click Start Chat to connect");
+    showShareToast("✅ Cooldown Complete! Click 'Start Chat' to connect with strangers.", 4000);
   }, 60000);
 }
 
 function showPeerPrivacyViolationAlert(reason = "restricted_action") {
+  showShareToast("🔒 Privacy Alert: Stranger switched tabs or attempted a restricted action.", 4000);
   const modal = document.getElementById("privacy-violation-alert-modal");
   if (!modal) return;
 
@@ -3492,6 +3519,7 @@ function initAntiScreenRecording() {
       if (elements.remoteVideo) {
         elements.remoteVideo.muted = true;
       }
+      showShareToast("⚠️ Privacy Shield Active: You switched tabs/browsers. Return to chat tab.", 3000);
       broadcastPrivacyViolationToPeer("tab_switch_focus_loss");
     }
   }
