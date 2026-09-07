@@ -76,12 +76,46 @@ const TOTAL_SLOTS = 20;
 
 // ICE Servers (Google STUN + Free TURN Relays for 4G/5G Mobile CGNAT Traversal)
 const STUN_CONFIG = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
+    { urls: "stun:stun.cloudflare.com:3478" },
+    { urls: "stun:stun.services.mozilla.com" },
+    { urls: "stun:global.stun.twilio.com:3478" },
+    {
+      urls: "turn:openrelay.metered.ca:80",
+      username: "openrelay",
+      credential: "openrelay",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443",
+      username: "openrelay",
+      credential: "openrelay",
+    },
+    {
+      urls: "turn:openrelay.metered.ca:443?transport=tcp",
+      username: "openrelay",
+      credential: "openrelay",
+    },
+    {
+      urls: "turns:openrelay.metered.ca:443",
+      username: "openrelay",
+      credential: "openrelay",
+    },
+  ],
   config: {
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" },
+      { urls: "stun:stun3.l.google.com:19302" },
+      { urls: "stun:stun4.l.google.com:19302" },
       { urls: "stun:stun.cloudflare.com:3478" },
-      // OpenRelay Public TURN Servers (Crucial for 4G/5G Mobile Data & Strict NAT)
+      { urls: "stun:stun.services.mozilla.com" },
+      { urls: "stun:global.stun.twilio.com:3478" },
       {
         urls: "turn:openrelay.metered.ca:80",
         username: "openrelay",
@@ -94,6 +128,11 @@ const STUN_CONFIG = {
       },
       {
         urls: "turn:openrelay.metered.ca:443?transport=tcp",
+        username: "openrelay",
+        credential: "openrelay",
+      },
+      {
+        urls: "turns:openrelay.metered.ca:443",
         username: "openrelay",
         credential: "openrelay",
       },
@@ -701,13 +740,13 @@ async function handleStartOrNext() {
 
 
 
-  // Set searching safety fallback timer (3.5s for instant fallback if no peer is waiting)
+  // Set searching safety fallback timer (10s for WebRTC ICE traversal across cellular networks)
   if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
   simulatedFallbackTimeout = setTimeout(() => {
     if (!currentCall) {
       playSimulatedStrangerVideo();
     }
-  }, 3500);
+  }, 10000);
 
   // Start automated zero-cost matchmaking
   findAndConnectPeer();
@@ -1469,13 +1508,14 @@ function connectToHostOrBecomeHost(hostId) {
   let connected = false;
 
   const handleCallerFailure = (reason) => {
-    if (!connected && currentCall !== call && !isSimulatedCallActive) {
+    if (!connected && currentCall !== call) {
       console.warn("Host connection failed (" + reason + ") on slot:", hostId);
       try { call.close(); } catch (e) {}
       if (hostConnectTimeout) {
         clearTimeout(hostConnectTimeout);
         hostConnectTimeout = null;
       }
+      stopSimulatedStrangerVideo();
       // Increment slot and scan next available slot rather than colliding on the same host slot
       currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
       if (peer && !peer.destroyed) {
@@ -1520,11 +1560,11 @@ function connectToHostOrBecomeHost(hostId) {
     hostConnectTimeout = null;
   }
 
-  // Allow 4.5 seconds for WebRTC STUN/TURN ICE candidate gathering and offer/answer exchange
+  // Allow 6.5 seconds for WebRTC STUN/TURN ICE candidate gathering and offer/answer exchange across global cellular networks
   hostConnectTimeout = setTimeout(() => {
     hostConnectTimeout = null;
-    handleCallerFailure("timeout_4500ms");
-  }, 4500);
+    handleCallerFailure("timeout_6500ms");
+  }, 6500);
 }
 
 /**
@@ -1556,13 +1596,13 @@ function becomeWaitingHost(hostId) {
       "You are in the waiting queue. A peer will connect shortly.",
     );
 
-    // Fallback to simulated video if no real peer connects within 3.5 seconds
+    // Fallback to simulated video if no real peer connects within 10 seconds (allows global WebRTC ICE traversal)
     if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
     simulatedFallbackTimeout = setTimeout(() => {
       if (!currentCall) {
         playSimulatedStrangerVideo();
       }
-    }, 3500);
+    }, 10000);
   });
 
   peer.on("call", (call) => {
