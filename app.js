@@ -635,9 +635,17 @@ function hideTosModal() {
   if (elements.tosModal) elements.tosModal.classList.add("hidden");
 }
 
-function acceptTosAndProceed() {
+async function acceptTosAndProceed() {
   localStorage.setItem("p2p_tos_accepted_at", Date.now().toString());
   hideTosModal();
+  if (!localStream) {
+    updateStatus("searching", "Requesting camera & microphone access...");
+    const success = await initLocalMedia();
+    if (!success) {
+      console.warn("Camera/microphone permission not granted after TOS agreement.");
+      return;
+    }
+  }
   handleStartOrNext();
 }
 
