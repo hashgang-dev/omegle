@@ -12,11 +12,18 @@ let myPeerId = null;
 let localStream = null;
 let currentCall = null;
 let chatConn = null;
+let socket = null;
+let currentPeerConnection = null;
+let currentMatchTargetId = null;
+let searchChunkTimer = null;
+let isSocketConnected = false;
 let isAudioMuted = false;
 let isVideoOff = false;
 let isSimulatedCallActive = false;
+let isStoppedByUser = true;
 let unreadMessagesCount = 0;
-let currentOnlineUsersCount = 1420;
+let currentOnlineUsersCount = 0;
+const MIN_ONLINE_USERS_THRESHOLD = 500; // Minimum active users required before displaying online count badge in header
 
 // Self-Brand Video Promotion Config & Feature Flag
 const ENABLE_SELF_BRAND_ADS = true; // Set to false anytime to disable self-brand video ads
@@ -90,70 +97,27 @@ let retryMatchmakingTimeout = null;
 const LOBBY_PREFIX = "p2p-omegle-v1-slot-";
 const TOTAL_SLOTS = 20;
 
-// ICE Servers (Google STUN + Free TURN Relays for 4G/5G Mobile CGNAT Traversal)
+// ICE Servers (Google/Cloudflare STUN + OpenRelay TURN for Global 4G/5G CGNAT Traversal)
 const STUN_CONFIG = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" },
     { urls: "stun:stun.cloudflare.com:3478" },
-    { urls: "stun:stun.services.mozilla.com" },
     { urls: "stun:global.stun.twilio.com:3478" },
     {
-      urls: "turn:openrelay.metered.ca:80",
+      urls: [
+        "turn:openrelay.metered.ca:80",
+        "turn:openrelay.metered.ca:443",
+        "turn:openrelay.metered.ca:443?transport=tcp"
+      ],
       username: "openrelay",
-      credential: "openrelay",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443",
-      username: "openrelay",
-      credential: "openrelay",
-    },
-    {
-      urls: "turn:openrelay.metered.ca:443?transport=tcp",
-      username: "openrelay",
-      credential: "openrelay",
-    },
-    {
-      urls: "turns:openrelay.metered.ca:443",
-      username: "openrelay",
-      credential: "openrelay",
-    },
+      credential: "openrelay"
+    }
   ],
-  config: {
-    iceServers: [
-      { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:stun1.l.google.com:19302" },
-      { urls: "stun:stun2.l.google.com:19302" },
-      { urls: "stun:stun3.l.google.com:19302" },
-      { urls: "stun:stun4.l.google.com:19302" },
-      { urls: "stun:stun.cloudflare.com:3478" },
-      { urls: "stun:stun.services.mozilla.com" },
-      { urls: "stun:global.stun.twilio.com:3478" },
-      {
-        urls: "turn:openrelay.metered.ca:80",
-        username: "openrelay",
-        credential: "openrelay",
-      },
-      {
-        urls: "turn:openrelay.metered.ca:443",
-        username: "openrelay",
-        credential: "openrelay",
-      },
-      {
-        urls: "turn:openrelay.metered.ca:443?transport=tcp",
-        username: "openrelay",
-        credential: "openrelay",
-      },
-      {
-        urls: "turns:openrelay.metered.ca:443",
-        username: "openrelay",
-        credential: "openrelay",
-      },
-    ],
-  },
+  bundlePolicy: "max-bundle",
+  rtcpMuxPolicy: "require",
+  iceCandidatePoolSize: 10
 };
 
 // DOM Elements
@@ -354,9 +318,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Prompt Terms of Service & Age Consent Modal on Page Load if missing/expired
+  // Prompt Terms of Service & Age Consent Modal on Page Load if missing/expired, else auto check permissions
   if (!isTosConsentValid()) {
     showTosModal();
+  } else {
+    checkPermissionsAndAutoStart();
   }
 
   // Register PWA Service Worker for Offline Shell, Fast Load & Automatic Live Updates
@@ -635,18 +601,128 @@ function hideTosModal() {
   if (elements.tosModal) elements.tosModal.classList.add("hidden");
 }
 
+function validateMediaPermissions() {
+  if (!localStream) return false;
+  const videoTrack = localStream.getVideoTracks()[0];
+  if (!videoTrack) return false;
+  return videoTrack.readyState === "live" && videoTrack.enabled;
+}
+
+async function showPermissionGuidanceModal(isBlocked = false) {
+  const modal = document.getElementById("permission-guidance-modal");
+  const guideBox = document.getElementById("unblock-guide-box");
+  const btnRequest = document.getElementById("btn-request-perm");
+  const btnRefresh = document.getElementById("btn-perm-refresh");
+
+  // Check browser site setting permission status for camera if not explicitly passed as blocked
+  if (!isBlocked && navigator.permissions && navigator.permissions.query) {
+    try {
+      const permStatus = await navigator.permissions.query({ name: "camera" });
+      if (permStatus && permStatus.state === "denied") {
+        isBlocked = true;
+      }
+    } catch (e) {}
+  }
+
+  if (modal) modal.classList.remove("hidden");
+
+  if (isBlocked) {
+    if (guideBox) {
+      guideBox.classList.remove("hidden");
+      guideBox.style.setProperty("display", "block", "important");
+    }
+    if (btnRequest) {
+      btnRequest.classList.add("hidden");
+      btnRequest.style.setProperty("display", "none", "important");
+    }
+    if (btnRefresh) {
+      btnRefresh.classList.remove("hidden");
+      btnRefresh.style.setProperty("display", "block", "important");
+    }
+  } else {
+    if (guideBox) {
+      guideBox.classList.add("hidden");
+      guideBox.style.setProperty("display", "none", "important");
+    }
+    if (btnRequest) {
+      btnRequest.classList.remove("hidden");
+      btnRequest.style.setProperty("display", "flex", "important");
+    }
+    if (btnRefresh) {
+      btnRefresh.classList.add("hidden");
+      btnRefresh.style.setProperty("display", "none", "important");
+    }
+  }
+}
+
+function hidePermissionGuidanceModal() {
+  const modal = document.getElementById("permission-guidance-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+async function requestMediaPermissionAndProceed() {
+  updateStatus("searching", "Requesting camera & microphone access...");
+  const success = await initLocalMedia();
+  if (success && validateMediaPermissions()) {
+    hidePermissionGuidanceModal();
+    handleStartOrNext();
+  } else {
+    showPermissionGuidanceModal(true);
+  }
+}
+
+async function checkPermissionsAndAutoStart() {
+  if (validateMediaPermissions()) {
+    hidePermissionGuidanceModal();
+    handleStartOrNext();
+    return;
+  }
+
+  // Detect if permission is already explicitly blocked in browser site settings
+  if (navigator.permissions && navigator.permissions.query) {
+    try {
+      const permStatus = await navigator.permissions.query({ name: "camera" });
+      if (permStatus && permStatus.state === "denied") {
+        console.warn("🔒 [Permission Security Guard] Camera is explicitly blocked in site settings.");
+        showPermissionGuidanceModal(true);
+        return;
+      }
+    } catch (e) {}
+  }
+
+  const success = await initLocalMedia();
+  if (success && validateMediaPermissions()) {
+    hidePermissionGuidanceModal();
+    handleStartOrNext();
+  } else {
+    showPermissionGuidanceModal(true);
+  }
+}
+
+function handlePermissionRevoked() {
+  console.warn("🛡️ [Permission Security Guard] Camera permission lost or track ended mid-session!");
+  isStoppedByUser = true;
+  if (socket && socket.connected) {
+    socket.emit("leave_queue");
+  }
+  cleanupCallState();
+
+  if (localStream) {
+    try {
+      localStream.getTracks().forEach((t) => t.stop());
+    } catch (e) {}
+    localStream = null;
+  }
+
+  updateStatus("error", "Camera Access Lost");
+  hideSearchingOverlay();
+  showPermissionGuidanceModal(true);
+}
+
 async function acceptTosAndProceed() {
   localStorage.setItem("p2p_tos_accepted_at", Date.now().toString());
   hideTosModal();
-  if (!localStream) {
-    updateStatus("searching", "Requesting camera & microphone access...");
-    const success = await initLocalMedia();
-    if (!success) {
-      console.warn("Camera/microphone permission not granted after TOS agreement.");
-      return;
-    }
-  }
-  handleStartOrNext();
+  await checkPermissionsAndAutoStart();
 }
 
 /**
@@ -714,7 +790,17 @@ function toggleTheme() {
 /**
  * Handle Start / Next Stranger Click
  */
+let lastStartOrNextClickTime = 0;
+
 async function handleStartOrNext() {
+  const now = Date.now();
+  if (now - lastStartOrNextClickTime < 300) {
+    console.log("⏱️ [Throttle Guard] Rapid click ignored (<300ms)");
+    return;
+  }
+  lastStartOrNextClickTime = now;
+  isStoppedByUser = false;
+
   if (isUserOnCooldown) {
     updateStatus("error", "Matchmaking cooldown active (60s). Please wait...");
     return;
@@ -722,7 +808,6 @@ async function handleStartOrNext() {
 
   hideFirewallWarning();
   if (elements.idleStageOverlay) elements.idleStageOverlay.classList.add("hidden");
-
 
   // Enforce Terms of Service & Age Consent (24-Hour Session Expiry)
   if (!isTosConsentValid()) {
@@ -748,9 +833,6 @@ async function handleStartOrNext() {
     if (!success) return;
   }
 
-  // Cycle lobby slot index for next stranger scan
-  currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
-
   elements.btnNextLabel.textContent = "Next Stranger";
   updateStatus("searching", "Searching for a Stranger...");
   updateToolbarVisibility("searching");
@@ -773,17 +855,7 @@ async function handleStartOrNext() {
     return;
   }
 
-
-
-  // Set searching safety fallback timer (4.0s for instant match/simulation transition)
-  if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
-  simulatedFallbackTimeout = setTimeout(() => {
-    if (!currentCall) {
-      playSimulatedStrangerVideo();
-    }
-  }, 4000);
-
-  // Start automated zero-cost matchmaking
+  // Start automated zero-cost matchmaking (search radar 5s chunk timer is managed inside findAndConnectPeer)
   findAndConnectPeer();
 }
 
@@ -1182,6 +1254,15 @@ function playSimulatedStrangerVideo() {
     console.warn("Video src load error:", e);
   }
 
+  // Guaranteed Hard Safety Fallback Timer: Ensure search radar NEVER gets stuck if loadedmetadata is delayed or blocked by browser permission dialogs
+  if (simulatedVideoTimer) clearTimeout(simulatedVideoTimer);
+  simulatedVideoTimer = setTimeout(() => {
+    if (isSimulatedCallActive && !currentCall && !currentPeerConnection && !currentMatchTargetId) {
+      console.warn("⏱️ [Simulation Safety Guard] Metadata delay detected (first permission grant or load stall). Auto-advancing search...");
+      skipSimulatedStrangerVideo();
+    }
+  }, 3500);
+
   // Remove existing metadata handler if present
   if (currentSimulatedMetadataHandler && elements.remoteVideo) {
     elements.remoteVideo.removeEventListener(
@@ -1201,7 +1282,7 @@ function playSimulatedStrangerVideo() {
       currentSimulatedMetadataHandler = null;
     }
 
-    if (!isSimulatedCallActive || currentCall) return;
+    if (!isSimulatedCallActive || currentCall || currentPeerConnection || currentMatchTargetId) return;
 
     const duration = elements.remoteVideo.duration;
     // Dynamic ultra-realistic duration: 2.5s to 3.8s (randomized jitter)
@@ -1227,9 +1308,10 @@ function playSimulatedStrangerVideo() {
       elements.remoteVideo.currentTime = 0;
     }
 
+    // Override hard safety timer with exact calculated clip duration
     if (simulatedVideoTimer) clearTimeout(simulatedVideoTimer);
     simulatedVideoTimer = setTimeout(() => {
-      if (isSimulatedCallActive && !currentCall) {
+      if (isSimulatedCallActive && !currentCall && !currentPeerConnection && !currentMatchTargetId) {
         skipSimulatedStrangerVideo();
       }
     }, targetPlayDurationMs);
@@ -1292,26 +1374,8 @@ function skipSimulatedStrangerVideo() {
   );
   updateToolbarVisibility("searching");
 
-  // Stage 3: Perfectly synchronized 4.0s dwell time before launching next video
-  simulatedSearchDelayTimeout = setTimeout(() => {
-    simulatedSearchDelayTimeout = null;
-    if (isSimulatedCallActive && !currentCall) {
-      matchCounter++;
-      if (
-        ENABLE_SELF_BRAND_ADS &&
-        SELF_BRAND_ADS_POOL.length > 0 &&
-        matchCounter % BRAND_AD_FREQUENCY === 0
-      ) {
-        console.log(
-          `Auto-next match counter (${matchCounter}) reached BRAND_AD_FREQUENCY (${BRAND_AD_FREQUENCY}). Triggering Self-Brand Video Promotion...`,
-        );
-        playSelfBrandVideoAd();
-        return;
-      }
-      playSimulatedStrangerVideo();
-    }
-  }, MIN_SEARCHING_DWELL_MS);
-
+  isSimulatedCallActive = false;
+  findAndConnectPeer();
 }
 
 function stopSimulatedStrangerVideo() {
@@ -1354,39 +1418,115 @@ function stopSimulatedStrangerVideo() {
 }
 
 /**
- * Capture Local User Camera and Microphone
+ * Capture Local User Camera and Microphone with Adaptive Multi-Device Resolution Fallback
  */
 async function initLocalMedia() {
+  const mediaConstraintsHierarchy = [
+    // Priority 1: 720p HD (Ideal for Desktop & Modern Smartphones)
+    {
+      video: {
+        width: { ideal: 1280, min: 640 },
+        height: { ideal: 720, min: 480 },
+        frameRate: { ideal: 30, max: 30 }
+      },
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+    },
+    // Priority 2: 480p SD (Optimized for Budget Mobile Phones & Slow 3G Data)
+    {
+      video: {
+        width: { ideal: 640, min: 320 },
+        height: { ideal: 480, min: 240 },
+        frameRate: { ideal: 24 }
+      },
+      audio: { echoCancellation: true, noiseSuppression: true }
+    },
+    // Priority 3: Basic Hardware Fallback (Maximum Device Compatibility)
+    { video: true, audio: true }
+  ];
+
+  let acquiredStream = null;
+  let lastMediaError = null;
+
+  for (const constraints of mediaConstraintsHierarchy) {
+    try {
+      acquiredStream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (acquiredStream) break;
+    } catch (err) {
+      lastMediaError = err;
+      // If user explicitly denied permission, do not try lower constraints
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        throw err;
+      }
+    }
+  }
+
+  if (!acquiredStream && lastMediaError) {
+    throw lastMediaError;
+  }
+
   try {
-    localStream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 1280 }, height: { ideal: 720 } },
-      audio: true,
-    });
+    localStream = acquiredStream;
     elements.localVideo.srcObject = getActiveStream();
+
+    // Attach Layer 2 Runtime Security Monitors: Detect camera disconnect or permission revocation mid-call
+    const videoTrack = localStream.getVideoTracks()[0];
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (videoTrack) {
+      videoTrack.onended = () => {
+        console.warn("📹 [Layer 2 Guard] Local video track ended or camera revoked!");
+        handlePermissionRevoked();
+      };
+    }
+    if (audioTrack) {
+      audioTrack.onended = () => {
+        console.warn("🎙️ [Layer 2 Guard] Local audio track ended or microphone revoked!");
+        handlePermissionRevoked();
+      };
+    }
+
+    // Attach Layer 3 Browser Permission Observer API (Chromium / Chrome / Edge)
+    if (navigator.permissions && navigator.permissions.query) {
+      try {
+        navigator.permissions.query({ name: "camera" }).then((status) => {
+          status.onchange = () => {
+            console.log("🔒 [Layer 3 Observer] Browser camera status changed to:", status.state);
+            if (status.state === "denied") {
+              handlePermissionRevoked();
+            }
+          };
+        });
+      } catch (e) {}
+    }
 
     // Remove permission overlay if previously shown
     const existingOverlay = document.getElementById("media-perm-overlay");
     if (existingOverlay) existingOverlay.remove();
+    hidePermissionGuidanceModal();
 
     await detectCameraDevices();
     await setupBgSegmentationPipeline();
     return true;
   } catch (err) {
-    console.error("Camera/Mic Permission Error:", err);
-    if (err.name === "NotReadableError" || err.name === "TrackStartError" || err.name === "OverconstrainedError") {
-      console.warn("Camera occupied or overconstrained, attempting Audio-Only fallback...");
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-        elements.localVideo.srcObject = localStream;
-        showShareToast("✨ Camera unavailable (in use). Continuing with Audio-Only Call!");
-        return true;
-      } catch (audioErr) {
-        console.error("Audio-Only fallback failed:", audioErr);
-      }
-    }
-    showMediaPermissionError();
-    updateStatus("error", "Permission Denied");
     hideSearchingOverlay();
+
+    if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+      console.info("ℹ️ [Permission Notice] Camera & microphone permission denied by user or blocked by browser.");
+      updateStatus("error", "Permission Denied");
+      showPermissionGuidanceModal(true);
+      return false;
+    }
+
+    if (err.name === "NotReadableError" || err.name === "TrackStartError" || err.name === "OverconstrainedError") {
+      console.warn("⚠️ [Hardware Conflict] Camera is occupied by another application (Zoom/Teams).");
+      updateStatus("error", "Camera Occupied");
+      showShareToast("⚠️ Camera is in use by another app (Zoom/Teams). Please close it and retry!");
+      showPermissionGuidanceModal(true);
+      return false;
+    }
+
+    console.warn("Camera/Mic Permission Notice:", err);
+    updateStatus("error", "Permission Denied");
+    showPermissionGuidanceModal(true);
     return false;
   }
 }
@@ -1471,232 +1611,305 @@ function showMediaPermissionError() {
 }
 
 /**
- * Automated Smart Matchmaking Lobby Protocol
+ * High-Scale Real-Time Socket.io Stranger Matchmaker Engine
  */
-let currentSlotScanIndex = 1;
-let lastConnectAttemptTime = 0;
 
-let peerServerFallbackMode = false;
+/**
+ * High-Scale Real-Time Socket.io Stranger Matchmaker Engine
+ */
 
-function createPeerInstance(id) {
-  if (peerServerFallbackMode) {
-    console.log("🌐 Connecting using Public Cloud PeerServer (Fallback Mode)...");
-    return new Peer(id, STUN_CONFIG);
-  }
+function initSocketConnection() {
+  if (socket) return;
 
   const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-  const serverHost = window.PEER_SERVER_HOST || (isLocal ? "localhost" : "api.hashgang.com");
-  const serverPort = window.PEER_SERVER_PORT || (isLocal ? 5000 : 443);
-  const serverPath = window.PEER_SERVER_PATH || "/peerjs";
-  const isSecure = window.location.protocol === "https:" || (!isLocal && window.location.protocol === "https:");
+  const socketHost = window.SIGNALING_SERVER_URL || (isLocal ? `http://${window.location.hostname}:5000/omegle` : "https://api.hashgang.com/omegle");
 
-  console.log(`⚡ Connecting to Primary Dedicated PeerServer (${serverHost}:${serverPort}${serverPath})...`);
+  console.log("⚡ [Socket Matchmaker] Initializing connection to signaling server:", socketHost);
 
-  const customPeerOptions = Object.assign({}, STUN_CONFIG, {
-    host: serverHost,
-    port: serverPort,
-    path: serverPath,
-    secure: isSecure,
-    debug: 1
-  });
+  try {
+    socket = io(socketHost, {
+      transports: ["websocket", "polling"],
+      reconnectionAttempts: 10
+    });
 
-  return new Peer(id, customPeerOptions);
+    socket.on("connect", () => {
+      isSocketConnected = true;
+      console.log("⚡ [Socket Matchmaker] Connected to server with Socket ID:", socket.id);
+      if (!isStoppedByUser && !currentPeerConnection) {
+        console.log("🔄 [Socket Matchmaker] Socket reconnected while active. Auto-emitting join_queue...");
+        socket.emit("join_queue");
+      }
+    });
+
+    socket.on("online_count", (data) => {
+      if (data && data.count) {
+        currentOnlineUsersCount = data.count;
+        updateOnlineUsersDisplay(data.count);
+        console.log("📊 [Socket Matchmaker] Online users count updated:", data.count);
+      }
+    });
+
+    socket.on("matched", async (data) => {
+      if (isStoppedByUser) {
+        console.log("🛑 [Socket Matchmaker] Ignoring incoming match because user has stopped matchmaking.");
+        if (socket && socket.connected) socket.emit("leave_queue");
+        return;
+      }
+      console.log("🤝 [Socket Matchmaker] MATCH FOUND with real stranger target:", data.peerId, "| Initiator:", data.initiator);
+      
+      if (searchChunkTimer) {
+        clearTimeout(searchChunkTimer);
+        searchChunkTimer = null;
+      }
+      if (simulatedFallbackTimeout) {
+        clearTimeout(simulatedFallbackTimeout);
+        simulatedFallbackTimeout = null;
+      }
+      stopSimulatedStrangerVideo();
+      currentMatchTargetId = data.peerId;
+      currentRemotePeerId = data.peerId;
+      
+      createWebRTCPeerConnection(data.peerId, data.initiator);
+    });
+
+    socket.on("signal", async (data) => {
+      if (!data || !data.signal || isStoppedByUser) return;
+      console.log("📡 [Socket Signaling] Incoming signal from:", data.senderId, "| Signal type:", data.signal.type || (data.signal.candidate ? "candidate" : "unknown"));
+      handleWebRTCSignal(data.senderId, data.signal);
+    });
+
+    socket.on("peer_left", () => {
+      console.log("🔌 [Socket Matchmaker] Peer left notification received from server");
+      if (!isStoppedByUser && !isAutoSearchingAfterSkip && !isSimulatedCallActive) {
+        onPeerSkippedUs();
+      }
+    });
+
+    socket.on("auto_rejoin", () => {
+      if (isStoppedByUser) {
+        console.log("🛑 [Socket Matchmaker] Suppressing auto_rejoin because user stopped call");
+        return;
+      }
+      console.log("🔄 [Socket Matchmaker] Auto rejoin requested by server");
+      handleStartOrNext();
+    });
+
+    socket.on("disconnect", (reason) => {
+      isSocketConnected = false;
+      console.warn("🔌 [Socket Matchmaker] Socket disconnected from signaling server. Reason:", reason);
+    });
+  } catch (e) {
+    console.error("❌ [Socket Matchmaker] Socket initialization error:", e);
+  }
+}
+
+async function createWebRTCPeerConnection(targetId, isInitiator) {
+  if (currentPeerConnection) {
+    console.log("🧹 [WebRTC] Closing existing RTCPeerConnection before creating new one");
+    try { currentPeerConnection.close(); } catch (e) {}
+    currentPeerConnection = null;
+  }
+
+  console.log("🛠️ [WebRTC] Creating RTCPeerConnection for target:", targetId, "| IsInitiator:", isInitiator);
+  const pc = new RTCPeerConnection(STUN_CONFIG);
+  currentPeerConnection = pc;
+
+  // Process any signals that arrived before RTCPeerConnection was ready
+  if (pendingSignals.length > 0) {
+    console.log(`📦 [WebRTC] Processing ${pendingSignals.length} buffered pending signals...`);
+    while (pendingSignals.length > 0) {
+      const item = pendingSignals.shift();
+      processWebRTCSignal(item.senderId, item.signal);
+    }
+  }
+
+  // Add local camera/mic stream tracks
+  const stream = getActiveStream();
+  if (stream) {
+    console.log("🎥 [WebRTC] Adding local media tracks to peer connection...");
+    stream.getTracks().forEach((track) => {
+      pc.addTrack(track, stream);
+    });
+  } else {
+    console.warn("⚠️ [WebRTC] No active local stream available to attach!");
+  }
+
+  // Handle incoming remote media tracks
+  pc.ontrack = (event) => {
+    console.log("🎥 [WebRTC] Remote Media Track Received via WebRTC! Stream ID:", event.streams[0] ? event.streams[0].id : "N/A");
+    if (event.streams && event.streams[0]) {
+      stopSimulatedStrangerVideo();
+      onPeerConnected(event.streams[0]);
+    }
+  };
+
+  // ICE Candidate gathering
+  pc.onicecandidate = (event) => {
+    if (event.candidate && socket && socket.connected) {
+      console.log("🧊 [WebRTC] Transmitting local ICE Candidate to target:", targetId);
+      socket.emit("signal", {
+        targetId: targetId,
+        signal: { type: "candidate", candidate: event.candidate }
+      });
+    }
+  };
+
+  pc.oniceconnectionstatechange = () => {
+    console.log("🌐 [WebRTC] ICE Connection State Changed:", pc.iceConnectionState);
+    if (pc.iceConnectionState === "connected" || pc.iceConnectionState === "completed") {
+      hideSearchingOverlay();
+      hideFirewallWarning();
+      updateStatus("connected", "Connected with Stranger");
+    } else if (pc.iceConnectionState === "disconnected") {
+      updateStatus("searching", "Reconnecting stranger...");
+      setTimeout(() => {
+        if (pc && pc.iceConnectionState === "disconnected") {
+          console.warn("⚠️ [WebRTC] ICE disconnect timeout reached (4s). Auto-skipping to next stranger.");
+          if (!isAutoSearchingAfterSkip && !isSimulatedCallActive) {
+            onPeerSkippedUs();
+          }
+        }
+      }, 4000);
+    } else if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "closed") {
+      if (!isAutoSearchingAfterSkip && !isSimulatedCallActive) {
+        console.warn("❌ [WebRTC] ICE connection failed/closed. Auto-skipping...");
+        onPeerSkippedUs();
+      }
+    }
+  };
+
+  // Initiator creates & transmits SDP Offer
+  if (isInitiator) {
+    try {
+      console.log("📝 [WebRTC] Creating SDP Offer as Initiator...");
+      const offer = await pc.createOffer({ offerToReceiveVideo: true, offerToReceiveAudio: true });
+      await pc.setLocalDescription(offer);
+      console.log("📡 [WebRTC] Transmitting SDP Offer to target:", targetId);
+      socket.emit("signal", {
+        targetId: targetId,
+        signal: { type: "offer", offer: offer }
+      });
+    } catch (err) {
+      console.error("❌ [WebRTC] Error creating SDP Offer:", err);
+    }
+  }
+}
+
+let pendingSignals = [];
+let pendingIceCandidates = [];
+
+async function handleWebRTCSignal(senderId, signal) {
+  // PRIVACY & SECURITY GUARD: Drop signals from un-matched sender IDs
+  if (currentMatchTargetId && senderId !== currentMatchTargetId) {
+    console.warn(`🛡️ [WebRTC Security] Blocked signal spoofing attempt from sender ${senderId} (Expected: ${currentMatchTargetId})`);
+    return;
+  }
+
+  if (!currentPeerConnection) {
+    console.log("⏳ [WebRTC Buffer] Signal arrived before currentPeerConnection ready. Queuing signal type:", signal.type || (signal.candidate ? "candidate" : "unknown"));
+    pendingSignals.push({ senderId, signal });
+    return;
+  }
+  await processWebRTCSignal(senderId, signal);
+}
+
+async function processWebRTCSignal(senderId, signal) {
+  if (!currentPeerConnection) return;
+  const pc = currentPeerConnection;
+
+  try {
+    if (signal.type === "offer") {
+      console.log("📥 [WebRTC] Received SDP Offer from:", senderId, ". Setting Remote Description & creating Answer...");
+      await pc.setRemoteDescription(new RTCSessionDescription(signal.offer));
+      while (pendingIceCandidates.length > 0) {
+        const cand = pendingIceCandidates.shift();
+        try { await pc.addIceCandidate(cand); } catch (e) {}
+      }
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      if (socket && socket.connected) {
+        console.log("📡 [WebRTC] Transmitting SDP Answer back to sender:", senderId);
+        socket.emit("signal", {
+          targetId: senderId,
+          signal: { type: "answer", answer: answer }
+        });
+      }
+    } else if (signal.type === "answer") {
+      console.log("📥 [WebRTC] Received SDP Answer from:", senderId, ". Setting Remote Description...");
+      await pc.setRemoteDescription(new RTCSessionDescription(signal.answer));
+      while (pendingIceCandidates.length > 0) {
+        const cand = pendingIceCandidates.shift();
+        try { await pc.addIceCandidate(cand); } catch (e) {}
+      }
+    } else if (signal.type === "candidate") {
+      if (signal.candidate) {
+        const cand = new RTCIceCandidate(signal.candidate);
+        if (pc.remoteDescription && pc.remoteDescription.type) {
+          console.log("🧊 [WebRTC] Added ICE Candidate directly to peer connection");
+          await pc.addIceCandidate(cand);
+        } else {
+          console.log("⏳ [WebRTC Buffer] Buffering ICE Candidate until remote description is set");
+          pendingIceCandidates.push(cand);
+        }
+      }
+    } else if (signal.type === "chat") {
+      appendChatMessage(signal.text, "received");
+    } else if (signal.type === "emoji") {
+      spawnFloatingEmoji(signal.emoji);
+    }
+  } catch (e) {
+    console.error("❌ [WebRTC Signal Error] Error processing WebRTC Signal:", e);
+  }
 }
 
 function findAndConnectPeer() {
-  lastConnectAttemptTime = Date.now();
-  const targetHostId = LOBBY_PREFIX + currentSlotScanIndex;
-
-  if (peer && !peer.destroyed) {
-    try {
-      peer.destroy();
-    } catch (e) {}
-    peer = null;
+  if (!validateMediaPermissions()) {
+    console.warn("🛡️ [Permission Security Guard] Pre-queue check failed! Live camera stream required.");
+    hideSearchingOverlay();
+    checkPermissionsAndAutoStart();
+    return;
   }
 
-  // Attempt to register as Host on targetHostId FIRST
-  peer = createPeerInstance(targetHostId);
+  initSocketConnection();
 
-  peer.on("open", (id) => {
-    myPeerId = id;
-    console.log("Registered as Waiting Host on slot:", id);
-    updateStatus("searching", "Waiting for a stranger to join...");
-    showSearchingOverlay(
-      "Waiting for a Stranger...",
-      "You are in the waiting queue. A peer will connect shortly.",
-    );
+  cleanupCallState();
+  updateStatus("searching", "Searching for a stranger...");
+  showSearchingOverlay(
+    "Searching for a Stranger...",
+    "Connecting you instantly to a random real person...",
+  );
 
-    if (simulatedFallbackTimeout) clearTimeout(simulatedFallbackTimeout);
-    simulatedFallbackTimeout = setTimeout(() => {
-      if (!currentCall) {
-        playSimulatedStrangerVideo();
-      }
-    }, 4000);
-  });
+  if (socket && socket.connected) {
+    console.log("⚡ [Socket Matchmaker] Socket active. Emitting join_queue immediately...");
+    socket.emit("join_queue");
+  } else if (socket) {
+    console.log("⚡ [Socket Matchmaker] Socket connecting... Queuing join_queue on connect event.");
+    socket.once("connect", () => {
+      console.log("⚡ [Socket Matchmaker] Connected! Emitting queued join_queue...");
+      socket.emit("join_queue");
+    });
+  }
 
-  peer.on("call", (call) => {
-    handleIncomingCall(call);
-  });
-
-  peer.on("connection", (conn) => {
-    setupDataConnection(conn);
-  });
-
-  peer.on("error", (err) => {
-    const errType = err ? err.type : "";
-    console.warn("Host Slot Registration Event (" + errType + ") on slot:", targetHostId, err);
-
-    if (errType === "unavailable-id" || errType === "id-taken" || errType === "peer-unavailable") {
-      // Host slot is already occupied by a waiting Host! Connect as Client to this Host!
-      console.log("Host slot occupied. Connecting as Client to Host slot:", targetHostId);
-      connectAsClientToHost(targetHostId);
+  // Smart 5-Second Search Chunk Timer
+  if (searchChunkTimer) clearTimeout(searchChunkTimer);
+  searchChunkTimer = setTimeout(() => {
+    searchChunkTimer = null;
+    // If no real human matched within 5 seconds, play 1 brief simulation video transition
+    if (!currentPeerConnection && !currentMatchTargetId && !currentCall) {
+      console.log("⏱️ [Search Radar] 5s elapsed without real human candidate. Playing 1 simulation video transition...");
+      playSimulatedStrangerVideo();
     } else {
-      console.warn("PeerJS Host Error (" + errType + "), retrying next slot...");
-      currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
-      if (retryMatchmakingTimeout) clearTimeout(retryMatchmakingTimeout);
-      retryMatchmakingTimeout = setTimeout(findAndConnectPeer, 500);
+      console.log("⏱️ [Search Radar] 5s elapsed, but real match/connection is already active or in progress.");
     }
-  });
-}
-
-/**
- * Connect to an occupied Host Slot as a Client
- */
-function connectAsClientToHost(hostId) {
-  if (peer && !peer.destroyed) {
-    try {
-      peer.destroy();
-    } catch (e) {}
-    peer = null;
-  }
-
-  const tempClientId = "client-" + Math.floor(Math.random() * 1000000);
-  previousTempClientId = tempClientId;
-
-  peer = createPeerInstance(tempClientId);
-
-  peer.on("open", (id) => {
-    myPeerId = id;
-    console.log("Registered Client Peer ID:", id, "Calling Host Slot:", hostId);
-
-    if (isPeerRecentlyMatched(hostId)) {
-      console.warn("Recently matched peer on slot:", hostId, "Advancing slot...");
-      currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
-      findAndConnectPeer();
-      return;
-    }
-
-    const call = peer.call(hostId, getActiveStream(), {
-      metadata: { sessionInstanceId: SESSION_INSTANCE_ID, callerId: peer.id }
-    });
-
-    if (!call) {
-      console.warn("Could not initiate call to host slot:", hostId);
-      currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
-      findAndConnectPeer();
-      return;
-    }
-
-    let connected = false;
-
-    const handleCallerFailure = (reason) => {
-      if (!connected && currentCall !== call) {
-        console.warn("Host connection failed (" + reason + ") on slot:", hostId);
-        try { call.close(); } catch (e) {}
-        if (hostConnectTimeout) {
-          clearTimeout(hostConnectTimeout);
-          hostConnectTimeout = null;
-        }
-        currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
-        if (retryMatchmakingTimeout) clearTimeout(retryMatchmakingTimeout);
-        retryMatchmakingTimeout = setTimeout(findAndConnectPeer, 300);
-      }
-    };
-
-    call.on("stream", (remoteStream) => {
-      connected = true;
-      currentCall = call;
-      currentRemotePeerId = hostId;
-      if (call && call.metadata && call.metadata.sessionInstanceId) {
-        currentRemoteSessionId = call.metadata.sessionInstanceId;
-      }
-      if (hostConnectTimeout) {
-        clearTimeout(hostConnectTimeout);
-        hostConnectTimeout = null;
-      }
-      stopSimulatedStrangerVideo();
-      onPeerConnected(remoteStream);
-      monitorICEConnection(call);
-    });
-
-    call.on("error", (err) => {
-      console.warn("Client Call Error on slot:", hostId, err);
-      handleCallerFailure("error");
-    });
-
-    call.on("close", () => {
-      if (!connected) {
-        handleCallerFailure("closed");
-      }
-    });
-
-    const conn = peer.connect(hostId, {
-      metadata: { sessionInstanceId: SESSION_INSTANCE_ID, callerId: peer.id }
-    });
-    setupDataConnection(conn);
-
-    if (hostConnectTimeout) {
-      clearTimeout(hostConnectTimeout);
-      hostConnectTimeout = null;
-    }
-
-    hostConnectTimeout = setTimeout(() => {
-      hostConnectTimeout = null;
-      handleCallerFailure("timeout_6500ms");
-    }, 6500);
-  });
-
-  peer.on("error", (err) => {
-    console.warn("Client Peer Error:", err);
-    currentSlotScanIndex = (currentSlotScanIndex % TOTAL_SLOTS) + 1;
-    if (retryMatchmakingTimeout) clearTimeout(retryMatchmakingTimeout);
-    retryMatchmakingTimeout = setTimeout(findAndConnectPeer, 500);
-  });
+  }, 5000);
 }
 
 function becomeWaitingHost(hostId) {
   findAndConnectPeer();
 }
 
-/**
- * Handle incoming WebRTC call
- */
 function handleIncomingCall(call) {
-  const callerSessionId = call.metadata && call.metadata.sessionInstanceId;
-  const callerId = call.peer || (call.metadata && call.metadata.callerId);
-  if (
-    callerSessionId === SESSION_INSTANCE_ID ||
-    callerId === previousTempClientId ||
-    callerId === myPeerId ||
-    isPeerRecentlyMatched(callerSessionId) ||
-    isPeerRecentlyMatched(callerId)
-  ) {
-    console.warn("🚫 Self-call or 3-minute blacklisted peer call blocked in handleIncomingCall (Session:", callerSessionId, "Peer:", callerId, ")");
-    try { call.close(); } catch (e) {}
-    return;
-  }
-
-  currentRemoteSessionId = callerSessionId;
-  currentRemotePeerId = callerId;
-
-  stopSimulatedStrangerVideo();
-  call.answer(getActiveStream());
-  currentCall = call;
-
-  call.on("stream", (remoteStream) => {
-    onPeerConnected(remoteStream);
-    monitorICEConnection(call);
-  });
+  findAndConnectPeer();
 }
 
 let isAutoSearchingAfterSkip = false;
@@ -1784,18 +1997,28 @@ function onPeerConnected(remoteStream) {
     if (localTrack && remoteTrack && localTrack.id === remoteTrack.id) {
       console.warn("Self-stream loop detected on remote stream! Dropping self-connection...");
       cleanupCallState();
-      becomeWaitingHost(LOBBY_PREFIX + currentSlotScanIndex);
+      findAndConnectPeer();
       return;
     }
   }
 
   stopSimulatedStrangerVideo();
   elements.remoteVideo.srcObject = remoteStream;
-  elements.remoteVideo.muted = false; // Ensure unmuted audio for live P2P stream (Curiosity Hook!)
+  elements.remoteVideo.muted = false; // Ensure unmuted audio for live P2P stream
+  
+  const playPromise = elements.remoteVideo.play();
+  if (playPromise !== undefined) {
+    playPromise.catch((err) => {
+      console.warn("⚠️ [WebRTC] Unmuted P2P stream playback prevented by browser policy, falling back to muted playback:", err);
+      elements.remoteVideo.muted = true;
+      elements.remoteVideo.play().catch((e) => console.error("❌ P2P video play retry failed:", e));
+    });
+  }
   adjustVideoAspectFit();
 
-  if (currentCall && currentCall.peer) {
-    addPeerToRecentlyMatchedBlacklist(currentCall.peer);
+  const matchedPeerId = currentMatchTargetId || (currentCall && currentCall.peer);
+  if (matchedPeerId) {
+    addPeerToRecentlyMatchedBlacklist(matchedPeerId);
   }
 
   hideSearchingOverlay();
@@ -1922,9 +2145,12 @@ function sendEmojiReaction(emojiSymbol) {
 
   spawnFloatingEmoji(emojiSymbol);
 
-  if (chatConn && chatConn.open) {
+  if (currentMatchTargetId && socket && socket.connected) {
     try {
-      chatConn.send({ type: "reaction", emoji: emojiSymbol });
+      socket.emit("signal", {
+        targetId: currentMatchTargetId,
+        signal: { type: "emoji", emoji: emojiSymbol }
+      });
     } catch (e) {}
   }
 
@@ -2090,10 +2316,12 @@ let bgProcessedStream = null;
 let isBgProcessingLoopActive = false;
 
 function getActiveStream() {
-  if (currentBgEffectType !== "none" && bgProcessedStream) {
-    return bgProcessedStream;
+  const stream = (currentBgEffectType !== "none" && bgProcessedStream) ? bgProcessedStream : localStream;
+  if (stream) {
+    stream.getAudioTracks().forEach((t) => (t.enabled = !isAudioMuted));
+    stream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
   }
-  return localStream;
+  return stream;
 }
 
 let strangerMatchCount = 0;
@@ -2481,10 +2709,11 @@ function applyBgEffectToStreams() {
     elements.localVideo.srcObject = activeStream;
   }
 
-  if (currentCall && currentCall.peerConnection && activeStream) {
+  const pc = currentPeerConnection || (currentCall && currentCall.peerConnection);
+  if (pc && activeStream) {
     const videoTrack = activeStream.getVideoTracks()[0];
     if (videoTrack) {
-      const senders = currentCall.peerConnection.getSenders();
+      const senders = pc.getSenders();
       const videoSender = senders.find((s) => s.track && s.track.kind === "video");
       if (videoSender) {
         videoSender.replaceTrack(videoTrack);
@@ -2502,8 +2731,11 @@ function sendChatMessage() {
   const text = input.value.trim();
   if (!text) return;
 
-  if (chatConn && chatConn.open) {
-    chatConn.send(text);
+  if (currentMatchTargetId && socket && socket.connected) {
+    socket.emit("signal", {
+      targetId: currentMatchTargetId,
+      signal: { type: "chat", text: text }
+    });
     appendChatMessage(text, "sent");
     input.value = "";
   } else {
@@ -2536,12 +2768,26 @@ function triggerChatAutoFade() {
  * Append chat message bubble to drawer UI
  */
 function appendChatMessage(text, type) {
+  const container = document.getElementById("chat-messages") || elements.chatMessages;
+  if (!container) return;
   const msgEl = document.createElement("div");
   msgEl.className = `chat-msg ${type}`;
   msgEl.textContent = text;
-  elements.chatMessages.appendChild(msgEl);
-  elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+  container.appendChild(msgEl);
+  container.scrollTop = container.scrollHeight;
   triggerChatAutoFade();
+
+  if (type === "received") {
+    const drawer = document.getElementById("chat-drawer") || elements.chatDrawer;
+    if (drawer && drawer.classList.contains("closed")) {
+      unreadMessagesCount++;
+      const badge = document.getElementById("unread-badge") || elements.unreadBadge;
+      if (badge) {
+        badge.textContent = unreadMessagesCount;
+        badge.classList.remove("hidden");
+      }
+    }
+  }
 }
 
 function appendSystemChatMessage(text) {
@@ -2559,6 +2805,13 @@ function toggleAudio() {
   }
   if (bgProcessedStream) {
     bgProcessedStream.getAudioTracks().forEach((t) => (t.enabled = !isAudioMuted));
+  }
+  if (currentPeerConnection) {
+    currentPeerConnection.getSenders().forEach((sender) => {
+      if (sender.track && sender.track.kind === "audio") {
+        sender.track.enabled = !isAudioMuted;
+      }
+    });
   }
 
   const btnMute = elements.btnMute || document.getElementById("btn-mute");
@@ -2580,6 +2833,13 @@ function toggleVideo() {
   }
   if (bgProcessedStream) {
     bgProcessedStream.getVideoTracks().forEach((t) => (t.enabled = !isVideoOff));
+  }
+  if (currentPeerConnection) {
+    currentPeerConnection.getSenders().forEach((sender) => {
+      if (sender.track && sender.track.kind === "video") {
+        sender.track.enabled = !isVideoOff;
+      }
+    });
   }
 
   const btnVideo = elements.btnVideo || document.getElementById("btn-video");
@@ -2603,8 +2863,8 @@ function toggleVideo() {
  * Report & Block Current Stranger
  */
 function reportAndBlockStranger() {
-  if (currentCall && currentCall.peer) {
-    const blockedPeerId = currentCall.peer;
+  const blockedPeerId = currentMatchTargetId || (currentCall && currentCall.peer);
+  if (blockedPeerId) {
     try {
       const blocked = JSON.parse(
         localStorage.getItem("p2p_blocked_peers") || "[]",
@@ -2668,6 +2928,11 @@ function updateToolbarVisibility(state) {
  * Disconnect and Stop Current Call (Releases Local Camera Stream)
  */
 function stopCall() {
+  isStoppedByUser = true;
+  if (socket && socket.connected) {
+    console.log("🛑 [Socket Matchmaker] Emitting leave_queue on stopCall...");
+    socket.emit("leave_queue");
+  }
   cleanupCallState();
 
   // Stop & Release local user camera & mic stream tracks
@@ -2691,11 +2956,15 @@ function stopCall() {
  * Clean Call State & Peer Objects (No Page Reload)
  */
 function cleanupCallState() {
+  pendingIceCandidates = [];
   stopSimulatedStrangerVideo();
   stopInCallAdsterraJitterEngine();
   stopInCallToolbarAutoHider();
 
-
+  if (searchChunkTimer) {
+    clearTimeout(searchChunkTimer);
+    searchChunkTimer = null;
+  }
   if (hostConnectTimeout) {
     clearTimeout(hostConnectTimeout);
     hostConnectTimeout = null;
@@ -2708,6 +2977,14 @@ function cleanupCallState() {
     clearTimeout(simulatedFallbackTimeout);
     simulatedFallbackTimeout = null;
   }
+
+  if (currentPeerConnection) {
+    try {
+      currentPeerConnection.close();
+    } catch (e) {}
+    currentPeerConnection = null;
+  }
+  currentMatchTargetId = null;
 
   if (currentCall) {
     try {
@@ -2730,14 +3007,18 @@ function cleanupCallState() {
     peer = null;
   }
 
-  elements.remoteVideo.srcObject = null;
+  if (elements.remoteVideo) {
+    elements.remoteVideo.srcObject = null;
+  }
 
   // Wipe chat history cleanly for complete privacy across new stranger connections
   if (elements.chatMessages) {
     elements.chatMessages.innerHTML = "";
   }
   unreadMessagesCount = 0;
-  elements.unreadBadge.classList.add("hidden");
+  if (elements.unreadBadge) {
+    elements.unreadBadge.classList.add("hidden");
+  }
 
   // Reset video swap state to normal mode
   isVideoSwapped = false;
@@ -2954,8 +3235,7 @@ async function fetchActiveUsersBackend() {
       updateOnlineUsersDisplay(data.activeUsers);
     }
   } catch (e) {
-    // If backend server is offline during dev/test, fallback gracefully to 1
-    updateOnlineUsersDisplay(1);
+    // Retain socket online users count dynamically
   }
 }
 
@@ -3030,10 +3310,10 @@ async function recordAdImpressionBackend(
 
 
 function updateOnlineUsersDisplay(count) {
-  currentOnlineUsersCount = Math.max(1, count);
+  currentOnlineUsersCount = Math.max(0, count);
   const badgeEl = document.getElementById("online-users-badge");
 
-  if (currentOnlineUsersCount < 700) {
+  if (currentOnlineUsersCount < MIN_ONLINE_USERS_THRESHOLD) {
     if (badgeEl) {
       badgeEl.classList.add("hidden");
       badgeEl.style.setProperty("display", "none", "important");
@@ -3956,6 +4236,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initAntiDevToolsProtection();
   initScreenCaptureInterception();
   initVisualViewportHandler();
+  initSocketConnection();
 });
 
 

@@ -350,7 +350,7 @@
 
           <!-- Remote Video Feed -->
           <div class="remote-video-container">
-            <video id="remote" autoplay playsinline></video>
+            <video id="remote" autoplay playsinline webkit-playsinline></video>
 
             <!-- Focus Loss & Tab Switch Privacy Shield Overlay -->
             <div
@@ -584,7 +584,7 @@
             onclick="toggleVideoSwap()"
             title="Click to swap video screens"
           >
-            <video id="local" autoplay muted playsinline></video>
+            <video id="local" autoplay muted playsinline webkit-playsinline></video>
             <span class="pip-label" id="pip-label">You</span>
 
             <div class="pip-action-bar">
@@ -1039,6 +1039,63 @@
       </div>
     </div>
 
+    <!-- Mandatory Permission Guidance & Unblock Security Modal -->
+    <div class="modal-overlay hidden" id="permission-guidance-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-icon-badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">
+            <i class="fa-solid fa-video"></i>
+          </div>
+          <div class="modal-header-text">
+            <h3>Camera & Microphone Required</h3>
+            <p class="modal-sub">HashGANG Chat is a 100% live video chat platform. Camera and microphone access is mandatory to meet strangers.</p>
+          </div>
+        </div>
+
+        <div class="modal-body">
+          <div class="perm-benefits-grid">
+            <div class="perm-benefit-item">
+              <i class="fa-solid fa-shield-halved perm-benefit-icon" style="color: var(--accent-cyan);"></i>
+              <div>
+                <strong style="display: block; color: var(--text-primary); margin-bottom: 2px;">100% Private & Encrypted</strong>
+                <span style="color: var(--text-muted);">Direct encrypted calls. Zero video recordings stored.</span>
+              </div>
+            </div>
+            <div class="perm-benefit-item">
+              <i class="fa-solid fa-users perm-benefit-icon" style="color: var(--accent-magenta);"></i>
+              <div>
+                <strong style="display: block; color: var(--text-primary); margin-bottom: 2px;">100% Real Video Strangers</strong>
+                <span style="color: var(--text-muted);">Every stranger you meet is also live on video.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step-by-Step Universal Unblock Guide Box (Web, PWA & Mobile Compatible) -->
+          <div class="unblock-guide-box hidden" id="unblock-guide-box">
+            <div style="display: flex; align-items: center; gap: 8px; color: #fb7185; font-weight: 600; margin-bottom: 8px;">
+              <i class="fa-solid fa-lock"></i>
+              <span>Camera & Microphone Access Blocked</span>
+            </div>
+            <p style="margin-bottom: 8px; color: var(--text-secondary);">Camera access is disabled in your site or device permissions.</p>
+            <ol style="padding-left: 18px; line-height: 1.5; color: var(--text-muted); margin-bottom: 0;">
+              <li>Open <strong>Site / App Settings</strong> (or tap <strong>🔒 Lock icon</strong> in address bar).</li>
+              <li>Set <strong>Camera</strong> & <strong>Microphone</strong> permissions to <strong>Allow</strong>.</li>
+              <li>Click <strong>Refresh & Retry</strong> below!</li>
+            </ol>
+          </div>
+        </div>
+
+        <div class="modal-footer" style="flex-direction: column; gap: 10px;">
+          <button class="btn-modal-agree" id="btn-request-perm" onclick="requestMediaPermissionAndProceed()">
+            <i class="fa-solid fa-video"></i> Enable Camera & Microphone
+          </button>
+          <button class="btn-action-secondary hidden" id="btn-perm-refresh" onclick="window.location.reload()" style="width: 100%; padding: 12px; border-radius: var(--radius-md);">
+            <i class="fa-solid fa-arrows-rotate"></i> Refresh & Retry
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Universal Natural AI GPU SVG Beauty Filter Definition -->
     <svg style="display: none; height: 0; width: 0">
       <defs>
@@ -1360,7 +1417,9 @@
     <script src="ads.js?v=50" defer></script>
     <!-- Ad Waterfall Mediation Config -->
     <script src="ad_mediation_config.js?v=50" defer></script>
+    <!-- Socket.io Real-Time Signaling Client -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
     <!-- App Logic -->
-    <script src="app.js?v=50" defer></script>
+    <script src="app.js?v=57" defer></script>
   </body>
 </html>
