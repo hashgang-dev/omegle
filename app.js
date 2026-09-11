@@ -1723,15 +1723,35 @@ async function createWebRTCPeerConnection(targetId, isInitiator) {
     }
   }
 
-  // Add local camera/mic stream tracks
-  const stream = getActiveStream();
-  if (stream) {
-    console.log("🎥 [WebRTC] Adding local media tracks to peer connection...");
-    stream.getTracks().forEach((track) => {
-      pc.addTrack(track, stream);
+  // Combine local microphone audio and video tracks into a unified MediaStream for WebRTC transmission
+  const activeStream = getActiveStream();
+  const mediaStreamToSend = new MediaStream();
+  let hasTracks = false;
+
+  if (localStream) {
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !isAudioMuted;
+      mediaStreamToSend.addTrack(audioTrack);
+      hasTracks = true;
+      console.log("🎙️ [WebRTC] Added microphone audio track to unified stream (enabled:", audioTrack.enabled, ")");
+    }
+  }
+
+  const videoTrack = (activeStream || localStream) ? (activeStream || localStream).getVideoTracks()[0] : null;
+  if (videoTrack) {
+    videoTrack.enabled = !isVideoOff;
+    mediaStreamToSend.addTrack(videoTrack);
+    hasTracks = true;
+    console.log("🎥 [WebRTC] Added video track to unified stream (enabled:", videoTrack.enabled, ")");
+  }
+
+  if (hasTracks) {
+    mediaStreamToSend.getTracks().forEach((track) => {
+      pc.addTrack(track, mediaStreamToSend);
     });
   } else {
-    console.warn("⚠️ [WebRTC] No active local stream available to attach!");
+    console.warn("⚠️ [WebRTC] No active local tracks available to attach!");
   }
 
   // Handle incoming remote media tracks
@@ -2004,14 +2024,16 @@ function onPeerConnected(remoteStream) {
 
   stopSimulatedStrangerVideo();
   elements.remoteVideo.srcObject = remoteStream;
-  elements.remoteVideo.muted = false; // Ensure unmuted audio for live P2P stream
+  elements.remoteVideo.muted = false; // Always unmuted for live P2P stranger audio
+  elements.remoteVideo.volume = 1.0;
   
   const playPromise = elements.remoteVideo.play();
   if (playPromise !== undefined) {
     playPromise.catch((err) => {
-      console.warn("⚠️ [WebRTC] Unmuted P2P stream playback prevented by browser policy, falling back to muted playback:", err);
-      elements.remoteVideo.muted = true;
-      elements.remoteVideo.play().catch((e) => console.error("❌ P2P video play retry failed:", e));
+      console.warn("⚠️ [WebRTC] Playback attempt error:", err);
+      // Retry playback with unmuted audio
+      elements.remoteVideo.muted = false;
+      elements.remoteVideo.play().catch(() => {});
     });
   }
   adjustVideoAspectFit();
