@@ -825,7 +825,9 @@ async function handleStartOrNext() {
     } catch (e) {}
   }
 
+  let wasActivePeerCall = false;
   if (socket && socket.connected && currentMatchTargetId) {
+    wasActivePeerCall = true;
     console.log("⏭️ [Socket Matchmaker] Emitting skip_peer to signaling server...");
     socket.emit("skip_peer");
   }
@@ -863,8 +865,10 @@ async function handleStartOrNext() {
     return;
   }
 
-  // Start automated zero-cost matchmaking (search radar 5s chunk timer is managed inside findAndConnectPeer)
-  findAndConnectPeer();
+  // If skipping active call, backend skip_peer triggers auto_rejoin. Otherwise (initial start), connect directly.
+  if (!wasActivePeerCall) {
+    findAndConnectPeer();
+  }
 }
 
 /**
