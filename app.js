@@ -34,8 +34,8 @@ const BRAND_AD_SKIP_SECONDS = 5; // Enable skip button after 5 seconds
 const SESSION_INSTANCE_ID = "sess_" + Date.now() + "_" + Math.floor(Math.random() * 10000000);
 let previousTempClientId = null;
 
-// Anti-Repetitive Peer Blacklist Engine (3-Minute Cooldown Memory)
-const RECENTLY_MATCHED_PEERS_COOLDOWN_MS = 180000; // 3 Minutes (180,000ms)
+// Anti-Repetitive Peer Blacklist Engine (1-Minute Cooldown Memory)
+const RECENTLY_MATCHED_PEERS_COOLDOWN_MS = 60000; // 1 Minute (60,000ms)
 const recentlyMatchedPeers = new Map();
 
 let currentRemoteSessionId = null;
@@ -696,7 +696,9 @@ async function checkPermissionsAndAutoStart() {
   const success = await initLocalMedia();
   if (success && validateMediaPermissions()) {
     hidePermissionGuidanceModal();
-    handleStartOrNext();
+    if (!currentPeerConnection && !currentMatchTargetId && !isSocketConnected) {
+      handleStartOrNext();
+    }
   } else {
     showPermissionGuidanceModal(true);
   }
@@ -797,8 +799,8 @@ let lastStartOrNextClickTime = 0;
 
 async function handleStartOrNext() {
   const now = Date.now();
-  if (now - lastStartOrNextClickTime < 300) {
-    console.log("⏱️ [Throttle Guard] Rapid click ignored (<300ms)");
+  if (now - lastStartOrNextClickTime < 300 || isInitializingMedia) {
+    console.log("⏱️ [Throttle Guard] Rapid click or media initialization in progress ignored");
     return;
   }
   lastStartOrNextClickTime = now;
@@ -1169,7 +1171,10 @@ function clearChatMessages() {
 }
 
 function playSimulatedStrangerVideo() {
-  if (currentCall) return;
+  if (currentCall || currentPeerConnection || currentMatchTargetId) {
+    console.log("🛑 [Simulation Guard] Suppressing simulated video playback because real P2P match is active!");
+    return;
+  }
 
   // Threshold Guard: When active online users count >= 300, disable simulated videos to force 100% organic stranger matching
   if (currentOnlineUsersCount >= SIMULATED_VIDEO_DISABLE_THRESHOLD) {
@@ -1432,7 +1437,11 @@ function stopSimulatedStrangerVideo() {
 /**
  * Capture Local User Camera and Microphone with Adaptive Multi-Device Resolution Fallback
  */
+let isInitializingMedia = false;
+
 async function initLocalMedia() {
+  if (isInitializingMedia) return localStream !== null;
+  isInitializingMedia = true;
   const mediaConstraintsHierarchy = [
     // Priority 1: 720p HD (Ideal for Desktop & Modern Smartphones)
     {
@@ -1542,6 +1551,8 @@ async function initLocalMedia() {
     updateStatus("error", "Permission Denied");
     showPermissionGuidanceModal(true);
     return false;
+  } finally {
+    isInitializingMedia = false;
   }
 }
 
@@ -2049,6 +2060,10 @@ function onPeerConnected(remoteStream) {
     }
   }
 
+  if (searchChunkTimer) {
+    clearTimeout(searchChunkTimer);
+    searchChunkTimer = null;
+  }
   stopSimulatedStrangerVideo();
   if (elements.remoteVideo.srcObject !== remoteStream) {
     elements.remoteVideo.srcObject = remoteStream;
@@ -2066,11 +2081,6 @@ function onPeerConnected(remoteStream) {
     });
   }
   adjustVideoAspectFit();
-
-  const matchedPeerId = currentMatchTargetId || (currentCall && currentCall.peer);
-  if (matchedPeerId) {
-    addPeerToRecentlyMatchedBlacklist(matchedPeerId);
-  }
 
   hideSearchingOverlay();
   hideFirewallWarning();
