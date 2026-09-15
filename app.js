@@ -103,13 +103,16 @@ const STUN_CONFIG = {
     { urls: "stun:stun.l.google.com:19302" },
     { urls: "stun:stun1.l.google.com:19302" },
     { urls: "stun:stun2.l.google.com:19302" },
+    { urls: "stun:stun3.l.google.com:19302" },
+    { urls: "stun:stun4.l.google.com:19302" },
     { urls: "stun:stun.cloudflare.com:3478" },
     { urls: "stun:global.stun.twilio.com:3478" },
     {
       urls: [
         "turn:openrelay.metered.ca:80",
         "turn:openrelay.metered.ca:443",
-        "turn:openrelay.metered.ca:443?transport=tcp"
+        "turn:openrelay.metered.ca:443?transport=tcp",
+        "turns:openrelay.metered.ca:443"
       ],
       username: "openrelay",
       credential: "openrelay"
@@ -822,7 +825,12 @@ async function handleStartOrNext() {
     } catch (e) {}
   }
 
-  // Blacklist skipped peer ID & Session ID for 3 minutes to prevent immediate re-matching
+  if (socket && socket.connected && currentMatchTargetId) {
+    console.log("⏭️ [Socket Matchmaker] Emitting skip_peer to signaling server...");
+    socket.emit("skip_peer");
+  }
+
+  // Blacklist skipped peer ID & Session ID to prevent immediate re-matching
   blacklistCurrentPeerSession();
 
   cleanupCallState();
@@ -1466,7 +1474,9 @@ async function initLocalMedia() {
 
   try {
     localStream = acquiredStream;
+    elements.localVideo.muted = true;
     elements.localVideo.srcObject = getActiveStream();
+    elements.localVideo.play().catch((e) => console.warn("Local preview play notice:", e));
 
     // Attach Layer 2 Runtime Security Monitors: Detect camera disconnect or permission revocation mid-call
     const videoTrack = localStream.getVideoTracks()[0];
@@ -1668,8 +1678,18 @@ function initSocketConnection() {
       stopSimulatedStrangerVideo();
       currentMatchTargetId = data.peerId;
       currentRemotePeerId = data.peerId;
+
+      // Ensure local stream tracks are acquired before creating WebRTC peer connection
+      if (!localStream) {
+        console.log("🎙️ [WebRTC Guard] Ensuring local media is initialized before peer connection setup...");
+        try {
+          await initLocalMedia();
+        } catch (err) {
+          console.error("❌ [WebRTC Guard] Failed to initialize local media on match:", err);
+        }
+      }
       
-      createWebRTCPeerConnection(data.peerId, data.initiator);
+      await createWebRTCPeerConnection(data.peerId, data.initiator);
     });
 
     socket.on("signal", async (data) => {
@@ -1680,7 +1700,8 @@ function initSocketConnection() {
 
     socket.on("peer_left", () => {
       console.log("🔌 [Socket Matchmaker] Peer left notification received from server");
-      if (!isStoppedByUser && !isAutoSearchingAfterSkip && !isSimulatedCallActive) {
+      stopSimulatedStrangerVideo();
+      if (!isStoppedByUser && !isAutoSearchingAfterSkip) {
         onPeerSkippedUs();
       }
     });
@@ -1719,48 +1740,50 @@ async function createWebRTCPeerConnection(targetId, isInitiator) {
     console.log(`📦 [WebRTC] Processing ${pendingSignals.length} buffered pending signals...`);
     while (pendingSignals.length > 0) {
       const item = pendingSignals.shift();
-      processWebRTCSignal(item.senderId, item.signal);
+      await processWebRTCSignal(item.senderId, item.signal);
     }
   }
 
-  // Combine local microphone audio and video tracks into a unified MediaStream for WebRTC transmission
-  const activeStream = getActiveStream();
-  const mediaStreamToSend = new MediaStream();
+  // Combine local microphone audio and video tracks for WebRTC transmission
+  const activeStream = getActiveStream() || localStream;
   let hasTracks = false;
 
-  if (localStream) {
-    const audioTrack = localStream.getAudioTracks()[0];
-    if (audioTrack) {
-      audioTrack.enabled = !isAudioMuted;
-      mediaStreamToSend.addTrack(audioTrack);
+  if (activeStream) {
+    activeStream.getTracks().forEach((track) => {
+      if (track.kind === "audio") track.enabled = !isAudioMuted;
+      if (track.kind === "video") track.enabled = !isVideoOff;
+      pc.addTrack(track, activeStream);
       hasTracks = true;
-      console.log("🎙️ [WebRTC] Added microphone audio track to unified stream (enabled:", audioTrack.enabled, ")");
-    }
-  }
-
-  const videoTrack = (activeStream || localStream) ? (activeStream || localStream).getVideoTracks()[0] : null;
-  if (videoTrack) {
-    videoTrack.enabled = !isVideoOff;
-    mediaStreamToSend.addTrack(videoTrack);
-    hasTracks = true;
-    console.log("🎥 [WebRTC] Added video track to unified stream (enabled:", videoTrack.enabled, ")");
-  }
-
-  if (hasTracks) {
-    mediaStreamToSend.getTracks().forEach((track) => {
-      pc.addTrack(track, mediaStreamToSend);
+      console.log(`🎙️ [WebRTC] Added local ${track.kind} track to peer connection (enabled: ${track.enabled})`);
     });
-  } else {
-    console.warn("⚠️ [WebRTC] No active local tracks available to attach!");
   }
 
-  // Handle incoming remote media tracks
+  if (!hasTracks && localStream) {
+    localStream.getTracks().forEach((track) => {
+      if (track.kind === "audio") track.enabled = !isAudioMuted;
+      if (track.kind === "video") track.enabled = !isVideoOff;
+      pc.addTrack(track, localStream);
+      hasTracks = true;
+      console.log(`🎙️ [WebRTC Fallback] Added localStream ${track.kind} track to peer connection`);
+    });
+  }
+
+  if (!hasTracks) {
+    console.warn("⚠️ [WebRTC Warning] No local media tracks available to attach!");
+  }
+
+  // Handle incoming remote media tracks cleanly
+  let currentRemoteStream = null;
   pc.ontrack = (event) => {
-    console.log("🎥 [WebRTC] Remote Media Track Received via WebRTC! Stream ID:", event.streams[0] ? event.streams[0].id : "N/A");
-    if (event.streams && event.streams[0]) {
-      stopSimulatedStrangerVideo();
-      onPeerConnected(event.streams[0]);
+    console.log("🎥 [WebRTC] Remote Media Track Received via WebRTC! Kind:", event.track ? event.track.kind : "N/A");
+    if (!currentRemoteStream) {
+      currentRemoteStream = (event.streams && event.streams[0]) ? event.streams[0] : new MediaStream();
     }
+    if (event.track && !currentRemoteStream.getTracks().some((t) => t.id === event.track.id)) {
+      currentRemoteStream.addTrack(event.track);
+    }
+    stopSimulatedStrangerVideo();
+    onPeerConnected(currentRemoteStream);
   };
 
   // ICE Candidate gathering
@@ -1785,13 +1808,13 @@ async function createWebRTCPeerConnection(targetId, isInitiator) {
       setTimeout(() => {
         if (pc && pc.iceConnectionState === "disconnected") {
           console.warn("⚠️ [WebRTC] ICE disconnect timeout reached (4s). Auto-skipping to next stranger.");
-          if (!isAutoSearchingAfterSkip && !isSimulatedCallActive) {
+          if (!isAutoSearchingAfterSkip) {
             onPeerSkippedUs();
           }
         }
       }, 4000);
     } else if (pc.iceConnectionState === "failed" || pc.iceConnectionState === "closed") {
-      if (!isAutoSearchingAfterSkip && !isSimulatedCallActive) {
+      if (!isAutoSearchingAfterSkip) {
         console.warn("❌ [WebRTC] ICE connection failed/closed. Auto-skipping...");
         onPeerSkippedUs();
       }
@@ -2023,17 +2046,19 @@ function onPeerConnected(remoteStream) {
   }
 
   stopSimulatedStrangerVideo();
-  elements.remoteVideo.srcObject = remoteStream;
+  if (elements.remoteVideo.srcObject !== remoteStream) {
+    elements.remoteVideo.srcObject = remoteStream;
+  }
   elements.remoteVideo.muted = false; // Always unmuted for live P2P stranger audio
   elements.remoteVideo.volume = 1.0;
   
   const playPromise = elements.remoteVideo.play();
   if (playPromise !== undefined) {
     playPromise.catch((err) => {
-      console.warn("⚠️ [WebRTC] Playback attempt error:", err);
-      // Retry playback with unmuted audio
-      elements.remoteVideo.muted = false;
-      elements.remoteVideo.play().catch(() => {});
+      console.warn("⚠️ [WebRTC] Unmuted playback attempt blocked by browser policy:", err);
+      // Fallback: start muted playback so video displays, then try unmuting on user interaction
+      elements.remoteVideo.muted = true;
+      elements.remoteVideo.play().catch((e) => console.error("Muted retry failed:", e));
     });
   }
   adjustVideoAspectFit();
