@@ -1971,7 +1971,8 @@ video#local.beauty-off, video#remote.beauty-off {
   outline: none;
   direction: ltr !important;
   text-align: left !important;
-  unicode-bidi: normal !important;
+  unicode-bidi: isolate !important;
+  writing-mode: horizontal-tb !important;
 }
 
 [data-theme="light"] .hud-chat-input-area input {

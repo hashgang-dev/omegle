@@ -3166,11 +3166,10 @@ function sendChatMessage() {
   const text = rawText.trim();
   if (!text) return;
 
-  // Forcibly close Android Gboard/IME composition session cleanly before clearing input value
-  if (document.activeElement === input) {
-    input.blur();
-  }
-  input.value = "";
+  // Clear input value on next microtask so Android Gboard finishes native IME cycle cleanly without text reversal
+  setTimeout(() => {
+    if (input) input.value = "";
+  }, 0);
 
   if (currentMatchTargetId && socket && socket.connected) {
     socket.emit("signal", {
@@ -3184,13 +3183,6 @@ function sendChatMessage() {
       "⚠️ Note: You are not connected to a stranger yet. Click 'Start Chat' to connect and chat!",
     );
   }
-
-  // Restore focus for next message without keyboard flicker
-  setTimeout(() => {
-    if (input && !isStoppedByUser) {
-      input.focus();
-    }
-  }, 60);
 }
 
 let chatInactivityTimer = null;
@@ -4523,31 +4515,29 @@ function initVisualViewportHandler() {
     if (window.scrollY !== 0) {
       window.scrollTo(0, 0);
     }
-    if (!window.visualViewport) return;
     const vv = window.visualViewport;
-    const isKeyboardOpen = (window.innerHeight - vv.height) > 100;
+    const vvHeight = vv ? vv.height : window.innerHeight;
+    const screenH = (window.screen && window.screen.height) ? window.screen.height : 800;
 
-    if (!chatDrawer.classList.contains("closed") && (document.activeElement === chatInput || isKeyboardOpen)) {
-      if (isKeyboardOpen) {
-        chatDrawer.classList.add("keyboard-active");
-        const bottomPos = Math.max(8, window.innerHeight - vv.height + 8);
-        chatDrawer.style.setProperty("top", "54px", "important");
-        chatDrawer.style.setProperty("bottom", `${bottomPos}px`, "important");
-        chatDrawer.style.setProperty("height", "auto", "important");
-        chatDrawer.style.setProperty("max-height", `${vv.height - 60}px`, "important");
-      } else {
-        chatDrawer.classList.remove("keyboard-active");
-        chatDrawer.style.top = "";
-        chatDrawer.style.bottom = "";
-        chatDrawer.style.height = "";
-        chatDrawer.style.maxHeight = "";
-      }
+    const isFocus = document.activeElement === chatInput;
+    const isKeyboardOpen = isFocus || (screenH - vvHeight > 150) || (window.innerHeight - vvHeight > 80);
+
+    if (!chatDrawer.classList.contains("closed") && (isFocus || isKeyboardOpen)) {
+      chatDrawer.classList.add("keyboard-active");
+      chatDrawer.style.setProperty("position", "fixed", "important");
+      chatDrawer.style.setProperty("top", "54px", "important");
+      chatDrawer.style.setProperty("height", `${Math.max(180, vvHeight - 56)}px`, "important");
+      chatDrawer.style.setProperty("bottom", "auto", "important");
+      chatDrawer.style.setProperty("max-height", `${Math.max(180, vvHeight - 56)}px`, "important");
+      chatDrawer.style.setProperty("z-index", "9999", "important");
     } else {
       chatDrawer.classList.remove("keyboard-active");
+      chatDrawer.style.position = "";
       chatDrawer.style.top = "";
       chatDrawer.style.bottom = "";
       chatDrawer.style.height = "";
       chatDrawer.style.maxHeight = "";
+      chatDrawer.style.zIndex = "";
     }
   };
 
