@@ -4499,21 +4499,31 @@ function initVisualViewportHandler() {
   const updateDrawerPosition = () => {
     setMobileVh();
     if (!window.visualViewport) return;
-    if (!chatDrawer.classList.contains("closed") && document.activeElement === chatInput) {
-      const vv = window.visualViewport;
-      const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
-      if (keyboardHeight > 100) {
+    const vv = window.visualViewport;
+    const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
+    const isKeyboardOpen = keyboardHeight > 100 || (window.innerHeight - vv.height) > 120;
+
+    if (!chatDrawer.classList.contains("closed") && (document.activeElement === chatInput || isKeyboardOpen)) {
+      if (isKeyboardOpen) {
         chatDrawer.classList.add("keyboard-active");
-        chatDrawer.style.setProperty("bottom", `${keyboardHeight + 10}px`, "important");
-        chatDrawer.style.setProperty("max-height", `${vv.height - 70}px`, "important");
+        const topPos = Math.max(52, vv.offsetTop + 52);
+        const bottomPos = Math.max(8, window.innerHeight - (vv.offsetTop + vv.height) + 8);
+        chatDrawer.style.setProperty("top", `${topPos}px`, "important");
+        chatDrawer.style.setProperty("bottom", `${bottomPos}px`, "important");
+        chatDrawer.style.setProperty("height", "auto", "important");
+        chatDrawer.style.setProperty("max-height", `${vv.height - 60}px`, "important");
       } else {
         chatDrawer.classList.remove("keyboard-active");
+        chatDrawer.style.top = "";
         chatDrawer.style.bottom = "";
+        chatDrawer.style.height = "";
         chatDrawer.style.maxHeight = "";
       }
     } else {
       chatDrawer.classList.remove("keyboard-active");
+      chatDrawer.style.top = "";
       chatDrawer.style.bottom = "";
+      chatDrawer.style.height = "";
       chatDrawer.style.maxHeight = "";
     }
   };
@@ -4535,7 +4545,9 @@ function initVisualViewportHandler() {
   chatInput.addEventListener("blur", () => {
     setTimeout(() => {
       chatDrawer.classList.remove("keyboard-active");
+      chatDrawer.style.top = "";
       chatDrawer.style.bottom = "";
+      chatDrawer.style.height = "";
       chatDrawer.style.maxHeight = "";
       setMobileVh();
     }, 150);
