@@ -3155,10 +3155,16 @@ function applyBgEffectToStreams() {
   }
 }
 
+let lastSendTimestamp = 0;
+
 /**
  * Send P2P Text Message over DataChannel
  */
 function sendChatMessage() {
+  const now = Date.now();
+  if (now - lastSendTimestamp < 250) return; // Prevent duplicate rapid sends
+  lastSendTimestamp = now;
+
   const input = document.getElementById("chat-input") || elements.chatInput;
   if (!input) return;
   const rawText = input.value;
@@ -4512,17 +4518,20 @@ function initVisualViewportHandler() {
 
   const updateDrawerPosition = () => {
     setMobileVh();
-    if (window.scrollY !== 0) {
+    const isMobileDevice = window.innerWidth <= 768 || ('ontouchstart' in window && window.innerWidth <= 1024);
+
+    if (isMobileDevice && window.scrollY !== 0) {
       window.scrollTo(0, 0);
     }
+
     const vv = window.visualViewport;
     const vvHeight = vv ? vv.height : window.innerHeight;
     const screenH = (window.screen && window.screen.height) ? window.screen.height : 800;
 
     const isFocus = document.activeElement === chatInput;
-    const isKeyboardOpen = isFocus || (screenH - vvHeight > 150) || (window.innerHeight - vvHeight > 80);
+    const isKeyboardOpen = isMobileDevice && (isFocus || (screenH - vvHeight > 150) || (window.innerHeight - vvHeight > 80));
 
-    if (!chatDrawer.classList.contains("closed") && (isFocus || isKeyboardOpen)) {
+    if (isMobileDevice && !chatDrawer.classList.contains("closed") && isKeyboardOpen) {
       chatDrawer.classList.add("keyboard-active");
       chatDrawer.style.setProperty("position", "fixed", "important");
       chatDrawer.style.setProperty("top", "54px", "important");

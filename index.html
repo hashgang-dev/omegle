@@ -194,7 +194,7 @@
       />
     </noscript>
 
-    <link rel="stylesheet" href="style.css?v=95" />
+    <link rel="stylesheet" href="style.css?v=97" />
 
 
     <!-- Firebase Analytics & Automatic Error Tracking ($0 Unlimited) -->
@@ -937,6 +937,14 @@
             <div class="chat-messages" id="chat-messages"></div>
 
             <div class="hud-chat-input-area">
+              <button
+                class="hud-action-btn hud-next-btn"
+                id="btn-hud-next"
+                title="Skip to Next Stranger (Keep Keyboard Open)"
+                onclick="handleStartOrNext()"
+              >
+                <i class="fa-solid fa-forward-step"></i>
+              </button>
               <input
                 type="text"
                 id="chat-input"
@@ -951,7 +959,7 @@
               <button
                 class="hud-send-btn"
                 id="btn-send-chat"
-                onclick="sendChatMessage()"
+                title="Send Message"
               >
                 <i class="fa-solid fa-paper-plane"></i>
               </button>
@@ -1562,13 +1570,13 @@
       defer
     ></script>
     <!-- StrangerChat API Config -->
-    <script src="ads.js?v=95" defer></script>
+    <script src="ads.js?v=97" defer></script>
     <!-- Ad Waterfall Mediation Config -->
-    <script src="ad_mediation_config.js?v=95" defer></script>
+    <script src="ad_mediation_config.js?v=97" defer></script>
     <!-- Socket.io Real-Time Signaling Client -->
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
     <!-- App Logic -->
-    <script src="app.js?v=95" defer></script>
+    <script src="app.js?v=97" defer></script>
 
 
 
