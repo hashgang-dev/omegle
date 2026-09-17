@@ -361,7 +361,9 @@ const elements = {
 };
 
 function setMobileVh() {
-  const vh = window.innerHeight * 0.01;
+  const vv = window.visualViewport;
+  const height = vv ? vv.height : window.innerHeight;
+  const vh = height * 0.01;
   document.documentElement.style.setProperty("--vh", `${vh}px`);
 }
 
@@ -472,6 +474,10 @@ document.addEventListener("DOMContentLoaded", () => {
   setMobileVh();
   window.addEventListener("resize", setMobileVh);
   window.addEventListener("orientationchange", setMobileVh);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", setMobileVh);
+    window.visualViewport.addEventListener("scroll", setMobileVh);
+  }
   closeChatDrawer();
   selectChatMode(window.currentChatMode || currentChatMode);
   initTheme();
@@ -4491,14 +4497,19 @@ function initVisualViewportHandler() {
   if (!chatInput || !chatDrawer) return;
 
   const updateDrawerPosition = () => {
+    setMobileVh();
     if (!window.visualViewport) return;
     if (!chatDrawer.classList.contains("closed") && document.activeElement === chatInput) {
       const vv = window.visualViewport;
       const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
       if (keyboardHeight > 100) {
         chatDrawer.classList.add("keyboard-active");
-        chatDrawer.style.bottom = `${keyboardHeight + 10}px`;
-        chatDrawer.style.maxHeight = `${vv.height - 30}px`;
+        chatDrawer.style.setProperty("bottom", `${keyboardHeight + 10}px`, "important");
+        chatDrawer.style.setProperty("max-height", `${vv.height - 70}px`, "important");
+      } else {
+        chatDrawer.classList.remove("keyboard-active");
+        chatDrawer.style.bottom = "";
+        chatDrawer.style.maxHeight = "";
       }
     } else {
       chatDrawer.classList.remove("keyboard-active");
@@ -4513,7 +4524,10 @@ function initVisualViewportHandler() {
   }
 
   chatInput.addEventListener("focus", () => {
-    setTimeout(updateDrawerPosition, 100);
+    setTimeout(() => {
+      updateDrawerPosition();
+      chatInput.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }, 150);
     const messages = document.getElementById("chat-messages") || elements.chatMessages;
     if (messages) messages.scrollTop = messages.scrollHeight;
   });
@@ -4523,6 +4537,7 @@ function initVisualViewportHandler() {
       chatDrawer.classList.remove("keyboard-active");
       chatDrawer.style.bottom = "";
       chatDrawer.style.maxHeight = "";
+      setMobileVh();
     }, 150);
   });
 }

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-chat-v90';
+const CACHE_NAME = 'hashgang-chat-v91';
 
 
 
