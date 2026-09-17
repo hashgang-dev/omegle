@@ -3161,8 +3161,16 @@ function applyBgEffectToStreams() {
 function sendChatMessage() {
   const input = document.getElementById("chat-input") || elements.chatInput;
   if (!input) return;
-  const text = input.value.trim();
+  const rawText = input.value;
+  if (!rawText) return;
+  const text = rawText.trim();
   if (!text) return;
+
+  // Forcibly close Android Gboard/IME composition session cleanly before clearing input value
+  if (document.activeElement === input) {
+    input.blur();
+  }
+  input.value = "";
 
   if (currentMatchTargetId && socket && socket.connected) {
     socket.emit("signal", {
@@ -3170,14 +3178,19 @@ function sendChatMessage() {
       signal: { type: "chat", text: text }
     });
     appendChatMessage(text, "sent");
-    input.value = "";
   } else {
     appendChatMessage(text, "sent");
     appendSystemChatMessage(
       "⚠️ Note: You are not connected to a stranger yet. Click 'Start Chat' to connect and chat!",
     );
-    input.value = "";
   }
+
+  // Restore focus for next message without keyboard flicker
+  setTimeout(() => {
+    if (input && !isStoppedByUser) {
+      input.focus();
+    }
+  }, 60);
 }
 
 let chatInactivityTimer = null;
@@ -3207,7 +3220,15 @@ function appendChatMessage(text, type) {
   msgEl.className = `chat-msg ${type}`;
   msgEl.textContent = text;
   container.appendChild(msgEl);
-  container.scrollTop = container.scrollHeight;
+  
+  // WhatsApp-style instant smooth scroll to bottom
+  requestAnimationFrame(() => {
+    container.scrollTop = container.scrollHeight;
+    try {
+      msgEl.scrollIntoView({ behavior: "smooth", block: "end" });
+    } catch (e) {}
+  });
+
   triggerChatAutoFade();
 
   if (type === "received") {
@@ -4350,6 +4371,7 @@ window.stopCall = stopCall;
 window.reportAndBlockStranger = reportAndBlockStranger;
 window.toggleChatDrawer = toggleChatDrawer;
 window.sendChatMessage = sendChatMessage;
+window.getCurrentMatchTargetId = () => currentMatchTargetId;
 window.switchCamera = switchCamera;
 window.toggleVideoSwap = toggleVideoSwap;
 window.toggleEmojiBar = toggleEmojiBar;
@@ -4498,17 +4520,18 @@ function initVisualViewportHandler() {
 
   const updateDrawerPosition = () => {
     setMobileVh();
+    if (window.scrollY !== 0) {
+      window.scrollTo(0, 0);
+    }
     if (!window.visualViewport) return;
     const vv = window.visualViewport;
-    const keyboardHeight = window.innerHeight - vv.height - vv.offsetTop;
-    const isKeyboardOpen = keyboardHeight > 100 || (window.innerHeight - vv.height) > 120;
+    const isKeyboardOpen = (window.innerHeight - vv.height) > 100;
 
     if (!chatDrawer.classList.contains("closed") && (document.activeElement === chatInput || isKeyboardOpen)) {
       if (isKeyboardOpen) {
         chatDrawer.classList.add("keyboard-active");
-        const topPos = Math.max(52, vv.offsetTop + 52);
-        const bottomPos = Math.max(8, window.innerHeight - (vv.offsetTop + vv.height) + 8);
-        chatDrawer.style.setProperty("top", `${topPos}px`, "important");
+        const bottomPos = Math.max(8, window.innerHeight - vv.height + 8);
+        chatDrawer.style.setProperty("top", "54px", "important");
         chatDrawer.style.setProperty("bottom", `${bottomPos}px`, "important");
         chatDrawer.style.setProperty("height", "auto", "important");
         chatDrawer.style.setProperty("max-height", `${vv.height - 60}px`, "important");

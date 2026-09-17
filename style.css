@@ -1852,6 +1852,10 @@ video#local.beauty-off, video#remote.beauty-off {
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
 }
 
+.chat-messages > *:first-child {
+  margin-top: auto !important;
+}
+
 /* Sleek Ultra-Thin WebKit Scrollbar for Desktop */
 .chat-messages::-webkit-scrollbar {
   width: 5px;
