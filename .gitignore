@@ -1,4 +1,8 @@
 node_modules/
 *.log
 e2e_*.png
+master_e2e_*.png
+ui_*.png
+header_*.png
+status_badge_*.png
 .DS_Store

@@ -194,7 +194,8 @@
       />
     </noscript>
 
-    <link rel="stylesheet" href="style.css?v=65" />
+    <link rel="stylesheet" href="style.css?v=90" />
+
 
     <!-- Firebase Analytics & Automatic Error Tracking ($0 Unlimited) -->
     <script type="module">
@@ -260,56 +261,85 @@
       })(window, document, "clarity", "script", "y8ur26r1qx");
     </script>
   </head>
-  <body>
+  <body class="text-mode-active">
     <div class="app-container">
       <!-- Main Stage Workspace (Full Screen 100vh) -->
       <main class="main-stage">
         <!-- Video Viewport Area -->
         <section class="video-viewport">
-          <!-- Top Viewport Actions Overlay (Status Badge & Theme Toggle) -->
+          <!-- Top Viewport Actions Overlay (Brand Logo, Status Badge & Navigation) -->
           <div class="viewport-top-bar">
-            <div class="status-badge" id="status-badge">
-              <span class="status-dot idle" id="status-dot"></span>
-              <span class="status-text" id="status-text"
-                >Click Start Chat to Connect</span
+            <!-- Header Brand Logo & Alternating Title Animation -->
+            <a href="index.html" class="header-brand-logo-link" id="header-brand-logo-link" title="HashGANG Chat - Home">
+              <img src="logo-sm.webp" alt="HashGANG Logo" class="header-brand-logo-img" width="32" height="32" />
+              <span id="brand-title-text" class="header-brand-title-text">HashGANG Chat</span>
+            </a>
+
+            <div class="top-bar-right-group">
+              <div class="status-badge" id="status-badge">
+                <span class="status-dot idle" id="status-dot"></span>
+                <span class="status-text" id="status-text"
+                  >Click Start Chat to Connect</span
+                >
+              </div>
+
+              <!-- Warm Reassuring Privacy Trust Badge -->
+              <div
+                class="privacy-trust-badge"
+                id="privacy-trust-badge"
+                title="100% Private, Encrypted & Anti-Capture Protected"
               >
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Encrypted & Privacy Protected</span>
+              </div>
+
+
+              <button
+                class="theme-toggle-btn"
+                id="btn-theme-toggle"
+                title="Toggle Theme (Dark / Light)"
+                aria-label="Toggle Theme"
+              >
+                <i class="fa-solid fa-moon" id="theme-icon"></i>
+              </button>
+
+
+              <!-- App Hamburger Menu Toggle Button (Right of Theme Toggle) -->
+              <button
+                class="btn-website-link"
+                id="btn-app-menu-toggle"
+                title="Navigation Menu"
+                aria-label="Navigation Menu"
+                onclick="toggleAppNavMenu(event)"
+              >
+                <i class="fa-solid fa-bars"></i>
+              </button>
             </div>
-
-            <!-- Warm Reassuring Privacy Trust Badge -->
-            <div
-              class="privacy-trust-badge"
-              id="privacy-trust-badge"
-              title="100% Private, Encrypted & Anti-Capture Protected"
-            >
-              <i class="fa-solid fa-shield-halved"></i>
-              <span>Encrypted & Privacy Protected</span>
-            </div>
-
-            <button
-              class="theme-toggle-btn"
-              id="btn-theme-toggle"
-              title="Toggle Theme (Dark / Light)"
-              aria-label="Toggle Theme"
-            >
-              <i class="fa-solid fa-moon" id="theme-icon"></i>
-            </button>
-
-            <!-- App Hamburger Menu Toggle Button (Right of Theme Toggle) -->
-            <button
-              class="btn-website-link"
-              id="btn-app-menu-toggle"
-              title="Navigation Menu"
-              aria-label="Navigation Menu"
-              onclick="toggleAppNavMenu(event)"
-            >
-              <i class="fa-solid fa-bars"></i>
-            </button>
 
             <!-- App Navigation Dropdown Popover -->
             <div class="app-nav-popover hidden" id="app-nav-popover">
+              <div class="popover-mode-section" style="padding: 10px 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 6px;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: rgba(255, 255, 255, 0.7); display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em;">Chat Mode:</span>
+                <div class="menu-mode-selector" id="menu-mode-selector" style="margin: 0; width: 100%;">
+                  <button class="mode-select-btn active" id="menu-mode-text" data-mode="text" onclick="selectChatMode('text')">
+                    <i class="fa-solid fa-comments"></i> Text
+                  </button>
+                  <button class="mode-select-btn" id="menu-mode-audio" data-mode="audio" onclick="selectChatMode('audio')">
+                    <i class="fa-solid fa-microphone"></i> Audio
+                  </button>
+                  <button class="mode-select-btn" id="menu-mode-video" data-mode="video" onclick="selectChatMode('video')">
+                    <i class="fa-solid fa-video"></i> Video
+                  </button>
+                </div>
+              </div>
+
+              <a href="#" onclick="handleShareInvite(); return false;" style="color: #a78bfa; font-weight: 600;"
+                ><i class="fa-solid fa-user-plus"></i> Invite Friend via Link</a
+              >
               <a href="index.html"
                 ><i class="fa-solid fa-video"></i> Start Chat</a
               >
+
               <a href="website.html"><i class="fa-solid fa-house"></i> Home</a>
               <a href="website.html#features"
                 ><i class="fa-solid fa-bolt"></i> Features</a
@@ -373,6 +403,26 @@
               id="privacy-violation-alert-modal"
             ></div>
 
+            <!-- Audio Mode Waveform & Avatar Overlay (Shown in Audio Chat Mode) -->
+            <div class="audio-mode-avatar-overlay hidden" id="audio-mode-avatar-overlay">
+              <div class="audio-avatar-circle">
+                <i class="fa-solid fa-user-astronaut audio-avatar-icon"></i>
+                <div class="audio-pulse-ring"></div>
+                <div class="audio-pulse-ring delay"></div>
+              </div>
+              <div class="audio-stranger-label" id="audio-stranger-label">Audio Stranger Connected</div>
+              <!-- Equalizer Waveform Bars -->
+              <div class="audio-equalizer-bars">
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+                <span class="eq-bar"></span>
+              </div>
+            </div>
+
+
+
             <!-- Live In-Call Adsterra 4-Second Sponsored Banner Overlay -->
             <div
               class="incall-adsterra-banner-box hidden"
@@ -382,16 +432,6 @@
 
           <!-- Branding TV Channel Watermark Logo & Live Online Counter Stack (Fixed Viewport Stage Level) -->
           <div class="brand-watermark-container">
-            <div class="brand-watermark" id="brand-watermark">
-              <img
-                src="logo-sm.webp"
-                alt="HashGANG Chat Logo"
-                class="brand-logo-icon"
-                width="32"
-                height="32"
-              />
-              <span id="brand-title-text">HashGANG Chat</span>
-            </div>
             <div class="online-users-badge hidden" id="online-users-badge">
               <i class="fa-solid fa-fire online-fire-icon"></i>
               <span id="online-users-count">1</span>
@@ -422,12 +462,25 @@
                 Connect instantly with random people worldwide for 100%
                 anonymous video & text chat.
               </p>
+              <!-- 3-Way Chat Mode Switcher Segment -->
+              <div class="hero-mode-selector" id="hero-mode-selector">
+                <button class="mode-select-btn active" id="hero-mode-text" onclick="selectChatMode('text')">
+                  <i class="fa-solid fa-comments"></i> Text
+                </button>
+                <button class="mode-select-btn" id="hero-mode-audio" onclick="selectChatMode('audio')">
+                  <i class="fa-solid fa-microphone"></i> Audio
+                </button>
+                <button class="mode-select-btn" id="hero-mode-video" onclick="selectChatMode('video')">
+                  <i class="fa-solid fa-video"></i> Video
+                </button>
+              </div>
+
               <div class="idle-feature-pills">
                 <span class="feature-chip"
                   ><i class="fa-solid fa-user-ninja"></i> 100% Anonymous</span
                 >
                 <span class="feature-chip"
-                  ><i class="fa-solid fa-bolt"></i> Instant Video Call</span
+                  ><i class="fa-solid fa-bolt"></i> Instant Connection</span
                 >
                 <span class="feature-chip"
                   ><i class="fa-solid fa-shield-halved"></i> No
@@ -579,7 +632,7 @@
 
           <!-- Self Local PIP Feed (Interactive Video Swap Engine) -->
           <div
-            class="local-pip-container"
+            class="local-pip-container hidden"
             id="local-pip-container"
             onclick="toggleVideoSwap()"
             title="Click to swap video screens"
@@ -677,21 +730,25 @@
               Connecting you to a random stranger worldwide...
             </div>
 
+            <!-- Mode Selector Switcher inside Searching Overlay -->
+            <div class="hero-mode-selector" id="search-mode-selector" style="margin: 12px 0 14px 0; width: auto; max-width: 320px;">
+              <button class="mode-select-btn active" id="search-mode-text" data-mode="text" onclick="selectChatMode('text')">
+                <i class="fa-solid fa-comments"></i> Text
+              </button>
+              <button class="mode-select-btn" id="search-mode-audio" data-mode="audio" onclick="selectChatMode('audio')">
+                <i class="fa-solid fa-microphone"></i> Audio
+              </button>
+              <button class="mode-select-btn" id="search-mode-video" data-mode="video" onclick="selectChatMode('video')">
+                <i class="fa-solid fa-video"></i> Video
+              </button>
+            </div>
+
+
             <!-- Live 5s -> 1s Countdown Timer Badge -->
             <div class="searching-countdown-badge" id="searching-countdown">
               <i class="fa-solid fa-clock"></i> Connecting in
               <span id="countdown-num">5</span>s
             </div>
-
-            <!-- In-App Viral Referral Invite Button for Searching Overlay -->
-            <button
-              class="btn-searching-invite"
-              id="btn-searching-invite"
-              onclick="handleShareInvite()"
-            >
-              <i class="fa-solid fa-paper-plane"></i>
-              <span>Invite Friends While Waiting 🚀</span>
-            </button>
 
             <!-- Adsterra Sponsored Ad Banner Box for Searching Radar Overlay -->
             <div
@@ -701,6 +758,46 @@
 
             <!-- Background Hidden Ad Pre-Fetch Buffer -->
             <div id="adsterra-prefetch-buffer" style="display:none; position:absolute; left:-9999px; top:-9999px;"></div>
+          </div>
+
+          <!-- All Strangers Currently Engaged Stage Overlay Card -->
+          <div class="searching-overlay hidden" id="no-stranger-overlay" style="background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px); z-index: 50;">
+            <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 20px; padding: 24px 20px; max-width: 380px; width: 90%; text-align: center; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);">
+              <div style="font-size: 2.5rem; margin-bottom: 10px;">💬</div>
+              <h3 style="font-size: 1.25rem; font-weight: 800; color: #ffffff; margin-bottom: 8px;">All Strangers Are Currently Engaged!</h3>
+              <p style="font-size: 0.88rem; color: rgba(255, 255, 255, 0.78); line-height: 1.5; margin-bottom: 18px;">
+                All live online users are currently chatting in 1-on-1 calls. Since HashGANG Chat is a brand new app, please help us grow by inviting your friends, or switch to Video Mode!
+              </p>
+
+              <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                <button
+                  class="btn-searching-invite"
+                  onclick="handleShareInvite()"
+                  style="width: 100%; background: linear-gradient(135deg, #10b981, #059669); font-weight: 700; padding: 12px; display: flex; align-items: center; justify-content: center; text-align: center; gap: 8px;"
+                >
+                  <i class="fa-solid fa-link"></i>
+                  <span>Invite Friend via Link 🔗</span>
+                </button>
+
+                <button
+                  class="btn-searching-invite"
+                  id="no-stranger-video-btn"
+                  onclick="hideNoStrangerOverlay(); selectChatMode('video'); handleStartOrNext();"
+                  style="width: 100%; background: linear-gradient(135deg, #7c3aed, #9333ea); font-weight: 700; padding: 12px; display: flex; align-items: center; justify-content: center; text-align: center; gap: 8px;"
+                >
+                  <i class="fa-solid fa-video"></i>
+                  <span>Switch to Video Mode 📹</span>
+                </button>
+
+                <button
+                  onclick="hideNoStrangerOverlay(); handleStartOrNext();"
+                  style="width: 100%; background: rgba(255, 255, 255, 0.1); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 12px; font-weight: 600; padding: 10px; cursor: pointer; transition: all 0.2s ease; display: flex; align-items: center; justify-content: center; text-align: center; gap: 8px;"
+                >
+                  <i class="fa-solid fa-rotate-right"></i> Try Searching Again 🔄
+                </button>
+              </div>
+
+            </div>
           </div>
 
           <!-- Floating Quick Emoji Reaction Stream Bar -->
@@ -795,6 +892,15 @@
             >
               <i class="fa-solid fa-message"></i>
               <span class="unread-badge hidden" id="unread-badge">0</span>
+            </button>
+
+            <button
+              class="btn-ctrl btn-ctrl-upgrade hidden"
+              id="btn-upgrade-video"
+              title="Invite Stranger to Video Call"
+              onclick="requestVideoCallUpgrade()"
+            >
+              <i class="fa-solid fa-video text-purple-400"></i>
             </button>
 
             <button
@@ -926,9 +1032,27 @@
 
         <div class="modal-body">
           <p class="modal-notice">
-            Welcome to <strong>HashGANG Chat</strong>. To participate in video
-            calls, you must review and agree to our platform terms:
+            Welcome to <strong>HashGANG Chat</strong>. Select your preferred chat mode and review our platform terms:
           </p>
+
+          <!-- Mode Selector inside TOS Modal -->
+          <div style="margin: 12px 0 16px 0;">
+            <label style="font-size: 0.8rem; font-weight: 700; color: rgba(255, 255, 255, 0.9); display: block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">1. Select Chat Mode:</label>
+            <div class="hero-mode-selector" id="tos-mode-selector" style="margin: 0; width: 100%; max-width: 100%;">
+              <button class="mode-select-btn active" id="tos-mode-text" data-mode="text" onclick="selectChatMode('text')">
+                <i class="fa-solid fa-comments"></i> Text
+              </button>
+              <button class="mode-select-btn" id="tos-mode-audio" data-mode="audio" onclick="selectChatMode('audio')">
+                <i class="fa-solid fa-microphone"></i> Audio
+              </button>
+              <button class="mode-select-btn" id="tos-mode-video" data-mode="video" onclick="selectChatMode('video')">
+                <i class="fa-solid fa-video"></i> Video
+              </button>
+            </div>
+          </div>
+
+          <label style="font-size: 0.8rem; font-weight: 700; color: rgba(255, 255, 255, 0.9); display: block; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em;">2. Review Platform Guidelines:</label>
+
 
           <ul class="modal-rules">
             <li>
@@ -1390,6 +1514,25 @@
       </div>
     </div>
 
+    <!-- Live Mode Upgrade Invitation Popover Modal -->
+    <div class="upgrade-request-modal hidden" id="upgrade-request-modal">
+      <div class="upgrade-modal-card">
+        <div class="upgrade-icon-wrapper">
+          <i class="fa-solid fa-video text-purple-400"></i>
+        </div>
+        <h4>Video Call Invitation</h4>
+        <p id="upgrade-modal-text">Stranger has invited you to switch to a Video Call!</p>
+        <div class="upgrade-modal-actions">
+          <button class="btn-upgrade-accept" id="btn-upgrade-accept" onclick="respondToUpgradeRequest(true)">
+            <i class="fa-solid fa-check"></i> Accept & Switch
+          </button>
+          <button class="btn-upgrade-decline" id="btn-upgrade-decline" onclick="respondToUpgradeRequest(false)">
+            <i class="fa-solid fa-xmark"></i> Decline
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Floating Copy Toast Notification -->
     <div class="share-toast hidden" id="share-toast">
       <i class="fa-solid fa-circle-check"></i>
@@ -1414,12 +1557,15 @@
       defer
     ></script>
     <!-- StrangerChat API Config -->
-    <script src="ads.js?v=50" defer></script>
+    <script src="ads.js?v=90" defer></script>
     <!-- Ad Waterfall Mediation Config -->
-    <script src="ad_mediation_config.js?v=50" defer></script>
+    <script src="ad_mediation_config.js?v=90" defer></script>
     <!-- Socket.io Real-Time Signaling Client -->
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
     <!-- App Logic -->
-    <script src="app.js?v=65" defer></script>
+    <script src="app.js?v=90" defer></script>
+
+
+
   </body>
 </html>

@@ -21,9 +21,193 @@ let isAudioMuted = false;
 let isVideoOff = false;
 let isSimulatedCallActive = false;
 let isStoppedByUser = true;
-let unreadMessagesCount = 0;
-let currentOnlineUsersCount = 0;
-const MIN_ONLINE_USERS_THRESHOLD = 500; // Minimum active users required before displaying online count badge in header
+let currentChatMode = "text"; // Default Mode: 'text' | 'audio' | 'video'
+window.currentChatMode = currentChatMode;
+
+function isUserOnIdleScreen() {
+  const idleOverlay = document.getElementById("idle-stage-overlay") || (typeof elements !== "undefined" && elements.idleStageOverlay);
+  return idleOverlay && !idleOverlay.classList.contains("hidden");
+}
+
+function selectChatMode(mode) {
+  if (!["video", "audio", "text"].includes(mode)) return;
+  const previousMode = currentChatMode;
+  currentChatMode = mode;
+  window.currentChatMode = mode;
+  console.log(`🌐 [Chat Mode Selected]: ${previousMode} -> ${currentChatMode}`);
+
+  // Update body mode state classes for layout rules (e.g. full-height text chat)
+  document.body.classList.toggle("text-mode-active", currentChatMode === "text");
+  document.body.classList.toggle("audio-mode-active", currentChatMode === "audio");
+  document.body.classList.toggle("video-mode-active", currentChatMode === "video");
+
+  // Update button active UI across all mode selectors (Hero, TOS Modal, Header bar, Search overlay)
+  document.querySelectorAll(".mode-select-btn").forEach((btn) => {
+    const btnMode = btn.getAttribute("data-mode") || (btn.id.includes("text") ? "text" : btn.id.includes("audio") ? "audio" : "video");
+    btn.classList.toggle("active", btnMode === currentChatMode);
+  });
+
+  // Release hardware camera/mic tracks based on selected mode
+  if (currentChatMode === "text" && localStream) {
+    console.log("🔒 [Hardware Protection] Stopping all local camera/mic tracks on switch to Text mode.");
+    localStream.getTracks().forEach((t) => t.stop());
+    localStream = null;
+    if (elements.localVideo) elements.localVideo.srcObject = null;
+  } else if (currentChatMode === "audio" && localStream) {
+    console.log("🔒 [Hardware Protection] Stopping camera video tracks on switch to Audio mode.");
+    localStream.getVideoTracks().forEach((t) => t.stop());
+    if (elements.localVideo) elements.localVideo.srcObject = null;
+  }
+
+  // UI Visibility per Mode
+  const audioVisualizer = document.getElementById("audio-mode-avatar-overlay");
+  const pipContainer = document.getElementById("local-pip-container");
+  const btnUpgradeVideo = document.getElementById("btn-upgrade-video");
+
+  const idleOverlay = document.getElementById("idle-stage-overlay") || (typeof elements !== "undefined" && elements.idleStageOverlay);
+  const isIdle = !idleOverlay || !idleOverlay.classList.contains("hidden");
+
+  if (currentChatMode === "text") {
+    if (audioVisualizer) audioVisualizer.classList.add("hidden");
+    if (pipContainer) {
+      pipContainer.classList.add("hidden");
+      pipContainer.style.display = "none";
+    }
+    if (btnUpgradeVideo) btnUpgradeVideo.classList.remove("hidden");
+    if (!isIdle && (currentCall || isSimulatedCallActive || currentPeerConnection)) {
+      openChatDrawer();
+    } else {
+      closeChatDrawer();
+    }
+  } else if (currentChatMode === "audio") {
+    closeChatDrawer();
+    if (audioVisualizer && (currentCall || isSimulatedCallActive || currentPeerConnection)) {
+      audioVisualizer.classList.remove("hidden");
+    } else if (audioVisualizer) {
+      audioVisualizer.classList.add("hidden");
+    }
+    if (pipContainer) {
+      pipContainer.classList.add("hidden");
+      pipContainer.style.display = "none";
+    }
+    if (btnUpgradeVideo) btnUpgradeVideo.classList.remove("hidden");
+  } else {
+    // Video Mode
+    closeChatDrawer();
+    if (audioVisualizer) audioVisualizer.classList.add("hidden");
+    if (pipContainer) {
+      pipContainer.classList.remove("hidden");
+      pipContainer.style.display = "";
+    }
+    if (btnUpgradeVideo) btnUpgradeVideo.classList.add("hidden");
+  }
+
+  const btnVideoNudge = document.getElementById("btn-searching-video-nudge");
+  if (btnVideoNudge) {
+    btnVideoNudge.style.display = (currentChatMode === "text" || currentChatMode === "audio") ? "flex" : "none";
+  }
+
+  updateToolbarVisibility(isStoppedByUser ? "idle" : (currentCall || isSimulatedCallActive || currentPeerConnection) ? "connected" : "searching");
+
+
+  // If user switches to Audio or Video mode, initialize relevant media permissions
+  if (currentChatMode !== "text" && !validateMediaPermissions()) {
+    initLocalMedia().catch((err) => {
+      console.warn(`Media initialization notice for ${currentChatMode}:`, err);
+    });
+  }
+
+  // If user was actively searching when switching modes, rejoin queue under new mode
+  if (!isStoppedByUser && previousMode !== currentChatMode && !currentMatchTargetId && !currentPeerConnection) {
+    showShareToast(`Switched to ${currentChatMode.toUpperCase()} Mode! Matchmaking...`);
+    if (searchChunkTimer) {
+      clearTimeout(searchChunkTimer);
+      searchChunkTimer = null;
+    }
+    handleStartOrNext();
+  }
+}
+
+function renderUpgradeInviteInChat() {
+  const container = document.getElementById("chat-messages") || (typeof elements !== "undefined" && elements.chatMessages);
+  if (!container) return;
+  const existingCard = document.getElementById("upgrade-chat-invite-card");
+  if (existingCard) existingCard.remove();
+
+  const card = document.createElement("div");
+  card.id = "upgrade-chat-invite-card";
+  card.className = "chat-msg system upgrade-chat-card";
+  card.style.cssText = "background: rgba(168, 85, 247, 0.18); border: 1px solid rgba(168, 85, 247, 0.45); padding: 12px 14px; border-radius: 14px; margin: 10px 0; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.3); pointer-events: auto; position: relative; z-index: 1000;";
+  card.innerHTML = `
+    <div style="font-weight: 700; color: #f3e8ff; font-size: 0.95rem; margin-bottom: 8px;">📹 Stranger invited you to switch to a Video Call!</div>
+    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 6px;">
+      <button class="btn-upgrade-accept" onclick="respondToUpgradeRequest(true); this.closest('#upgrade-chat-invite-card').remove();" style="background: linear-gradient(135deg, #9333ea, #7e22ce); color: #ffffff; border: none; padding: 8px 16px; border-radius: 20px; font-weight: 700; cursor: pointer; box-shadow: 0 2px 8px rgba(147,51,234,0.4); pointer-events: auto; position: relative; z-index: 1001;">Accept & Switch 📹</button>
+      <button class="btn-upgrade-decline" onclick="respondToUpgradeRequest(false); this.closest('#upgrade-chat-invite-card').remove();" style="background: rgba(255,255,255,0.12); color: #ffffff; border: 1px solid rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; pointer-events: auto; position: relative; z-index: 1001;">Decline ❌</button>
+    </div>
+  `;
+  container.appendChild(card);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function requestVideoCallUpgrade() {
+  if (!socket || !socket.connected || !currentMatchTargetId) {
+    showShareToast("⚠️ You must be connected to a stranger to invite them to a Video Call!");
+    return;
+  }
+
+  showShareToast("📷 Checking camera permissions before sending invitation...");
+
+  try {
+    const success = await initLocalMedia("video");
+    if (!success || !localStream || !localStream.getVideoTracks().length) {
+      showShareToast("⚠️ Video Call invitation cancelled: Camera permission was not granted.");
+      showPermissionGuidanceModal(true);
+      return;
+    }
+
+    // Inviter's camera & microphone permission successfully acquired! Send request to stranger.
+    socket.emit("upgrade_request", { targetMode: "video" });
+    showShareToast("📨 Camera ready! Sent Video Call invitation to stranger... Waiting for response.");
+  } catch (err) {
+    console.warn("Camera permission acquisition failed for inviter:", err);
+    showShareToast("⚠️ Video Call invitation cancelled: Camera permission was not granted.");
+    showPermissionGuidanceModal(true);
+  }
+}
+
+async function respondToUpgradeRequest(accepted) {
+  const modal = document.getElementById("upgrade-request-modal");
+  if (modal) modal.classList.add("hidden");
+  const chatCard = document.getElementById("upgrade-chat-invite-card");
+  if (chatCard) chatCard.remove();
+
+  if (!socket || !socket.connected) return;
+  socket.emit("upgrade_response", { accepted: !!accepted, targetMode: "video" });
+
+  if (accepted) {
+    const previousMode = currentChatMode;
+    showShareToast("🎥 Upgrading to Video Call...");
+    selectChatMode("video");
+    try {
+      const success = await initLocalMedia();
+      if (!success || !validateMediaPermissions()) {
+        showShareToast("⚠️ Failed to switch to Video Call: Camera permission not granted.");
+        selectChatMode(previousMode || "text");
+        showPermissionGuidanceModal(true);
+        return;
+      }
+      if (currentMatchTargetId) {
+        await createWebRTCPeerConnection(currentMatchTargetId, true);
+      }
+    } catch (e) {
+      console.warn("Failed to upgrade media tracks:", e);
+      selectChatMode(previousMode || "text");
+      showPermissionGuidanceModal(true);
+    }
+  }
+}
+
+const MIN_ONLINE_USERS_THRESHOLD = 500;
 
 // Self-Brand Video Promotion Config & Feature Flag
 const ENABLE_SELF_BRAND_ADS = true; // Set to false anytime to disable self-brand video ads
@@ -266,21 +450,21 @@ function refreshElements() {
 function initBrandAlternatingTitle() {
   const titles = ["HashGANG Chat", "#GANG Chat"];
   let index = 0;
-  const brandTitleText = document.getElementById("brand-title-text");
 
   setInterval(() => {
     index = (index + 1) % titles.length;
     const currentName = titles[index];
     document.title = currentName;
 
-    if (brandTitleText) {
-      brandTitleText.style.opacity = "0";
+    const brandTitleElements = document.querySelectorAll("#brand-title-text, .header-brand-title-text");
+    brandTitleElements.forEach((el) => {
+      el.style.opacity = "0";
       setTimeout(() => {
-        brandTitleText.textContent = currentName;
-        brandTitleText.style.opacity = "1";
+        el.textContent = currentName;
+        el.style.opacity = "1";
       }, 200);
-    }
-  }, 5000);
+    });
+  }, 4500);
 }
 
 // Initialize Application
@@ -288,6 +472,8 @@ document.addEventListener("DOMContentLoaded", () => {
   setMobileVh();
   window.addEventListener("resize", setMobileVh);
   window.addEventListener("orientationchange", setMobileVh);
+  closeChatDrawer();
+  selectChatMode(window.currentChatMode || currentChatMode);
   initTheme();
   loadSimulatedVideosManifest();
   setupEventListeners();
@@ -318,6 +504,22 @@ document.addEventListener("DOMContentLoaded", () => {
           .play()
           .catch((e) => console.warn("Background return video play error:", e));
       }
+    }
+  });
+
+  // Page Unload Hardware Protection: Instantly stop camera & mic tracks on tab close or refresh
+  window.addEventListener("pagehide", () => {
+    if (socket && socket.connected) {
+      try { socket.emit("leave_queue"); } catch (e) {}
+    }
+    if (localStream) {
+      try { localStream.getTracks().forEach((t) => t.stop()); } catch (e) {}
+    }
+  });
+
+  window.addEventListener("beforeunload", () => {
+    if (localStream) {
+      try { localStream.getTracks().forEach((t) => t.stop()); } catch (e) {}
     }
   });
 
@@ -360,7 +562,7 @@ document.addEventListener("DOMContentLoaded", () => {
       navigator.serviceWorker.addEventListener("controllerchange", () => {
         if (!refreshing) {
           refreshing = true;
-          window.location.reload();
+          console.log("🔄 [Service Worker] PWA Controller updated silently.");
         }
       });
     });
@@ -605,7 +807,12 @@ function hideTosModal() {
 }
 
 function validateMediaPermissions() {
+  if (currentChatMode === "text") return true;
   if (!localStream) return false;
+  if (currentChatMode === "audio") {
+    const audioTrack = localStream.getAudioTracks()[0];
+    return audioTrack && audioTrack.readyState === "live" && audioTrack.enabled;
+  }
   const videoTrack = localStream.getVideoTracks()[0];
   if (!videoTrack) return false;
   return videoTrack.readyState === "live" && videoTrack.enabled;
@@ -617,10 +824,11 @@ async function showPermissionGuidanceModal(isBlocked = false) {
   const btnRequest = document.getElementById("btn-request-perm");
   const btnRefresh = document.getElementById("btn-perm-refresh");
 
-  // Check browser site setting permission status for camera if not explicitly passed as blocked
-  if (!isBlocked && navigator.permissions && navigator.permissions.query) {
+  // Check browser site setting permission status for camera/microphone if not explicitly passed as blocked
+  if (!isBlocked && currentChatMode !== "text" && navigator.permissions && navigator.permissions.query) {
     try {
-      const permStatus = await navigator.permissions.query({ name: "camera" });
+      const permName = currentChatMode === "audio" ? "microphone" : "camera";
+      const permStatus = await navigator.permissions.query({ name: permName });
       if (permStatus && permStatus.state === "denied") {
         isBlocked = true;
       }
@@ -675,6 +883,12 @@ async function requestMediaPermissionAndProceed() {
 }
 
 async function checkPermissionsAndAutoStart() {
+  if (currentChatMode === "text") {
+    hidePermissionGuidanceModal();
+    handleStartOrNext();
+    return;
+  }
+
   if (validateMediaPermissions()) {
     hidePermissionGuidanceModal();
     handleStartOrNext();
@@ -684,9 +898,10 @@ async function checkPermissionsAndAutoStart() {
   // Detect if permission is already explicitly blocked in browser site settings
   if (navigator.permissions && navigator.permissions.query) {
     try {
-      const permStatus = await navigator.permissions.query({ name: "camera" });
+      const permName = currentChatMode === "audio" ? "microphone" : "camera";
+      const permStatus = await navigator.permissions.query({ name: permName });
       if (permStatus && permStatus.state === "denied") {
-        console.warn("🔒 [Permission Security Guard] Camera is explicitly blocked in site settings.");
+        console.warn(`🔒 [Permission Security Guard] ${permName} is explicitly blocked in site settings.`);
         showPermissionGuidanceModal(true);
         return;
       }
@@ -696,7 +911,7 @@ async function checkPermissionsAndAutoStart() {
   const success = await initLocalMedia();
   if (success && validateMediaPermissions()) {
     hidePermissionGuidanceModal();
-    if (!currentPeerConnection && !currentMatchTargetId && !isSocketConnected) {
+    if (!currentPeerConnection && !currentMatchTargetId) {
       handleStartOrNext();
     }
   } else {
@@ -727,6 +942,10 @@ function handlePermissionRevoked() {
 async function acceptTosAndProceed() {
   localStorage.setItem("p2p_tos_accepted_at", Date.now().toString());
   hideTosModal();
+  if (currentChatMode === "text") {
+    openChatDrawer();
+  }
+  selectChatMode(currentChatMode);
   await checkPermissionsAndAutoStart();
 }
 
@@ -812,7 +1031,11 @@ async function handleStartOrNext() {
   }
 
   hideFirewallWarning();
+  hideNoStrangerOverlay();
   if (elements.idleStageOverlay) elements.idleStageOverlay.classList.add("hidden");
+  if (currentChatMode === "text" && isTosConsentValid()) {
+    openChatDrawer();
+  }
 
   // Enforce Terms of Service & Age Consent (24-Hour Session Expiry)
   if (!isTosConsentValid()) {
@@ -1170,11 +1393,49 @@ function clearChatMessages() {
   }
 }
 
+let simulatedTextBotTimers = [];
+
+function startSimulatedTextBotChat() {
+  stopSimulatedTextBotChat();
+  hideSearchingOverlay();
+  updateStatus("connected", "Connected to Text Stranger");
+  updateToolbarVisibility("connected");
+  openChatDrawer();
+
+  const botMessages = [
+    { delay: 1200, text: "Hey there! 👋" },
+    { delay: 3500, text: "Where are you chatting from?" },
+    { delay: 7000, text: "Nice to meet you! How is your day going?" }
+  ];
+
+  botMessages.forEach((item) => {
+    const t = setTimeout(() => {
+      if (currentChatMode === "text" && !currentPeerConnection) {
+        appendChatMessage(item.text, "received");
+      }
+    }, item.delay);
+    simulatedTextBotTimers.push(t);
+  });
+}
+
+function stopSimulatedTextBotChat() {
+  simulatedTextBotTimers.forEach((t) => clearTimeout(t));
+  simulatedTextBotTimers = [];
+}
+
 function playSimulatedStrangerVideo() {
   if (currentCall || currentPeerConnection || currentMatchTargetId) {
     console.log("🛑 [Simulation Guard] Suppressing simulated video playback because real P2P match is active!");
     return;
   }
+
+  if (currentChatMode === "text" || currentChatMode === "audio") {
+    console.log(`💬 [${currentChatMode.toUpperCase()} Mode] 5s elapsed without match. Displaying No Stranger Engaged Stage Overlay.`);
+    showNoStrangerOverlay();
+    return;
+  }
+
+
 
   // Threshold Guard: When active online users count >= 300, disable simulated videos to force 100% organic stranger matching
   if (currentOnlineUsersCount >= SIMULATED_VIDEO_DISABLE_THRESHOLD) {
@@ -1396,6 +1657,7 @@ function skipSimulatedStrangerVideo() {
 }
 
 function stopSimulatedStrangerVideo() {
+  stopSimulatedTextBotChat();
   if (simulatedVideoTimer) {
     clearTimeout(simulatedVideoTimer);
     simulatedVideoTimer = null;
@@ -1438,122 +1700,146 @@ function stopSimulatedStrangerVideo() {
  * Capture Local User Camera and Microphone with Adaptive Multi-Device Resolution Fallback
  */
 let isInitializingMedia = false;
+let activeMediaInitPromise = null;
 
-async function initLocalMedia() {
-  if (isInitializingMedia) return localStream !== null;
-  isInitializingMedia = true;
-  const mediaConstraintsHierarchy = [
-    // Priority 1: 720p HD (Ideal for Desktop & Modern Smartphones)
-    {
-      video: {
-        width: { ideal: 1280, min: 640 },
-        height: { ideal: 720, min: 480 },
-        frameRate: { ideal: 30, max: 30 }
-      },
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
-    },
-    // Priority 2: 480p SD (Optimized for Budget Mobile Phones & Slow 3G Data)
-    {
-      video: {
-        width: { ideal: 640, min: 320 },
-        height: { ideal: 480, min: 240 },
-        frameRate: { ideal: 24 }
-      },
-      audio: { echoCancellation: true, noiseSuppression: true }
-    },
-    // Priority 3: Basic Hardware Fallback (Maximum Device Compatibility)
-    { video: true, audio: true }
-  ];
-
-  let acquiredStream = null;
-  let lastMediaError = null;
-
-  for (const constraints of mediaConstraintsHierarchy) {
-    try {
-      acquiredStream = await navigator.mediaDevices.getUserMedia(constraints);
-      if (acquiredStream) break;
-    } catch (err) {
-      lastMediaError = err;
-      // If user explicitly denied permission, do not try lower constraints
-      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-        throw err;
-      }
-    }
-  }
-
-  if (!acquiredStream && lastMediaError) {
-    throw lastMediaError;
-  }
-
-  try {
-    localStream = acquiredStream;
-    elements.localVideo.muted = true;
-    elements.localVideo.srcObject = getActiveStream();
-    elements.localVideo.play().catch((e) => console.warn("Local preview play notice:", e));
-
-    // Attach Layer 2 Runtime Security Monitors: Detect camera disconnect or permission revocation mid-call
-    const videoTrack = localStream.getVideoTracks()[0];
-    const audioTrack = localStream.getAudioTracks()[0];
-    if (videoTrack) {
-      videoTrack.onended = () => {
-        console.warn("📹 [Layer 2 Guard] Local video track ended or camera revoked!");
-        handlePermissionRevoked();
-      };
-    }
-    if (audioTrack) {
-      audioTrack.onended = () => {
-        console.warn("🎙️ [Layer 2 Guard] Local audio track ended or microphone revoked!");
-        handlePermissionRevoked();
-      };
-    }
-
-    // Attach Layer 3 Browser Permission Observer API (Chromium / Chrome / Edge)
-    if (navigator.permissions && navigator.permissions.query) {
-      try {
-        navigator.permissions.query({ name: "camera" }).then((status) => {
-          status.onchange = () => {
-            console.log("🔒 [Layer 3 Observer] Browser camera status changed to:", status.state);
-            if (status.state === "denied") {
-              handlePermissionRevoked();
-            }
-          };
-        });
-      } catch (e) {}
-    }
-
-    // Remove permission overlay if previously shown
-    const existingOverlay = document.getElementById("media-perm-overlay");
-    if (existingOverlay) existingOverlay.remove();
+async function initLocalMedia(overrideMode) {
+  const targetMode = overrideMode || currentChatMode;
+  if (targetMode === "text") {
+    console.log("💬 [Text Mode] Bypassing getUserMedia(). Zero hardware permissions required.");
     hidePermissionGuidanceModal();
-
-    await detectCameraDevices();
-    await setupBgSegmentationPipeline();
     return true;
-  } catch (err) {
-    hideSearchingOverlay();
+  }
+  if (localStream && validateMediaPermissions()) {
+    return true;
+  }
+  if (activeMediaInitPromise) {
+    return await activeMediaInitPromise;
+  }
 
-    if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-      console.info("ℹ️ [Permission Notice] Camera & microphone permission denied by user or blocked by browser.");
+  isInitializingMedia = true;
+  activeMediaInitPromise = (async () => {
+    try {
+      const mediaConstraintsHierarchy = targetMode === "audio"
+        ? [{ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }]
+        : [
+            {
+              video: {
+                width: { ideal: 1280, min: 640 },
+                height: { ideal: 720, min: 480 },
+                frameRate: { ideal: 30, max: 30 }
+              },
+              audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+            },
+            {
+              video: {
+                width: { ideal: 640, min: 320 },
+                height: { ideal: 480, min: 240 },
+                frameRate: { ideal: 24 }
+              },
+              audio: { echoCancellation: true, noiseSuppression: true }
+            },
+            { video: true, audio: true }
+          ];
+
+      let acquiredStream = null;
+      let lastMediaError = null;
+
+      for (const constraints of mediaConstraintsHierarchy) {
+        try {
+          acquiredStream = await navigator.mediaDevices.getUserMedia(constraints);
+          if (acquiredStream) break;
+        } catch (err) {
+          lastMediaError = err;
+          if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+            throw err;
+          }
+        }
+      }
+
+      if (!acquiredStream && lastMediaError) {
+        throw lastMediaError;
+      }
+
+      if (localStream && localStream !== acquiredStream) {
+        try {
+          localStream.getTracks().forEach((t) => t.stop());
+        } catch (e) {}
+      }
+      localStream = acquiredStream;
+      if (elements.localVideo) {
+        elements.localVideo.muted = true;
+        elements.localVideo.srcObject = getActiveStream();
+        elements.localVideo.play().catch((e) => console.warn("Local preview play notice:", e));
+      }
+
+      const videoTrack = localStream.getVideoTracks()[0];
+      const audioTrack = localStream.getAudioTracks()[0];
+      if (videoTrack) {
+        videoTrack.onended = () => {
+          console.warn("📹 [Layer 2 Guard] Local video track ended or camera revoked!");
+          handlePermissionRevoked();
+        };
+      }
+      if (audioTrack) {
+        audioTrack.onended = () => {
+          console.warn("🎙️ [Layer 2 Guard] Local audio track ended or microphone revoked!");
+          handlePermissionRevoked();
+        };
+      }
+
+      if (navigator.permissions && navigator.permissions.query) {
+        try {
+          const permName = currentChatMode === "audio" ? "microphone" : "camera";
+          navigator.permissions.query({ name: permName }).then((status) => {
+            status.onchange = () => {
+              console.log(`🔒 [Layer 3 Observer] Browser ${permName} status changed to:`, status.state);
+              if (status.state === "denied") {
+                handlePermissionRevoked();
+              }
+            };
+          });
+        } catch (e) {}
+      }
+
+      const existingOverlay = document.getElementById("media-perm-overlay");
+      if (existingOverlay) existingOverlay.remove();
+      hidePermissionGuidanceModal();
+
+      try {
+        await setupBgSegmentationPipeline();
+      } catch (bgErr) {
+        console.warn("Background segmentation pipeline setup notice:", bgErr);
+      }
+      return true;
+    } catch (err) {
+      hideSearchingOverlay();
+
+      if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+        console.info("ℹ️ [Permission Notice] Camera & microphone permission denied by user or blocked by browser.");
+        updateStatus("error", "Permission Denied");
+        showPermissionGuidanceModal(true);
+        return false;
+      }
+
+      if (err.name === "NotReadableError" || err.name === "TrackStartError" || err.name === "OverconstrainedError") {
+        console.warn("⚠️ [Hardware Conflict] Camera is occupied by another application (Zoom/Teams).");
+        updateStatus("error", "Camera Occupied");
+        showShareToast("⚠️ Camera is in use by another app (Zoom/Teams). Please close it and retry!");
+        showPermissionGuidanceModal(true);
+        return false;
+      }
+
+      console.warn("Camera/Mic Permission Notice:", err);
       updateStatus("error", "Permission Denied");
       showPermissionGuidanceModal(true);
       return false;
+    } finally {
+      isInitializingMedia = false;
+      activeMediaInitPromise = null;
     }
+  })();
 
-    if (err.name === "NotReadableError" || err.name === "TrackStartError" || err.name === "OverconstrainedError") {
-      console.warn("⚠️ [Hardware Conflict] Camera is occupied by another application (Zoom/Teams).");
-      updateStatus("error", "Camera Occupied");
-      showShareToast("⚠️ Camera is in use by another app (Zoom/Teams). Please close it and retry!");
-      showPermissionGuidanceModal(true);
-      return false;
-    }
-
-    console.warn("Camera/Mic Permission Notice:", err);
-    updateStatus("error", "Permission Denied");
-    showPermissionGuidanceModal(true);
-    return false;
-  } finally {
-    isInitializingMedia = false;
-  }
+  return await activeMediaInitPromise;
 }
 
 let videoDevices = [];
@@ -1660,13 +1946,27 @@ function initSocketConnection() {
     socket.on("connect", () => {
       isSocketConnected = true;
       console.log("⚡ [Socket Matchmaker] Connected to server with Socket ID:", socket.id);
-      if (!isStoppedByUser && !currentPeerConnection) {
-        console.log("🔄 [Socket Matchmaker] Socket reconnected while active. Auto-emitting join_queue...");
-        socket.emit("join_queue");
+      if (window.pendingInviteCode) {
+        const inviteCode = window.pendingInviteCode;
+        window.pendingInviteCode = null;
+        console.log(`🔗 [Socket Matchmaker] Emitting join_invite_room for code: ${inviteCode} [Mode: ${currentChatMode}]`);
+        socket.emit("join_invite_room", { inviteCode: inviteCode, mode: currentChatMode });
+      } else if (!isStoppedByUser && !currentPeerConnection && !isUserOnIdleScreen()) {
+        console.log(`🔄 [Socket Matchmaker] Socket reconnected while active. Auto-emitting join_queue [${currentChatMode}]...`);
+        socket.emit("join_queue", { mode: currentChatMode });
       }
     });
 
+    socket.on("invite_fallback", (data) => {
+      const fallbackMode = data?.mode || currentChatMode;
+      console.log(`🔄 [Invite Fallback] Inviter unavailable. Joining standard queue in mode [${fallbackMode}]...`);
+      showShareToast("Your friend is in another call. Connecting you to a random stranger...");
+      selectChatMode(fallbackMode);
+      socket.emit("join_queue", { mode: fallbackMode });
+    });
+
     socket.on("online_count", (data) => {
+
       if (data && data.count) {
         currentOnlineUsersCount = data.count;
         updateOnlineUsersDisplay(data.count);
@@ -1694,8 +1994,8 @@ function initSocketConnection() {
       currentMatchTargetId = data.peerId;
       currentRemotePeerId = data.peerId;
 
-      // Ensure local stream tracks are acquired before creating WebRTC peer connection
-      if (!localStream) {
+      // Ensure local stream tracks are acquired before creating WebRTC peer connection (for audio/video modes)
+      if (!localStream && currentChatMode !== "text") {
         console.log("🎙️ [WebRTC Guard] Ensuring local media is initialized before peer connection setup...");
         try {
           await initLocalMedia();
@@ -1705,12 +2005,48 @@ function initSocketConnection() {
       }
       
       await createWebRTCPeerConnection(data.peerId, data.initiator);
+
+      if (currentChatMode === "text") {
+        hideSearchingOverlay();
+        hideFirewallWarning();
+        updateStatus("connected", "Connected to Text Stranger");
+        updateToolbarVisibility("connected");
+        openChatDrawer();
+        clearChatMessages();
+        appendSystemChatMessage("You are now connected to a Text stranger. Say hi!");
+      }
     });
 
     socket.on("signal", async (data) => {
       if (!data || !data.signal || isStoppedByUser) return;
       console.log("📡 [Socket Signaling] Incoming signal from:", data.senderId, "| Signal type:", data.signal.type || (data.signal.candidate ? "candidate" : "unknown"));
       handleWebRTCSignal(data.senderId, data.signal);
+    });
+
+    socket.on("upgrade_request", (data) => {
+      console.log("🚀 [Upgrade Request] Stranger invited you to switch to Video Call!");
+      showShareToast("📹 Stranger has invited you to a Video Call!");
+      const modal = document.getElementById("upgrade-request-modal");
+      if (modal) modal.classList.remove("hidden");
+      renderUpgradeInviteInChat();
+    });
+
+    socket.on("upgrade_response", async (data) => {
+      console.log("📩 [Upgrade Response] Received response:", data);
+      if (data && data.accepted) {
+        showShareToast("🎉 Stranger accepted Video Call invitation! Switching to Video...");
+        selectChatMode("video");
+        try {
+          await initLocalMedia();
+          if (currentMatchTargetId) {
+            await createWebRTCPeerConnection(currentMatchTargetId, false);
+          }
+        } catch (e) {
+          console.warn("Failed to upgrade media tracks:", e);
+        }
+      } else {
+        showShareToast("ℹ️ Stranger declined Video Call invitation.");
+      }
     });
 
     socket.on("peer_left", () => {
@@ -1911,6 +2247,11 @@ async function processWebRTCSignal(senderId, signal) {
         }
       }
     } else if (signal.type === "chat") {
+      hideSearchingOverlay();
+      if (currentChatMode === "text") {
+        updateStatus("connected", "Connected to Text Stranger");
+        updateToolbarVisibility("connected");
+      }
       appendChatMessage(signal.text, "received");
     } else if (signal.type === "emoji") {
       spawnFloatingEmoji(signal.emoji);
@@ -1921,30 +2262,46 @@ async function processWebRTCSignal(senderId, signal) {
 }
 
 function findAndConnectPeer() {
+  const modeTitle =
+    currentChatMode === "text"
+      ? "Searching for a Text Stranger..."
+      : currentChatMode === "audio"
+      ? "Searching for an Audio Stranger..."
+      : "Searching for a Video Stranger...";
+
+  updateStatus("searching", modeTitle);
+  showSearchingOverlay(
+    modeTitle,
+    `Connecting you instantly to a random real ${currentChatMode} stranger...`,
+  );
+
   if (!validateMediaPermissions()) {
-    console.warn("🛡️ [Permission Security Guard] Pre-queue check failed! Live camera stream required.");
-    hideSearchingOverlay();
+    console.warn("🛡️ [Permission Security Guard] Pre-queue check: acquiring media permissions for mode:", currentChatMode);
     checkPermissionsAndAutoStart();
     return;
   }
 
   initSocketConnection();
 
-  cleanupCallState();
-  updateStatus("searching", "Searching for a stranger...");
-  showSearchingOverlay(
-    "Searching for a Stranger...",
-    "Connecting you instantly to a random real person...",
-  );
+  if (socket && socket.connected) {
+    console.log(`⚡ [Socket Matchmaker] Emitting join_queue [${currentChatMode}]...`);
+    socket.emit("join_queue", { mode: currentChatMode });
+  } else if (socket) {
+    console.log(`⚡ [Socket Matchmaker] Socket connecting... Queuing join_queue [${currentChatMode}] on connect event.`);
+    socket.once("connect", () => {
+      console.log(`⚡ [Socket Matchmaker] Connected! Emitting queued join_queue [${currentChatMode}]...`);
+      socket.emit("join_queue", { mode: currentChatMode });
+    });
+  }
 
   if (socket && socket.connected) {
-    console.log("⚡ [Socket Matchmaker] Socket active. Emitting join_queue immediately...");
-    socket.emit("join_queue");
+    console.log(`⚡ [Socket Matchmaker] Socket active. Emitting join_queue [${currentChatMode}] immediately...`);
+    socket.emit("join_queue", { mode: currentChatMode });
   } else if (socket) {
-    console.log("⚡ [Socket Matchmaker] Socket connecting... Queuing join_queue on connect event.");
+    console.log(`⚡ [Socket Matchmaker] Socket connecting... Queuing join_queue [${currentChatMode}] on connect event.`);
     socket.once("connect", () => {
-      console.log("⚡ [Socket Matchmaker] Connected! Emitting queued join_queue...");
-      socket.emit("join_queue");
+      console.log(`⚡ [Socket Matchmaker] Connected! Emitting queued join_queue [${currentChatMode}]...`);
+      socket.emit("join_queue", { mode: currentChatMode });
     });
   }
 
@@ -2084,7 +2441,16 @@ function onPeerConnected(remoteStream) {
 
   hideSearchingOverlay();
   hideFirewallWarning();
-  updateStatus("connected", "Connected with Stranger");
+
+  if (currentChatMode === "audio") {
+    const audioVisualizer = document.getElementById("audio-mode-avatar-overlay");
+    if (audioVisualizer) audioVisualizer.classList.remove("hidden");
+    updateStatus("connected", "Connected to Audio Stranger");
+    appendSystemChatMessage("Connected to Audio stranger. Speak into your microphone!");
+  } else {
+    updateStatus("connected", "Connected with Stranger");
+  }
+
   updateToolbarVisibility("connected");
 
 
@@ -2861,6 +3227,7 @@ function appendSystemChatMessage(text) {
  */
 function toggleAudio() {
   isAudioMuted = !isAudioMuted;
+  window.isAudioMuted = isAudioMuted;
   if (localStream) {
     localStream.getAudioTracks().forEach((t) => (t.enabled = !isAudioMuted));
   }
@@ -2942,6 +3309,25 @@ function reportAndBlockStranger() {
   handleStartOrNext();
 }
 
+function openChatDrawer() {
+  const drawer = document.getElementById("chat-drawer") || elements.chatDrawer;
+  if (!drawer) return;
+  drawer.classList.remove("closed");
+  drawer.classList.add("open");
+  unreadMessagesCount = 0;
+  const badge = document.getElementById("unread-badge") || elements.unreadBadge;
+  if (badge) badge.classList.add("hidden");
+  const input = document.getElementById("chat-input") || elements.chatInput;
+  if (input) input.focus();
+}
+
+function closeChatDrawer() {
+  const drawer = document.getElementById("chat-drawer") || elements.chatDrawer;
+  if (!drawer) return;
+  drawer.classList.add("closed");
+  drawer.classList.remove("open");
+}
+
 /**
  * Toggle Chat Sidebar Drawer
  */
@@ -2951,17 +3337,9 @@ function toggleChatDrawer() {
 
   const isClosed = drawer.classList.contains("closed");
   if (isClosed) {
-    drawer.classList.remove("closed");
-    drawer.classList.add("open");
-    unreadMessagesCount = 0;
-    const badge =
-      document.getElementById("unread-badge") || elements.unreadBadge;
-    if (badge) badge.classList.add("hidden");
-    const input = document.getElementById("chat-input") || elements.chatInput;
-    if (input) input.focus();
+    openChatDrawer();
   } else {
-    drawer.classList.add("closed");
-    drawer.classList.remove("open");
+    closeChatDrawer();
   }
 }
 
@@ -2970,18 +3348,47 @@ function toggleChatDrawer() {
  * States: 'idle', 'searching', 'connected'
  */
 function updateToolbarVisibility(state) {
+  const btnMute = elements.btnMute || document.getElementById("btn-mute");
+  const btnVideo = elements.btnVideo || document.getElementById("btn-video");
+  const btnStop = elements.btnStop || document.getElementById("btn-stop");
+  const btnReport = elements.btnReport || document.getElementById("btn-report");
+  const btnNextLabel = elements.btnNextLabel || document.getElementById("btn-next-label");
+
+  // Mode-based button visibility rules:
+  // Text Mode: Hide Mic (#btn-mute) and Hide Camera (#btn-video)
+  // Audio Mode: Show Mic (#btn-mute) and Hide Camera (#btn-video)
+  // Video Mode: Show Mic (#btn-mute) and Show Camera (#btn-video)
+  if (currentChatMode === "text") {
+    if (btnMute) btnMute.classList.add("hidden");
+    if (btnVideo) btnVideo.classList.add("hidden");
+  } else if (currentChatMode === "audio") {
+    if (btnMute) btnMute.classList.remove("hidden");
+    if (btnVideo) btnVideo.classList.add("hidden");
+  } else {
+    if (btnMute) btnMute.classList.remove("hidden");
+    if (btnVideo) btnVideo.classList.remove("hidden");
+  }
+
   if (state === "idle") {
-    if (elements.btnReport) elements.btnReport.classList.add("hidden");
-    if (elements.btnStop) elements.btnStop.classList.add("hidden");
-    elements.btnNextLabel.textContent = "Start Chat";
+    if (btnReport) btnReport.classList.add("hidden");
+    if (btnStop) btnStop.classList.add("hidden");
+    if (btnNextLabel) btnNextLabel.textContent = "Start Chat";
   } else if (state === "searching") {
-    if (elements.btnReport) elements.btnReport.classList.add("hidden");
-    if (elements.btnStop) elements.btnStop.classList.remove("hidden");
-    elements.btnNextLabel.textContent = "Next Stranger";
+    if (btnReport) btnReport.classList.add("hidden");
+    if (btnStop) {
+      btnStop.classList.remove("hidden");
+      btnStop.removeAttribute("disabled");
+      btnStop.disabled = false;
+    }
+    if (btnNextLabel) btnNextLabel.textContent = "Next Stranger";
   } else if (state === "connected") {
-    if (elements.btnReport) elements.btnReport.classList.remove("hidden");
-    if (elements.btnStop) elements.btnStop.classList.remove("hidden");
-    elements.btnNextLabel.textContent = "Next Stranger";
+    if (btnReport) btnReport.classList.remove("hidden");
+    if (btnStop) {
+      btnStop.classList.remove("hidden");
+      btnStop.removeAttribute("disabled");
+      btnStop.disabled = false;
+    }
+    if (btnNextLabel) btnNextLabel.textContent = "Next Stranger";
   }
 }
 
@@ -3010,6 +3417,8 @@ function stopCall() {
   hideFirewallWarning();
   updateToolbarVisibility("idle");
   if (elements.idleStageOverlay) elements.idleStageOverlay.classList.remove("hidden");
+  closeChatDrawer();
+  selectChatMode(currentChatMode);
   setTimeout(prefetchNextAdsterraAd, 1000);
 }
 
@@ -3021,6 +3430,9 @@ function cleanupCallState() {
   stopSimulatedStrangerVideo();
   stopInCallAdsterraJitterEngine();
   stopInCallToolbarAutoHider();
+
+  const audioVisualizer = document.getElementById("audio-mode-avatar-overlay");
+  if (audioVisualizer) audioVisualizer.classList.add("hidden");
 
   if (searchChunkTimer) {
     clearTimeout(searchChunkTimer);
@@ -3095,6 +3507,8 @@ function cleanupCallState() {
 function updateStatus(state, text) {
   if (elements.statusDot) elements.statusDot.className = `status-dot ${state}`;
   if (elements.statusText) elements.statusText.textContent = text;
+  const statusBadge = document.getElementById("status-badge");
+  if (statusBadge) statusBadge.title = text;
 }
 
 let searchingOverlayStartTime = 0;
@@ -3235,6 +3649,27 @@ function hideSearchingOverlay() {
     elements.searchingOverlay.classList.add("hidden");
   }
 }
+
+
+function showNoStrangerOverlay() {
+  hideSearchingOverlay();
+  const overlay = document.getElementById("no-stranger-overlay");
+  if (overlay) {
+    overlay.classList.remove("hidden");
+    const videoBtn = document.getElementById("no-stranger-video-btn");
+    if (videoBtn) {
+      videoBtn.style.display = (currentChatMode === "video") ? "none" : "flex";
+    }
+  }
+}
+
+function hideNoStrangerOverlay() {
+  const overlay = document.getElementById("no-stranger-overlay");
+  if (overlay) {
+    overlay.classList.add("hidden");
+  }
+}
+
 
 function showFirewallWarning() {
   elements.firewallBanner.classList.remove("hidden");
@@ -3902,6 +4337,7 @@ function initScreenCaptureInterception() {
 }
 
 // Expose Chat & Camera & Emoji & Audio handlers globally on window object for HTML inline onclick attributes
+window.toggleTheme = toggleTheme;
 window.toggleAudio = toggleAudio;
 window.toggleVideo = toggleVideo;
 window.stopCall = stopCall;
@@ -3920,8 +4356,58 @@ window.handleStartOrNext = handleStartOrNext;
 /**
  * In-App Viral Referral & Sharing Engine
  */
+let currentActiveInviteCode = null;
+let currentActiveInviteUrl = null;
+
+function generateInviteCode() {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "HG_";
+  for (let i = 0; i < 5; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
 function handleShareInvite() {
+  currentActiveInviteCode = generateInviteCode();
+  const mode = currentChatMode || "text";
+  const baseUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
+  currentActiveInviteUrl = `${baseUrl}?invite=${currentActiveInviteCode}&mode=${mode}`;
+
+
+  if (socket && socket.connected) {
+    console.log(`🔗 [Omegle Invite] Registering invite room: ${currentActiveInviteCode} [Mode: ${mode}]`);
+    socket.emit("create_invite_room", { inviteCode: currentActiveInviteCode, mode: mode });
+  }
+
+  const linkInput = document.getElementById("share-link-input");
+  if (linkInput) {
+    linkInput.value = currentActiveInviteUrl;
+  }
+
+  copyInviteLink();
   openShareModal();
+}
+
+function checkUrlInviteParameters() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const inviteCode = urlParams.get("invite");
+  const modeParam = urlParams.get("mode");
+
+  if (modeParam && ["video", "audio", "text"].includes(modeParam)) {
+    selectChatMode(modeParam);
+  }
+
+  if (inviteCode) {
+    window.pendingInviteCode = inviteCode;
+    console.log(`🔗 [Url Invite Detector] Found invite parameter: ${inviteCode} [Mode: ${currentChatMode}]`);
+    
+    // Customize TOS Modal Notice for invited friend
+    const tosNotice = document.querySelector("#tos-modal .modal-notice");
+    if (tosNotice) {
+      tosNotice.innerHTML = `🤝 <strong>Your friend invited you to a 1-on-1 ${currentChatMode.toUpperCase()} chat!</strong><br/>Please confirm 18+ and accept our terms to join the call:`;
+    }
+  }
 }
 
 function openShareModal() {
@@ -3942,26 +4428,29 @@ function closeShareModal(event) {
 }
 
 async function copyInviteLink() {
-  const shareUrl = "https://chat.hashgang.com";
+  const shareUrl = currentActiveInviteUrl || `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
+  const input = document.getElementById("share-link-input");
+  if (input) {
+    input.value = shareUrl;
+  }
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       await navigator.clipboard.writeText(shareUrl);
-    } else {
-      const input = document.getElementById("share-link-input");
-      if (input) {
-        input.select();
-        document.execCommand("copy");
-      }
+    } else if (input) {
+      input.select();
+      document.execCommand("copy");
     }
-    showShareToast("Invite link copied to clipboard! Share on WhatsApp or Telegram 🚀");
+    showShareToast("🔗 Direct invite link copied! Send to your friend on WhatsApp or Telegram 🚀");
   } catch (err) {
-    showShareToast("Copied: https://chat.hashgang.com");
+    showShareToast(`Copied: ${shareUrl}`);
   }
 }
 
+
 function shareToSocial(platform) {
-  const shareText = encodeURIComponent("Hey! Try #GANG Chat - Free anonymous stranger video chat with AI beauty filter & zero login required! 🚀 Join here:");
-  const shareUrl = encodeURIComponent("https://chat.hashgang.com");
+  const shareUrlStr = currentActiveInviteUrl || `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
+  const shareText = encodeURIComponent(`Hey! Join my private 1-on-1 ${currentChatMode.toUpperCase()} chat on #GANG Chat! 🚀 Click link to connect:`);
+  const shareUrl = encodeURIComponent(shareUrlStr);
   
   let targetUrl = "";
   if (platform === "whatsapp") {
@@ -3978,6 +4467,7 @@ function shareToSocial(platform) {
     window.open(targetUrl, "_blank", "noopener,noreferrer");
   }
 }
+
 
 function showShareToast(message) {
   const toast = document.getElementById("share-toast");
@@ -4290,6 +4780,7 @@ window.pwaEngine = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
+  checkUrlInviteParameters();
   detectCameraDevices();
   initBeautyFilter();
   initBgEffectState();
@@ -4299,5 +4790,25 @@ document.addEventListener("DOMContentLoaded", () => {
   initVisualViewportHandler();
   initSocketConnection();
 });
+
+window.selectChatMode = selectChatMode;
+window.handleShareInvite = handleShareInvite;
+window.requestVideoCallUpgrade = requestVideoCallUpgrade;
+window.respondToUpgradeRequest = respondToUpgradeRequest;
+window.acceptTosAndProceed = acceptTosAndProceed;
+window.hideNoStrangerOverlay = hideNoStrangerOverlay;
+
+
+Object.defineProperty(window, "localStream", {
+  get: () => localStream,
+  set: (v) => { localStream = v; },
+  configurable: true
+});
+Object.defineProperty(window, "currentPeerConnection", {
+  get: () => currentPeerConnection,
+  configurable: true
+});
+
+
 
 
