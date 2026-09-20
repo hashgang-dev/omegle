@@ -1944,6 +1944,12 @@ function initSocketConnection() {
   console.log("⚡ [Socket Matchmaker] Initializing connection to signaling server:", socketHost);
 
   try {
+    if (typeof io === "undefined") {
+      console.error("❌ [Socket Matchmaker] Socket initialization error: 'io' object is not defined. Socket.io library failed to load.");
+      updateStatus("error", "Socket library failed to load");
+      return;
+    }
+
     socket = io(socketHost, {
       transports: ["websocket", "polling"],
       reconnectionAttempts: 10

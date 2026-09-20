@@ -9,6 +9,7 @@ const ASSETS_TO_CACHE = [
   '/privacy-policy.html',
   '/style.css',
   '/app.js',
+  '/socket.io.min.js',
   '/ads.js',
   '/logo.webp',
   '/logo-sm.webp',

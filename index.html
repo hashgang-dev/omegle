@@ -1574,7 +1574,13 @@
     <!-- Ad Waterfall Mediation Config -->
     <script src="ad_mediation_config.js?v=97" defer></script>
     <!-- Socket.io Real-Time Signaling Client -->
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+    <script src="socket.io.min.js?v=97"></script>
+    <script>
+      if (typeof io === 'undefined') {
+        console.warn('⚠️ Local socket.io.min.js failed to load, attempting CDN fallback...');
+        document.write('<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"><\/script>');
+      }
+    </script>
     <!-- App Logic -->
     <script src="app.js?v=97" defer></script>
 
