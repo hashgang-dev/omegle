@@ -119,7 +119,7 @@
         color: #ffffff;
         font-weight: 800;
         font-size: 1.25rem;
-        font-family: 'Outfit', sans-serif;
+        font-family: "Outfit", sans-serif;
       }
       .brand-logo img {
         height: 38px;
@@ -281,9 +281,11 @@
     <header class="site-header">
       <a href="../website.html" class="brand-logo">
         <img src="../logo-sm.webp" alt="HashGANG Logo" width="38" height="38" />
-        <span id="brand-title-text" style="transition: opacity 0.3s ease;">#GANG Chat</span>
+        <span id="brand-title-text" style="transition: opacity 0.3s ease"
+          >#GANG Chat</span
+        >
       </a>
-      <div style="position: relative;">
+      <div style="position: relative">
         <button
           class="nav-hamburger-btn"
           onclick="toggleBlogNavMenu(event)"
@@ -292,13 +294,25 @@
           <i class="fa-solid fa-bars"></i>
         </button>
         <div class="nav-hamburger-dropdown closed" id="blog-nav-menu">
-          <a href="../index.html"><i class="fa-solid fa-video"></i> Start Chat</a>
+          <a href="../index.html"
+            ><i class="fa-solid fa-video"></i> Start Chat</a
+          >
           <a href="../website.html"><i class="fa-solid fa-house"></i> Home</a>
-          <a href="../website.html#features"><i class="fa-solid fa-bolt"></i> Features</a>
-          <a href="../website.html#showcase"><i class="fa-solid fa-images"></i> Feature Showcase</a>
-          <a href="index.html"><i class="fa-solid fa-newspaper"></i> Blog & Articles</a>
-          <a href="../terms-of-service.html"><i class="fa-solid fa-file-contract"></i> Terms of Service</a>
-          <a href="../privacy-policy.html"><i class="fa-solid fa-user-shield"></i> Privacy Policy</a>
+          <a href="../website.html#features"
+            ><i class="fa-solid fa-bolt"></i> Features</a
+          >
+          <a href="../website.html#showcase"
+            ><i class="fa-solid fa-images"></i> Feature Showcase</a
+          >
+          <a href="index.html"
+            ><i class="fa-solid fa-newspaper"></i> Blog & Articles</a
+          >
+          <a href="../terms-of-service.html"
+            ><i class="fa-solid fa-file-contract"></i> Terms of Service</a
+          >
+          <a href="../privacy-policy.html"
+            ><i class="fa-solid fa-user-shield"></i> Privacy Policy</a
+          >
         </div>
       </div>
     </header>
@@ -716,6 +730,60 @@
           <span>Read Article <i class="fa-solid fa-arrow-right"></i></span>
         </div>
       </a>
+
+      <!-- Article 23 -->
+      <a href="anonymous-random-voice-chat-no-login.html" class="blog-card">
+        <div>
+          <span class="blog-badge">Voice Chat</span>
+          <h3>Free Anonymous Random Voice Chat with Strangers</h3>
+          <p>
+            Explore high-definition P2P audio calling with zero camera pressure,
+            low-bandwidth optimization, and instant 24/7 matchmaking.
+          </p>
+        </div>
+        <div class="blog-card-meta">
+          <span><i class="fa-regular fa-clock"></i> 5 min read</span>
+          <span>Read Article <i class="fa-solid fa-arrow-right"></i></span>
+        </div>
+      </a>
+
+      <!-- Article 24 -->
+      <a
+        href="anonymous-text-chat-strangers-no-registration.html"
+        class="blog-card"
+      >
+        <div>
+          <span class="blog-badge">Text Chat</span>
+          <h3>Anonymous Text Chat with Strangers (Omegle Text Alternative)</h3>
+          <p>
+            Discover pure text-only stranger chat with zero media permissions
+            required, mobile keyboard safety, and 100% ephemeral messaging.
+          </p>
+        </div>
+        <div class="blog-card-meta">
+          <span><i class="fa-regular fa-clock"></i> 4 min read</span>
+          <span>Read Article <i class="fa-solid fa-arrow-right"></i></span>
+        </div>
+      </a>
+
+      <!-- Article 25 -->
+      <a
+        href="3-way-text-voice-video-stranger-chat-guide.html"
+        class="blog-card"
+      >
+        <div>
+          <span class="blog-badge">Platform Guide</span>
+          <h3>Mastering 3-in-1 Stranger Chat: Text, Voice, and Video</h3>
+          <p>
+            Learn how to switch seamlessly between Text, Voice, and Video modes,
+            send in-call video upgrade invites, and customize your chat privacy.
+          </p>
+        </div>
+        <div class="blog-card-meta">
+          <span><i class="fa-regular fa-clock"></i> 6 min read</span>
+          <span>Read Article <i class="fa-solid fa-arrow-right"></i></span>
+        </div>
+      </a>
     </main>
 
     <footer class="blog-footer">
@@ -731,7 +799,7 @@
     <button
       class="btn-back-to-top"
       id="btn-back-to-top"
-      onclick="window.scrollTo({top: 0, behavior: 'smooth'})"
+      onclick="window.scrollTo({ top: 0, behavior: 'smooth' })"
       title="Back to Top"
       aria-label="Back to Top"
     >

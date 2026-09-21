@@ -42,7 +42,10 @@ const ASSETS_TO_CACHE = [
   '/blog/how-anti-screen-recording-trace-watermark-works.html',
   '/blog/why-free-unlimited-video-chat-beats-coin-paywalls.html',
   '/blog/zero-wait-instant-video-chat-matchmaking.html',
-  '/blog/virtual-ring-light-dark-room-video-chat.html'
+  '/blog/virtual-ring-light-dark-room-video-chat.html',
+  '/blog/anonymous-random-voice-chat-no-login.html',
+  '/blog/anonymous-text-chat-strangers-no-registration.html',
+  '/blog/3-way-text-voice-video-stranger-chat-guide.html'
 ];
 
 self.addEventListener('install', (event) => {
