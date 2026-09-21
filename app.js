@@ -829,6 +829,22 @@ async function showPermissionGuidanceModal(isBlocked = false) {
   const guideBox = document.getElementById("unblock-guide-box");
   const btnRequest = document.getElementById("btn-request-perm");
   const btnRefresh = document.getElementById("btn-perm-refresh");
+  const titleEl = document.getElementById("perm-modal-title");
+  const subEl = document.getElementById("perm-modal-sub");
+
+  if (titleEl) {
+    titleEl.textContent = currentChatMode === "audio" ? "Microphone Access Required" : "Camera & Microphone Required";
+  }
+  if (subEl) {
+    subEl.textContent = currentChatMode === "audio"
+      ? "Microphone access is mandatory to talk to strangers in Audio Mode."
+      : "Camera and microphone access is mandatory to meet strangers in Video Mode.";
+  }
+  if (btnRequest) {
+    btnRequest.innerHTML = currentChatMode === "audio"
+      ? '<i class="fa-solid fa-microphone"></i> Enable Microphone'
+      : '<i class="fa-solid fa-video"></i> Enable Camera & Microphone';
+  }
 
   // Check browser site setting permission status for camera/microphone if not explicitly passed as blocked
   if (!isBlocked && currentChatMode !== "text" && navigator.permissions && navigator.permissions.query) {
@@ -878,7 +894,8 @@ function hidePermissionGuidanceModal() {
 }
 
 async function requestMediaPermissionAndProceed() {
-  updateStatus("searching", "Requesting camera & microphone access...");
+  const reqMsg = currentChatMode === "audio" ? "Requesting microphone access..." : "Requesting camera & microphone access...";
+  updateStatus("searching", reqMsg);
   const success = await initLocalMedia();
   if (success && validateMediaPermissions()) {
     hidePermissionGuidanceModal();
@@ -3689,7 +3706,15 @@ function showNoStrangerOverlay() {
     overlay.classList.remove("hidden");
     const videoBtn = document.getElementById("no-stranger-video-btn");
     if (videoBtn) {
-      videoBtn.style.display = (currentChatMode === "video") ? "none" : "flex";
+      if (currentChatMode === "text" || currentChatMode === "audio") {
+        videoBtn.style.display = "flex";
+        videoBtn.innerHTML = '<i class="fa-solid fa-video"></i> <span>Switch to Video Mode 📹</span>';
+        videoBtn.onclick = () => { hideNoStrangerOverlay(); selectChatMode('video'); handleStartOrNext(); };
+      } else {
+        videoBtn.style.display = "flex";
+        videoBtn.innerHTML = '<i class="fa-solid fa-comments"></i> <span>Switch to Text Mode 💬</span>';
+        videoBtn.onclick = () => { hideNoStrangerOverlay(); selectChatMode('text'); handleStartOrNext(); };
+      }
     }
   }
 }

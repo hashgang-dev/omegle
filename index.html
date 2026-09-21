@@ -49,15 +49,32 @@
 
     <!-- Open Graph / Facebook / WhatsApp Meta Tags -->
     <meta property="og:site_name" content="HashGANG Chat" />
+    <meta
+      name="description"
+      content="Instant, private, anonymous text, voice & video chat with strangers worldwide on HashGANG Chat. 100% free Omegle alternative with no sign-up or registration required."
+    />
+    <meta
+      name="keywords"
+      content="free text voice video chat no login, anonymous stranger chat, omegle alternative no registration, talk to strangers online free, random video chat, random voice chat, chroulette alternative, emerald chat alternative, coomeet alternative, monkey app alternative, camzoo alternative, hashgang chat, gang chat, live video call strangers, free stranger cam chat, no sign up video chat"
+    />
+    <meta
+      name="robots"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://chat.hashgang.com/" />
+
+    <!-- Open Graph / Facebook Meta Tags -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://chat.hashgang.com/" />
     <meta
       property="og:title"
-      content="HashGANG Chat - Free Anonymous Video Chat with Strangers"
+      content="HashGANG Chat - Free Anonymous Text, Voice & Video Chat with Strangers"
     />
     <meta
       property="og:description"
-      content="Connect instantly with random strangers worldwide via private, 100% free, end-to-end encrypted video & text chat. No registration or login required."
+      content="Connect instantly with random strangers worldwide via private, 100% free, end-to-end encrypted text, voice & video chat. No registration or login required."
     />
     <meta
       property="og:image"
@@ -67,7 +84,7 @@
     <meta property="og:image:height" content="630" />
     <meta
       property="og:image:alt"
-      content="HashGANG Chat - Free Anonymous Stranger Video Chat Platform"
+      content="HashGANG Chat - Free Anonymous Stranger Text Voice Video Chat Platform"
     />
 
     <!-- Twitter Card Meta Tags -->
@@ -75,11 +92,11 @@
     <meta name="twitter:url" content="https://chat.hashgang.com/" />
     <meta
       name="twitter:title"
-      content="HashGANG Chat - Free Anonymous Stranger Video Chat"
+      content="HashGANG Chat - Free Anonymous Text, Voice & Video Chat"
     />
     <meta
       name="twitter:description"
-      content="Instant, private video & text chat with strangers worldwide. 100% Free, No Login Required."
+      content="Instant, private text, voice & video chat with strangers worldwide. 100% Free, No Login Required."
     />
     <meta
       name="twitter:image"
@@ -95,11 +112,11 @@
             "@type": "WebApplication",
             "@id": "https://chat.hashgang.com/#webapp",
             "name": "HashGANG Chat",
-            "alternateName": ["#GANG Chat", "HashGANG Stranger Video Chat"],
+            "alternateName": ["#GANG Chat", "HashGANG Stranger Chat"],
             "url": "https://chat.hashgang.com/",
             "logo": "https://chat.hashgang.com/logo.png",
             "image": "https://chat.hashgang.com/branding.png",
-            "description": "Free anonymous stranger video chat platform with instant worldwide matching. No registration or login required.",
+            "description": "Free anonymous stranger text, voice & video chat platform with instant worldwide matching. No registration or login required.",
             "applicationCategory": "SocialNetworkingApplication",
             "operatingSystem": "All",
             "offers": {
@@ -371,7 +388,7 @@
             <div class="firewall-content">
               <h4>Network Connection Restricted</h4>
               <p>
-                Direct video connection is blocked by your network or Wi-Fi
+                Direct chat connection is blocked by your network or Wi-Fi
                 firewall. Please switch to Mobile Data or another network to
                 connect.
               </p>
@@ -460,7 +477,7 @@
               <h2 class="idle-hero-title">Ready to Meet Strangers?</h2>
               <p class="idle-hero-sub">
                 Connect instantly with random people worldwide for 100%
-                anonymous video & text chat.
+                anonymous text, voice & video chat.
               </p>
               <!-- 3-Way Chat Mode Switcher Segment -->
               <div class="hero-mode-selector" id="hero-mode-selector">
@@ -984,17 +1001,17 @@
         border: 0;
       "
     >
-      <h1>Free Anonymous Video Chat with Strangers - No Login Required</h1>
+      <h1>Free Anonymous Text, Voice & Video Chat with Strangers - No Login Required</h1>
       <p>
         HashGANG Chat is the #1 free Omegle alternative for private, anonymous
-        video and text chat with random strangers worldwide. Connect instantly
+        text, voice, and video chat with random strangers worldwide. Connect instantly
         with zero registration, no account sign-up, and zero subscription fees.
-        Experience HD peer-to-peer WebRTC video calls protected by end-to-end
+        Experience HD peer-to-peer WebRTC connections protected by end-to-end
         encryption.
       </p>
       <h2>Key Features of HashGANG Chat</h2>
       <ul>
-        <li>100% Free Stranger Video Chat</li>
+        <li>100% Free Stranger Text, Voice & Video Chat</li>
         <li>No Registration, Account, or Sign Up Needed</li>
         <li>End-to-End Encrypted Peer-to-Peer Calls</li>
         <li>Worldwide Random Stranger Matchmaking</li>
@@ -1184,8 +1201,8 @@
             <i class="fa-solid fa-video"></i>
           </div>
           <div class="modal-header-text">
-            <h3>Camera & Microphone Required</h3>
-            <p class="modal-sub">HashGANG Chat is a 100% live video chat platform. Camera and microphone access is mandatory to meet strangers.</p>
+            <h3 id="perm-modal-title">Camera & Microphone Required</h3>
+            <p class="modal-sub" id="perm-modal-sub">HashGANG Chat is a private Text, Voice & Video chat platform. Media permissions are requested based on your selected chat mode.</p>
           </div>
         </div>
 
@@ -1195,14 +1212,14 @@
               <i class="fa-solid fa-shield-halved perm-benefit-icon" style="color: var(--accent-cyan);"></i>
               <div>
                 <strong style="display: block; color: var(--text-primary); margin-bottom: 2px;">100% Private & Encrypted</strong>
-                <span style="color: var(--text-muted);">Direct encrypted calls. Zero video recordings stored.</span>
+                <span style="color: var(--text-muted);">Direct encrypted P2P calls. Zero recordings stored.</span>
               </div>
             </div>
             <div class="perm-benefit-item">
               <i class="fa-solid fa-users perm-benefit-icon" style="color: var(--accent-magenta);"></i>
               <div>
-                <strong style="display: block; color: var(--text-primary); margin-bottom: 2px;">100% Real Video Strangers</strong>
-                <span style="color: var(--text-muted);">Every stranger you meet is also live on video.</span>
+                <strong style="display: block; color: var(--text-primary); margin-bottom: 2px;" id="perm-modal-benefit2-title">100% Real Live Strangers</strong>
+                <span style="color: var(--text-muted);" id="perm-modal-benefit2-sub">Connect with live strangers instantly in your chosen mode (Text, Voice, or Video).</span>
               </div>
             </div>
           </div>
