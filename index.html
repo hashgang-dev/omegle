@@ -193,6 +193,7 @@
     <!-- Google Fonts & Font Awesome Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
       rel="stylesheet"
@@ -893,6 +894,8 @@
             <button
               class="btn-action-primary"
               id="btn-next"
+              aria-label="Start or Next Stranger Chat"
+              title="Start or Next Stranger Chat"
               onclick="handleStartOrNext()"
             >
               <i class="fa-solid fa-forward-step"></i>
@@ -1582,10 +1585,12 @@
     <script
       src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"
       crossorigin="anonymous"
+      defer
     ></script>
     <script
       src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js"
       crossorigin="anonymous"
+      defer
     ></script>
 
 

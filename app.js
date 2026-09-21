@@ -360,11 +360,15 @@ const elements = {
   pwaInstallIcon: document.getElementById("pwa-install-icon"),
 };
 
+let lastCalculatedVh = null;
 function setMobileVh() {
   const vv = window.visualViewport;
   const height = vv ? vv.height : window.innerHeight;
-  const vh = height * 0.01;
-  document.documentElement.style.setProperty("--vh", `${vh}px`);
+  const vh = (height * 0.01).toFixed(3);
+  if (lastCalculatedVh !== vh) {
+    lastCalculatedVh = vh;
+    document.documentElement.style.setProperty("--vh", `${vh}px`);
+  }
 }
 
 function refreshElements() {
@@ -4254,10 +4258,12 @@ function updateWatermarkDisplay() {
 function shiftDynamicWatermarkNodes() {
   const node = document.getElementById("watermark-single-node");
   if (node) {
-    const top = Math.floor(Math.random() * 70) + 10; // 10% to 80%
-    const left = Math.floor(Math.random() * 70) + 10; // 10% to 80%
-    node.style.top = top + "%";
-    node.style.left = left + "%";
+    const parent = node.offsetParent || document.body;
+    const maxTop = Math.max(0, parent.clientHeight - 40);
+    const maxLeft = Math.max(0, parent.clientWidth - 100);
+    const topPx = Math.floor((Math.random() * 0.7 + 0.1) * maxTop);
+    const leftPx = Math.floor((Math.random() * 0.7 + 0.1) * maxLeft);
+    node.style.transform = `translate3d(${leftPx}px, ${topPx}px, 0)`;
   }
 }
 
