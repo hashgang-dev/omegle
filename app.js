@@ -2905,6 +2905,10 @@ async function setupBgSegmentationPipeline() {
     elements.localVideo.srcObject = getActiveStream();
   }
 
+  if (typeof SelfieSegmentation === "undefined") {
+    await ensureMediaPipeLoaded();
+  }
+
   if (typeof SelfieSegmentation !== "undefined" && !selfieSegmentationInstance) {
     try {
       selfieSegmentationInstance = new SelfieSegmentation({
@@ -2920,6 +2924,25 @@ async function setupBgSegmentationPipeline() {
   }
 
   startBgProcessingLoop();
+}
+
+async function ensureMediaPipeLoaded() {
+  if (typeof SelfieSegmentation !== "undefined") return true;
+  return new Promise((resolve) => {
+    const s1 = document.createElement("script");
+    s1.src = "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js";
+    s1.crossOrigin = "anonymous";
+    s1.onload = () => {
+      const s2 = document.createElement("script");
+      s2.src = "https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js";
+      s2.crossOrigin = "anonymous";
+      s2.onload = () => resolve(true);
+      s2.onerror = () => resolve(false);
+      document.body.appendChild(s2);
+    };
+    s1.onerror = () => resolve(false);
+    document.body.appendChild(s1);
+  });
 }
 
 function startBgProcessingLoop() {

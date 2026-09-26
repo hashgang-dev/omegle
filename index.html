@@ -41,31 +41,14 @@
     <meta name="apple-mobile-web-app-title" content="HashGANG Chat" />
 
     <!-- Favicon & PWA Icons -->
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
-    <link rel="manifest" href="manifest.json" />
-
-    <!-- Open Graph / Facebook / WhatsApp Meta Tags -->
-    <meta property="og:site_name" content="HashGANG Chat" />
-    <meta
-      name="description"
-      content="Instant, private, anonymous text, voice & video chat with strangers worldwide on HashGANG Chat. 100% free Omegle alternative with no sign-up or registration required."
-    />
-    <meta
-      name="keywords"
-      content="free text voice video chat no login, anonymous stranger chat, omegle alternative no registration, talk to strangers online free, random video chat, random voice chat, chroulette alternative, emerald chat alternative, coomeet alternative, monkey app alternative, camzoo alternative, hashgang chat, gang chat, live video call strangers, free stranger cam chat, no sign up video chat"
-    />
-    <meta
-      name="robots"
-      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
-    />
-
-    <!-- Canonical URL -->
-    <link rel="canonical" href="https://chat.hashgang.com/" />
+    <link rel="icon" type="image/x-icon" href="favicon.ico?v=100" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=100" />
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=100" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=100" />
+    <link rel="manifest" href="manifest.json?v=100" />
 
     <!-- Open Graph / Facebook Meta Tags -->
+    <meta property="og:site_name" content="HashGANG Chat" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://chat.hashgang.com/" />
     <meta
@@ -795,9 +778,6 @@
               class="searching-adsterra-banner-box"
               id="searching-adsterra-banner-container"
             ></div>
-
-            <!-- Background Hidden Ad Pre-Fetch Buffer -->
-            <div id="adsterra-prefetch-buffer" style="display:none; position:absolute; left:-9999px; top:-9999px;"></div>
           </div>
 
           <!-- All Strangers Currently Engaged Stage Overlay Card -->
@@ -1009,63 +989,6 @@
           </div>
         </section>
       </main>
-    </div>
-
-    <!-- Search Engine Indexable Content Container (Visually Hidden so Full-Screen Video UI is 100% Intact) -->
-    <div
-      class="seo-crawler-content"
-      style="
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        padding: 0;
-        margin: -1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
-        border: 0;
-      "
-    >
-      <h1>Free Anonymous Text, Voice & Video Chat with Strangers - No Login Required</h1>
-      <p>
-        HashGANG Chat is the #1 free Omegle alternative for private, anonymous
-        text, voice, and video chat with random strangers worldwide. Connect instantly
-        with zero registration, no account sign-up, and zero subscription fees.
-        Experience HD peer-to-peer WebRTC connections protected by end-to-end
-        encryption.
-      </p>
-      <h2>Key Features of HashGANG Chat</h2>
-      <ul>
-        <li>100% Free Stranger Text, Voice & Video Chat</li>
-        <li>No Registration, Account, or Sign Up Needed</li>
-        <li>End-to-End Encrypted Peer-to-Peer Calls</li>
-        <li>Worldwide Random Stranger Matchmaking</li>
-        <li>Mobile and Desktop Browser Friendly</li>
-      </ul>
-      <h2>Frequently Asked Questions</h2>
-      <h3>Is HashGANG Chat completely free to use?</h3>
-      <p>
-        Yes, HashGANG Chat is 100% free forever with no hidden subscriptions,
-        limits, or credit card requirements.
-      </p>
-      <h3>Do I need to sign up or create an account?</h3>
-      <p>
-        No registration or login is required. Simply visit
-        https://chat.hashgang.com, accept the terms, and click Start Chat to
-        connect instantly.
-      </p>
-      <h3>Is HashGANG Chat safe and private?</h3>
-      <p>
-        Yes. HashGANG Chat uses WebRTC peer-to-peer end-to-end encrypted
-        streams. Video and text messages are never recorded or stored on any
-        server.
-      </p>
-      <h3>What makes HashGANG Chat the best Omegle alternative?</h3>
-      <p>
-        HashGANG Chat offers instant global matchmaking, high-definition video
-        connections, full mobile PWA support, zero login friction, and strict
-        user privacy protections.
-      </p>
     </div>
 
     <!-- Terms of Service & Age Disclaimer Consent Modal -->
@@ -1521,7 +1444,7 @@
     </div>
 
     <!-- Compact Floating PWA Installation Card / Banner -->
-    <div class="pwa-modal-overlay hidden" id="pwa-install-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="pwa-modal-title">
+    <div class="pwa-modal-overlay hidden" id="pwa-install-modal" role="dialog" aria-modal="true" aria-labelledby="pwa-modal-title">
       <div class="pwa-modal-card">
         <button class="pwa-modal-close" id="btn-pwa-close" aria-label="Close installation prompt">
           <i class="fa-solid fa-xmark"></i>
@@ -1596,19 +1519,6 @@
       >
     </div>
 
-    <!-- MediaPipe Selfie Segmentation for Virtual Backgrounds -->
-    <script
-      src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"
-      crossorigin="anonymous"
-      defer
-    ></script>
-    <script
-      src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js"
-      crossorigin="anonymous"
-      defer
-    ></script>
-
-
     <!-- StrangerChat API Config -->
     <script src="ads.js?v=100" defer></script>
     <!-- Ad Waterfall Mediation Config -->
@@ -1618,7 +1528,10 @@
     <script>
       if (typeof io === 'undefined') {
         console.warn('⚠️ Local socket.io.min.js failed to load, attempting CDN fallback...');
-        document.write('<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"><\/script>');
+        var s = document.createElement('script');
+        s.src = 'https://cdn.socket.io/4.7.5/socket.io.min.js';
+        s.crossOrigin = 'anonymous';
+        document.head.appendChild(s);
       }
     </script>
     <!-- App Logic -->
