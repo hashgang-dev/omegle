@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="color-scheme" content="dark" />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' http: https: data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; connect-src 'self' http: https: wss: ws:;" />
+  <title>HashGANG Chat - Instant Anonymous Text, Voice & Video Chat</title>
+  <meta name="description"
+    content="Connect instantly with random strangers worldwide on HashGANG Chat. 100% free Omegle alternative for anonymous text, voice, and video chat with zero login." />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://chat.hashgang.com/" />
+  <meta name="theme-color" content="#0a0512" />
+
+  <!-- Favicon & PWA Icons -->
+  <link rel="icon" type="image/x-icon" href="../favicon.ico?v=100" />
+  <link rel="icon" type="image/png" sizes="32x32" href="../favicon-32x32.png?v=100" />
+  <link rel="apple-touch-icon" sizes="180x180" href="../apple-touch-icon.png?v=100" />
+  <link rel="manifest" href="../manifest.json?v=100" />
+
+  <!-- Open Graph Meta Tags -->
+  <meta property="og:site_name" content="HashGANG Chat" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://chat.hashgang.com/" />
+  <meta property="og:title" content="HashGANG Chat v2 - Instant Anonymous Stranger Chat" />
+  <meta property="og:description"
+    content="100% Free Anonymous Text, Voice & Video Chat with Strangers Worldwide. No Login Required." />
+  <meta property="og:image" content="https://chat.hashgang.com/og-image.png" />
+
+  <!-- Google Fonts & FontAwesome -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <!-- v2 Modern Glassmorphic Stylesheet -->
+  <link rel="stylesheet" href="style.css?v=200" />
+
+  <!-- Schema.org Structured Data -->
+  <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "HashGANG Chat v2",
+        "url": "https://chat.hashgang.com/",
+        "description": "Free anonymous stranger text, voice & video chat platform.",
+        "applicationCategory": "SocialNetworkingApplication",
+        "operatingSystem": "All",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
+</head>
+
+<body class="v2-app-body text-mode-active">
+  <div class="v2-app-container">
+
+    <!-- Top Navigation Bar -->
+    <header class="v2-top-bar">
+      <a href="index.html" class="v2-brand-logo" title="HashGANG Chat Home">
+        <img src="../logo-sm.webp" alt="HashGANG Logo" class="v2-brand-img" width="32" height="32" />
+        <span class="v2-brand-name" id="v2-brand-title-text">HashGANG Chat</span>
+      </a>
+
+      <div class="v2-top-right">
+        <!-- PWA Install Button -->
+        <button class="v2-icon-btn hidden" id="v2-btn-pwa-install" title="Install App"
+          onclick="handlePwaInstallPrompt()">
+          <i class="fa-solid fa-download"></i>
+        </button>
+
+        <!-- Top Hamburger Menu -->
+        <button class="v2-icon-btn" id="v2-btn-menu-toggle" title="Menu" onclick="toggleV2Menu(event)">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+      </div>
+
+      <!-- Top Dropdown Popover Menu -->
+      <div class="v2-popover-menu hidden" id="v2-popover-menu">
+        <a href="../website.html"><i class="fa-solid fa-house"></i> Home</a>
+        <a href="../blog/index.html"><i class="fa-solid fa-newspaper"></i> Blog</a>
+        <a href="../press.html"><i class="fa-solid fa-bullhorn"></i> Press</a>
+        <a href="../terms-of-service.html" target="_blank"><i class="fa-solid fa-file-contract"></i> Terms of
+          Service</a>
+        <a href="../privacy-policy.html" target="_blank"><i class="fa-solid fa-user-shield"></i> Privacy Policy</a>
+        <a href="https://hashgang.com/?utm_source=chat_subdomain&utm_medium=header&utm_campaign=internal_referral"
+          target="_blank" rel="noopener" style="color: #f066ff; font-weight: 700;">
+          <i class="fa-solid fa-globe"></i> HashGANG
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Stage Workspace -->
+    <main class="v2-main-stage">
+
+      <!-- Video & Viewport Container -->
+      <section class="v2-viewport-area">
+
+        <!-- Co-Viewing Shared Photo / Video Stage in Video Call (Split View Top Zone) -->
+        <div class="v2-video-shared-media-stage hidden" id="v2-video-shared-media-stage">
+          <button class="v2-video-media-close-btn" title="Close Shared Media"
+            onclick="dismissV2VideoSharedMedia()">&times;</button>
+          <div class="v2-video-media-content" id="v2-video-media-content"></div>
+        </div>
+
+        <!-- Remote Video Feed (Split View Bottom Zone) -->
+        <div class="v2-remote-container">
+          <video id="remote" autoplay playsinline webkit-playsinline></video>
+
+          <!-- Centered Session Trace Code Watermark (Video Mode) -->
+          <span class="v2-stage-watermark hidden" id="v2-video-trace-watermark">8F3A9X2K</span>
+
+          <!-- Focus Loss Privacy Shield -->
+          <div class="v2-privacy-shield hidden" id="v2-privacy-shield">
+            <i class="fa-solid fa-user-shield"></i>
+            <h3>Privacy Shield Active</h3>
+            <p>Video is blurred while tab focus is away to protect privacy.</p>
+          </div>
+
+          <!-- Video Stranger Disconnect Overlay -->
+          <div class="v2-video-disc-overlay hidden" id="v2-video-disc-overlay">
+            <i class="fa-solid fa-video-slash"></i>
+            <h3>🔴 Video Stranger Disconnected</h3>
+            <p>The stranger has left the video call.</p>
+          </div>
+
+          <!-- Audio Mode Waveform Visualizer & Shared Co-Viewing Stage -->
+          <div class="v2-audio-avatar-overlay hidden" id="v2-audio-avatar-overlay">
+            <div class="v2-audio-circle" id="v2-audio-circle">
+              <i class="fa-solid fa-user-astronaut" id="v2-audio-avatar-icon"></i>
+              <div class="v2-pulse-ring" id="v2-pulse-ring"></div>
+            </div>
+            <div class="v2-audio-label" id="v2-audio-label">Voice Stranger Connected</div>
+            <div class="v2-equalizer-bars" id="v2-equalizer-bars">
+              <span class="v2-eq-bar"></span>
+              <span class="v2-eq-bar"></span>
+              <span class="v2-eq-bar"></span>
+              <span class="v2-eq-bar"></span>
+            </div>
+
+            <!-- Centered Session Trace Code Watermark (Audio Mode) -->
+            <span class="v2-stage-watermark hidden" id="v2-audio-trace-watermark">8F3A9X2K</span>
+
+            <!-- Co-Viewing Shared Photo / Video Stage in Voice Call -->
+            <div class="v2-audio-shared-media-stage hidden" id="v2-audio-shared-media-stage">
+              <button class="v2-audio-media-close-btn" title="Close Shared Media"
+                onclick="dismissV2AudioSharedMedia()">&times;</button>
+              <div class="v2-audio-media-content" id="v2-audio-media-content"></div>
+            </div>
+          </div>
+
+          <!-- Self Local PIP Video Container (Anchored in Remote Container to Move Together) -->
+          <div class="v2-local-pip hidden" id="v2-local-pip" onclick="toggleV2VideoSwap()"
+            title="Click to swap screens">
+            <video id="local" autoplay muted playsinline webkit-playsinline></video>
+            <span class="v2-pip-label">You</span>
+
+            <div class="v2-pip-actions">
+              <button class="v2-pip-btn" title="Switch Camera" onclick="event.stopPropagation(); switchCamera();">
+                <i class="fa-solid fa-camera-rotate"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- In-Call Adsterra Sponsored Banner -->
+          <div class="v2-incall-ad-banner hidden" id="v2-incall-ad-container"></div>
+        </div>
+
+        <!-- STAGE 1: 1-Click Launch & Mode Selection Welcome Screen (Unboxed v1 Style) -->
+        <div class="v2-stage-overlay" id="v2-hero-stage">
+          <div class="v2-hero-brand">
+            <img src="../logo-sm.webp" alt="HashGANG Logo" class="v2-hero-logo" width="72" height="72" />
+            <h2>Instant Stranger Chat</h2>
+            <p>Connect in one click. 100% Anonymous.</p>
+          </div>
+
+          <!-- 3 Clean Prominent Launch Mode Selection Cards -->
+          <div class="v2-mode-cards-grid">
+            <button class="v2-mode-card active" id="v2-btn-mode-text" onclick="v2SelectModeAndStart('text')">
+              <div class="v2-mode-icon text-icon"><i class="fa-solid fa-comments"></i></div>
+              <div class="v2-mode-info">
+                <strong>Text Chat</strong>
+                <span class="v2-mode-desc">Private Text & Media Sharing</span>
+              </div>
+            </button>
+
+            <button class="v2-mode-card" id="v2-btn-mode-audio" onclick="v2SelectModeAndStart('audio')">
+              <div class="v2-mode-icon audio-icon"><i class="fa-solid fa-microphone"></i></div>
+              <div class="v2-mode-info">
+                <strong>Voice Chat</strong>
+                <span class="v2-mode-desc">Anonymous Audio Call</span>
+              </div>
+            </button>
+
+            <button class="v2-mode-card" id="v2-btn-mode-video" onclick="v2SelectModeAndStart('video')">
+              <div class="v2-mode-icon video-icon"><i class="fa-solid fa-video"></i></div>
+              <div class="v2-mode-info">
+                <strong>Video Call</strong>
+                <span class="v2-mode-desc">Face-to-Face Live Cam</span>
+              </div>
+            </button>
+          </div>
+
+          <div class="v2-hero-footer-legal">
+            <span>By connecting, you confirm 18+ & agree to <a href="../terms-of-service.html" target="_blank">Terms</a>
+              & <a href="../privacy-policy.html" target="_blank">Privacy</a>.</span>
+          </div>
+
+          <div class="v2-hero-share-wrapper">
+            <button class="v2-btn-secondary v2-hero-share-btn" onclick="openV2ShareModal()">
+              <i class="fa-solid fa-share-nodes text-purple-400"></i> Invite Your Friends 🚀
+            </button>
+          </div>
+        </div>
+
+        <!-- STAGE 2: Fast Matchmaking & Permission Handling Radar Overlay (Unboxed v1 Style) -->
+        <div class="v2-stage-overlay hidden" id="v2-search-stage">
+          <!-- Background Radar Spinner & Globe Icon (Scaled 2.2x behind search elements) -->
+          <div class="v2-radar-spinner" id="v2-radar-spinner">
+            <div class="v2-radar-ring"></div>
+            <div class="v2-radar-ring delay"></div>
+            <i class="fa-solid fa-globe v2-radar-icon"></i>
+          </div>
+
+          <h3 class="v2-search-title" id="v2-search-title">✨ Finding a Stranger...</h3>
+          <p class="v2-search-sub" id="v2-search-sub">Matching you with random online users worldwide.</p>
+
+          <!-- Inline Media Permission Unblock Guidance (Shown if camera/mic blocked) -->
+          <div class="v2-perm-guide-box hidden" id="v2-perm-guide-box">
+            <i class="fa-solid fa-lock text-rose-400"></i>
+            <div>
+              <strong>Camera or Microphone Access Blocked</strong>
+              <p>Tap the lock icon 🔒 in your address bar and allow permissions, then click Retry!</p>
+              <button class="v2-btn-accent" onclick="v2RetryMediaPermission()">Retry Access <i
+                  class="fa-solid fa-arrows-rotate"></i></button>
+            </div>
+          </div>
+
+          <!-- Searching Adsterra / Internal Ad Container (v1 Style 300x250 Box) -->
+          <div class="v2-searching-adsterra-banner-box" id="v2-searching-ad-container"></div>
+
+          <!-- Quick Action Buttons (Shown right away during search and quiet queue) -->
+          <div class="v2-engaged-box" id="v2-engaged-box">
+            <div class="v2-engaged-actions">
+              <button class="v2-btn-engaged-share" onclick="openV2ShareModal()">
+                <i class="fa-solid fa-share-nodes"></i> Invite Your Friends 🚀
+              </button>
+              <button class="v2-btn-engaged-switch" id="v2-btn-engaged-switch" onclick="v2SwitchModeAndSearch()">
+                <i class="fa-solid fa-video"></i> Switch to Video Mode 📹
+              </button>
+            </div>
+          </div>
+
+          <!-- Stop Searching Button -->
+          <button class="v2-btn-stop-search" onclick="v2StopCall()">
+            <i class="fa-solid fa-stop text-rose-400"></i> Stop Searching
+          </button>
+        </div>
+
+        <!-- Floating Call Control Toolbar (Hidden on Mode Selection Screen) -->
+        <div class="v2-control-toolbar hidden" id="v2-control-toolbar">
+          <button class="v2-ctrl-btn" id="v2-btn-audio-attach" title="Share Photo or Video"
+            onclick="triggerV2AudioMediaUpload()">
+            <i class="fa-solid fa-paperclip"></i>
+          </button>
+          <button class="v2-ctrl-btn" id="v2-btn-mute" title="Toggle Mic" onclick="toggleAudio()">
+            <i class="fa-solid fa-microphone"></i>
+          </button>
+          <button class="v2-ctrl-btn" id="v2-btn-cam" title="Toggle Cam" onclick="toggleVideo()">
+            <i class="fa-solid fa-video"></i>
+          </button>
+
+          <!-- Main Primary Action Button (Start / Next) -->
+          <button class="v2-btn-primary" id="v2-btn-next" onclick="v2HandleStartOrNext()">
+            <i class="fa-solid fa-forward-step"></i>
+            <span id="v2-next-label">Start Chat</span>
+          </button>
+
+        </div>
+
+        <!-- Centered HUD Overlay Text Chat Drawer -->
+        <div class="v2-chat-overlay closed" id="v2-chat-drawer">
+          <span class="v2-chat-bg-watermark" id="v2-text-trace-watermark">8F3A9X2K</span>
+          <div class="v2-chat-messages" id="chat-messages"></div>
+          <div class="v2-chat-input-row">
+            <div class="v2-chat-input-pill">
+              <label class="v2-attach-btn" title="Send Image or Video" for="v2-media-file-input">
+                <i class="fa-solid fa-paperclip"></i>
+                <input type="file" id="v2-media-file-input" accept="image/*,video/*" style="display:none;"
+                  onchange="v2HandleMediaUpload(event)" />
+              </label>
+              <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off" />
+              <button class="v2-send-btn" id="btn-send-chat" title="Send">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </div>
+            <button class="v2-inline-act-btn next" id="v2-btn-chat-next" title="Next Stranger"
+              onclick="v2HandleStartOrNext()">
+              <i class="fa-solid fa-forward-step"></i>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Viral Share Modal -->
+    <div class="v2-modal-overlay hidden" id="v2-share-modal" onclick="closeV2ShareModal(event)">
+      <div class="v2-modal-card" onclick="event.stopPropagation()">
+        <div class="v2-modal-header">
+          <h3><i class="fa-solid fa-paper-plane text-purple-400"></i> Invite Friends to HashGANG Chat</h3>
+          <button class="v2-close-btn" onclick="closeV2ShareModal()">&times;</button>
+        </div>
+        <div class="v2-modal-body">
+          <p>✨ Invite a friend or share with your groups:</p>
+          <div class="v2-social-grid">
+            <button class="v2-soc-btn wa" onclick="shareToSocial('whatsapp')"><i class="fa-brands fa-whatsapp"></i>
+              WhatsApp</button>
+            <button class="v2-soc-btn tg" onclick="shareToSocial('telegram')"><i class="fa-brands fa-telegram"></i>
+              Telegram</button>
+            <button class="v2-soc-btn tw" onclick="shareToSocial('twitter')"><i class="fa-brands fa-x-twitter"></i> X /
+              Twitter</button>
+            <button class="v2-soc-btn fb" onclick="shareToSocial('facebook')"><i class="fa-brands fa-facebook-f"></i>
+              Facebook</button>
+            <button class="v2-soc-btn snap" onclick="shareToSocial('snapchat')"><i class="fa-brands fa-snapchat"></i>
+              Snapchat</button>
+            <button class="v2-soc-btn insta" onclick="shareToSocial('instagram')"><i class="fa-brands fa-instagram"></i>
+              Instagram</button>
+          </div>
+          <div class="v2-share-preview-box">
+            <textarea id="v2-share-text-input" readonly rows="6">🔥 Hey! Connect with me on HashGANG Chat!
+💬 Free HD Video, Audio & Text Chat (No Signup required).
+Join directly: https://chat.hashgang.com</textarea>
+          </div>
+          <div class="v2-copy-group">
+            <button class="v2-btn-accent v2-btn-full" onclick="copyV2Link()"><i class="fa-solid fa-copy"></i> Copy
+              Message & Invite Friends 🚀</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Feedback Notification -->
+    <div class="v2-toast hidden" id="v2-toast">
+      <i class="fa-solid fa-circle-check"></i>
+      <span id="v2-toast-text">Link copied to clipboard!</span>
+    </div>
+
+  </div>
+
+  <!-- Scripts Injection -->
+  <script src="../ads.js?v=200" defer></script>
+  <script src="../ad_mediation_config.js?v=200" defer></script>
+  <script src="../socket.io.min.js?v=97"></script>
+  <script src="app.js?v=200" defer></script>
+</body>
+
+</html>
