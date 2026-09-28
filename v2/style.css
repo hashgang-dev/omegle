@@ -1874,3 +1874,134 @@ html, body {
   0%, 100% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.2); }
   50% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
 }
+
+/* ==========================================================================
+   Report & Block Stranger Flag Button (Top Bar Header)
+   ========================================================================== */
+.v2-top-flag-btn {
+  background: rgba(244, 63, 94, 0.18) !important;
+  border: 1px solid rgba(244, 63, 94, 0.4) !important;
+  color: #f43f5e !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.v2-top-flag-btn:hover {
+  background: rgba(244, 63, 94, 0.55) !important;
+  border-color: rgba(244, 63, 94, 0.8) !important;
+  color: #ffffff !important;
+  transform: scale(1.06);
+}
+
+.v2-top-flag-btn:active {
+  transform: scale(0.95);
+}
+
+
+/* ==========================================================================
+   Footer SEO Content & Regional Landing Pages Section
+   ========================================================================== */
+.v2-footer-seo {
+  width: 100%;
+  max-width: 900px;
+  margin-top: 32px;
+  padding: 16px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.82rem;
+  color: var(--v2-text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.v2-seo-toggle-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--v2-text-muted);
+  padding: 8px 16px;
+  border-radius: var(--v2-radius-full);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-bottom: 12px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.v2-seo-toggle-btn:hover {
+  background: rgba(168, 85, 247, 0.18);
+  border-color: rgba(168, 85, 247, 0.45);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.v2-seo-chevron {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  font-size: 0.75rem;
+}
+
+.v2-seo-links-container {
+  width: 100%;
+  margin-top: 12px;
+  margin-bottom: 12px;
+  animation: v2SysSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.v2-seo-links-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  text-align: left;
+}
+
+.v2-seo-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.v2-seo-heading {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #c084fc;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.v2-seo-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.v2-seo-tags a {
+  color: rgba(255, 255, 255, 0.65);
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  transition: all 0.2s ease;
+}
+
+.v2-seo-tags a:hover {
+  color: #ffffff;
+  background: rgba(168, 85, 247, 0.2);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+.v2-seo-copyright {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--v2-text-dim);
+}
+
+

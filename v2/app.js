@@ -47,6 +47,7 @@ function initDOMElements() {
     btnSendChat: document.getElementById("btn-send-chat"),
     popoverMenu: document.getElementById("v2-popover-menu"),
     shareModal: document.getElementById("v2-share-modal"),
+    btnFlagReport: document.getElementById("v2-btn-flag-report"),
     toast: document.getElementById("v2-toast"),
     toastText: document.getElementById("v2-toast-text")
   };
@@ -274,8 +275,32 @@ function handleStrangerDisconnected() {
     setVideoDisconnectedUI(true);
   }
   v2ShowToast("🔴 Stranger Disconnected");
+  if (el.btnFlagReport) el.btnFlagReport.classList.add("hidden");
+  const pwaBtn = document.getElementById("v2-btn-pwa-install");
+  if (pwaBtn) pwaBtn.classList.remove("hidden");
   if (el.chatInput) el.chatInput.blur();
 }
+
+/**
+ * Report & Block Stranger Action
+ */
+function v2ReportAndBlockStranger() {
+  if (!currentMatchTargetId && !inCall) {
+    v2ShowToast("⚠️ No active stranger to report.");
+    return;
+  }
+  const targetId = currentMatchTargetId;
+  if (targetId) {
+    recordSkippedPeerV2(targetId);
+  }
+  if (socket && socket.connected && targetId) {
+    socket.emit("skip_peer", { targetId: targetId, clientVersion: "v2" });
+  }
+  handleStrangerDisconnected();
+  if (el.btnFlagReport) el.btnFlagReport.classList.add("hidden");
+  v2ShowToast("🚩 Stranger reported & blocked!");
+}
+window.v2ReportAndBlockStranger = v2ReportAndBlockStranger;
 
 let isV2VideoSwapped = false;
 function toggleV2VideoSwap() {
@@ -295,17 +320,23 @@ window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredPwaPromptV2 = e;
   const pwaBtn = document.getElementById("v2-btn-pwa-install");
-  if (pwaBtn) pwaBtn.classList.remove("hidden");
+  const pwaMenu = document.getElementById("v2-menu-pwa-install");
+  if (pwaBtn && !currentMatchTargetId) pwaBtn.classList.remove("hidden");
+  if (pwaMenu) pwaMenu.classList.remove("hidden");
 });
 
-function handlePwaInstallPrompt() {
+function handlePwaInstallPrompt(e) {
+  if (e && e.preventDefault) e.preventDefault();
   if (deferredPwaPromptV2) {
     deferredPwaPromptV2.prompt();
-    deferredPwaPromptV2.userChoice.then(() => {
+    deferredPwaPromptV2.userChoice.then((choiceResult) => {
+      if (choiceResult && choiceResult.outcome === "accepted") {
+        v2ShowToast("🎉 Thank you for installing HashGANG Chat!");
+      }
       deferredPwaPromptV2 = null;
     });
   } else {
-    v2ShowToast("📲 Click browser menu (⋮) -> 'Add to Home Screen' to install!");
+    v2ShowToast("📲 Tap browser menu (⋮ / Share) -> 'Add to Home Screen' to install!");
   }
 }
 
@@ -389,6 +420,9 @@ function initSocketConnection() {
         trackV2Event("v2_matched", { mode: currentChatMode, targetId: targetId });
         if (el.searchStage) el.searchStage.classList.add("hidden");
         if (el.heroStage) el.heroStage.classList.add("hidden");
+        if (el.btnFlagReport) el.btnFlagReport.classList.remove("hidden");
+        const pwaBtn = document.getElementById("v2-btn-pwa-install");
+        if (pwaBtn) pwaBtn.classList.add("hidden");
 
         // Clear previous stranger messages & display connection system badge
         clearChatHistory();
@@ -991,6 +1025,9 @@ function v2StopCall() {
   if (el.searchStage) el.searchStage.classList.add("hidden");
   if (el.heroStage) el.heroStage.classList.remove("hidden");
   if (el.chatDrawer) el.chatDrawer.classList.add("closed");
+  if (el.btnFlagReport) el.btnFlagReport.classList.add("hidden");
+  const pwaBtn = document.getElementById("v2-btn-pwa-install");
+  if (pwaBtn) pwaBtn.classList.remove("hidden");
   if (el.localPip) el.localPip.classList.add("hidden");
   if (el.audioVisualizer) el.audioVisualizer.classList.add("hidden");
   if (el.videoTraceWatermark) el.videoTraceWatermark.classList.add("hidden");
@@ -1508,6 +1545,21 @@ function toggleVideo() {
 
   v2ShowToast(isOff ? "📹 Camera Turned Off" : "🎥 Camera Active");
 }
+
+/**
+ * Toggle Collapsible Footer SEO Links Section
+ */
+function toggleV2SeoLinks() {
+  const container = document.getElementById("v2-seo-links-container");
+  const chevron = document.getElementById("v2-seo-chevron");
+  if (!container) return;
+  const isHidden = container.classList.toggle("hidden");
+  if (chevron) {
+    chevron.style.transform = isHidden ? "rotate(0deg)" : "rotate(180deg)";
+  }
+}
+window.toggleV2SeoLinks = toggleV2SeoLinks;
+
 
 // Bind all global click handler functions to window object
 window.v2SelectModeAndStart = v2SelectModeAndStart;

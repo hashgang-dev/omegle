@@ -12,9 +12,6 @@
       content="default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' http: https: data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; connect-src 'self' http: https: wss: ws: https://www.google-analytics.com https://*.google-analytics.com;"
     />
 
-    <!-- Monetag Domain Verification Tag -->
-    <meta name="monetag" content="1a9ba9673d41166d5a865cfe64ec942a" />
-
     <title>
       HashGANG Chat - Free Anonymous Stranger Text, Voice & Video Chat (No
       Login)
@@ -253,12 +250,22 @@
         </a>
 
         <div class="v2-top-right">
+          <!-- Report & Block Stranger Flag Button -->
+          <button
+            class="v2-icon-btn v2-top-flag-btn hidden"
+            id="v2-btn-flag-report"
+            title="Report & Block Stranger"
+            onclick="v2ReportAndBlockStranger()"
+          >
+            <i class="fa-solid fa-flag text-rose-500"></i>
+          </button>
+
           <!-- PWA Install Button -->
           <button
-            class="v2-icon-btn hidden"
+            class="v2-icon-btn"
             id="v2-btn-pwa-install"
             title="Install App"
-            onclick="handlePwaInstallPrompt()"
+            onclick="handlePwaInstallPrompt(event)"
           >
             <i class="fa-solid fa-download"></i>
           </button>
@@ -276,6 +283,14 @@
 
         <!-- Top Dropdown Popover Menu -->
         <div class="v2-popover-menu hidden" id="v2-popover-menu">
+          <a
+            href="#"
+            id="v2-menu-pwa-install"
+            onclick="handlePwaInstallPrompt(event)"
+            style="color: #38bdf8; font-weight: 700"
+          >
+            <i class="fa-solid fa-download"></i> Install App
+          </a>
           <a href="../website.html"><i class="fa-solid fa-house"></i> Home</a>
           <a href="../blog/index.html"
             ><i class="fa-solid fa-newspaper"></i> Blog</a
@@ -512,6 +527,50 @@
                 Your Friends 🚀
               </button>
             </div>
+
+            <!-- Hidden Footer SEO Content & Regional Landing Pages Links (Indexed by Googlebot, Hidden from UX) -->
+            <footer class="v2-footer-seo hidden" style="display: none !important" aria-hidden="true">
+              <div class="v2-seo-links-grid">
+                <div class="v2-seo-col">
+                  <h4>Popular Alternatives</h4>
+                  <a href="../omegle-alternative.html">Omegle Alternative</a>
+                  <a href="../ometv-alternative.html">OmeTV Alternative</a>
+                  <a href="../camsurf-alternative.html">Camsurf Alternative</a>
+                  <a href="../chatroulette-alternative.html">Chatroulette Alternative</a>
+                  <a href="../emerald-chat-alternative.html">Emerald Chat</a>
+                  <a href="../monkey-app-alternative.html">Monkey App</a>
+                  <a href="../coomeet-alternative.html">CooMeet Alternative</a>
+                </div>
+                
+                <div class="v2-seo-col">
+                  <h4>Regional & Languages</h4>
+                  <a href="../telugu-stranger-video-call.html">Telugu Stranger Chat</a>
+                  <a href="../tamil-stranger-video-chat.html">Tamil Video Chat</a>
+                  <a href="../stranger-se-baat-karne-wala-app.html">Hindi Stranger Chat</a>
+                  <a href="../stranger-chat-india.html">India Chat</a>
+                  <a href="../bangla-stranger-chat-app.html">Bangla Chat</a>
+                  <a href="../desi-random-video-chat.html">Desi Video Chat</a>
+                  <a href="../kannada-random-video-chat.html">Kannada Chat</a>
+                  <a href="../malayalam-stranger-voice-chat.html">Malayalam Voice</a>
+                  <a href="../marathi-random-video-chat.html">Marathi Chat</a>
+                  <a href="../punjabi-random-video-chat.html">Punjabi Chat</a>
+                  <a href="../random-video-chat-pakistan.html">Pakistan Video</a>
+                  <a href="../stranger-video-chat-bangladesh.html">Bangladesh Video</a>
+                  <a href="../arabic-stranger-video-chat.html">Arabic Video</a>
+                  <a href="../indonesia-random-video-chat.html">Indonesia Video</a>
+                </div>
+
+                <div class="v2-seo-col">
+                  <h4>Modes & Resources</h4>
+                  <a href="../random-video-chat.html">Random Video Chat</a>
+                  <a href="../random-voice-chat.html">Random Voice Chat</a>
+                  <a href="../blog/index.html">Blog & Guides</a>
+                  <a href="../press.html">Press Room</a>
+                  <a href="../terms-of-service.html">Terms of Service</a>
+                  <a href="../privacy-policy.html">Privacy Policy</a>
+                </div>
+              </div>
+            </footer>
           </div>
 
           <!-- STAGE 2: Fast Matchmaking & Permission Handling Radar Overlay (Unboxed v1 Style) -->
