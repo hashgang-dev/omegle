@@ -229,12 +229,12 @@
 
           <!-- Inline Media Permission Unblock Guidance (Shown if camera/mic blocked) -->
           <div class="v2-perm-guide-box hidden" id="v2-perm-guide-box">
-            <i class="fa-solid fa-lock text-rose-400"></i>
-            <div>
+            <div class="v2-perm-icon-wrapper">
+              <i class="fa-solid fa-lock text-rose-400"></i>
+            </div>
+            <div class="v2-perm-text-content">
               <strong>Camera or Microphone Access Blocked</strong>
-              <p>Tap the lock icon 🔒 in your address bar and allow permissions, then click Retry!</p>
-              <button class="v2-btn-accent" onclick="v2RetryMediaPermission()">Retry Access <i
-                  class="fa-solid fa-arrows-rotate"></i></button>
+              <p>Tap the lock icon 🔒 in your browser address bar to allow permissions.</p>
             </div>
           </div>
 
@@ -254,8 +254,8 @@
           </div>
 
           <!-- Stop Searching Button -->
-          <button class="v2-btn-stop-search" onclick="v2StopCall()">
-            <i class="fa-solid fa-stop text-rose-400"></i> Stop Searching
+          <button class="v2-btn-stop-search" id="v2-btn-stop-search" onclick="v2StopCall()">
+            <i class="fa-solid fa-stop text-rose-400" id="v2-btn-stop-search-icon"></i> <span id="v2-btn-stop-search-label">Stop Searching</span>
           </button>
         </div>
 

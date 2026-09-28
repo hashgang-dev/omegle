@@ -858,12 +858,61 @@ async function v2HandleStartOrNext() {
       if (el.heroStage) el.heroStage.classList.add("hidden");
       if (el.searchStage) el.searchStage.classList.remove("hidden");
       if (el.permGuideBox) el.permGuideBox.classList.remove("hidden");
+
+      const searchTitle = document.getElementById("v2-search-title");
+      const searchSub = document.getElementById("v2-search-sub");
+      const radarSpinner = document.getElementById("v2-radar-spinner");
+      const searchAdContainer = document.getElementById("v2-searching-ad-container");
+      const btnStopSearchLabel = document.getElementById("v2-btn-stop-search-label");
+      const btnStopSearchIcon = document.getElementById("v2-btn-stop-search-icon");
+      const btnEngagedSwitch = document.getElementById("v2-btn-engaged-switch");
+      const engagedBox = document.getElementById("v2-engaged-box");
+
+      if (searchTitle) searchTitle.classList.add("hidden");
+      if (searchSub) searchSub.classList.add("hidden");
+      if (radarSpinner) radarSpinner.classList.add("hidden");
+      if (searchAdContainer) searchAdContainer.classList.add("hidden");
+
+      // Change bottom action button from "Stop Searching" to "Select Mode"
+      if (btnStopSearchLabel) btnStopSearchLabel.textContent = "Select Mode";
+      if (btnStopSearchIcon) btnStopSearchIcon.className = "fa-solid fa-arrow-left text-purple-400";
+
+      // Show "Switch to Text Mode" button (Text mode requires no permissions)
+      if (engagedBox) engagedBox.classList.remove("hidden");
+      if (btnEngagedSwitch) {
+        btnEngagedSwitch.innerHTML = `<i class="fa-solid fa-comments text-cyan-400"></i> Switch to Text Mode 💬`;
+        btnEngagedSwitch.onclick = () => v2SelectModeAndStart("text");
+      }
+
       stopSearchingTicker();
       return;
     }
   } else {
     // If text mode, ensure drawer is open and input focused
     if (el.chatDrawer) el.chatDrawer.classList.remove("closed");
+  }
+
+  const searchTitle = document.getElementById("v2-search-title");
+  const searchSub = document.getElementById("v2-search-sub");
+  const radarSpinner = document.getElementById("v2-radar-spinner");
+  const searchAdContainer = document.getElementById("v2-searching-ad-container");
+  const btnStopSearchLabel = document.getElementById("v2-btn-stop-search-label");
+  const btnStopSearchIcon = document.getElementById("v2-btn-stop-search-icon");
+  const btnEngagedSwitch = document.getElementById("v2-btn-engaged-switch");
+
+  if (searchTitle) searchTitle.classList.remove("hidden");
+  if (searchSub) searchSub.classList.remove("hidden");
+  if (radarSpinner) radarSpinner.classList.remove("hidden");
+  if (searchAdContainer) searchAdContainer.classList.remove("hidden");
+
+  if (btnStopSearchLabel) btnStopSearchLabel.textContent = "Stop Searching";
+  if (btnStopSearchIcon) btnStopSearchIcon.className = "fa-solid fa-stop text-rose-400";
+
+  if (btnEngagedSwitch) {
+    const nextMode = (currentChatMode === "text" || currentChatMode === "audio") ? "video" : "text";
+    const modeIcon = nextMode === "video" ? '<i class="fa-solid fa-video"></i>' : '<i class="fa-solid fa-comments"></i>';
+    btnEngagedSwitch.innerHTML = `${modeIcon} Switch to ${nextMode.toUpperCase()} Mode`;
+    btnEngagedSwitch.onclick = v2SwitchModeAndSearch;
   }
 
   if (el.permGuideBox) el.permGuideBox.classList.add("hidden");
