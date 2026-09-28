@@ -68,6 +68,18 @@ function v2ShowToast(msg) {
 }
 window.v2ShowToast = v2ShowToast;
 
+// Google Analytics 4 (GA4) Event Tracker Helper
+function trackV2Event(eventName, params = {}) {
+  try {
+    if (typeof window.gtag === "function") {
+      window.gtag("event", eventName, Object.assign({ clientVersion: "v2" }, params));
+    }
+  } catch (err) {
+    console.warn("Analytics event tracking error:", err);
+  }
+}
+window.trackV2Event = trackV2Event;
+
 // Initialize Application Engine on Page Load
 function initV2App() {
   initDOMElements();
@@ -374,6 +386,7 @@ function initSocketConnection() {
         window.currentMatchTargetId = currentMatchTargetId;
         window.socket = socket;
         updateStatus("connected", "🟢 Live Chat");
+        trackV2Event("v2_matched", { mode: currentChatMode, targetId: targetId });
         if (el.searchStage) el.searchStage.classList.add("hidden");
         if (el.heroStage) el.heroStage.classList.add("hidden");
 
@@ -574,6 +587,7 @@ function updateToolbarForMode(stageState) {
 function v2SelectModeAndStart(mode) {
   currentChatMode = mode;
   console.log(`🌐 [v2 Mode Selected]: ${mode}`);
+  trackV2Event("v2_mode_selected", { mode: mode });
   
   // Highlight active mode card
   document.querySelectorAll(".v2-mode-card").forEach(card => card.classList.remove("active"));
