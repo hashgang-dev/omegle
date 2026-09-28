@@ -85,11 +85,27 @@ window.trackV2Event = trackV2Event;
 function initV2App() {
   initDOMElements();
   console.log("🚀 [HashGANG] Application Engine Initializing...");
+  registerV2ServiceWorker();
   checkV2UrlInviteParameters();
   initSocketConnection();
   setupEventListeners();
   startBrandTitleAnimation();
   updateUIState("idle");
+}
+
+function registerV2ServiceWorker() {
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("../sw.js")
+        .then((reg) => {
+          console.log("⚡ [PWA v2] ServiceWorker registered:", reg.scope);
+        })
+        .catch((err) => {
+          console.warn("⚠️ [PWA v2] ServiceWorker registration notice:", err);
+        });
+    });
+  }
 }
 
 function startBrandTitleAnimation() {
@@ -266,6 +282,9 @@ function handleStrangerDisconnected() {
   dismissV2VideoSharedMedia();
   cleanupPeerConnection();
   playAudioChime("disconnect");
+  if (navigator.vibrate) {
+    try { navigator.vibrate(200); } catch (e) {}
+  }
   updateStatus("disconnected", "🔴 Stranger Disconnected");
   if (currentChatMode === "text") {
     appendSystemCard("disconnect", "🔴 Stranger has disconnected.", true);
@@ -429,6 +448,9 @@ function initSocketConnection() {
         appendSystemCard("connect", "🟢 Connected with stranger! Say Hi 👋");
         updateToolbarForMode("active");
         playAudioChime("connect");
+        if (navigator.vibrate) {
+          try { navigator.vibrate([100, 50, 100]); } catch (e) {}
+        }
 
         // Generate Session Trace Watermark Code
         const sessionTraceCode = (targetId || "HG" + Math.random().toString(36).substring(2, 8)).slice(-8).toUpperCase();
@@ -555,6 +577,9 @@ function initSocketConnection() {
     });
   } catch (err) {
     console.error("Socket.io initialization error:", err);
+    if (typeof window.logAppError === "function") {
+      window.logAppError(err.message || String(err), "socket_init_error", 0);
+    }
   }
 }
 

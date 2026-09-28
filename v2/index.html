@@ -9,7 +9,7 @@
     <meta name="color-scheme" content="dark" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' http: https: data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; connect-src 'self' http: https: wss: ws: https://www.google-analytics.com https://*.google-analytics.com;"
+      content="default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' http: https: data: blob: https://*.clarity.ms https://c.bing.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; connect-src 'self' http: https: wss: ws: https://www.google-analytics.com https://*.google-analytics.com https://www.clarity.ms https://*.clarity.ms https://c.bing.com https://*.firebaseio.com https://*.googleapis.com;"
     />
 
     <title>
@@ -129,7 +129,7 @@
     />
 
     <!-- v2 Modern Glassmorphic Stylesheet -->
-    <link rel="stylesheet" href="style.css?v=200" />
+    <link rel="stylesheet" href="style.css?v=205" />
 
     <!-- Schema.org JSON-LD Structured Data for Google Search Ranking -->
     <script type="application/ld+json">
@@ -229,6 +229,71 @@
       }
       gtag("js", new Date());
       gtag("config", "G-TRACKINGID", { send_page_view: true });
+    </script>
+
+    <!-- Firebase Analytics & Automatic Error Tracking ($0 Unlimited) -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+      import {
+        getAnalytics,
+        logEvent,
+      } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-analytics.js";
+
+      const firebaseConfig = {
+        apiKey: "AIzaSyCC-S1jxZYr7nXMKS9QEKGqdVbS5YxMzuE",
+        authDomain: "hashgang-chat.firebaseapp.com",
+        projectId: "hashgang-chat",
+        storageBucket: "hashgang-chat.firebasestorage.app",
+        messagingSenderId: "65354746365",
+        appId: "1:65354746365:web:f0eaef7fd1da6811e13194",
+        measurementId: "G-WGM4BNHQED",
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const analytics = getAnalytics(app);
+
+      // Global error logging function to Firebase Analytics
+      window.logAppError = (errorMsg, errorSource, lineNo) => {
+        try {
+          logEvent(analytics, "app_exception", {
+            description: String(errorMsg || "Unknown Error").substring(0, 100),
+            source: String(errorSource || "script").substring(0, 80),
+            line: lineNo || 0,
+            version: "v2"
+          });
+        } catch (e) {
+          console.error("Firebase error logging failed:", e);
+        }
+      };
+
+      // Catch uncaught JS errors
+      window.addEventListener("error", (event) => {
+        window.logAppError(event.message, event.filename, event.lineno);
+      });
+
+      // Catch unhandled Promise rejections (WebRTC / Async call drops)
+      window.addEventListener("unhandledrejection", (event) => {
+        const reason = event.reason
+          ? event.reason.message || String(event.reason)
+          : "Unhandled Promise Rejection";
+        window.logAppError(reason, "unhandledrejection", 0);
+      });
+    </script>
+
+    <!-- Microsoft Clarity Heatmaps & Session Recording -->
+    <script type="text/javascript">
+      (function (c, l, a, r, i, t, y) {
+        c[a] =
+          c[a] ||
+          function () {
+            (c[a].q = c[a].q || []).push(arguments);
+          };
+        t = l.createElement(r);
+        t.async = 1;
+        t.src = "https://www.clarity.ms/tag/" + i;
+        y = l.getElementsByTagName(r)[0];
+        y.parentNode.insertBefore(t, y);
+      })(window, document, "clarity", "script", "y8ur26r1qx");
     </script>
   </head>
 
@@ -797,6 +862,6 @@ Join directly: https://chat.hashgang.com</textarea
     <script src="../ads.js?v=200" defer></script>
     <script src="../ad_mediation_config.js?v=200" defer></script>
     <script src="../socket.io.min.js?v=97"></script>
-    <script src="app.js?v=200" defer></script>
+    <script src="app.js?v=205" defer></script>
   </body>
 </html>
