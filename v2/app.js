@@ -452,6 +452,11 @@ function initSocketConnection() {
 
       clearSearchTimeout();
 
+      if (data.isInvite || data.inviteCode || window.pendingV2InviteCode) {
+        isCurrentAdsterraImpressionV2 = false;
+        console.log("🤝 [v2 Invite Link] Personal invite match confirmed: Bypassing ad dwell lock for instant 0-delay connection.");
+      }
+
       const executeMatchTransition = async () => {
         isDisconnectedHandled = false;
         dismissV2AudioSharedMedia();
@@ -732,9 +737,60 @@ function recordV2AdsterraImpression() {
   } catch (e) {}
 }
 
-const MIN_SEARCHING_DWELL_MS_V2 = 4200; // 4.2s Guaranteed Impression Gate for Adsterra
+const MIN_SEARCHING_DWELL_MS_V2 = 5000; // 5.0s Minimum Display Lock for Adsterra eCPM viewability
+const MAX_ADSTERRA_PER_HOUR_V2 = 4; // Maximum 4 Adsterra impressions per 1-hour window per user
+const ADSTERRA_HOURLY_TRACKER_KEY_V2 = "v2_adsterra_hourly_tracker";
+const ADSTERRA_MAX_DISPLAY_TIME_MS_V2 = 8000; // 8.0s Maximum Adsterra display time before auto-swapping to MyLeader promo
+
 let searchingStartTimeV2 = 0;
 let isCurrentAdsterraImpressionV2 = false;
+let adsterraAutoSwapTimerV2 = null;
+let sessionSearchCountV2 = 0; // Session search counter for 1st search 0-delay rule
+
+function getV2HourlyAdsterraStatus() {
+  try {
+    const raw = localStorage.getItem(ADSTERRA_HOURLY_TRACKER_KEY_V2);
+    const now = Date.now();
+    if (!raw) return { canShow: true, count: 0 };
+    const data = JSON.parse(raw);
+    if (!data || typeof data.count !== "number" || typeof data.windowStart !== "number") {
+      return { canShow: true, count: 0 };
+    }
+    if (now - data.windowStart > 3600000) {
+      localStorage.removeItem(ADSTERRA_HOURLY_TRACKER_KEY_V2);
+      return { canShow: true, count: 0 };
+    }
+    return { canShow: data.count < MAX_ADSTERRA_PER_HOUR_V2, count: data.count };
+  } catch (e) {
+    return { canShow: true, count: 0 };
+  }
+}
+
+function incrementV2HourlyAdsterraCount() {
+  try {
+    const now = Date.now();
+    const status = getV2HourlyAdsterraStatus();
+    const raw = localStorage.getItem(ADSTERRA_HOURLY_TRACKER_KEY_V2);
+    let windowStart = now;
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.windowStart && (now - parsed.windowStart <= 3600000)) {
+          windowStart = parsed.windowStart;
+        }
+      } catch (e) {}
+    }
+    const newCount = status.count + 1;
+    localStorage.setItem(ADSTERRA_HOURLY_TRACKER_KEY_V2, JSON.stringify({ count: newCount, windowStart }));
+  } catch (e) {}
+}
+
+function clearV2AdsterraAutoSwapTimer() {
+  if (adsterraAutoSwapTimerV2) {
+    clearTimeout(adsterraAutoSwapTimerV2);
+    adsterraAutoSwapTimerV2 = null;
+  }
+}
 
 // Skipped Peers Cooling Period Management (60 Seconds Cooldown)
 const SKIPPED_PEERS_COOLDOWN_MS_V2 = 60000; // 60s Cooling Period per skipped stranger
@@ -856,7 +912,10 @@ function renderSearchingAd() {
   const adBox = document.getElementById("v2-searching-ad-container");
   if (!adBox) return;
 
+  clearV2AdsterraAutoSwapTimer();
   matchCount++;
+  sessionSearchCountV2++;
+
   const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
   const mediationConfig = window.AD_MEDIATION_CONFIG || {};
   const skipLocal = mediationConfig.settings && mediationConfig.settings.skipOnLocalhost;
@@ -874,21 +933,33 @@ function renderSearchingAd() {
     </div>
   `;
 
-  // Step 2: Rapid-Skip & Deduplication Protection (40s min interval)
+  // Rule: 1st connection of session ALWAYS shows MyLeader internal ad (0-delay instant connect!)
+  if (sessionSearchCountV2 === 1) {
+    isCurrentAdsterraImpressionV2 = false;
+    console.log("⚡ [v2 Ad Engine] 1st Search of session: Serving MyLeader Internal Ad with 0-delay instant connect.");
+    return;
+  }
+
+  // Step 2: Check 1-Hour Cap (Max 4 Adsterra ads/hr) & Rapid-Skip deduplication (40s min interval)
   const now = Date.now();
   const lastAdTime = getLastV2AdsterraStart();
   const elapsedSinceLastAd = now - lastAdTime;
   const isRapidSkip = lastAdTime > 0 && elapsedSinceLastAd < MIN_AD_INTERVAL_MS_V2;
 
-  const shouldShowAdsterra = (!isLocalhost || !skipLocal) && !isRapidSkip;
+  const hourlyStatus = getV2HourlyAdsterraStatus();
+  const isHourlyQuotaAvailable = hourlyStatus.canShow;
+
+  const shouldShowAdsterra = (!isLocalhost || !skipLocal) && !isRapidSkip && isHourlyQuotaAvailable;
   const buffer = document.getElementById("v2-ad-prefetch-buffer");
 
   // Step 3: If pre-fetched fresh iframe exists and rapid skip guard is clear, attach it over internal promo smoothly
   if (shouldShowAdsterra && prefetchedAdElementV2 && buffer && buffer.contains(prefetchedAdElementV2)) {
     isCurrentAdsterraImpressionV2 = true;
     recordV2AdsterraImpression();
+    incrementV2HourlyAdsterraCount();
 
     const adWrap = document.createElement("div");
+    adWrap.id = "v2-adsterra-active-wrap";
     adWrap.style.position = "absolute";
     adWrap.style.top = "0";
     adWrap.style.left = "0";
@@ -914,18 +985,32 @@ function renderSearchingAd() {
       }, 500);
     });
 
+    // 8-Second Maximum Display Auto-Swap Rule: Swap back to MyLeader AI Platform at 8s if search is still ongoing
+    adsterraAutoSwapTimerV2 = setTimeout(() => {
+      if (adWrap && adWrap.parentNode) {
+        console.log("⏱️ [v2 Ad Engine] 8s Adsterra Max Display Limit reached. Auto-swapping to MyLeader Internal Promo.");
+        adWrap.style.opacity = "0";
+        setTimeout(() => {
+          try { adWrap.remove(); } catch (e) {}
+        }, 400);
+      }
+    }, ADSTERRA_MAX_DISPLAY_TIME_MS_V2);
+
     // Queue pre-fetch for subsequent search in background
     setTimeout(prefetchV2AdsterraAd, 1500);
   } else if (shouldShowAdsterra) {
     isCurrentAdsterraImpressionV2 = true;
     recordV2AdsterraImpression();
+    incrementV2HourlyAdsterraCount();
 
-    // Trigger immediate pre-fetch so it is ready during search or next match
+    // Trigger immediate pre-fetch so it is ready during search
     prefetchV2AdsterraAd();
   } else {
     isCurrentAdsterraImpressionV2 = false;
-    if (isRapidSkip) {
-      console.log(`🛡️ [v2 Ad Engine] Rapid skip detected (${Math.round(elapsedSinceLastAd / 1000)}s since last ad). Serving MyLeader Internal Promotion to preserve eCPM & drive traffic.`);
+    if (!isHourlyQuotaAvailable) {
+      console.log(`🛡️ [v2 Ad Engine] Adsterra 1-hour quota reached (${hourlyStatus.count}/${MAX_ADSTERRA_PER_HOUR_V2}). Serving MyLeader Internal Promotion.`);
+    } else if (isRapidSkip) {
+      console.log(`🛡️ [v2 Ad Engine] Rapid skip detected (${Math.round(elapsedSinceLastAd / 1000)}s since last ad). Serving MyLeader Internal Promotion.`);
     }
   }
 }
@@ -939,6 +1024,7 @@ function clearSearchTimeout() {
     clearTimeout(searchTimeoutTimer);
     searchTimeoutTimer = null;
   }
+  clearV2AdsterraAutoSwapTimer();
   stopSearchingTicker();
 }
 
