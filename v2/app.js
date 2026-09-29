@@ -91,6 +91,14 @@ function initV2App() {
   setupEventListeners();
   startBrandTitleAnimation();
   updateUIState("idle");
+
+  recordVisitBackend();
+  fetchActiveUsersBackend();
+  fetchSelfBrandAdsFromBackend();
+  setInterval(fetchActiveUsersBackend, 15000);
+  setInterval(() => {
+    recordSessionTimeBackend(30);
+  }, 30000);
 }
 
 function registerV2ServiceWorker() {
@@ -381,13 +389,24 @@ async function v2RetryMediaPermission() {
   }
 }
 
+function getBackendOrigin() {
+  if (typeof BACKEND_API_BASE !== "undefined" && BACKEND_API_BASE) {
+    try {
+      return new URL(BACKEND_API_BASE).origin;
+    } catch (e) {
+      console.warn("⚠️ [v2] Failed to parse BACKEND_API_BASE from ads.js:", e);
+    }
+  }
+  return "http://localhost:5000";
+}
+
 /**
  * Socket.io Connection to Signaling Server
  */
 function initSocketConnection() {
-  const serverUrl = window.location.origin.includes("localhost")
-    ? "http://localhost:5000"
-    : window.location.origin;
+  const hostOrigin = getBackendOrigin();
+  const socketHost = window.SIGNALING_SERVER_URL || (hostOrigin + "/omegle");
+  console.log("⚡ [v2 Socket Matchmaker] Connecting to signaling server:", socketHost);
 
   try {
     if (typeof io === "undefined") {
@@ -396,7 +415,7 @@ function initSocketConnection() {
       return;
     }
 
-    socket = io(serverUrl + "/omegle", {
+    socket = io(socketHost, {
       transports: ["websocket", "polling"],
       reconnection: true,
       reconnectionAttempts: 10
@@ -405,6 +424,12 @@ function initSocketConnection() {
     socket.on("connect", () => {
       console.log("🌐 [Socket.io v2] Connected to Signaling Server:", socket.id);
       updateStatus("idle", "Select Mode & Start");
+    });
+
+    socket.on("online_count", (data) => {
+      if (data && data.count) {
+        updateOnlineUsersDisplay(data.count);
+      }
     });
 
     socket.on("matched", async (data) => {
@@ -1648,3 +1673,98 @@ window.dismissV2AudioSharedMedia = dismissV2AudioSharedMedia;
 window.dismissV2VideoSharedMedia = dismissV2VideoSharedMedia;
 window.handlePwaInstallPrompt = handlePwaInstallPrompt;
 window.switchCamera = switchCamera;
+
+/**
+ * Stranger Chat Backend API Telemetry & Analytics Integration
+ */
+function updateOnlineUsersDisplay(count) {
+  const badge = document.getElementById("v2-online-count-text") || document.getElementById("online-users-count");
+  if (badge && typeof count === "number") {
+    badge.textContent = `${count.toLocaleString()} Online Users`;
+  }
+}
+window.updateOnlineUsersDisplay = updateOnlineUsersDisplay;
+
+function getVisitorId() {
+  let vid = localStorage.getItem("sc_visitor_id");
+  if (!vid) {
+    vid = "v_" + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+    localStorage.setItem("sc_visitor_id", vid);
+  }
+  return vid;
+}
+
+async function recordVisitBackend() {
+  if (typeof BACKEND_API_BASE === "undefined") return;
+  try {
+    const visitorId = getVisitorId();
+    const device = window.innerWidth <= 768 ? "mobile" : "desktop";
+    fetch(`${BACKEND_API_BASE}/analytics/visit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitorId, country: "UNKNOWN", device }),
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+async function recordSessionTimeBackend(durationSeconds = 30) {
+  if (typeof BACKEND_API_BASE === "undefined") return;
+  try {
+    const visitorId = getVisitorId();
+    fetch(`${BACKEND_API_BASE}/analytics/session-time`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ visitorId, durationSeconds }),
+    }).catch(() => {});
+  } catch (e) {}
+}
+
+async function fetchActiveUsersBackend() {
+  if (typeof BACKEND_API_BASE === "undefined") return;
+  try {
+    const res = await fetch(`${BACKEND_API_BASE}/active-users`);
+    const data = await res.json();
+    if (data && data.success && typeof data.activeUsers === "number") {
+      updateOnlineUsersDisplay(data.activeUsers);
+    }
+  } catch (e) {}
+}
+
+async function fetchSelfBrandAdsFromBackend() {
+  if (typeof BACKEND_API_BASE === "undefined") return;
+  try {
+    fetch(`${BACKEND_API_BASE}/ads/mediation-config`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success && data.config) {
+          window.AD_MEDIATION_CONFIG = data.config;
+          console.log("Ad mediation config synced dynamically from backend server");
+        }
+      })
+      .catch(() => {});
+  } catch (e) {}
+}
+
+async function recordAdImpressionBackend(adConfig, durationWatched = 0, completedFull = false, skipped = false, clickedCta = false) {
+  if (typeof BACKEND_API_BASE === "undefined" || !adConfig) return;
+  try {
+    const visitorId = getVisitorId();
+    const device = window.innerWidth <= 768 ? "mobile" : "desktop";
+    const adId = adConfig.adId || adConfig.id || "brand-ad-unknown";
+
+    fetch(`${BACKEND_API_BASE}/ad-impression`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        adId,
+        country: "UNKNOWN",
+        device,
+        durationWatched: Math.round(durationWatched),
+        completedFull,
+        skipped,
+        clickedCta,
+        visitorId
+      }),
+    }).catch(() => {});
+  } catch (e) {}
+}
