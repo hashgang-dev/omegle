@@ -399,8 +399,7 @@ function initSocketConnection() {
     socket = io(serverUrl + "/omegle", {
       transports: ["websocket", "polling"],
       reconnection: true,
-      reconnectionAttempts: 10,
-      query: { clientVersion: "v2" } // Metadata tag for v2 isolation
+      reconnectionAttempts: 10
     });
 
     socket.on("connect", () => {
@@ -419,8 +418,8 @@ function initSocketConnection() {
       if (cooldownUntil && now < cooldownUntil) {
         console.warn("⏳ [v2 Cooling Period] Recently skipped stranger matched (" + targetId + "). Auto-requesting next stranger...");
         if (socket && socket.connected) {
-          socket.emit("skip_peer", { targetId, clientVersion: "v2" });
-          socket.emit("join_queue", { mode: currentChatMode, clientVersion: "v2", skippedPeers: getActiveSkippedPeersV2() });
+          socket.emit("skip_peer", { targetId });
+          socket.emit("join_queue", { mode: currentChatMode });
         }
         return;
       }
@@ -735,26 +734,31 @@ function renderSearchingAd() {
   if (!adBox) return;
 
   matchCount++;
-  const hourlyCount = getV2AdsterraCount();
   const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
   const mediationConfig = window.AD_MEDIATION_CONFIG || {};
   const skipLocal = mediationConfig.settings && mediationConfig.settings.skipOnLocalhost;
 
   // On production (or non-localhost), trigger real Adsterra banner ad
-  const shouldShowAdsterra = (!isLocalhost || !skipLocal) && (hourlyCount < 4);
+  const shouldShowAdsterra = (!isLocalhost || !skipLocal);
 
   if (shouldShowAdsterra) {
     isCurrentAdsterraImpressionV2 = true;
     recordV2AdsterraImpression();
 
+    adBox.innerHTML = "";
     const iframe = document.createElement("iframe");
     iframe.style.width = "300px";
     iframe.style.height = "250px";
     iframe.style.border = "none";
     iframe.style.borderRadius = "12px";
     iframe.style.overflow = "hidden";
+    iframe.style.background = "transparent";
+    iframe.scrolling = "no";
     iframe.title = "Sponsored Ad";
-    iframe.srcdoc = `
+
+    adBox.appendChild(iframe);
+
+    const htmlString = `
       <!DOCTYPE html>
       <html>
         <head>
@@ -775,8 +779,17 @@ function renderSearchingAd() {
       </html>
     `;
     
-    adBox.innerHTML = "";
-    adBox.appendChild(iframe);
+    if ("srcdoc" in iframe) {
+      iframe.srcdoc = htmlString;
+    }
+    if (iframe.contentWindow) {
+      try {
+        const doc = iframe.contentWindow.document;
+        doc.open();
+        doc.write(htmlString);
+        doc.close();
+      } catch (e) {}
+    }
   } else {
     isCurrentAdsterraImpressionV2 = false;
 
@@ -1008,9 +1021,7 @@ async function v2HandleStartOrNext() {
   }, 12000);
 
   const queuePayload = {
-    mode: currentChatMode,
-    clientVersion: "v2",
-    skippedPeers: getActiveSkippedPeersV2()
+    mode: currentChatMode
   };
 
   if (socket && socket.connected) {
@@ -1146,14 +1157,44 @@ function cleanupPeerConnection() {
  */
 async function initLocalMedia(mode) {
   try {
-    const constraints = {
-      audio: true,
-      video: mode === "video" ? { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" } : false
-    };
+    const mediaConstraintsHierarchy = mode === "audio"
+      ? [
+          { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false },
+          { audio: true, video: false }
+        ]
+      : [
+          {
+            video: { width: { ideal: 1280, min: 640 }, height: { ideal: 720, min: 480 }, facingMode: "user" },
+            audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+          },
+          { video: true, audio: true }
+        ];
 
-    localStream = await navigator.mediaDevices.getUserMedia(constraints);
+    let acquiredStream = null;
+    let lastMediaError = null;
+
+    for (const constraints of mediaConstraintsHierarchy) {
+      try {
+        acquiredStream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (acquiredStream) break;
+      } catch (err) {
+        lastMediaError = err;
+      }
+    }
+
+    if (!acquiredStream) {
+      if (lastMediaError) throw lastMediaError;
+      return false;
+    }
+
+    if (localStream) {
+      try { localStream.getTracks().forEach(track => track.stop()); } catch (e) {}
+    }
+    localStream = acquiredStream;
     if (el.localVideo && mode === "video") {
+      el.localVideo.muted = true;
       el.localVideo.srcObject = localStream;
+      el.localVideo.play().catch(e => console.warn("Local video play notice:", e));
     }
     return true;
   } catch (err) {

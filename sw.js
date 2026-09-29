@@ -1,8 +1,11 @@
-const CACHE_NAME = 'hashgang-chat-v98';
+const CACHE_NAME = 'hashgang-chat-v99';
 
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
+  '/v1/index.html',
+  '/v1/style.css',
+  '/v1/app.js',
   '/v2/index.html',
   '/v2/style.css',
   '/v2/app.js',
@@ -90,7 +93,7 @@ self.addEventListener('fetch', (event) => {
             if (networkResponse && networkResponse.status === 200) {
               caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
             }
-          }).catch(() => {});
+          }).catch(() => { });
           return cachedResponse;
         }
         return fetch(event.request).then((networkResponse) => {
