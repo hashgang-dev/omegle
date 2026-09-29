@@ -981,7 +981,8 @@ function renderSearchingAd() {
     adWrap.id = "v2-adsterra-active-wrap";
     adWrap.style.position = "absolute";
     adWrap.style.top = "0";
-    adWrap.style.left = "0";
+    adWrap.style.left = "50%";
+    adWrap.style.transform = "translateX(-50%)";
     adWrap.style.width = "300px";
     adWrap.style.height = "250px";
     adWrap.style.borderRadius = "12px";

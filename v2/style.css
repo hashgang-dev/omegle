@@ -957,6 +957,20 @@ html, body {
   color-scheme: dark !important;
 }
 
+#v2-adsterra-active-wrap {
+  position: absolute !important;
+  top: 0 !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: 300px !important;
+  height: 250px !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
 /* Universal 300x250 Internal Self-Brand Promo Card (v1 Style) */
 .v2-self-brand-card {
   width: 300px;
