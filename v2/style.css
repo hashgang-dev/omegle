@@ -940,28 +940,30 @@ html, body {
 
 /* Adsterra Banner Container (300x250 Box v1 Style) */
 .v2-searching-adsterra-banner-box {
-  margin-top: 10px;
+  margin: 10px auto;
   display: flex;
   justify-content: center;
   align-items: center;
+  height: 250px;
+  width: 300px;
   min-height: 250px;
   min-width: 300px;
-  width: 100%;
+  max-width: 300px;
   z-index: 25;
   position: relative;
 }
 
 .v2-searching-adsterra-banner-box iframe,
 #v2-searching-ad-container iframe {
-  background-color: #18181b !important;
+  background: transparent !important;
+  background-color: transparent !important;
   color-scheme: dark !important;
 }
 
 #v2-adsterra-active-wrap {
   position: absolute !important;
   top: 0 !important;
-  left: 50% !important;
-  transform: translateX(-50%) !important;
+  left: 0 !important;
   width: 300px !important;
   height: 250px !important;
   border-radius: 12px !important;
@@ -969,6 +971,8 @@ html, body {
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 /* Universal 300x250 Internal Self-Brand Promo Card (v1 Style) */

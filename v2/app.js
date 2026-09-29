@@ -867,7 +867,7 @@ function prefetchV2AdsterraAd() {
     iframe.style.border = "none";
     iframe.style.borderRadius = "12px";
     iframe.style.overflow = "hidden";
-    iframe.style.background = "#18181b";
+    iframe.style.background = "transparent";
     iframe.scrolling = "no";
     iframe.title = "Sponsored Ad";
 
@@ -884,8 +884,8 @@ function prefetchV2AdsterraAd() {
               display: flex;
               justify-content: center;
               align-items: center;
-              background: #18181b !important;
-              background-color: #18181b !important;
+              background: transparent !important;
+              background-color: transparent !important;
               color-scheme: dark !important;
               overflow: hidden;
               height: 100vh;
@@ -981,15 +981,15 @@ function renderSearchingAd() {
     adWrap.id = "v2-adsterra-active-wrap";
     adWrap.style.position = "absolute";
     adWrap.style.top = "0";
-    adWrap.style.left = "50%";
-    adWrap.style.transform = "translateX(-50%)";
+    adWrap.style.left = "0";
+    adWrap.style.transform = "none";
     adWrap.style.width = "300px";
     adWrap.style.height = "250px";
     adWrap.style.borderRadius = "12px";
     adWrap.style.overflow = "hidden";
     adWrap.style.opacity = "0";
     adWrap.style.transition = "opacity 0.4s ease";
-    adWrap.style.background = "#18181b";
+    adWrap.style.background = "transparent";
     adWrap.style.zIndex = "30";
 
     adWrap.appendChild(prefetchedAdElementV2);
@@ -1004,6 +1004,18 @@ function renderSearchingAd() {
         if (adWrap) adWrap.style.opacity = "1";
       }, 1200);
     });
+
+    // AdBlocker / Load Failure Fallback Guard: Remove adWrap if AdBlocker blocks iframe
+    setTimeout(() => {
+      try {
+        if (!adWrap || !adWrap.parentNode) return;
+        const iframeEl = adWrap.querySelector("iframe");
+        if (!iframeEl || iframeEl.offsetHeight === 0 || iframeEl.offsetWidth === 0) {
+          console.warn("🛡️ [v2 Ad Engine] AdBlocker or load failure detected. Falling back to MyLeader Internal Promo.");
+          try { adWrap.remove(); } catch (e) {}
+        }
+      } catch (e) {}
+    }, 1500);
 
     // 8-Second Maximum Display Auto-Swap Rule: Swap back to MyLeader AI Platform at 8s if search is still ongoing
     adsterraAutoSwapTimerV2 = setTimeout(() => {
