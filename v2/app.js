@@ -798,7 +798,13 @@ const skippedPeersCooldownMapV2 = new Map();
 
 function recordSkippedPeerV2(peerId) {
   if (!peerId) return;
-  skippedPeersCooldownMapV2.set(peerId, Date.now() + SKIPPED_PEERS_COOLDOWN_MS_V2);
+  const now = Date.now();
+  skippedPeersCooldownMapV2.set(peerId, now + SKIPPED_PEERS_COOLDOWN_MS_V2);
+  for (const [id, expireTime] of skippedPeersCooldownMapV2.entries()) {
+    if (now >= expireTime) {
+      skippedPeersCooldownMapV2.delete(id);
+    }
+  }
 }
 
 function getActiveSkippedPeersV2() {
@@ -1308,14 +1314,28 @@ async function createWebRTCPeerConnection(targetId, isInitiator) {
     }
   };
 
+  let iceReconnectTimeoutV2 = null;
   currentPeerConnection.oniceconnectionstatechange = () => {
     const state = currentPeerConnection ? currentPeerConnection.iceConnectionState : "";
     console.log(`🧊 [WebRTC ICE State v2]: ${state}`);
-    if (state === "disconnected" || state === "failed" || state === "closed") {
+    if (state === "disconnected") {
+      v2ShowToast("⚠️ Signal flicker... Reconnecting call 🔄");
+      clearTimeout(iceReconnectTimeoutV2);
+      iceReconnectTimeoutV2 = setTimeout(() => {
+        if (currentPeerConnection && (currentPeerConnection.iceConnectionState === "disconnected" || currentPeerConnection.iceConnectionState === "failed")) {
+          setAudioDisconnectedUI(true);
+          playAudioChime("disconnect");
+          updateStatus("disconnected", "🔴 Stranger Disconnected");
+          v2ShowToast("🔴 Stranger Disconnected");
+        }
+      }, 3500);
+    } else if (state === "connected" || state === "completed") {
+      clearTimeout(iceReconnectTimeoutV2);
+    } else if (state === "failed" || state === "closed") {
+      clearTimeout(iceReconnectTimeoutV2);
       setAudioDisconnectedUI(true);
       playAudioChime("disconnect");
       updateStatus("disconnected", "🔴 Stranger Disconnected");
-      v2ShowToast("🔴 Voice Stranger Disconnected");
     }
   };
 
@@ -1472,6 +1492,41 @@ function setupEventListeners() {
       }
     }
   }, { passive: true });
+
+  // Pagehide & Beforeunload Media Cleanup to prevent camera/mic leaks on tab close / minimize
+  const cleanupMediaOnUnload = () => {
+    try {
+      cleanupPeerConnection();
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      if (socket && socket.connected) {
+        socket.emit("leave_queue", { clientVersion: "v2" });
+        if (currentMatchTargetId) {
+          socket.emit("disconnect_peer", { targetId: currentMatchTargetId });
+        }
+      }
+    } catch (e) {}
+  };
+
+  window.addEventListener("pagehide", cleanupMediaOnUnload);
+  window.addEventListener("beforeunload", cleanupMediaOnUnload);
+
+  // Mobile Virtual Keyboard Viewport Height Adjustment for Chat Drawer
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", () => {
+      if (currentChatMode === "text" && el.chatDrawer && !el.chatDrawer.classList.contains("closed")) {
+        const keyboardHeight = window.innerHeight - window.visualViewport.height;
+        if (keyboardHeight > 100) {
+          el.chatDrawer.style.paddingBottom = `${keyboardHeight}px`;
+          if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+        } else {
+          el.chatDrawer.style.paddingBottom = "0px";
+        }
+      }
+    });
+  }
 }
 
 function sendChatMessage() {
@@ -1915,6 +1970,13 @@ async function fetchActiveUsersBackend() {
 }
 
 async function fetchSelfBrandAdsFromBackend() {
+  try {
+    const cached = localStorage.getItem("v2_cached_ad_mediation_config");
+    if (cached) {
+      window.AD_MEDIATION_CONFIG = JSON.parse(cached);
+    }
+  } catch (e) {}
+
   if (typeof BACKEND_API_BASE === "undefined") return;
   try {
     fetch(`${BACKEND_API_BASE}/ads/mediation-config`)
@@ -1922,7 +1984,10 @@ async function fetchSelfBrandAdsFromBackend() {
       .then((data) => {
         if (data && data.success && data.config) {
           window.AD_MEDIATION_CONFIG = data.config;
-          console.log("Ad mediation config synced dynamically from backend server");
+          try {
+            localStorage.setItem("v2_cached_ad_mediation_config", JSON.stringify(data.config));
+          } catch (e) {}
+          console.log("Ad mediation config synced dynamically from backend server & cached in localStorage");
         }
       })
       .catch(() => {});
