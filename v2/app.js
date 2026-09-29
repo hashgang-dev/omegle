@@ -758,7 +758,23 @@ function getActiveSkippedPeersV2() {
   return activeSkipped;
 }
 
+const MIN_AD_INTERVAL_MS_V2 = 40000; // 40 seconds minimum deduplication & rapid-skip protection interval
+const PREFETCH_STALE_EXPIRATION_MS_V2 = 60000; // 60 seconds stale prefetch buffer expiration
+
+function getLastV2AdsterraStart() {
+  try {
+    const raw = localStorage.getItem(ADSTERRA_TIMESTAMPS_KEY_V2);
+    if (!raw) return 0;
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr) || arr.length === 0) return 0;
+    return arr[arr.length - 1];
+  } catch (e) {
+    return 0;
+  }
+}
+
 let prefetchedAdElementV2 = null;
+let prefetchedAdTimestampV2 = 0;
 
 function prefetchV2AdsterraAd() {
   const buffer = document.getElementById("v2-ad-prefetch-buffer");
@@ -769,6 +785,14 @@ function prefetchV2AdsterraAd() {
   const skipLocal = mediationConfig.settings && mediationConfig.settings.skipOnLocalhost;
 
   if (isLocalhost && skipLocal) return;
+
+  const now = Date.now();
+  // Discard stale pre-fetched iframe if older than 60 seconds
+  if (prefetchedAdElementV2 && prefetchedAdTimestampV2 > 0 && (now - prefetchedAdTimestampV2 > PREFETCH_STALE_EXPIRATION_MS_V2)) {
+    try { buffer.innerHTML = ""; } catch (e) {}
+    prefetchedAdElementV2 = null;
+    prefetchedAdTimestampV2 = 0;
+  }
 
   // Don't overwrite if buffer already has a fresh pre-fetched ad ready
   if (prefetchedAdElementV2 && buffer.contains(prefetchedAdElementV2)) return;
@@ -821,6 +845,7 @@ function prefetchV2AdsterraAd() {
     }
 
     prefetchedAdElementV2 = iframe;
+    prefetchedAdTimestampV2 = Date.now();
     console.log("⚡ [v2 Ad Engine] Pre-fetched Adsterra banner ad in background buffer.");
   } catch (e) {
     console.warn("⚠️ [v2 Ad Engine] Pre-fetch notice:", e);
@@ -849,10 +874,16 @@ function renderSearchingAd() {
     </div>
   `;
 
-  // Step 2: If third-party ads are active and pre-fetched iframe exists, swap it into container
-  const shouldShowAdsterra = (!isLocalhost || !skipLocal);
+  // Step 2: Rapid-Skip & Deduplication Protection (40s min interval)
+  const now = Date.now();
+  const lastAdTime = getLastV2AdsterraStart();
+  const elapsedSinceLastAd = now - lastAdTime;
+  const isRapidSkip = lastAdTime > 0 && elapsedSinceLastAd < MIN_AD_INTERVAL_MS_V2;
+
+  const shouldShowAdsterra = (!isLocalhost || !skipLocal) && !isRapidSkip;
   const buffer = document.getElementById("v2-ad-prefetch-buffer");
 
+  // Step 3: If pre-fetched fresh iframe exists and rapid skip guard is clear, swap it into container
   if (shouldShowAdsterra && prefetchedAdElementV2 && buffer && buffer.contains(prefetchedAdElementV2)) {
     isCurrentAdsterraImpressionV2 = true;
     recordV2AdsterraImpression();
@@ -860,8 +891,9 @@ function renderSearchingAd() {
     adBox.innerHTML = "";
     adBox.appendChild(prefetchedAdElementV2);
     prefetchedAdElementV2 = null;
+    prefetchedAdTimestampV2 = 0;
 
-    // Trigger pre-fetch for subsequent search in background
+    // Queue pre-fetch for subsequent search in background
     setTimeout(prefetchV2AdsterraAd, 1500);
   } else if (shouldShowAdsterra) {
     isCurrentAdsterraImpressionV2 = true;
@@ -871,6 +903,9 @@ function renderSearchingAd() {
     prefetchV2AdsterraAd();
   } else {
     isCurrentAdsterraImpressionV2 = false;
+    if (isRapidSkip) {
+      console.log(`🛡️ [v2 Ad Engine] Rapid skip detected (${Math.round(elapsedSinceLastAd / 1000)}s since last ad). Serving HashGANG Internal Promotion to preserve eCPM & drive traffic.`);
+    }
   }
 }
 
