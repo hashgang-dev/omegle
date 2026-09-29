@@ -105,14 +105,37 @@ function initV2App() {
 function registerV2ServiceWorker() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
+      const swPath = "./sw.js";
       navigator.serviceWorker
-        .register("../sw.js")
+        .register(swPath)
         .then((reg) => {
           console.log("⚡ [PWA v2] ServiceWorker registered:", reg.scope);
+          // Check for fresh deployment on server
+          try { reg.update(); } catch (e) {}
+
+          reg.addEventListener("updatefound", () => {
+            const newWorker = reg.installing;
+            if (newWorker) {
+              newWorker.addEventListener("statechange", () => {
+                if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+                  console.log("⚡ [HashGANG v2] New update deployed! Refreshing app shell...");
+                  window.location.reload();
+                }
+              });
+            }
+          });
         })
         .catch((err) => {
           console.warn("⚠️ [PWA v2] ServiceWorker registration notice:", err);
         });
+
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
     });
   }
 }
