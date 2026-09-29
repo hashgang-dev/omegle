@@ -752,6 +752,14 @@
             >
             <div class="v2-chat-messages" id="chat-messages"></div>
             <div class="v2-chat-input-row">
+              <button
+                class="v2-inline-act-btn next"
+                id="v2-btn-chat-next"
+                title="Next Stranger"
+                onclick="v2HandleStartOrNext()"
+              >
+                <i class="fa-solid fa-forward-step"></i>
+              </button>
               <div class="v2-chat-input-pill">
                 <label
                   class="v2-attach-btn"
@@ -777,14 +785,6 @@
                   <i class="fa-solid fa-paper-plane"></i>
                 </button>
               </div>
-              <button
-                class="v2-inline-act-btn next"
-                id="v2-btn-chat-next"
-                title="Next Stranger"
-                onclick="v2HandleStartOrNext()"
-              >
-                <i class="fa-solid fa-forward-step"></i>
-              </button>
             </div>
           </div>
         </section>
