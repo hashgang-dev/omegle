@@ -877,7 +877,20 @@ function prefetchV2AdsterraAd() {
       <!DOCTYPE html>
       <html>
         <head>
-          <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: #18181b; color-scheme: dark; overflow: hidden; height: 100vh; }</style>
+          <style>
+            html, body, iframe, div {
+              margin: 0;
+              padding: 0;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              background: #18181b !important;
+              background-color: #18181b !important;
+              color-scheme: dark !important;
+              overflow: hidden;
+              height: 100vh;
+            }
+          </style>
         </head>
         <body>
           <script type="text/javascript">
@@ -984,11 +997,11 @@ function renderSearchingAd() {
     prefetchedAdElementV2 = null;
     prefetchedAdTimestampV2 = 0;
 
-    // Smoothly reveal Adsterra banner after small render window (no white flash!)
+    // Smoothly reveal Adsterra banner after network render window (no white flash!)
     requestAnimationFrame(() => {
       setTimeout(() => {
         if (adWrap) adWrap.style.opacity = "1";
-      }, 500);
+      }, 1200);
     });
 
     // 8-Second Maximum Display Auto-Swap Rule: Swap back to MyLeader AI Platform at 8s if search is still ongoing

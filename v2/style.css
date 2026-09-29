@@ -951,6 +951,12 @@ html, body {
   position: relative;
 }
 
+.v2-searching-adsterra-banner-box iframe,
+#v2-searching-ad-container iframe {
+  background-color: #18181b !important;
+  color-scheme: dark !important;
+}
+
 /* Universal 300x250 Internal Self-Brand Promo Card (v1 Style) */
 .v2-self-brand-card {
   width: 300px;
