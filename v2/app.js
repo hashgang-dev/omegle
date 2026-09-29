@@ -95,6 +95,7 @@ function initV2App() {
   recordVisitBackend();
   fetchActiveUsersBackend();
   fetchSelfBrandAdsFromBackend();
+  setTimeout(prefetchV2AdsterraAd, 1200);
   setInterval(fetchActiveUsersBackend, 15000);
   setInterval(() => {
     recordSessionTimeBackend(30);
@@ -505,6 +506,9 @@ function initSocketConnection() {
         if (data.initiator && currentChatMode !== "text") {
           await createWebRTCPeerConnection(currentMatchTargetId, true);
         }
+
+        // Pre-fetch next Adsterra ad in background during conversation for instant display on next skip
+        setTimeout(prefetchV2AdsterraAd, 2000);
       };
 
       // Adsterra 4.2s Guaranteed Impression Safety Gate
@@ -754,23 +758,23 @@ function getActiveSkippedPeersV2() {
   return activeSkipped;
 }
 
-function renderSearchingAd() {
-  const adBox = document.getElementById("v2-searching-ad-container");
-  if (!adBox) return;
+let prefetchedAdElementV2 = null;
 
-  matchCount++;
+function prefetchV2AdsterraAd() {
+  const buffer = document.getElementById("v2-ad-prefetch-buffer");
+  if (!buffer) return;
+
   const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
   const mediationConfig = window.AD_MEDIATION_CONFIG || {};
   const skipLocal = mediationConfig.settings && mediationConfig.settings.skipOnLocalhost;
 
-  // On production (or non-localhost), trigger real Adsterra banner ad
-  const shouldShowAdsterra = (!isLocalhost || !skipLocal);
+  if (isLocalhost && skipLocal) return;
 
-  if (shouldShowAdsterra) {
-    isCurrentAdsterraImpressionV2 = true;
-    recordV2AdsterraImpression();
+  // Don't overwrite if buffer already has a fresh pre-fetched ad ready
+  if (prefetchedAdElementV2 && buffer.contains(prefetchedAdElementV2)) return;
 
-    adBox.innerHTML = "";
+  try {
+    buffer.innerHTML = "";
     const iframe = document.createElement("iframe");
     iframe.style.width = "300px";
     iframe.style.height = "250px";
@@ -781,7 +785,7 @@ function renderSearchingAd() {
     iframe.scrolling = "no";
     iframe.title = "Sponsored Ad";
 
-    adBox.appendChild(iframe);
+    buffer.appendChild(iframe);
 
     const htmlString = `
       <!DOCTYPE html>
@@ -803,7 +807,7 @@ function renderSearchingAd() {
         </body>
       </html>
     `;
-    
+
     if ("srcdoc" in iframe) {
       iframe.srcdoc = htmlString;
     }
@@ -815,20 +819,58 @@ function renderSearchingAd() {
         doc.close();
       } catch (e) {}
     }
+
+    prefetchedAdElementV2 = iframe;
+    console.log("⚡ [v2 Ad Engine] Pre-fetched Adsterra banner ad in background buffer.");
+  } catch (e) {
+    console.warn("⚠️ [v2 Ad Engine] Pre-fetch notice:", e);
+  }
+}
+
+function renderSearchingAd() {
+  const adBox = document.getElementById("v2-searching-ad-container");
+  if (!adBox) return;
+
+  matchCount++;
+  const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+  const mediationConfig = window.AD_MEDIATION_CONFIG || {};
+  const skipLocal = mediationConfig.settings && mediationConfig.settings.skipOnLocalhost;
+
+  // Step 1: ALWAYS render HashGANG Self-Brand Promotion Card immediately at 0ms (NO white box space!)
+  adBox.innerHTML = `
+    <div class="v2-self-brand-card">
+      <span class="v2-self-brand-badge">FEATURED PROMOTION</span>
+      <h4 class="v2-self-brand-title">HashGANG Apps & Games 🚀</h4>
+      <p class="v2-self-brand-desc">100% Free P2P Tools, Arcade Games & Anonymous Chat</p>
+      <a href="https://hashgang.com/?utm_source=chat_subdomain&utm_medium=search_ad&utm_campaign=internal_referral" target="_blank" rel="noopener noreferrer" class="v2-self-brand-cta">
+        <span>Explore HashGANG Network</span>
+        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+      </a>
+    </div>
+  `;
+
+  // Step 2: If third-party ads are active and pre-fetched iframe exists, swap it into container
+  const shouldShowAdsterra = (!isLocalhost || !skipLocal);
+  const buffer = document.getElementById("v2-ad-prefetch-buffer");
+
+  if (shouldShowAdsterra && prefetchedAdElementV2 && buffer && buffer.contains(prefetchedAdElementV2)) {
+    isCurrentAdsterraImpressionV2 = true;
+    recordV2AdsterraImpression();
+
+    adBox.innerHTML = "";
+    adBox.appendChild(prefetchedAdElementV2);
+    prefetchedAdElementV2 = null;
+
+    // Trigger pre-fetch for subsequent search in background
+    setTimeout(prefetchV2AdsterraAd, 1500);
+  } else if (shouldShowAdsterra) {
+    isCurrentAdsterraImpressionV2 = true;
+    recordV2AdsterraImpression();
+
+    // Trigger immediate pre-fetch so it is ready during search or next match
+    prefetchV2AdsterraAd();
   } else {
     isCurrentAdsterraImpressionV2 = false;
-
-    adBox.innerHTML = `
-      <div class="v2-self-brand-card">
-        <span class="v2-self-brand-badge">FEATURED PROMOTION</span>
-        <h4 class="v2-self-brand-title">HashGANG Apps & Games 🚀</h4>
-        <p class="v2-self-brand-desc">100% Free P2P Tools, Arcade Games & Anonymous Chat</p>
-        <a href="https://hashgang.com/?utm_source=chat_subdomain&utm_medium=search_ad&utm_campaign=internal_referral" target="_blank" rel="noopener noreferrer" class="v2-self-brand-cta">
-          <span>Explore HashGANG Network</span>
-          <i class="fa-solid fa-arrow-up-right-from-square"></i>
-        </a>
-      </div>
-    `;
   }
 }
 
