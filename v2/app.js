@@ -805,7 +805,7 @@ function prefetchV2AdsterraAd() {
     iframe.style.border = "none";
     iframe.style.borderRadius = "12px";
     iframe.style.overflow = "hidden";
-    iframe.style.background = "transparent";
+    iframe.style.background = "#18181b";
     iframe.scrolling = "no";
     iframe.title = "Sponsored Ad";
 
@@ -815,7 +815,7 @@ function prefetchV2AdsterraAd() {
       <!DOCTYPE html>
       <html>
         <head>
-          <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: transparent; overflow: hidden; height: 100vh; }</style>
+          <style>body { margin: 0; padding: 0; display: flex; justify-content: center; align-items: center; background: #18181b; color-scheme: dark; overflow: hidden; height: 100vh; }</style>
         </head>
         <body>
           <script type="text/javascript">
@@ -861,14 +861,14 @@ function renderSearchingAd() {
   const mediationConfig = window.AD_MEDIATION_CONFIG || {};
   const skipLocal = mediationConfig.settings && mediationConfig.settings.skipOnLocalhost;
 
-  // Step 1: ALWAYS render HashGANG Self-Brand Promotion Card immediately at 0ms (NO white box space!)
+  // Step 1: ALWAYS render MyLeader AI Platform Internal Promotion Card immediately at 0ms (NO white box space!)
   adBox.innerHTML = `
-    <div class="v2-self-brand-card">
+    <div class="v2-self-brand-card" id="v2-internal-promo-card">
       <span class="v2-self-brand-badge">FEATURED PROMOTION</span>
-      <h4 class="v2-self-brand-title">HashGANG Apps & Games 🚀</h4>
-      <p class="v2-self-brand-desc">100% Free P2P Tools, Arcade Games & Anonymous Chat</p>
-      <a href="https://hashgang.com/?utm_source=chat_subdomain&utm_medium=search_ad&utm_campaign=internal_referral" target="_blank" rel="noopener noreferrer" class="v2-self-brand-cta">
-        <span>Explore HashGANG Network</span>
+      <h4 class="v2-self-brand-title">MyLeader AI Platform</h4>
+      <p class="v2-self-brand-desc">Streamline leadership workflows & team collaboration with AI.</p>
+      <a href="https://hashgang.com" target="_blank" rel="noopener noreferrer" class="v2-self-brand-cta">
+        <span>Explore MyLeader 🚀</span>
         <i class="fa-solid fa-arrow-up-right-from-square"></i>
       </a>
     </div>
@@ -883,15 +883,36 @@ function renderSearchingAd() {
   const shouldShowAdsterra = (!isLocalhost || !skipLocal) && !isRapidSkip;
   const buffer = document.getElementById("v2-ad-prefetch-buffer");
 
-  // Step 3: If pre-fetched fresh iframe exists and rapid skip guard is clear, swap it into container
+  // Step 3: If pre-fetched fresh iframe exists and rapid skip guard is clear, attach it over internal promo smoothly
   if (shouldShowAdsterra && prefetchedAdElementV2 && buffer && buffer.contains(prefetchedAdElementV2)) {
     isCurrentAdsterraImpressionV2 = true;
     recordV2AdsterraImpression();
 
-    adBox.innerHTML = "";
-    adBox.appendChild(prefetchedAdElementV2);
+    const adWrap = document.createElement("div");
+    adWrap.style.position = "absolute";
+    adWrap.style.top = "0";
+    adWrap.style.left = "0";
+    adWrap.style.width = "300px";
+    adWrap.style.height = "250px";
+    adWrap.style.borderRadius = "12px";
+    adWrap.style.overflow = "hidden";
+    adWrap.style.opacity = "0";
+    adWrap.style.transition = "opacity 0.4s ease";
+    adWrap.style.background = "#18181b";
+    adWrap.style.zIndex = "30";
+
+    adWrap.appendChild(prefetchedAdElementV2);
+    adBox.appendChild(adWrap);
+
     prefetchedAdElementV2 = null;
     prefetchedAdTimestampV2 = 0;
+
+    // Smoothly reveal Adsterra banner after small render window (no white flash!)
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (adWrap) adWrap.style.opacity = "1";
+      }, 500);
+    });
 
     // Queue pre-fetch for subsequent search in background
     setTimeout(prefetchV2AdsterraAd, 1500);
@@ -904,7 +925,7 @@ function renderSearchingAd() {
   } else {
     isCurrentAdsterraImpressionV2 = false;
     if (isRapidSkip) {
-      console.log(`🛡️ [v2 Ad Engine] Rapid skip detected (${Math.round(elapsedSinceLastAd / 1000)}s since last ad). Serving HashGANG Internal Promotion to preserve eCPM & drive traffic.`);
+      console.log(`🛡️ [v2 Ad Engine] Rapid skip detected (${Math.round(elapsedSinceLastAd / 1000)}s since last ad). Serving MyLeader Internal Promotion to preserve eCPM & drive traffic.`);
     }
   }
 }
@@ -949,7 +970,7 @@ function updateSearchingTimerDisplay() {
   if (!isEngaged) {
     searchSub.innerHTML = `Matching you with random online users worldwide ${timeBadge}`;
   } else {
-    searchSub.innerHTML = `We are still searching... Please invite your friends ${timeBadge}`;
+    searchSub.innerHTML = `Everyone is busy chatting. Searching for a real stranger... Please wait or invite friends! ${timeBadge}`;
   }
 }
 
@@ -965,7 +986,7 @@ function v2ShowEngagedOverlay() {
   }
 
   if (searchTitle) {
-    searchTitle.innerHTML = '⚡ Everyone is busy in Chatting!';
+    searchTitle.innerHTML = '⚡ 100% Humans • Zero AI Bots';
     searchTitle.classList.remove("hidden");
   }
 

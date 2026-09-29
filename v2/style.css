@@ -898,8 +898,9 @@ html, body {
 }
 
 .v2-search-title {
-  font-size: 1.45rem;
+  font-size: clamp(1.15rem, 4.2vw, 1.45rem);
   font-weight: 800;
+  white-space: nowrap;
   background: linear-gradient(135deg, #ffffff 0%, #e9d5ff 55%, #f472b6 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -947,6 +948,7 @@ html, body {
   min-width: 300px;
   width: 100%;
   z-index: 25;
+  position: relative;
 }
 
 /* Universal 300x250 Internal Self-Brand Promo Card (v1 Style) */
