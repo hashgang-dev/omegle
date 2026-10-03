@@ -66,7 +66,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=206" />
+  <link rel="stylesheet" href="style.css?v=209" />
 
   <!-- Schema.org JSON-LD Structured Data for Google Search Ranking -->
   <script type="application/ld+json">
@@ -555,55 +555,50 @@
       </section>
     </main>
 
-    <!-- Viral Share Modal -->
+    <!-- Unified Sleek Share & 25s Timeout Modal -->
     <div class="v2-modal-overlay hidden" id="v2-share-modal" onclick="closeV2ShareModal(event)">
-      <div class="v2-modal-card" onclick="event.stopPropagation()">
-        <div class="v2-modal-header">
-          <h3>
-            <i class="fa-solid fa-paper-plane text-purple-400"></i> Invite
-            Friends to HashGANG Chat
-          </h3>
-          <button class="v2-close-btn" onclick="closeV2ShareModal()">
-            &times;
-          </button>
+      <div class="v2-modal-card v2-timeout-card" onclick="event.stopPropagation()">
+        <div class="v2-timeout-header">
+          <span class="v2-timeout-badge" id="v2-timeout-badge-text"><i class="fa-solid fa-paper-plane text-purple-400"></i> Instant 1-on-1 Connect</span>
+          <button class="v2-close-btn" onclick="closeV2ShareModal()">&times;</button>
         </div>
-        <div class="v2-modal-body">
-          <p>✨ Invite a friend or share with your groups:</p>
-          <div class="v2-social-grid">
-            <button class="v2-soc-btn wa" onclick="shareToSocial('whatsapp')">
-              <i class="fa-brands fa-whatsapp"></i> WhatsApp
-            </button>
-            <button class="v2-soc-btn tg" onclick="shareToSocial('telegram')">
-              <i class="fa-brands fa-telegram"></i> Telegram
-            </button>
-            <button class="v2-soc-btn tw" onclick="shareToSocial('twitter')">
-              <i class="fa-brands fa-x-twitter"></i> X / Twitter
-            </button>
-            <button class="v2-soc-btn fb" onclick="shareToSocial('facebook')">
-              <i class="fa-brands fa-facebook-f"></i> Facebook
-            </button>
-            <button class="v2-soc-btn snap" onclick="shareToSocial('snapchat')">
-              <i class="fa-brands fa-snapchat"></i> Snapchat
-            </button>
-            <button class="v2-soc-btn insta" onclick="shareToSocial('instagram')">
-              <i class="fa-brands fa-instagram"></i> Instagram
-            </button>
+        <div class="v2-timeout-body">
+          <div class="v2-timeout-status-badge invite-mode" id="v2-timeout-status-heading">
+            🚀 Invite Friends to HashGANG Chat!
           </div>
-          <div class="v2-share-preview-box">
-            <textarea id="v2-share-text-input" readonly rows="6">
-🔥 Hey! Connect with me on HashGANG Chat!
-💬 Free HD Video, Audio & Text Chat (No Signup required).
-Join directly: https://chat.hashgang.com</textarea>
+          <p class="v2-timeout-subtext" id="v2-timeout-subtext-para">
+            Share your personal room link below to jump directly into a private chat or match instantly with active online users!
+          </p>
+          <div class="v2-timeout-trust-box">
+            <div class="v2-trust-pill">🛡️ 100% Real Humans • Zero AI / Fake Bots</div>
+            <p class="v2-trust-desc">We strictly don't use fake bots, so queue times depend on real people.</p>
           </div>
-          <div class="v2-copy-group">
-            <button class="v2-btn-accent v2-btn-full" onclick="copyV2Link()">
-              <i class="fa-solid fa-copy"></i> Copy Message & Invite Friends
-              🚀
-            </button>
+          <div class="v2-timeout-protip-box">
+            <div class="v2-protip-title"><i class="fa-solid fa-lightbulb text-amber-400"></i> Pro-Tip (Instant Connect):</div>
+            <p>Share this link in your <strong>WhatsApp / Telegram Groups</strong>! When anyone from your group joins, people online will match instantly with you!</p>
+          </div>
+          <div class="v2-timeout-actions">
+            <div class="v2-share-primary-grid">
+              <button class="v2-btn-primary-share wa" onclick="triggerV2TimeoutNativeShare('whatsapp')">
+                <i class="fa-brands fa-whatsapp"></i> Share to WhatsApp Groups
+              </button>
+              <button class="v2-btn-primary-share tg" onclick="triggerV2TimeoutNativeShare('telegram')">
+                <i class="fa-brands fa-telegram"></i> Share to Telegram Groups
+              </button>
+            </div>
+            <div class="v2-timeout-secondary-actions">
+              <button class="v2-btn-copy-link" onclick="copyV2TimeoutInviteLink()">
+                <i class="fa-solid fa-copy"></i> Copy Link
+              </button>
+              <button class="v2-btn-retry-search" id="v2-btn-timeout-retry" onclick="handleDynamicModalAction()">
+                <i class="fa-solid fa-bolt" id="v2-btn-timeout-retry-icon"></i> <span id="v2-btn-timeout-retry-text">Start Chat</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
+
 
     <!-- Toast Feedback Notification -->
     <div class="v2-toast hidden" id="v2-toast">
@@ -616,10 +611,10 @@ Join directly: https://chat.hashgang.com</textarea>
     </div>
 
     <!-- Scripts Injection -->
-    <script src="ads.js?v=206" defer></script>
-    <script src="ad_mediation_config.js?v=206" defer></script>
-    <script src="socket.io.min.js?v=206"></script>
-    <script src="app.js?v=206" defer></script>
+    <script src="ads.js?v=209" defer></script>
+    <script src="ad_mediation_config.js?v=209" defer></script>
+    <script src="socket.io.min.js?v=209"></script>
+    <script src="app.js?v=209" defer></script>
 </body>
 
 </html>

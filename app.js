@@ -444,6 +444,7 @@ function initSocketConnection() {
       reconnection: true,
       reconnectionAttempts: 10
     });
+    window.socket = socket;
 
     socket.on("connect", () => {
       console.log("🌐 [Socket.io v2] Connected to Signaling Server:", socket.id);
@@ -475,7 +476,7 @@ function initSocketConnection() {
 
       clearSearchTimeout();
 
-      if (data.isInvite || data.inviteCode || window.pendingV2InviteCode) {
+      if (data.isInvite || data.isInviteMatch || data.inviteCode || window.pendingV2InviteCode) {
         isCurrentAdsterraImpressionV2 = false;
         console.log("🤝 [v2 Invite Link] Personal invite match confirmed: Bypassing ad dwell lock for instant 0-delay connection.");
       }
@@ -552,6 +553,13 @@ function initSocketConnection() {
         // Internal self-brand ad: instant (0ms) transition!
         executeMatchTransition();
       }
+    });
+
+    socket.on("invite_fallback", (data) => {
+      const mode = (data && data.mode) ? data.mode : (currentChatMode || "text");
+      console.log(`🔄 [v2 Invite Fallback] Inviter unavailable. Joining general stranger queue in [${mode}] mode.`);
+      v2ShowToast("🤝 Inviter unavailable. Connecting you to an online stranger...");
+      socket.emit("join_queue", { mode: mode });
     });
 
     socket.on("signal", async (data) => {
@@ -1071,13 +1079,20 @@ function renderSearchingAd() {
 }
 
 let searchTimeoutTimer = null;
+let searchTimeout25sTimer = null;
 let searchingSecondsInterval = null;
 let searchingElapsedSeconds = 0;
+let v2TimeoutInviteCode = null;
+let v2TimeoutInviteUrl = "";
 
 function clearSearchTimeout() {
   if (searchTimeoutTimer) {
     clearTimeout(searchTimeoutTimer);
     searchTimeoutTimer = null;
+  }
+  if (searchTimeout25sTimer) {
+    clearTimeout(searchTimeout25sTimer);
+    searchTimeout25sTimer = null;
   }
   clearV2AdsterraAutoSwapTimer();
   stopSearchingTicker();
@@ -1284,29 +1299,32 @@ async function v2HandleStartOrNext() {
     }
   }, 12000);
 
+  // Set 25s timeout to auto-stop search and show 25s Timeout Modal
+  searchTimeout25sTimer = setTimeout(() => {
+    if (!isStoppedByUser && el.searchStage && !el.searchStage.classList.contains("hidden")) {
+      v2Trigger25sSearchTimeout();
+    }
+  }, 25000);
+
   const queuePayload = {
     mode: currentChatMode
   };
 
-  if (socket && socket.connected) {
-    if (window.pendingV2InviteCode) {
-      console.log(`🤝 [v2 Personal Invite] Joining 1-on-1 invite room: ${window.pendingV2InviteCode}`);
-      socket.emit("join_invite_room", { inviteCode: window.pendingV2InviteCode, mode: currentChatMode, clientVersion: "v2" });
-      window.pendingV2InviteCode = null;
-    }
-    socket.emit("join_queue", queuePayload);
-  } else {
-    setTimeout(() => {
-      if (socket && socket.connected) {
-        if (window.pendingV2InviteCode) {
-          console.log(`🤝 [v2 Personal Invite] Joining 1-on-1 invite room: ${window.pendingV2InviteCode}`);
-          socket.emit("join_invite_room", { inviteCode: window.pendingV2InviteCode, mode: currentChatMode, clientVersion: "v2" });
-          window.pendingV2InviteCode = null;
-        }
+  const emitJoinQueueWhenReady = (attemptsLeft = 30) => {
+    if (socket && socket.connected) {
+      if (window.pendingV2InviteCode) {
+        console.log(`🤝 [v2 Personal Invite] Joining 1-on-1 invite room: ${window.pendingV2InviteCode}`);
+        socket.emit("join_invite_room", { inviteCode: window.pendingV2InviteCode, mode: currentChatMode, clientVersion: "v2" });
+        window.pendingV2InviteCode = null;
+      } else {
         socket.emit("join_queue", queuePayload);
       }
-    }, 800);
-  }
+    } else if (attemptsLeft > 0) {
+      setTimeout(() => emitJoinQueueWhenReady(attemptsLeft - 1), 300);
+    }
+  };
+
+  emitJoinQueueWhenReady();
 }
 
 /**
@@ -1772,34 +1790,184 @@ function generateV2InviteCode() {
   return code;
 }
 
-function openV2ShareModal() {
+let activeModalOrigin = "hero";
+
+function openV2ShareModal(context = "invite") {
   currentV2InviteCode = generateV2InviteCode();
   const baseUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
   const timestamp = Date.now();
-  currentV2InviteUrl = `${baseUrl}?invite=${currentV2InviteCode}&mode=${currentChatMode}&t=${timestamp}`;
+  const mode = currentChatMode || "text";
+  currentV2InviteUrl = `${baseUrl}?invite=${currentV2InviteCode}&mode=${mode}&t=${timestamp}`;
+  v2TimeoutInviteUrl = currentV2InviteUrl;
+  window.v2TimeoutInviteUrl = v2TimeoutInviteUrl;
 
   if (socket && socket.connected) {
-    socket.emit("create_invite_room", { inviteCode: currentV2InviteCode, mode: currentChatMode, clientVersion: "v2" });
+    socket.emit("create_invite_room", { inviteCode: currentV2InviteCode, mode: mode, clientVersion: "v2" });
   }
 
-  const textInput = document.getElementById("v2-share-text-input");
-  if (textInput) {
-    textInput.value = `🔥 Hey! Connect with me on HashGANG Chat!\n💬 Free HD Video, Audio & Text Chat (No Signup required).\nJoin directly: ${currentV2InviteUrl}`;
+  const isHeroVisible = el.heroStage && !el.heroStage.classList.contains("hidden");
+  if (context === "timeout") {
+    activeModalOrigin = "timeout";
+  } else if (isHeroVisible) {
+    activeModalOrigin = "hero";
+  } else {
+    activeModalOrigin = "search_early";
   }
 
-  if (el.shareModal) el.shareModal.classList.remove("hidden");
+  // Dynamic DOM Text Updates
+  const badgeEl = document.getElementById("v2-timeout-badge-text");
+  const headingEl = document.getElementById("v2-timeout-status-heading");
+  const subtextEl = document.getElementById("v2-timeout-subtext-para");
+  const retryBtnText = document.getElementById("v2-btn-timeout-retry-text");
+  const retryBtnIcon = document.getElementById("v2-btn-timeout-retry-icon");
+
+  if (activeModalOrigin === "timeout") {
+    if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-hourglass-end text-amber-400"></i> Searched for 25s';
+    if (headingEl) {
+      headingEl.className = "v2-timeout-status-badge timeout-mode";
+      headingEl.innerHTML = '<span class="v2-live-pulse">🔴</span> All Online Strangers are Busy in Active Chats!';
+    }
+    if (subtextEl) subtextEl.innerHTML = 'We searched for <strong>25 seconds</strong>! Right now, all live users are paired up in private 1-on-1 calls.';
+    if (retryBtnText) retryBtnText.textContent = "Select Mode";
+    if (retryBtnIcon) retryBtnIcon.className = "fa-solid fa-arrow-left";
+  } else if (activeModalOrigin === "search_early") {
+    if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-paper-plane text-purple-400"></i> Instant 1-on-1 Connect';
+    if (headingEl) {
+      headingEl.className = "v2-timeout-status-badge invite-mode";
+      headingEl.innerHTML = '🚀 Invite Friends to HashGANG Chat!';
+    }
+    if (subtextEl) subtextEl.innerHTML = 'Share your personal room link below to jump directly into a private chat or match instantly with active online users!';
+    if (retryBtnText) retryBtnText.textContent = "Back to Search";
+    if (retryBtnIcon) retryBtnIcon.className = "fa-solid fa-magnifying-glass";
+  } else {
+    // Mode Selection Screen (Hero Stage)
+    if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-paper-plane text-purple-400"></i> Instant 1-on-1 Connect';
+    if (headingEl) {
+      headingEl.className = "v2-timeout-status-badge invite-mode";
+      headingEl.innerHTML = '🚀 Invite Friends to HashGANG Chat!';
+    }
+    if (subtextEl) subtextEl.innerHTML = 'Share your personal room link below to jump directly into a private chat or match instantly with active online users!';
+    if (retryBtnText) retryBtnText.textContent = "Select Mode";
+    if (retryBtnIcon) retryBtnIcon.className = "fa-solid fa-arrow-left";
+  }
+
+  const modal = document.getElementById("v2-share-modal");
+  if (modal) {
+    modal.classList.remove("hidden");
+    modal.style.display = "flex";
+  }
+}
+
+function handleDynamicModalAction() {
+  const origin = activeModalOrigin;
+  closeV2ShareModal();
+  if (origin === "timeout") {
+    v2StopCall();
+  }
 }
 
 function closeV2ShareModal(e) {
-  if (e && e.target !== el.shareModal && !e.target.classList.contains("v2-close-btn")) return;
-  if (el.shareModal) el.shareModal.classList.add("hidden");
+  const modal = document.getElementById("v2-share-modal");
+  if (e && e.target !== modal && !e.target.classList.contains("v2-close-btn")) return;
+  
+  const origin = activeModalOrigin;
+  if (modal) {
+    modal.classList.add("hidden");
+    modal.style.display = "none";
+  }
+
+  if (origin === "timeout") {
+    v2StopCall();
+  }
+}
+
+function closeV2TimeoutModal(e) {
+  closeV2ShareModal(e);
 }
 
 function copyV2Link() {
-  const textInput = document.getElementById("v2-share-text-input");
-  const messageText = textInput ? textInput.value : `🔥 Hey! Connect with me on HashGANG Chat!\n💬 Free HD Video, Audio & Text Chat (No Signup required).\nJoin directly: ${currentV2InviteUrl || "https://chat.hashgang.com"}`;
-  navigator.clipboard.writeText(messageText);
-  v2ShowToast("Personal 1-on-1 invite message & link copied! 🚀");
+  copyV2TimeoutInviteLink();
+}
+
+function v2Trigger25sSearchTimeout() {
+  clearSearchTimeout();
+  
+  if (socket && socket.connected) {
+    socket.emit("leave_queue");
+  }
+
+  const radarSpinner = document.getElementById("v2-radar-spinner");
+  if (radarSpinner) {
+    radarSpinner.classList.remove("engaged");
+  }
+
+  updateStatus("idle", "Search Paused — All Strangers Busy");
+
+  openV2ShareModal("timeout");
+}
+
+function triggerV2TimeoutNativeShare(platform) {
+  const shareText = `🔥 Hey! Join me on HashGANG Chat (100% Real Humans, No Bots). Click to connect directly with me: ${v2TimeoutInviteUrl || window.location.href}`;
+  
+  if (platform === "telegram") {
+    const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(v2TimeoutInviteUrl || window.location.href)}&text=${encodeURIComponent("🔥 Hey! Join me on HashGANG Chat (100% Real Humans, No Bots). Click to connect directly with me:\n")}`;
+    window.open(tgUrl, "_blank");
+    v2ShowToast("Opening Telegram Share... ✈️");
+    return;
+  }
+
+  // Default WhatsApp / Web Share
+  if (navigator.share) {
+    navigator.share({
+      title: "HashGANG Chat",
+      text: shareText,
+      url: v2TimeoutInviteUrl || window.location.href
+    }).then(() => {
+      v2ShowToast("Shared! Waiting for friend to connect... 🚀");
+    }).catch((err) => {
+      if (err.name !== "AbortError") {
+        const encodedMsg = encodeURIComponent(shareText);
+        window.open(`https://api.whatsapp.com/send?text=${encodedMsg}`, "_blank");
+      }
+    });
+  } else {
+    const encodedMsg = encodeURIComponent(shareText);
+    window.open(`https://api.whatsapp.com/send?text=${encodedMsg}`, "_blank");
+    v2ShowToast("Opening WhatsApp Share... 🚀");
+  }
+}
+
+function copyV2TimeoutInviteLink() {
+  const shareText = `🔥 Hey! Join me on HashGANG Chat (100% Real Humans, No Bots). Click to connect directly with me: ${v2TimeoutInviteUrl || window.location.href}`;
+  
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(shareText).then(() => {
+      v2ShowToast("Invite Link Copied! Share in your groups 🚀");
+    }).catch(() => {
+      fallbackCopyText(shareText);
+    });
+  } else {
+    fallbackCopyText(shareText);
+  }
+}
+
+function fallbackCopyText(text) {
+  const tempInput = document.createElement("textarea");
+  tempInput.value = text;
+  document.body.appendChild(tempInput);
+  tempInput.select();
+  try {
+    document.execCommand("copy");
+    v2ShowToast("Invite Link Copied! Share in your groups 🚀");
+  } catch (err) {
+    v2ShowToast("Failed to copy link.");
+  }
+  document.body.removeChild(tempInput);
+}
+
+function retryV2SearchFromTimeout() {
+  closeV2ShareModal();
+  v2StartCall();
 }
 
 function checkV2UrlInviteParameters() {
@@ -1943,6 +2111,7 @@ window.toggleV2SeoLinks = toggleV2SeoLinks;
 // Bind all global click handler functions to window object
 window.v2SelectModeAndStart = v2SelectModeAndStart;
 window.v2HandleStartOrNext = v2HandleStartOrNext;
+window.v2StartCall = v2StartCall;
 window.v2StopCall = v2StopCall;
 window.toggleV2Menu = toggleV2Menu;
 window.openV2ShareModal = openV2ShareModal;
@@ -1961,6 +2130,11 @@ window.dismissV2AudioSharedMedia = dismissV2AudioSharedMedia;
 window.dismissV2VideoSharedMedia = dismissV2VideoSharedMedia;
 window.handlePwaInstallPrompt = handlePwaInstallPrompt;
 window.switchCamera = switchCamera;
+window.closeV2TimeoutModal = closeV2TimeoutModal;
+window.triggerV2TimeoutNativeShare = triggerV2TimeoutNativeShare;
+window.copyV2TimeoutInviteLink = copyV2TimeoutInviteLink;
+window.retryV2SearchFromTimeout = retryV2SearchFromTimeout;
+window.handleDynamicModalAction = handleDynamicModalAction;
 
 /**
  * Stranger Chat Backend API Telemetry & Analytics Integration

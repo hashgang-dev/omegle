@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-chat-v207';
+const CACHE_NAME = 'hashgang-chat-v209';
 
 const ASSETS_TO_CACHE = [
   '/',
@@ -46,7 +46,8 @@ const ASSETS_TO_CACHE = [
   '/blog/virtual-ring-light-dark-room-video-chat.html',
   '/blog/anonymous-random-voice-chat-no-login.html',
   '/blog/anonymous-text-chat-strangers-no-registration.html',
-  '/blog/3-way-text-voice-video-stranger-chat-guide.html'
+  '/blog/3-way-text-voice-video-stranger-chat-guide.html',
+  '/blog/direct-personal-invite-stranger-chat.html'
 ];
 
 self.addEventListener('install', (event) => {
