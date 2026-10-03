@@ -1972,9 +1972,12 @@ function retryV2SearchFromTimeout() {
 
 function checkV2UrlInviteParameters() {
   const urlParams = new URLSearchParams(window.location.search);
-  const inviteCode = urlParams.get("invite");
+  const rawInviteCode = urlParams.get("invite");
   const modeParam = urlParams.get("mode");
   const timestampParam = urlParams.get("t");
+
+  // Sanitize inviteCode to alphanumeric characters only (max 12 chars)
+  const inviteCode = rawInviteCode ? rawInviteCode.replace(/[^a-zA-Z0-9]/g, "").slice(0, 12) : null;
 
   if (modeParam && ["video", "audio", "text"].includes(modeParam)) {
     currentChatMode = modeParam;
@@ -1982,7 +1985,8 @@ function checkV2UrlInviteParameters() {
 
   if (inviteCode) {
     // 15-Minute Link Expiry Check
-    const isExpired = timestampParam && (Date.now() - parseInt(timestampParam, 10) > 15 * 60 * 1000);
+    const parsedTs = parseInt(timestampParam, 10);
+    const isExpired = !isNaN(parsedTs) && (Date.now() - parsedTs > 15 * 60 * 1000);
     if (isExpired) {
       console.log("⏰ [v2 Url Invite] Invite link expired. Falling back to random stranger matchmaking.");
       return;
