@@ -234,7 +234,7 @@ function renderSharedAudioMedia(mediaType, dataUrl) {
 
   content.innerHTML = "";
   if (mediaType === "image") {
-    content.innerHTML = `<img src="${dataUrl}" class="v2-audio-media-img" alt="Shared Media" onclick="window.open('${dataUrl}')" />`;
+    content.innerHTML = `<img src="${dataUrl}" class="v2-audio-media-img" alt="Shared Media" onclick="openV2Lightbox('image', '${dataUrl}')" />`;
   } else {
     content.innerHTML = `<video src="${dataUrl}" class="v2-audio-media-video" controls playsinline preload="metadata"></video>`;
   }
@@ -260,7 +260,7 @@ function renderSharedVideoMedia(mediaType, dataUrl) {
 
   content.innerHTML = "";
   if (mediaType === "image") {
-    content.innerHTML = `<img src="${dataUrl}" class="v2-video-media-img" alt="Shared Media" onclick="window.open('${dataUrl}')" />`;
+    content.innerHTML = `<img src="${dataUrl}" class="v2-video-media-img" alt="Shared Media" onclick="openV2Lightbox('image', '${dataUrl}')" />`;
   } else {
     content.innerHTML = `<video src="${dataUrl}" class="v2-video-media-video" controls playsinline preload="metadata"></video>`;
   }
