@@ -1531,6 +1531,12 @@ html, body {
   gap: 6px;
   margin-top: 8px;
   pointer-events: auto;
+  flex-shrink: 0; /* Prevents footer toolbar from being squeezed off screen */
+  min-height: 52px;
+  position: relative;
+  z-index: 50;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .v2-chat-input-pill {

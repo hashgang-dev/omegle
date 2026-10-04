@@ -107,9 +107,9 @@ function registerV2ServiceWorker() {
     window.addEventListener("load", () => {
       const swPath = "./sw.js";
       navigator.serviceWorker
-        .register(swPath)
+        .register(swPath, { updateViaCache: "none" })
         .then((reg) => {
-          console.log("⚡ [PWA v2] ServiceWorker registered:", reg.scope);
+          console.log("⚡ [PWA v2] ServiceWorker registered with updateViaCache:none", reg.scope);
           // Check for fresh deployment on server
           try { reg.update(); } catch (e) {}
 

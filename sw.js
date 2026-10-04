@@ -79,14 +79,13 @@ self.addEventListener('fetch', (event) => {
   }
 
   const url = new URL(event.request.url);
-  const isStaticAsset = url.pathname.match(/\.(webp|png|jpg|jpeg|ico|svg|css|woff2?|ttf|eot)$/i);
+  const isImageOrFont = url.pathname.match(/\.(webp|png|jpg|jpeg|ico|svg|woff2?|ttf|eot)$/i);
 
-  if (isStaticAsset) {
-    // Cache-First with Network Fallback for static assets (images, fonts, styles)
+  if (isImageOrFont) {
+    // Cache-First with Network Fallback for static media assets
     event.respondWith(
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) {
-          // Serve from cache immediately, update cache in background
           fetch(event.request).then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200) {
               caches.open(CACHE_NAME).then((cache) => cache.put(event.request, networkResponse));
@@ -104,7 +103,7 @@ self.addEventListener('fetch', (event) => {
       })
     );
   } else {
-    // Network-First for HTML/JS
+    // Network-First for HTML, JS, CSS, and API requests to ensure fresh deployments
     event.respondWith(
       fetch(event.request)
         .then((networkResponse) => {
