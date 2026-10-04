@@ -42,7 +42,7 @@ function initDOMElements() {
     btnNext: document.getElementById("v2-btn-next"),
     btnNextLabel: document.getElementById("v2-next-label"),
     chatDrawer: document.getElementById("v2-chat-drawer"),
-    chatMessages: document.getElementById("chat-messages"),
+    chatMessages: document.getElementById("v2-chat-messages") || document.getElementById("chat-messages"),
     chatInput: document.getElementById("chat-input"),
     btnSendChat: document.getElementById("btn-send-chat"),
     popoverMenu: document.getElementById("v2-popover-menu"),
@@ -574,8 +574,14 @@ function initSocketConnection() {
 
       // Handle Text Chat Signals
       if (data.signal.type === "chat") {
-        appendChatMessage("Stranger", data.signal.text, "stranger");
+        appendChatMessage("Stranger", data.signal.text, "stranger", data.signal.replyTo, data.signal.msgId);
         if (el.chatDrawer) el.chatDrawer.classList.remove("closed");
+        return;
+      }
+
+      // Handle Chat Emoji Reaction Signal
+      if (data.signal.type === "chat_reaction") {
+        applyV2MessageReaction(data.signal.msgId, data.signal.emoji, "stranger");
         return;
       }
 
@@ -605,7 +611,7 @@ function initSocketConnection() {
         } else if (currentChatMode === "video") {
           renderSharedVideoMedia(data.signal.mediaType, data.signal.dataUrl);
         } else {
-          appendMediaMessage("Stranger", data.signal.mediaType, data.signal.dataUrl, "stranger");
+          appendMediaMessage("Stranger", data.signal.mediaType, data.signal.dataUrl, "stranger", data.signal.replyTo, data.signal.msgId);
           if (el.chatDrawer) el.chatDrawer.classList.remove("closed");
         }
         return;
@@ -657,7 +663,12 @@ function removeElementById(id) {
  */
 function clearChatHistory() {
   if (el.chatMessages) {
-    el.chatMessages.innerHTML = "";
+    el.chatMessages.innerHTML = '<div class="v2-chat-spacer"></div>';
+  }
+  if (typeof cancelV2ChatReply === "function") cancelV2ChatReply();
+  if (el.chatInput) {
+    el.chatInput.value = "Hi 👋";
+    if (typeof autoGrowChatInput === "function") autoGrowChatInput();
   }
 }
 
@@ -1499,6 +1510,200 @@ async function initLocalMedia(mode) {
   }
 }
 
+let currentV2ReplyTarget = null;
+
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function autoGrowChatInput() {
+  if (!el.chatInput) return;
+  el.chatInput.style.height = "auto";
+  const newHeight = Math.min(el.chatInput.scrollHeight, 140);
+  el.chatInput.style.height = newHeight + "px";
+  if (el.chatInput.scrollHeight > 140) {
+    el.chatInput.style.overflowY = "auto";
+  } else {
+    el.chatInput.style.overflowY = "hidden";
+  }
+}
+
+function initiateV2ChatReply(msgId, sender) {
+  const msgElem = document.getElementById(msgId);
+  if (!msgElem) return;
+
+  let snippet = "";
+  const textContent = msgElem.querySelector(".v2-msg-text-content");
+  if (textContent) {
+    snippet = textContent.dataset.fullText || textContent.innerText;
+  } else if (msgElem.querySelector(".v2-chat-media-img")) {
+    snippet = "📷 Photo";
+  } else if (msgElem.querySelector(".v2-chat-media-video")) {
+    snippet = "🎥 Video";
+  } else {
+    snippet = msgElem.innerText.replace("😊", "").replace("↩️", "").trim();
+  }
+
+  if (snippet.length > 60) snippet = snippet.substring(0, 60) + "...";
+
+  currentV2ReplyTarget = { msgId, sender, snippet };
+
+  const previewBox = document.getElementById("v2-chat-reply-preview");
+  const previewLabel = document.getElementById("v2-reply-preview-label");
+  const previewText = document.getElementById("v2-reply-preview-text");
+
+  if (previewLabel) previewLabel.textContent = `Replying to ${sender}`;
+  if (previewText) previewText.textContent = `"${snippet}"`;
+  if (previewBox) previewBox.classList.remove("hidden");
+
+  if (el.chatInput) el.chatInput.focus();
+}
+
+function cancelV2ChatReply() {
+  currentV2ReplyTarget = null;
+  const previewBox = document.getElementById("v2-chat-reply-preview");
+  if (previewBox) previewBox.classList.add("hidden");
+}
+
+function toggleV2ReadMore(btn) {
+  const container = btn.closest(".v2-msg-text-content");
+  if (!container) return;
+  const isExpanded = container.dataset.expanded === "true";
+  const fullText = container.dataset.fullText;
+  const truncText = container.dataset.truncText;
+
+  if (isExpanded) {
+    container.dataset.expanded = "false";
+    container.innerHTML = `${escapeHtml(truncText)}... <span class="v2-read-more-btn" onclick="toggleV2ReadMore(this)">Read More</span>`;
+  } else {
+    container.dataset.expanded = "true";
+    container.innerHTML = `${escapeHtml(fullText)} <span class="v2-read-more-btn" onclick="toggleV2ReadMore(this)">Read Less</span>`;
+  }
+}
+
+function toggleV2ReactionPicker(msgId, event) {
+  if (event) event.stopPropagation();
+
+  const msgElem = document.getElementById(msgId);
+  // User messages are read-only for reactions (user cannot click/change reactions on their own message)
+  if (msgElem && msgElem.classList.contains("user")) {
+    return;
+  }
+
+  const oldPicker = document.querySelector(".v2-reaction-picker");
+  if (oldPicker) {
+    const parentMsgId = oldPicker.dataset.forMsgId;
+    oldPicker.remove();
+    if (parentMsgId === msgId) return;
+  }
+
+  const btn = document.getElementById(`react-btn-${msgId}`);
+  if (!btn) return;
+
+  const rect = btn.getBoundingClientRect();
+
+  const picker = document.createElement("div");
+  picker.className = "v2-reaction-picker";
+  picker.dataset.forMsgId = msgId;
+
+  // Calculate position in viewport to prevent any overflow/clipping
+  const pickerWidth = 210;
+  let leftPos = rect.left - 40;
+  if (leftPos < 12) leftPos = 12;
+  if (leftPos + pickerWidth > window.innerWidth - 12) {
+    leftPos = window.innerWidth - pickerWidth - 12;
+  }
+  let topPos = rect.top - 46;
+  if (topPos < 10) topPos = rect.bottom + 8;
+
+  picker.style.cssText = `position: fixed !important; top: ${topPos}px !important; left: ${leftPos}px !important; z-index: 9999 !important;`;
+
+  const emojis = ["❤️", "👍", "😂", "🔥", "😮", "😢"];
+  emojis.forEach(emoji => {
+    const item = document.createElement("span");
+    item.className = "v2-reaction-emoji-item";
+    item.textContent = emoji;
+    item.onclick = (e) => {
+      e.stopPropagation();
+      sendV2Reaction(msgId, emoji);
+      picker.remove();
+    };
+    picker.appendChild(item);
+  });
+
+  document.body.appendChild(picker);
+
+  const closeHandler = (e) => {
+    if (!picker.contains(e.target)) {
+      picker.remove();
+      document.removeEventListener("click", closeHandler);
+    }
+  };
+  setTimeout(() => document.addEventListener("click", closeHandler), 50);
+}
+
+function sendV2Reaction(msgId, emoji) {
+  applyV2MessageReaction(msgId, emoji, "user");
+  if (socket && currentMatchTargetId) {
+    socket.emit("signal", {
+      targetId: currentMatchTargetId,
+      signal: { type: "chat_reaction", msgId: msgId, emoji: emoji },
+      clientVersion: "v2"
+    });
+  }
+}
+
+function applyV2MessageReaction(msgId, emoji, senderType) {
+  const btn = document.getElementById(`react-btn-${msgId}`);
+  if (!btn) return;
+  btn.textContent = emoji;
+  btn.classList.remove("hidden");
+  btn.classList.add("active-reaction");
+
+  const msgElem = document.getElementById(msgId);
+  if (msgElem && msgElem.classList.contains("user")) {
+    btn.style.pointerEvents = "none";
+    btn.style.cursor = "default";
+    btn.title = `Stranger reacted ${emoji}`;
+  }
+}
+
+function openV2Lightbox(mediaType, dataUrl) {
+  const modal = document.getElementById("v2-lightbox-modal");
+  const container = document.getElementById("v2-lightbox-content");
+  if (!modal || !container) return;
+
+  if (mediaType === "image") {
+    container.innerHTML = `<img src="${dataUrl}" class="v2-lightbox-media-img" alt="Enlarged Photo" />`;
+  } else {
+    container.innerHTML = `<video src="${dataUrl}" class="v2-lightbox-media-video" controls autoplay playsinline></video>`;
+  }
+  modal.classList.remove("hidden");
+}
+
+function closeV2Lightbox() {
+  const modal = document.getElementById("v2-lightbox-modal");
+  const container = document.getElementById("v2-lightbox-content");
+  if (modal) modal.classList.add("hidden");
+  if (container) container.innerHTML = "";
+}
+
+window.initiateV2ChatReply = initiateV2ChatReply;
+window.cancelV2ChatReply = cancelV2ChatReply;
+window.toggleV2ReadMore = toggleV2ReadMore;
+window.toggleV2ReactionPicker = toggleV2ReactionPicker;
+window.sendV2Reaction = sendV2Reaction;
+window.applyV2MessageReaction = applyV2MessageReaction;
+window.openV2Lightbox = openV2Lightbox;
+window.closeV2Lightbox = closeV2Lightbox;
+window.sendChatMessage = sendChatMessage;
+
 /**
  * Event Listeners & UI Helpers
  */
@@ -1507,12 +1712,14 @@ function setupEventListeners() {
     el.btnSendChat.addEventListener("click", sendChatMessage);
   }
   if (el.chatInput) {
-    el.chatInput.addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendChatMessage();
+    el.chatInput.addEventListener("input", autoGrowChatInput);
+    el.chatInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendChatMessage();
+      }
     });
   }
-
-
 
   // Close Top Dropdown Popover Menu when clicking outside
   document.addEventListener("click", (e) => {
@@ -1601,15 +1808,20 @@ function sendChatMessage() {
   const text = el.chatInput.value.trim();
   if (!text || !socket || !currentMatchTargetId) return;
   
-  appendChatMessage("You", text, "user");
+  const msgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+  const replyData = currentV2ReplyTarget ? { ...currentV2ReplyTarget } : null;
+
+  appendChatMessage("You", text, "user", replyData, msgId);
   
   socket.emit("signal", {
     targetId: currentMatchTargetId,
-    signal: { type: "chat", text: text },
+    signal: { type: "chat", text: text, msgId: msgId, replyTo: replyData },
     clientVersion: "v2"
   });
 
   el.chatInput.value = "";
+  autoGrowChatInput();
+  cancelV2ChatReply();
 }
 
 /**
@@ -1699,19 +1911,23 @@ async function v2HandleMediaUpload(event) {
       });
     }
 
+    const msgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const replyData = currentV2ReplyTarget ? { ...currentV2ReplyTarget } : null;
+
     if (currentChatMode === "audio") {
       renderSharedAudioMedia(mediaType, dataUrl);
     } else if (currentChatMode === "video") {
       renderSharedVideoMedia(mediaType, dataUrl);
     } else {
-      appendMediaMessage("You", mediaType, dataUrl, "user");
+      appendMediaMessage("You", mediaType, dataUrl, "user", replyData, msgId);
     }
 
     socket.emit("signal", {
       targetId: currentMatchTargetId,
-      signal: { type: "media", mediaType: mediaType, dataUrl: dataUrl },
+      signal: { type: "media", mediaType: mediaType, dataUrl: dataUrl, msgId: msgId, replyTo: replyData },
       clientVersion: "v2"
     });
+    cancelV2ChatReply();
   } catch (err) {
     console.error("Media compression/upload error:", err);
     v2ShowToast("⚠️ Failed to process file attachment.");
@@ -1720,35 +1936,85 @@ async function v2HandleMediaUpload(event) {
   event.target.value = "";
 }
 
-function appendChatMessage(sender, text, type) {
+function appendChatMessage(sender, text, type, replyTo = null, msgId = null) {
+  if (!el.chatMessages) initDOMElements();
+  if (!el.chatMessages) el.chatMessages = document.getElementById("v2-chat-messages") || document.getElementById("chat-messages");
   if (!el.chatMessages) return;
+
+  if (!msgId) msgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+
   const msgDiv = document.createElement("div");
+  msgDiv.id = msgId;
   msgDiv.className = `v2-chat-msg ${type}`;
-  msgDiv.innerHTML = `<span>${text}</span>`;
+
+  let replyHtml = "";
+  if (replyTo) {
+    replyHtml = `<div class="v2-quoted-bubble"><span class="v2-quoted-author">${escapeHtml(replyTo.sender)}</span><span class="v2-quoted-text">${escapeHtml(replyTo.snippet)}</span></div>`;
+  }
+
+  let textHtml = "";
+  const lines = text.split("\n");
+  if (text.length > 320 || lines.length > 6) {
+    let truncatedText = text;
+    if (lines.length > 6) {
+      truncatedText = lines.slice(0, 5).join("\n");
+    }
+    if (truncatedText.length > 320) {
+      truncatedText = truncatedText.substring(0, 320);
+    }
+    textHtml = `<span class="v2-msg-text-content" data-expanded="false" data-full-text="${escapeHtml(text)}" data-trunc-text="${escapeHtml(truncatedText)}">${escapeHtml(truncatedText)}... <span class="v2-read-more-btn" onclick="toggleV2ReadMore(this)">Read More</span></span>`;
+  } else {
+    textHtml = `<span class="v2-msg-text-content">${escapeHtml(text)}</span>`;
+  }
+
+  let actionsHtml = "";
+  if (type === "user") {
+    actionsHtml = `<div class="v2-msg-external-actions"><button class="v2-ext-act-btn hidden" id="react-btn-${msgId}" title="Reaction" style="pointer-events: none; cursor: default;">😊</button><button class="v2-ext-act-btn" title="Reply" onclick="initiateV2ChatReply('${msgId}', 'You')">↩️</button></div>`;
+  } else {
+    actionsHtml = `<div class="v2-msg-external-actions"><button class="v2-ext-act-btn" title="Reply" onclick="initiateV2ChatReply('${msgId}', 'Stranger')">↩️</button><button class="v2-ext-act-btn" id="react-btn-${msgId}" title="React" onclick="toggleV2ReactionPicker('${msgId}', event)">😊</button></div>`;
+  }
+
+  msgDiv.innerHTML = `${replyHtml}${textHtml}${actionsHtml}`;
   el.chatMessages.appendChild(msgDiv);
-  
-  // Smooth Auto Scroll to Bottom
+
   setTimeout(() => {
     if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
   }, 30);
 }
 
-function appendMediaMessage(sender, mediaType, dataUrl, type) {
+function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, msgId = null) {
+  if (!el.chatMessages) initDOMElements();
+  if (!el.chatMessages) el.chatMessages = document.getElementById("v2-chat-messages") || document.getElementById("chat-messages");
   if (!el.chatMessages) return;
+
+  if (!msgId) msgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+
   const msgDiv = document.createElement("div");
+  msgDiv.id = msgId;
   msgDiv.className = `v2-chat-msg ${type}`;
+
+  let replyHtml = "";
+  if (replyTo) {
+    replyHtml = `<div class="v2-quoted-bubble"><span class="v2-quoted-author">${escapeHtml(replyTo.sender)}</span><span class="v2-quoted-text">${escapeHtml(replyTo.snippet)}</span></div>`;
+  }
 
   let mediaHtml = "";
   if (mediaType === "image") {
-    mediaHtml = `<img src="${dataUrl}" class="v2-chat-media-img" alt="Shared Image" onclick="window.open('${dataUrl}')" />`;
+    mediaHtml = `<img src="${dataUrl}" class="v2-chat-media-img" alt="Shared Photo" onclick="openV2Lightbox('image', '${dataUrl}')" />`;
   } else {
-    mediaHtml = `<video src="${dataUrl}" class="v2-chat-media-video" controls playsinline></video>`;
+    mediaHtml = `<video src="${dataUrl}" class="v2-chat-media-video" controls playsinline onclick="openV2Lightbox('video', '${dataUrl}')"></video>`;
   }
 
-  msgDiv.innerHTML = mediaHtml;
+  let actionsHtml = "";
+  if (type === "user") {
+    actionsHtml = `<div class="v2-msg-external-actions"><button class="v2-ext-act-btn hidden" id="react-btn-${msgId}" title="Reaction" style="pointer-events: none; cursor: default;">😊</button><button class="v2-ext-act-btn" title="Reply" onclick="initiateV2ChatReply('${msgId}', 'You')">↩️</button></div>`;
+  } else {
+    actionsHtml = `<div class="v2-msg-external-actions"><button class="v2-ext-act-btn" title="Reply" onclick="initiateV2ChatReply('${msgId}', 'Stranger')">↩️</button><button class="v2-ext-act-btn" id="react-btn-${msgId}" title="React" onclick="toggleV2ReactionPicker('${msgId}', event)">😊</button></div>`;
+  }
+
+  msgDiv.innerHTML = `${replyHtml}${mediaHtml}${actionsHtml}`;
   el.chatMessages.appendChild(msgDiv);
-  
-  // Smooth Auto Scroll to Bottom
+
   setTimeout(() => {
     if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
   }, 30);
@@ -1963,6 +2229,10 @@ function fallbackCopyText(text) {
     v2ShowToast("Failed to copy link.");
   }
   document.body.removeChild(tempInput);
+}
+
+function v2StartCall() {
+  v2SelectModeAndStart(currentChatMode || "text");
 }
 
 function retryV2SearchFromTimeout() {

@@ -1375,12 +1375,18 @@ html, body {
   max-width: 460px;
   display: flex;
   flex-direction: column;
-  background: rgba(10, 5, 18, 0.45);
-  backdrop-filter: blur(8px);
+  background-color: #0b141a;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180' fill='none' stroke='rgba(192,132,252,0.22)' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cg transform='translate(15, 15) rotate(-15)'%3E%3Cpath d='M0 0h14a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H5l-4 3v-3H0a3 3 0 0 1-3-3V3a3 3 0 0 1 3-3z'/%3E%3C/g%3E%3Cg transform='translate(60, 12) rotate(22)'%3E%3Cpath d='M0 0c-2-2-5-2-7 0l-1 1-1-1c-2-2-5-2-7 0s-2 5 0 7l8 8 8-8c2-2 2-5 0-7z'/%3E%3C/g%3E%3Cg transform='translate(105, 16) rotate(-28)'%3E%3Cpath d='M0 0v14M0 0l10-3v14M0 14a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0zM10 11a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z'/%3E%3C/g%3E%3Cg transform='translate(150, 14) rotate(35)'%3E%3Cpolygon points='0 -6 2 -2 6 -2 3 1 4 6 0 3 -4 6 -3 1 -6 -2 -2 -2'/%3E%3C/g%3E%3Cg transform='translate(35, 50) rotate(-35)'%3E%3Cpath d='M0 -5v10M-5 0h10M-3 -3l6 6M-3 3l6 -6'/%3E%3C/g%3E%3Cg transform='translate(80, 52) rotate(14)'%3E%3Cpath d='M0 0h5l2-3h8l2 3h5a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H0a3 3 0 0 1-3-3V3a3 3 0 0 1 3-3z'/%3E%3Ccircle cx='11' cy='9' r='3.5'/%3E%3C/g%3E%3Cg transform='translate(130, 48) rotate(-18)'%3E%3Crect x='0' y='0' width='22' height='13' rx='5'/%3E%3Cline x1='5' y1='6.5' x2='10' y2='6.5'/%3E%3Cline x1='7.5' y1='4' x2='7.5' y2='9'/%3E%3Ccircle cx='16' cy='5' r='1'/%3E%3Ccircle cx='18.5' cy='8' r='1'/%3E%3C/g%3E%3Cg transform='translate(170, 55) rotate(25)'%3E%3Cpath d='M0 0a10 10 0 0 1 20 0v5M0 0v5M-2 2h4v5h-4zM18 2h4v5h-4z'/%3E%3C/g%3E%3Cg transform='translate(12, 90) rotate(20)'%3E%3Cpath d='M0 0a6 6 0 0 0-6 6c0 4 6 9 6 9s6-5 6-9a6 6 0 0 0-6-6z'/%3E%3Ccircle cx='0' cy='6' r='1.8'/%3E%3C/g%3E%3Cg transform='translate(58, 92) rotate(-22)'%3E%3Cpath d='M0 0h14v9a5 5 0 0 1-5 5H5a5 5 0 0 1-5-5V0zM14 2h3a2.5 2.5 0 0 1 2.5 2.5v1a2.5 2.5 0 0 1-2.5 2.5h-3'/%3E%3C/g%3E%3Cg transform='translate(100, 88) rotate(16)'%3E%3Cline x1='3' y1='0' x2='1' y2='13'/%3E%3Cline x1='9' y1='0' x2='7' y2='13'/%3E%3Cline x1='0' y1='4' x2='12' y2='4'/%3E%3Cline x1='0' y1='9' x2='12' y2='9'/%3E%3C/g%3E%3Cg transform='translate(145, 94) rotate(-30)'%3E%3Cpath d='M0 0a5 5 0 0 1 5-5 5 5 0 0 1 5 5v4l2 2H-2l2-2V0z'/%3E%3Cpath d='M3 11a1.5 1.5 0 0 0 3 0'/%3E%3C/g%3E%3Cg transform='translate(30, 130) rotate(-16)'%3E%3Cpath d='M0 0h10a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H4l-3 3v-3H0a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2z'/%3E%3C/g%3E%3Cg transform='translate(75, 132) rotate(28)'%3E%3Ccircle cx='0' cy='0' r='5'/%3E%3Cline x1='3.5' y1='3.5' x2='8.5' y2='8.5'/%3E%3C/g%3E%3Cg transform='translate(120, 128) rotate(-24)'%3E%3Cpath d='M0 0c-1.5-1.5-3.5-1.5-5 0l-.5.5-.5-.5c-1.5-1.5-3.5-1.5-5 0s-1.5 3.5 0 5l5.5 5.5 5.5-5.5c1.5-1.5 1.5-3.5 0-5z'/%3E%3C/g%3E%3Cg transform='translate(162, 135) rotate(18)'%3E%3Cpath d='M0 0l3-6 3 4.5 3-4.5 3 6H0z'/%3E%3C/g%3E%3Cg transform='translate(15, 165) rotate(32)'%3E%3Cpolygon points='0 -5 1.5 -1.5 5 -1.5 2 1 3 5 0 2.5 -3 5 -2 1 -5 -1.5 -1.5 -1.5'/%3E%3C/g%3E%3Cg transform='translate(55, 168) rotate(-20)'%3E%3Cpath d='M0 0v12M0 0l9-2v12M0 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM9 10a3 3 0 1 1-6 0 3 3 0 0 1 6 0z'/%3E%3C/g%3E%3Cg transform='translate(100, 162) rotate(15)'%3E%3Cpath d='M0 0h4l1.5-2.5h6l1.5 2.5h4a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H0a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2z'/%3E%3Ccircle cx='8.5' cy='6.5' r='2.5'/%3E%3C/g%3E%3Cg transform='translate(142, 168) rotate(-14)'%3E%3Cpath d='M0 0a5 5 0 0 0-5 5c0 3.5 5 8 5 8s5-4.5 5-8a5 5 0 0 0-5-5z'/%3E%3Ccircle cx='0' cy='5' r='1.4'/%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(180deg, #0b141a 0%, #080d12 100%);
+  background-size: 200px 200px, 100% 100%;
+  background-repeat: repeat, no-repeat;
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--v2-radius-lg);
   padding: 6px 10px;
   z-index: 40;
   pointer-events: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
 }
 
 .v2-chat-overlay.closed {
@@ -1391,12 +1397,12 @@ html, body {
   position: absolute;
   top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) rotate(-10deg);
   font-family: monospace;
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: 3px;
-  color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.15);
   pointer-events: none;
   user-select: none;
   z-index: 0;
@@ -1416,53 +1422,74 @@ html, body {
 }
 
 .v2-chat-messages {
-  flex: 1;
+  flex: 1 1 0%;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 4px;
+  gap: 10px;
+  padding: 10px 8px 14px 8px;
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  background: transparent !important;
+  position: relative;
 }
 
-/* WhatsApp-Style Messages Flow (Start from bottom and move up) */
-.v2-chat-messages > :first-child {
-  margin-top: auto !important;
+/* Flex spacer pushes messages to the bottom when messages are few, like WhatsApp */
+.v2-chat-spacer {
+  flex: 1 1 auto;
+  min-height: 0;
+  pointer-events: none;
 }
 
 /* Content-Fitting Modern WhatsApp/iMessage Style Chat Bubbles */
 .v2-chat-msg {
   max-width: 82%;
+  min-width: 95px; /* Ensures space for bottom-right attached icons even on short messages */
   width: fit-content;
-  padding: 8px 14px;
+  flex-shrink: 0; /* Prevents flexbox from squishing/collapsing message bubbles */
+  padding: 6px 12px 6px 10px; /* Tight, snug fit around content */
   font-size: 0.88rem;
-  line-height: 1.45;
+  line-height: 1.35;
   word-break: break-word;
+  white-space: normal; /* Container uses normal whitespace; only text content uses pre-wrap */
   pointer-events: auto;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
   animation: v2BubbleSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   position: relative;
-  margin-bottom: 2px;
+  margin-bottom: 18px; /* Room for bottom 20% overlapping icons */
+  height: auto;
+  min-height: 0;
+}
+
+.v2-msg-text-content {
+  white-space: pre-wrap;
+  display: block;
+  margin: 0;
+  padding: 0;
 }
 
 /* User (Outgoing) Right-Aligned Message Bubble */
 .v2-chat-msg.user {
-  align-self: flex-end;
+  align-self: flex-end !important;
+  margin-left: auto !important;
+  margin-right: 0 !important;
   background: linear-gradient(135deg, var(--v2-primary-purple), var(--v2-primary-magenta));
   color: #ffffff;
-  border-radius: 18px 18px 4px 18px;
+  border-radius: 16px 16px 4px 16px;
 }
 
 /* Stranger (Incoming) Left-Aligned Message Bubble */
 .v2-chat-msg.stranger {
-  align-self: flex-start;
-  background: rgba(255, 255, 255, 0.12);
+  align-self: flex-start !important;
+  margin-right: auto !important;
+  margin-left: 0 !important;
+  background: rgba(28, 22, 44, 0.95);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: #f1f5f9;
   backdrop-filter: blur(8px);
-  border-radius: 18px 18px 18px 4px;
+  border-radius: 16px 16px 16px 4px;
 }
 
 @keyframes v2BubbleSlideIn {
@@ -1538,20 +1565,26 @@ html, body {
 }
 
 .v2-chat-media-img {
-  max-width: 100%;
+  width: 100%;
+  max-width: 240px;
   max-height: 220px;
+  object-fit: cover;
   border-radius: var(--v2-radius-md);
   margin-top: 6px;
   display: block;
   cursor: pointer;
+  box-sizing: border-box;
 }
 
 .v2-chat-media-video {
-  max-width: 100%;
+  width: 100%;
+  max-width: 240px;
   max-height: 220px;
+  object-fit: cover;
   border-radius: var(--v2-radius-md);
   margin-top: 6px;
   display: block;
+  box-sizing: border-box;
 }
 
 #chat-input {
@@ -2303,6 +2336,273 @@ html, body {
 .v2-btn-retry-search:hover {
   background: rgba(255, 255, 255, 0.16);
   border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ==========================================================================
+   💬 HashGANG Text Chat Enhancements (WhatsApp Doodle, Reactions, Reply, Lightbox)
+   ========================================================================== */
+
+/* WhatsApp & Telegram Style Rich Dense Dark Doodle Wallpaper Background */
+.v2-chat-messages {
+  background: transparent !important;
+  position: relative;
+}
+
+#v2-text-trace-watermark {
+  z-index: 10;
+  opacity: 0.18;
+  color: #c084fc;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+/* Auto-Growing Textarea Input */
+#chat-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 0.9rem;
+  outline: none;
+  padding: 6px 4px;
+  resize: none;
+  max-height: 140px;
+  overflow-y: auto;
+  line-height: 1.4;
+  font-family: inherit;
+}
+
+/* Quoted Reply Preview Bar Above Input */
+.v2-chat-reply-preview {
+  background: rgba(168, 85, 247, 0.15);
+  border-left: 3px solid #c084fc;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 6px 12px 2px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+  backdrop-filter: blur(6px);
+}
+
+.v2-reply-preview-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.v2-reply-preview-label {
+  color: #c084fc;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.v2-reply-preview-text {
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.v2-reply-preview-close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.v2-reply-preview-close:hover {
+  color: #fff;
+}
+
+/* Quoted Bubble Inside Message (Compact & Sleek) */
+.v2-quoted-bubble {
+  background: rgba(0, 0, 0, 0.28);
+  border-left: 3px solid #c084fc;
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-bottom: 4px;
+  font-size: 0.75rem;
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.85);
+  max-height: 38px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v2-quoted-author {
+  color: #c084fc;
+  font-weight: 700;
+  display: block;
+  font-size: 0.68rem;
+  line-height: 1.15;
+  margin-bottom: 1px;
+}
+
+/* External Action Icons attached to bubble corners (~20% overlap for maximum text visibility) */
+.v2-chat-msg.stranger .v2-msg-external-actions {
+  position: absolute;
+  bottom: -18px;
+  right: -16px;
+  left: auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  z-index: 10;
+}
+
+.v2-chat-msg.user .v2-msg-external-actions {
+  position: absolute;
+  bottom: -18px;
+  left: -16px;
+  right: auto;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  z-index: 10;
+}
+
+/* Action Icons (Default Disabled / Muted state) */
+.v2-ext-act-btn {
+  background: rgba(18, 14, 28, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  color: rgba(255, 255, 255, 0.5); /* Disabled/Muted color */
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  user-select: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.v2-ext-act-btn.hidden {
+  display: none !important;
+}
+
+.v2-ext-act-btn:hover {
+  background: rgba(168, 85, 247, 0.45);
+  border-color: rgba(192, 132, 252, 0.8);
+  color: #ffffff;
+  transform: scale(1.15);
+}
+
+/* Active Reaction Icon (when an emoji reaction is selected) */
+.v2-ext-act-btn.active-reaction {
+  background: rgba(168, 85, 247, 0.35);
+  border-color: #c084fc;
+  color: #ffffff;
+  font-size: 0.95rem;
+  opacity: 1;
+  box-shadow: 0 0 10px rgba(192, 132, 252, 0.45);
+}
+
+/* Emoji Reaction Picker Popover Overlay */
+.v2-reaction-picker {
+  background: rgba(18, 18, 28, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 20px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.75);
+  z-index: 9999 !important;
+  animation: v2FadeInUp 0.15s ease-out;
+  pointer-events: auto;
+}
+
+.v2-reaction-emoji-item {
+  cursor: pointer;
+  font-size: 1.15rem;
+  padding: 2px 4px;
+  transition: transform 0.15s ease;
+}
+
+.v2-reaction-emoji-item:hover {
+  transform: scale(1.35);
+}
+
+/* Long Text Truncation & Read More Button */
+.v2-read-more-btn {
+  color: #c084fc;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 4px;
+  text-decoration: underline;
+  display: inline-block;
+}
+
+.v2-read-more-btn:hover {
+  color: #e9d5ff;
+}
+
+/* Fullscreen Media Lightbox Modal */
+.v2-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.92);
+  backdrop-filter: blur(12px);
+  z-index: 9999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.v2-lightbox-container {
+  position: relative;
+  max-width: 90vw;
+  max-height: 85vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.v2-lightbox-close {
+  position: absolute;
+  top: -45px;
+  right: 0;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.v2-lightbox-close:hover {
+  background: rgba(239, 68, 68, 0.8);
+}
+
+.v2-lightbox-media-img {
+  max-width: 90vw;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+}
+
+.v2-lightbox-media-video {
+  max-width: 90vw;
+  max-height: 80vh;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
 }
 
 

@@ -66,7 +66,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=209" />
+  <link rel="stylesheet" href="style.css?v=210" />
 
   <!-- Schema.org JSON-LD Structured Data for Google Search Ranking -->
   <script type="application/ld+json">
@@ -533,7 +533,14 @@
         <!-- Centered HUD Overlay Text Chat Drawer -->
         <div class="v2-chat-overlay closed" id="v2-chat-drawer">
           <span class="v2-chat-bg-watermark" id="v2-text-trace-watermark">8F3A9X2K</span>
-          <div class="v2-chat-messages" id="chat-messages"></div>
+          <div class="v2-chat-messages" id="v2-chat-messages"><div class="v2-chat-spacer"></div></div>
+          <div class="v2-chat-reply-preview hidden" id="v2-chat-reply-preview">
+            <div class="v2-reply-preview-content">
+              <span class="v2-reply-preview-label" id="v2-reply-preview-label">Replying to Stranger</span>
+              <span class="v2-reply-preview-text" id="v2-reply-preview-text">"..."</span>
+            </div>
+            <button class="v2-reply-preview-close" onclick="cancelV2ChatReply()">&times;</button>
+          </div>
           <div class="v2-chat-input-row">
             <button class="v2-inline-act-btn next" id="v2-btn-chat-next" title="Next Stranger"
               onclick="v2HandleStartOrNext()">
@@ -545,7 +552,7 @@
                 <input type="file" id="v2-media-file-input" accept="image/*,video/*" style="display: none"
                   onchange="v2HandleMediaUpload(event)" />
               </label>
-              <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off" />
+              <textarea id="chat-input" placeholder="Type a message..." rows="1" autocomplete="off"></textarea>
               <button class="v2-send-btn" id="btn-send-chat" title="Send">
                 <i class="fa-solid fa-paper-plane"></i>
               </button>
@@ -610,11 +617,19 @@
       style="position:fixed; top:-9999px; left:-9999px; width:300px; height:250px; opacity:0; pointer-events:none; z-index:-1;">
     </div>
 
+    <!-- Fullscreen Media Lightbox Modal -->
+    <div class="v2-lightbox-overlay hidden" id="v2-lightbox-modal" onclick="closeV2Lightbox()">
+      <div class="v2-lightbox-container" onclick="event.stopPropagation()">
+        <button class="v2-lightbox-close" onclick="closeV2Lightbox()">&times;</button>
+        <div id="v2-lightbox-content"></div>
+      </div>
+    </div>
+
     <!-- Scripts Injection -->
-    <script src="ads.js?v=209" defer></script>
-    <script src="ad_mediation_config.js?v=209" defer></script>
-    <script src="socket.io.min.js?v=209"></script>
-    <script src="app.js?v=209" defer></script>
+    <script src="ads.js?v=210" defer></script>
+    <script src="ad_mediation_config.js?v=210" defer></script>
+    <script src="socket.io.min.js?v=210"></script>
+    <script src="app.js?v=210" defer></script>
 </body>
 
 </html>
