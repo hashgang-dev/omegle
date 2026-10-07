@@ -2080,6 +2080,7 @@ function openV2ShareModal(context = "invite") {
   currentV2InviteUrl = `${baseUrl}?invite=${currentV2InviteCode}&mode=${mode}&t=${timestamp}`;
   v2TimeoutInviteUrl = currentV2InviteUrl;
   window.v2TimeoutInviteUrl = v2TimeoutInviteUrl;
+  window.currentV2InviteCode = currentV2InviteCode;
 
   if (socket && socket.connected) {
     socket.emit("create_invite_room", { inviteCode: currentV2InviteCode, mode: mode, clientVersion: "v2" });
