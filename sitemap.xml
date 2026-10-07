@@ -336,4 +336,16 @@
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
   </url>
+  <url>
+    <loc>https://chat.hashgang.com/blog/why-hashgang-chat-is-legally-compliant-and-safe-omegle-alternative.html</loc>
+    <lastmod>2026-10-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+  <url>
+    <loc>https://chat.hashgang.com/blog/how-to-share-photos-and-videos-in-anonymous-stranger-chat.html</loc>
+    <lastmod>2026-10-07</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+  </url>
 </urlset>
