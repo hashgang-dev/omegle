@@ -6,3 +6,4 @@ ui_*.png
 header_*.png
 status_badge_*.png
 .DS_Store
+package-lock.json

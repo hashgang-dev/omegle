@@ -451,6 +451,19 @@ function initSocketConnection() {
       updateStatus("idle", "Select Mode & Start");
     });
 
+    socket.on("banned", (data) => {
+      const reasonMsg = (data && data.reason) ? data.reason : "Access suspended due to multiple user reports.";
+      console.warn("⛔ [Socket.io Ban Notice]", data);
+      alert(`🔴 Account Suspended\n\n${reasonMsg}`);
+      v2ShowToast(`🔴 ${reasonMsg}`);
+      updateStatus("idle", "Access Suspended");
+      v2StopCall();
+    });
+
+    socket.on("report_acknowledged", (data) => {
+      console.log("🚩 [Omegle Report] Server report result:", data);
+    });
+
     socket.on("online_count", (data) => {
       if (data && data.count) {
         updateOnlineUsersDisplay(data.count);
@@ -506,8 +519,9 @@ function initSocketConnection() {
           try { navigator.vibrate([100, 50, 100]); } catch (e) {}
         }
 
-        // Generate Session Trace Watermark Code
-        const sessionTraceCode = (targetId || "HG" + Math.random().toString(36).substring(2, 8)).slice(-8).toUpperCase();
+        // Generate Session Trace Watermark Code (Server Authoritative)
+        const sessionTraceCode = (data && data.traceCode) ? data.traceCode : ((targetId || "HG" + Math.random().toString(36).substring(2, 8)).slice(-8).toUpperCase());
+        window.currentSessionTraceCode = sessionTraceCode;
         if (el.videoTraceWatermark) {
           el.videoTraceWatermark.textContent = sessionTraceCode;
           el.videoTraceWatermark.classList.remove("hidden");
@@ -2409,6 +2423,35 @@ window.triggerV2TimeoutNativeShare = triggerV2TimeoutNativeShare;
 window.copyV2TimeoutInviteLink = copyV2TimeoutInviteLink;
 window.retryV2SearchFromTimeout = retryV2SearchFromTimeout;
 window.handleDynamicModalAction = handleDynamicModalAction;
+
+function v2ReportAndBlockStranger() {
+  if (!currentMatchTargetId) {
+    v2ShowToast("⚠️ Connect to a stranger first before reporting.");
+    return;
+  }
+
+  const traceCode = window.currentSessionTraceCode || "N/A";
+  const confirmReport = confirm(`🚩 Report this stranger for inappropriate behavior / nudity?\n\nSession Trace Code: ${traceCode}\nThey will be immediately blocked and reported.`);
+  if (!confirmReport) return;
+
+  const targetId = currentMatchTargetId;
+  currentMatchTargetId = null;
+  window.currentMatchTargetId = null;
+  recordSkippedPeerV2(targetId);
+
+  // Auto-copy Session Trace Code to user's clipboard for legal reference
+  if (traceCode && traceCode !== "N/A" && navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(`HashGANG Chat Session Trace Code: ${traceCode}`).catch(() => {});
+  }
+
+  if (socket && socket.connected) {
+    socket.emit("report_peer", { targetId: targetId, traceCode: traceCode, reason: "inappropriate" });
+  }
+
+  v2ShowToast(`🚩 Reported! Trace Code: ${traceCode} (Copied to Clipboard)`);
+  v2HandleStartOrNext();
+}
+window.v2ReportAndBlockStranger = v2ReportAndBlockStranger;
 
 /**
  * Stranger Chat Backend API Telemetry & Analytics Integration
