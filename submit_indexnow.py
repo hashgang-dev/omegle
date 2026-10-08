@@ -7,7 +7,7 @@ import sys
 # IndexNow API Configuration
 HOST = "chat.hashgang.com"
 KEY = "8f3b4a2c1d9e8f7a6b5c4d3e2f1a0987"
-KEY_LOCATION = f"https://{HOST}/{KEY}.txt"
+KEY_LOCATION = f"https://hashgang.com/{KEY}.txt"
 
 # Dynamic path resolution (Works seamlessly in local & production servers)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
