@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-chat-v250';
+const CACHE_NAME = 'hashgang-chat-v251';
 
 const ASSETS_TO_CACHE = [
   '/',
@@ -13,10 +13,20 @@ const ASSETS_TO_CACHE = [
   '/admin-trace-lookup.html',
   '/terms-of-service.html',
   '/privacy-policy.html',
+  '/favicon.ico',
+  '/favicon-16x16.png',
+  '/favicon-32x32.png',
+  '/favicon-48x48.png',
+  '/favicon-192x192.png',
+  '/apple-touch-icon.png',
+  '/apple-touch-icon.webp',
+  '/assets/icons/icon-192x192.png',
+  '/assets/icons/icon-512x512.png',
+  '/assets/icons/icon-maskable-192x192.png',
+  '/assets/icons/icon-maskable-512x512.png',
   '/logo.webp',
   '/logo-sm.webp',
   '/og-image.webp',
-  '/apple-touch-icon.webp',
   '/logo.png',
   '/qr-code.png',
   '/manifest.json',
