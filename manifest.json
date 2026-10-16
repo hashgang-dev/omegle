@@ -1,7 +1,7 @@
 {
-  "name": "HashGANG Chat",
-  "short_name": "HashGANG Chat",
-  "description": "Instant, private, anonymous video and text chat with strangers worldwide. 100% Free, No Login Required.",
+  "name": "HashGANG – Free Stranger Chat",
+  "short_name": "#GANG",
+  "description": "Instant anonymous text, voice & video chat with strangers worldwide. No login, 100% free.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0512",
