@@ -454,7 +454,7 @@ function refreshElements() {
  * Dynamic Alternating Brand Name Switcher ('HashGANG Chat' <-> '#GANG Chat')
  */
 function initBrandAlternatingTitle() {
-  const titles = ["HashGANG Chat", "#GANG Chat"];
+  const titles = ["#GANG", "HashGANG"];
   let index = 0;
 
   setInterval(() => {
