@@ -141,7 +141,7 @@ function registerV2ServiceWorker() {
 }
 
 function startBrandTitleAnimation() {
-  const titles = ["#GANG Chat", "HashGANG Chat"];
+  const titles = ["#GANG", "HashGANG"];
   let index = 0;
   const brandEl = document.getElementById("v2-brand-title-text");
 
@@ -382,7 +382,7 @@ function handlePwaInstallPrompt(e) {
     deferredPwaPromptV2.prompt();
     deferredPwaPromptV2.userChoice.then((choiceResult) => {
       if (choiceResult && choiceResult.outcome === "accepted") {
-        v2ShowToast("🎉 Thank you for installing HashGANG Chat!");
+        v2ShowToast("🎉 Thank you for installing #GANG!");
       }
       deferredPwaPromptV2 = null;
     });
@@ -2115,7 +2115,7 @@ function openV2ShareModal(context = "invite") {
     if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-paper-plane text-purple-400"></i> Instant 1-on-1 Connect';
     if (headingEl) {
       headingEl.className = "v2-timeout-status-badge invite-mode";
-      headingEl.innerHTML = '🚀 Invite Friends to HashGANG Chat!';
+      headingEl.innerHTML = '🚀 Invite Friends to HashGANG!';
     }
     if (subtextEl) subtextEl.innerHTML = 'Share your personal room link below to jump directly into a private chat or match instantly with active online users!';
     if (retryBtnText) retryBtnText.textContent = "Back to Search";
@@ -2125,7 +2125,7 @@ function openV2ShareModal(context = "invite") {
     if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-paper-plane text-purple-400"></i> Instant 1-on-1 Connect';
     if (headingEl) {
       headingEl.className = "v2-timeout-status-badge invite-mode";
-      headingEl.innerHTML = '🚀 Invite Friends to HashGANG Chat!';
+      headingEl.innerHTML = '🚀 Invite Friends to HashGANG!';
     }
     if (subtextEl) subtextEl.innerHTML = 'Share your personal room link below to jump directly into a private chat or match instantly with active online users!';
     if (retryBtnText) retryBtnText.textContent = "Select Mode";
@@ -2188,10 +2188,10 @@ function v2Trigger25sSearchTimeout() {
 }
 
 function triggerV2TimeoutNativeShare(platform) {
-  const shareText = `🔥 Hey! Join me on HashGANG Chat (100% Real Humans, No Bots). Click to connect directly with me: ${v2TimeoutInviteUrl || window.location.href}`;
+  const shareText = `🔥 Hey! Join me on HashGANG (100% Real Humans, No Bots). Click to connect directly with me: ${v2TimeoutInviteUrl || window.location.href}`;
   
   if (platform === "telegram") {
-    const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(v2TimeoutInviteUrl || window.location.href)}&text=${encodeURIComponent("🔥 Hey! Join me on HashGANG Chat (100% Real Humans, No Bots). Click to connect directly with me:\n")}`;
+    const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(v2TimeoutInviteUrl || window.location.href)}&text=${encodeURIComponent("🔥 Hey! Join me on HashGANG (100% Real Humans, No Bots). Click to connect directly with me:\n")}`;
     window.open(tgUrl, "_blank");
     v2ShowToast("Opening Telegram Share... ✈️");
     return;
@@ -2200,7 +2200,7 @@ function triggerV2TimeoutNativeShare(platform) {
   // Default WhatsApp / Web Share
   if (navigator.share) {
     navigator.share({
-      title: "HashGANG Chat",
+      title: "HashGANG",
       text: shareText,
       url: v2TimeoutInviteUrl || window.location.href
     }).then(() => {
@@ -2219,7 +2219,7 @@ function triggerV2TimeoutNativeShare(platform) {
 }
 
 function copyV2TimeoutInviteLink() {
-  const shareText = `🔥 Hey! Join me on HashGANG Chat (100% Real Humans, No Bots). Click to connect directly with me: ${v2TimeoutInviteUrl || window.location.href}`;
+  const shareText = `🔥 Hey! Join me on HashGANG (100% Real Humans, No Bots). Click to connect directly with me: ${v2TimeoutInviteUrl || window.location.href}`;
   
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(shareText).then(() => {
@@ -2293,7 +2293,7 @@ function checkV2UrlInviteParameters() {
 
 function shareToSocial(platform) {
   const textInput = document.getElementById("v2-share-text-input");
-  const messageText = textInput ? textInput.value : `🔥 Hey! Connect with me on HashGANG Chat!\n💬 Free HD Video, Audio & Text Chat (No Signup required).\nJoin directly: ${currentV2InviteUrl || "https://chat.hashgang.com"}`;
+  const messageText = textInput ? textInput.value : `🔥 Hey! Connect with me on HashGANG!\n💬 Free HD Video, Audio & Text Chat (No Signup required).\nJoin directly: ${currentV2InviteUrl || "https://chat.hashgang.com"}`;
   const encodedText = encodeURIComponent(messageText);
   const rawUrl = currentV2InviteUrl || "https://chat.hashgang.com";
   const encodedUrl = encodeURIComponent(rawUrl);
@@ -2301,7 +2301,7 @@ function shareToSocial(platform) {
   if (platform === "whatsapp") {
     window.open(`https://api.whatsapp.com/send?text=${encodedText}`);
   } else if (platform === "telegram") {
-    window.open(`https://t.me/share/url?url=${encodedUrl}&text=${encodeURIComponent("🔥 Hey! Connect with me on HashGANG Chat!\n💬 Free HD Video, Audio & Text Chat (No Signup required).\nJoin directly:")}`);
+    window.open(`https://t.me/share/url?url=${encodedUrl}&text=${encodeURIComponent("🔥 Hey! Connect with me on HashGANG!\n💬 Free HD Video, Audio & Text Chat (No Signup required).\nJoin directly:")}`);
   } else if (platform === "twitter") {
     window.open(`https://twitter.com/intent/tweet?text=${encodedText}`);
   } else if (platform === "facebook") {
@@ -2442,7 +2442,7 @@ function v2ReportAndBlockStranger() {
 
   // Auto-copy Session Trace Code to user's clipboard for legal reference
   if (traceCode && traceCode !== "N/A" && navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(`HashGANG Chat Session Trace Code: ${traceCode}`).catch(() => {});
+    navigator.clipboard.writeText(`HashGANG Session Trace Code: ${traceCode}`).catch(() => {});
   }
 
   if (socket && socket.connected) {

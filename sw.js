@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-v253';
+const CACHE_NAME = 'hashgang-v254';
 
 const ASSETS_TO_CACHE = [
   '/',
