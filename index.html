@@ -65,7 +65,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=254" />
+  <link rel="stylesheet" href="style.css?v=261" />
 
   <!-- Schema.org JSON-LD Structured Data for Google Search Ranking -->
   <script type="application/ld+json">
@@ -234,10 +234,25 @@
   <div class="v2-app-container">
     <!-- Top Navigation Bar -->
     <header class="v2-top-bar">
-      <a href="index.html" class="v2-brand-logo" title="HashGANG Home">
-        <img src="logo-sm.webp" alt="HashGANG Logo" class="v2-brand-img" width="32" height="32" />
-        <span class="v2-brand-name" id="v2-brand-title-text">HashGANG</span>
-      </a>
+      <div class="v2-header-brand-col">
+        <a href="index.html" class="v2-brand-logo" title="HashGANG Home">
+          <img src="logo-sm.webp" alt="HashGANG Logo" class="v2-brand-img" width="40" height="40" />
+        </a>
+        <div class="v2-brand-meta-col">
+          <div class="v2-brand-title-row">
+            <span class="v2-brand-name" id="v2-brand-title-text">HashGANG</span>
+          </div>
+          <div class="v2-header-submeta" id="v2-header-submeta">
+            <span id="v2-group-room-badge" style="display: none;" aria-hidden="true">Group #1</span>
+            <button class="v2-nick-pill" id="v2-btn-edit-nick" onclick="promptEditNickname()" title="Tap to Change Your Name">
+              <span class="v2-nick-prefix">You:</span>
+              <strong id="v2-user-nickname-display">Stranger</strong>
+              <i class="fa-solid fa-pen v2-nick-pen"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <span id="v2-group-online-count" style="display: none;" aria-hidden="true">1</span>
 
       <div class="v2-top-right">
         <!-- Report & Block Stranger Flag Button -->
@@ -308,6 +323,9 @@
             <i class="fa-solid fa-video-slash"></i>
             <h3>🔴 Video Stranger Disconnected</h3>
             <p>The stranger has left the video call.</p>
+            <button class="v2-btn-disc-back-group" id="v2-btn-video-disc-back" onclick="v2ReturnToGroupChat(true)" title="Back to Group Chat">
+              <i class="fa-solid fa-comments"></i> Back to Group Chat
+            </button>
           </div>
 
           <!-- Audio Mode Waveform Visualizer & Shared Co-Viewing Stage -->
@@ -358,58 +376,100 @@
           <div class="v2-incall-ad-banner hidden" id="v2-incall-ad-container"></div>
         </div>
 
-        <!-- STAGE 1: 1-Click Launch & Mode Selection Welcome Screen (Unboxed v1 Style) -->
-        <div class="v2-stage-overlay" id="v2-hero-stage">
-          <div class="v2-hero-brand">
-            <img src="logo-sm.webp" alt="HashGANG Logo" class="v2-hero-logo" width="72" height="72" />
-            <h2>Instant Stranger Chat</h2>
-            <p>Connect in one click. 100% Anonymous.</p>
+        <!-- STAGE 1: Real-Time Multiplayer Group Chat & 1v1 Invitation Hub -->
+        <div class="v2-stage-overlay v2-group-chat-stage" id="v2-group-chat-stage">
+          <!-- Group Chat Messages Feed (Timeless, No Timestamps) -->
+          <div class="v2-group-feed" id="v2-group-messages-feed">
+            <!-- Messages, in-feed Adsterra banner, and interactive call cards will render here -->
           </div>
 
-          <!-- 3 Clean Prominent Launch Mode Selection Cards -->
-          <div class="v2-mode-cards-grid">
-            <button class="v2-mode-card active" id="v2-btn-mode-text" onclick="v2SelectModeAndStart('text')">
-              <div class="v2-mode-icon text-icon">
-                <i class="fa-solid fa-comments"></i>
-              </div>
-              <div class="v2-mode-info">
-                <strong>Text Chat</strong>
-                <span class="v2-mode-desc">Private Text & Media Sharing</span>
-              </div>
-            </button>
+          <!-- Onboarding Welcome Knowledge Card Slot (Bottom-Aligned, Easy Thumb Reach) -->
+          <div id="v2-group-welcome-slot" class="v2-group-welcome-slot bottom-docked"></div>
 
-            <button class="v2-mode-card" id="v2-btn-mode-audio" onclick="v2SelectModeAndStart('audio')">
-              <div class="v2-mode-icon audio-icon">
-                <i class="fa-solid fa-microphone"></i>
-              </div>
-              <div class="v2-mode-info">
-                <strong>Voice Chat</strong>
-                <span class="v2-mode-desc">Anonymous Audio Call</span>
-              </div>
-            </button>
-
-            <button class="v2-mode-card" id="v2-btn-mode-video" onclick="v2SelectModeAndStart('video')">
-              <div class="v2-mode-icon video-icon">
-                <i class="fa-solid fa-video"></i>
-              </div>
-              <div class="v2-mode-info">
-                <strong>Video Call</strong>
-                <span class="v2-mode-desc">Face-to-Face Live Cam</span>
-              </div>
-            </button>
+          <!-- Reply-To Anchor Bar -->
+          <div class="v2-group-reply-bar hidden" id="v2-group-reply-bar">
+            <div class="v2-group-reply-content">
+              <i class="fa-solid fa-reply text-purple-400"></i>
+              <span>Replying to <strong id="v2-reply-target-name">Stranger</strong>: <em id="v2-reply-target-snippet">...</em></span>
+            </div>
+            <button class="v2-group-reply-dismiss" onclick="cancelGroupReply()">&times;</button>
           </div>
 
-          <div class="v2-hero-footer-legal">
-            <span>By connecting, you confirm 18+ & agree to
-              <a href="terms-of-service.html" target="_blank">Terms</a> &
-              <a href="privacy-policy.html" target="_blank">Privacy</a>.</span>
+          <!-- Group Message Input Dock (Full Width, Centered) with Attachment-Style Thunder Trigger -->
+          <div class="v2-group-dock">
+            <div class="v2-group-input-pill">
+              <button class="v2-dock-call-trigger" id="v2-btn-open-1v1-drawer" onclick="toggleV2CallDrawer()" title="Start Private Chat">
+                <i class="fa-solid fa-bolt"></i>
+              </button>
+              <textarea id="v2-group-input-field" placeholder="Say something nice to everyone..." maxlength="180" rows="1" autocomplete="off"></textarea>
+              <button class="v2-group-send-btn" id="v2-btn-group-send" onclick="sendGroupMessage()" title="Send Message">
+                <i class="fa-solid fa-paper-plane"></i>
+              </button>
+            </div>
           </div>
 
-          <div class="v2-hero-share-wrapper">
-            <button class="v2-btn-secondary v2-hero-share-btn" onclick="openV2ShareModal()">
-              <i class="fa-solid fa-share-nodes text-purple-400"></i> Invite
-              Your Friends 🚀
-            </button>
+          <!-- Slide-Up Private Call Drawer (Group Invites & Private Links) -->
+          <div class="v2-call-drawer-backdrop hidden" id="v2-call-drawer-backdrop" onclick="closeV2CallDrawer(event)">
+            <div class="v2-call-drawer" id="v2-call-drawer" onclick="event.stopPropagation()">
+              <div class="v2-drawer-handle"></div>
+              <div class="v2-drawer-header">
+                <div class="v2-drawer-title-box">
+                  <span class="v2-drawer-icon"><i class="fa-solid fa-bolt"></i></span>
+                  <div>
+                    <h4>Start Private Chat</h4>
+                  </div>
+                </div>
+                <button class="v2-drawer-close-btn" onclick="closeV2CallDrawer()" title="Close">&times;</button>
+              </div>
+
+              <!-- Section 1: With this group members -->
+              <div class="v2-drawer-section">
+                <div class="v2-drawer-section-title">
+                  <i class="fa-solid fa-users text-purple-400"></i>
+                  <span>With this group members</span>
+                </div>
+                <div class="v2-drawer-grid-3">
+                  <button class="v2-drawer-tile video v2-tray-btn video video-tray-btn" onclick="selectDrawerCallMode('video')" title="Private Video Call with Group Member">
+                    <div class="v2-drawer-tile-icon"><i class="fa-solid fa-video"></i></div>
+                    <span class="v2-drawer-tile-label">Video Call</span>
+                  </button>
+                  <button class="v2-drawer-tile voice v2-tray-btn voice audio-tray-btn" onclick="selectDrawerCallMode('audio')" title="Private Audio Call with Group Member">
+                    <div class="v2-drawer-tile-icon"><i class="fa-solid fa-microphone"></i></div>
+                    <span class="v2-drawer-tile-label">Audio Call</span>
+                  </button>
+                  <button class="v2-drawer-tile text v2-tray-btn text text-tray-btn" onclick="selectDrawerCallMode('text')" title="Private Text Chat with Group Member">
+                    <div class="v2-drawer-tile-icon"><i class="fa-solid fa-comment-dots"></i></div>
+                    <span class="v2-drawer-tile-label">Text Chat</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="v2-drawer-divider">
+                <span>OR</span>
+              </div>
+
+              <!-- Section 2: Invite your friends via private link -->
+              <div class="v2-drawer-section">
+                <div class="v2-drawer-section-title">
+                  <i class="fa-solid fa-link text-indigo-400"></i>
+                  <span>Invite your friends via private link</span>
+                </div>
+                <div class="v2-drawer-grid-3">
+                  <button class="v2-drawer-tile link-video" id="v2-btn-share-direct-video" onclick="triggerDirect1v1Share('video')" title="Share Private Video Call Link">
+                    <div class="v2-drawer-tile-icon"><i class="fa-solid fa-video"></i></div>
+                    <span class="v2-drawer-tile-label">Video Link</span>
+                  </button>
+                  <button class="v2-drawer-tile link-audio" id="v2-btn-share-direct-audio" onclick="triggerDirect1v1Share('audio')" title="Share Private Audio Call Link">
+                    <div class="v2-drawer-tile-icon"><i class="fa-solid fa-phone"></i></div>
+                    <span class="v2-drawer-tile-label">Audio Link</span>
+                  </button>
+                  <button class="v2-drawer-tile link-text" id="v2-btn-share-direct-text" onclick="triggerDirect1v1Share('text')" title="Share Private Text Chat Link">
+                    <div class="v2-drawer-tile-icon"><i class="fa-solid fa-message"></i></div>
+                    <span class="v2-drawer-tile-label">Text Link</span>
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Hidden Footer SEO Content & Regional Landing Pages Links (Indexed by Googlebot, Hidden from UX) -->
@@ -494,10 +554,13 @@
           <div class="v2-engaged-box" id="v2-engaged-box">
             <div class="v2-engaged-actions">
               <button class="v2-btn-engaged-share" onclick="openV2ShareModal()">
-                <i class="fa-solid fa-share-nodes"></i> Invite Your Friends 🚀
+                <i class="fa-solid fa-share-nodes"></i> Invite Friends 🚀
+              </button>
+              <button class="v2-btn-engaged-group" id="v2-btn-engaged-group" onclick="v2ReturnToGroupChat()">
+                <i class="fa-solid fa-comments text-amber-400"></i> Join Group Chat 💬
               </button>
               <button class="v2-btn-engaged-switch" id="v2-btn-engaged-switch" onclick="v2SwitchModeAndSearch()">
-                <i class="fa-solid fa-video"></i> Switch to Video Mode 📹
+                <i class="fa-solid fa-video"></i> Switch to Video 📹
               </button>
             </div>
           </div>
@@ -522,16 +585,37 @@
             <i class="fa-solid fa-video"></i>
           </button>
 
-          <!-- Main Primary Action Button (Start / Next) -->
-          <button class="v2-btn-primary" id="v2-btn-next" onclick="v2HandleStartOrNext()">
-            <i class="fa-solid fa-forward-step"></i>
-            <span id="v2-next-label">Start Chat</span>
+          <!-- Main Primary Action Button (Back to Group) -->
+          <button class="v2-btn-primary back-to-group" id="v2-btn-next" onclick="v2ReturnToGroupChat(false)" title="Back to Group Chat">
+            <i class="fa-solid fa-comments"></i>
+            <span id="v2-next-label">Back to Group</span>
           </button>
         </div>
 
         <!-- Centered HUD Overlay Text Chat Drawer -->
         <div class="v2-chat-overlay closed" id="v2-chat-drawer">
           <span class="v2-chat-bg-watermark" id="v2-text-trace-watermark">8F3A9X2K</span>
+
+          <!-- Top Sticky Bar inside Private Chat Window -->
+          <div class="v2-chat-top-bar" id="v2-chat-top-bar">
+            <button class="v2-btn-chat-back-group" id="v2-btn-chat-back-group" onclick="v2ReturnToGroupChat(false)" title="Back to Group Chat">
+              <i class="fa-solid fa-chevron-left"></i>
+              <span>Back to Group</span>
+            </button>
+            <div class="v2-chat-peer-status" id="v2-chat-peer-status">
+              <span class="v2-live-pulse-dot" id="v2-chat-peer-dot"></span>
+              <span id="v2-chat-peer-status-text">Private Chat</span>
+            </div>
+            <div class="v2-chat-upgrade-actions" id="v2-chat-upgrade-actions">
+              <button class="v2-btn-upgrade-mode video" id="v2-btn-upgrade-video" onclick="requestInCallModeUpgrade('video')" title="Invite Stranger to Video Call">
+                <i class="fa-solid fa-video"></i>
+              </button>
+              <button class="v2-btn-upgrade-mode audio" id="v2-btn-upgrade-audio" onclick="requestInCallModeUpgrade('audio')" title="Invite Stranger to Voice Call">
+                <i class="fa-solid fa-microphone"></i>
+              </button>
+            </div>
+          </div>
+
           <div class="v2-chat-messages" id="v2-chat-messages"><div class="v2-chat-spacer"></div></div>
           <div class="v2-chat-reply-preview hidden" id="v2-chat-reply-preview">
             <div class="v2-reply-preview-content">
@@ -540,22 +624,23 @@
             </div>
             <button class="v2-reply-preview-close" onclick="cancelV2ChatReply()">&times;</button>
           </div>
-          <div class="v2-chat-input-row">
-            <button class="v2-inline-act-btn next" id="v2-btn-chat-next" title="Next Stranger"
-              onclick="v2HandleStartOrNext()">
-              <i class="fa-solid fa-forward-step"></i>
-            </button>
+          <div class="v2-chat-input-row" id="v2-chat-input-row">
             <div class="v2-chat-input-pill">
               <label class="v2-attach-btn" title="Send Image or Video" for="v2-media-file-input">
                 <i class="fa-solid fa-paperclip"></i>
                 <input type="file" id="v2-media-file-input" accept="image/*,video/*" style="display: none"
                   onchange="v2HandleMediaUpload(event)" />
               </label>
-              <textarea id="chat-input" placeholder="Type a message..." rows="1" autocomplete="off"></textarea>
+              <textarea id="chat-input" placeholder="Type a message..." rows="1" autocomplete="off">Hi 👋</textarea>
               <button class="v2-send-btn" id="btn-send-chat" title="Send">
                 <i class="fa-solid fa-paper-plane"></i>
               </button>
             </div>
+          </div>
+          <div class="v2-chat-disconnected-bar hidden" id="v2-chat-disconnected-bar">
+            <button class="v2-btn-disc-back-group" id="v2-btn-chat-disc-back" onclick="v2ReturnToGroupChat(false)" title="Back to Group Chat">
+              <i class="fa-solid fa-comments"></i> Back to Group Chat
+            </button>
           </div>
         </div>
       </section>
@@ -565,7 +650,7 @@
     <div class="v2-modal-overlay hidden" id="v2-share-modal" onclick="closeV2ShareModal(event)">
       <div class="v2-modal-card v2-timeout-card" onclick="event.stopPropagation()">
         <div class="v2-timeout-header">
-          <span class="v2-timeout-badge" id="v2-timeout-badge-text"><i class="fa-solid fa-paper-plane text-purple-400"></i> Instant 1-on-1 Connect</span>
+          <span class="v2-timeout-badge" id="v2-timeout-badge-text"><i class="fa-solid fa-lock text-purple-400"></i> Private Link</span>
           <button class="v2-close-btn" onclick="closeV2ShareModal()">&times;</button>
         </div>
         <div class="v2-timeout-body">
@@ -575,21 +660,42 @@
           <p class="v2-timeout-subtext" id="v2-timeout-subtext-para">
             Share your personal room link below to jump directly into a private chat or match instantly with active online users!
           </p>
-          <div class="v2-timeout-trust-box">
+          <!-- Mode Selector for Private Link -->
+          <div class="v2-share-mode-selector hidden" id="v2-share-mode-selector">
+            <button class="v2-share-mode-pill active" id="v2-share-pill-video" onclick="switchShare1v1Mode('video')">
+              <i class="fa-solid fa-video"></i> Video
+            </button>
+            <button class="v2-share-mode-pill" id="v2-share-pill-audio" onclick="switchShare1v1Mode('audio')">
+              <i class="fa-solid fa-phone"></i> Audio
+            </button>
+            <button class="v2-share-mode-pill" id="v2-share-pill-text" onclick="switchShare1v1Mode('text')">
+              <i class="fa-solid fa-comment"></i> Text
+            </button>
+          </div>
+
+          <!-- Secret Link Preview / Copy Box -->
+          <div class="v2-share-link-input-box hidden" id="v2-share-link-input-box">
+            <input type="text" readonly id="v2-share-link-input" class="v2-share-link-input" />
+            <button class="v2-btn-copy-inline" onclick="copyV2TimeoutInviteLink()" title="Copy Link">
+              <i class="fa-solid fa-copy"></i>
+            </button>
+          </div>
+
+          <div class="v2-timeout-trust-box" id="v2-timeout-trust-box">
             <div class="v2-trust-pill">🛡️ 100% Real Humans • Zero AI / Fake Bots</div>
             <p class="v2-trust-desc">We strictly don't use fake bots, so queue times depend on real people.</p>
           </div>
-          <div class="v2-timeout-protip-box">
+          <div class="v2-timeout-protip-box" id="v2-timeout-protip-box">
             <div class="v2-protip-title"><i class="fa-solid fa-lightbulb text-amber-400"></i> Pro-Tip (Instant Connect):</div>
             <p>Share this link in your <strong>WhatsApp / Telegram Groups</strong>! When anyone from your group joins, people online will match instantly with you!</p>
           </div>
           <div class="v2-timeout-actions">
             <div class="v2-share-primary-grid">
               <button class="v2-btn-primary-share wa" onclick="triggerV2TimeoutNativeShare('whatsapp')">
-                <i class="fa-brands fa-whatsapp"></i> Share to WhatsApp Groups
+                <i class="fa-brands fa-whatsapp"></i> Share on WhatsApp
               </button>
               <button class="v2-btn-primary-share tg" onclick="triggerV2TimeoutNativeShare('telegram')">
-                <i class="fa-brands fa-telegram"></i> Share to Telegram Groups
+                <i class="fa-brands fa-telegram"></i> Share on Telegram
               </button>
             </div>
             <div class="v2-timeout-secondary-actions">
@@ -624,11 +730,53 @@
       </div>
     </div>
 
+    <!-- Welcome & Quick Onboarding Modal -->
+    <div class="v2-modal-overlay hidden" id="v2-age-modal">
+      <div class="v2-modal-card v2-age-card" onclick="event.stopPropagation()">
+        <div class="v2-age-icon-wrap">
+          <img src="logo-sm.webp" alt="HashGANG" class="v2-welcome-modal-logo" width="48" height="48" />
+        </div>
+        <h3 class="v2-age-title">Welcome to HashGANG</h3>
+        <p class="v2-age-desc">
+          Free Instant Stranger Chat in one click.
+        </p>
+        <div class="v2-age-rules">
+          <span>⚡ No Login or Signup Needed</span>
+          <span>🎭 100% Free & Anonymous</span>
+          <span>🛡️ Safe Community (No Bots)</span>
+        </div>
+        <button class="v2-btn-confirm-age" id="v2-btn-age-confirm" onclick="confirmAgeAndEnter()">
+          <span>Start Chatting Now</span> <i class="fa-solid fa-arrow-right"></i>
+        </button>
+        <span class="v2-age-legal">By entering, you confirm 18+ & agree to <a href="terms-of-service.html" target="_blank">Terms</a> & <a href="privacy-policy.html" target="_blank">Privacy</a>.</span>
+      </div>
+    </div>
+
+    <!-- Nickname Edit Modal -->
+    <div class="v2-modal-overlay hidden" id="v2-nickname-modal" onclick="closeNicknameModal()">
+      <div class="v2-modal-card v2-nick-card" onclick="event.stopPropagation()">
+        <div class="v2-modal-header">
+          <h3><i class="fa-solid fa-user-astronaut text-purple-400"></i> Change Nickname</h3>
+          <button class="v2-close-btn" onclick="closeNicknameModal()">&times;</button>
+        </div>
+        <div class="v2-modal-body">
+          <p class="v2-nick-help">Choose your anonymous handle for Group Chat (Max 20 characters):</p>
+          <div class="v2-nick-input-wrap">
+            <input type="text" id="v2-input-new-nick" maxlength="20" placeholder="e.g. NeonFalcon" autocomplete="off" />
+          </div>
+          <div class="v2-nick-actions">
+            <button class="v2-btn-cancel-nick" id="v2-btn-nickname-cancel" onclick="closeNicknameModal()">Cancel</button>
+            <button class="v2-btn-save-nick" id="v2-btn-nickname-save" onclick="saveNewNickname()">Save Name</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Scripts Injection -->
-    <script src="ads.js?v=252" defer></script>
-    <script src="ad_mediation_config.js?v=252" defer></script>
-    <script src="socket.io.min.js?v=252"></script>
-    <script src="app.js?v=254" defer></script>
+    <script src="ads.js?v=261" defer></script>
+    <script src="ad_mediation_config.js?v=261" defer></script>
+    <script src="socket.io.min.js?v=261"></script>
+    <script src="app.js?v=261" defer></script>
 </body>
 
 </html>

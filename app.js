@@ -9,12 +9,20 @@ let localStream = null;
 let currentPeerConnection = null;
 let currentMatchTargetId = null;
 let currentChatMode = "text"; // Default Mode: 'text' | 'audio' | 'video'
+window.currentChatMode = currentChatMode;
 let isStoppedByUser = true;
 let isAudioMuted = false;
 let isVideoOff = false;
+let inCall = false;
+window.inCall = inCall;
 
-// MediaPipe Selfie Segmentation Dynamic Loader
-let selfieSegmentationInstance = null;
+// Group Chat State Variables (Multiplayer Fallback & 1v1 Hub)
+let currentNickname = localStorage.getItem("hg_user_nickname") || "";
+let is18Confirmed = localStorage.getItem("hg_18_confirmed") === "true";
+let activeGroupRoomId = null;
+let activeGroupRoomNumber = 1;
+let activeGroupReplyTo = null; // { id, nickname, text }
+let liveGroupMsgCounter = 0;
 
 // DOM Elements Registry
 let el = {};
@@ -24,7 +32,6 @@ function initDOMElements() {
     statusPill: document.getElementById("v2-status-pill"),
     statusDot: document.getElementById("v2-status-dot"),
     statusText: document.getElementById("v2-status-text"),
-    heroStage: document.getElementById("v2-hero-stage"),
     searchStage: document.getElementById("v2-search-stage"),
     searchTitle: document.getElementById("v2-search-title"),
     searchSub: document.getElementById("v2-search-sub"),
@@ -49,8 +56,26 @@ function initDOMElements() {
     shareModal: document.getElementById("v2-share-modal"),
     btnFlagReport: document.getElementById("v2-btn-flag-report"),
     toast: document.getElementById("v2-toast"),
-    toastText: document.getElementById("v2-toast-text")
+    toastText: document.getElementById("v2-toast-text"),
+
+    // Group Chat UI Elements
+    groupChatStage: document.getElementById("v2-group-chat-stage"),
+    groupRoomBadge: document.getElementById("v2-group-room-badge"),
+    groupOnlineCount: document.getElementById("v2-group-online-count"),
+    userNicknameDisplay: document.getElementById("v2-user-nickname-display"),
+    groupMessagesFeed: document.getElementById("v2-group-messages-feed"),
+    groupReplyBar: document.getElementById("v2-group-reply-bar"),
+    replyTargetName: document.getElementById("v2-reply-target-name"),
+    replyTargetSnippet: document.getElementById("v2-reply-target-snippet"),
+    groupInputField: document.getElementById("v2-group-input-field"),
+    ageModal: document.getElementById("v2-age-modal"),
+    nicknameModal: document.getElementById("v2-nickname-modal"),
+    inputNewNick: document.getElementById("v2-input-new-nick")
   };
+
+  if (el.chatInput && !el.chatInput.value) {
+    el.chatInput.value = "Hi 👋";
+  }
 }
 
 let toastTimer = null;
@@ -90,6 +115,7 @@ function initV2App() {
   initSocketConnection();
   setupEventListeners();
   startBrandTitleAnimation();
+  checkAgeConfirmationOnLoad();
   updateUIState("idle");
 
   recordVisitBackend();
@@ -129,10 +155,18 @@ function registerV2ServiceWorker() {
           console.warn("⚠️ [PWA v2] ServiceWorker registration notice:", err);
         });
 
+      const hadPreviousController = !!navigator.serviceWorker.controller;
       let refreshing = false;
       navigator.serviceWorker.addEventListener("controllerchange", () => {
+        // If there was no controller when the page initially loaded, this is the first SW installation.
+        // DO NOT reload the page, as it resets user state and wipes query parameters on first visit!
+        if (!hadPreviousController) {
+          console.log("⚡ [PWA v2] Initial Service Worker activated (skipping reload).");
+          return;
+        }
         if (!refreshing) {
           refreshing = true;
+          console.log("⚡ [HashGANG v2] Active controller changed! Refreshing app shell...");
           window.location.reload();
         }
       });
@@ -141,14 +175,14 @@ function registerV2ServiceWorker() {
 }
 
 function startBrandTitleAnimation() {
-  const titles = ["#GANG", "HashGANG"];
+  const titles = ["HashGANG", "#GANG"];
   let index = 0;
-  const brandEl = document.getElementById("v2-brand-title-text");
 
   setInterval(() => {
     index = (index + 1) % titles.length;
     const currentName = titles[index];
-    
+    const brandEl = document.getElementById("v2-brand-title-text");
+
     if (brandEl) {
       brandEl.style.transition = "opacity 0.25s ease-in-out, transform 0.25s ease-in-out";
       brandEl.style.opacity = "0";
@@ -305,14 +339,18 @@ function setVideoDisconnectedUI(isDisconnected) {
   }
 }
 
-function handleStrangerDisconnected() {
-  if (isDisconnectedHandled) return;
+function handleStrangerDisconnected(force = false) {
+  if (isDisconnectedHandled && !force) return;
   isDisconnectedHandled = true;
 
   console.log("❌ [v2 Engine] Stranger Disconnected.");
+  const leavingPeerId = currentMatchTargetId;
+  if (leavingPeerId) {
+    skippedPeersCooldownMapV2.delete(leavingPeerId);
+  }
   dismissV2AudioSharedMedia();
   dismissV2VideoSharedMedia();
-  cleanupPeerConnection();
+  cleanupPeerConnection(false);
   playAudioChime("disconnect");
   if (navigator.vibrate) {
     try { navigator.vibrate(200); } catch (e) {}
@@ -320,6 +358,14 @@ function handleStrangerDisconnected() {
   updateStatus("disconnected", "🔴 Stranger Disconnected");
   if (currentChatMode === "text") {
     appendSystemCard("disconnect", "🔴 Stranger has disconnected.", true);
+    const chatInputRow = document.getElementById("v2-chat-input-row");
+    const discBar = document.getElementById("v2-chat-disconnected-bar");
+    if (chatInputRow) chatInputRow.style.display = "none";
+    if (discBar) discBar.classList.remove("hidden");
+    const peerDot = document.getElementById("v2-chat-peer-dot");
+    const peerStatus = document.getElementById("v2-chat-peer-status-text");
+    if (peerDot) peerDot.classList.add("disc");
+    if (peerStatus) peerStatus.textContent = "🔴 Disconnected";
   } else if (currentChatMode === "audio") {
     setAudioDisconnectedUI(true);
   } else if (currentChatMode === "video") {
@@ -414,6 +460,9 @@ async function v2RetryMediaPermission() {
 }
 
 function getBackendOrigin() {
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1" && !window.location.hostname.startsWith("192.168.")) {
+    return "https://api.hashgang.com";
+  }
   if (typeof BACKEND_API_BASE !== "undefined" && BACKEND_API_BASE) {
     try {
       return new URL(BACKEND_API_BASE).origin;
@@ -448,7 +497,33 @@ function initSocketConnection() {
 
     socket.on("connect", () => {
       console.log("🌐 [Socket.io v2] Connected to Signaling Server:", socket.id);
-      updateStatus("idle", "Select Mode & Start");
+      if (is18Confirmed) {
+        let codeToJoin = window.pendingV2InviteCode;
+        if (!codeToJoin) {
+          try {
+            const stored = sessionStorage.getItem("hg_pending_invite");
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (parsed && parsed.code && (Date.now() - parsed.ts < 15 * 60 * 1000)) {
+                codeToJoin = parsed.code;
+                if (parsed.mode) currentChatMode = parsed.mode;
+              }
+            }
+          } catch (e) {}
+        }
+        if (codeToJoin || window.isJoiningPrivateInvite) {
+          if (codeToJoin) {
+            console.log(`🤝 [v2 Personal Invite] Auto-joining private invite room on connect: ${codeToJoin}`);
+            window.pendingV2InviteCode = null;
+            window.isJoiningPrivateInvite = true;
+            v2ShowToast(`🤝 Connecting to private ${currentChatMode.toUpperCase()} chat...`);
+            socket.emit("join_invite_room", { inviteCode: codeToJoin, mode: currentChatMode, clientVersion: "v2", nickname: currentNickname });
+            return;
+          }
+        }
+        updateStatus("idle", "In Group Chat");
+        joinGroupChatOnConnect();
+      }
     });
 
     socket.on("banned", (data) => {
@@ -477,8 +552,21 @@ function initSocketConnection() {
       const now = Date.now();
       const cooldownUntil = skippedPeersCooldownMapV2.get(targetId);
 
-      // Client-Side Cooling Period Guard: Prevent instant re-matching to skipped stranger within 60s
-      if (cooldownUntil && now < cooldownUntil) {
+      const isDirectOrGroupInvite = !!(
+        data.isGroupInvite ||
+        data.isInviteMatch ||
+        data.isInvite ||
+        data.inviteCode ||
+        window.pendingV2InviteCode
+      );
+
+      // Direct & Group Invites: Bypass cooldown completely & delete any lingering cooldown entry
+      if (isDirectOrGroupInvite) {
+        skippedPeersCooldownMapV2.delete(targetId);
+        isCurrentAdsterraImpressionV2 = false;
+        console.log("🤝 [v2 Direct/Group Call] Consensual invite match confirmed: Bypassing cooldown and ad dwell lock for instant connection.");
+      } else if (cooldownUntil && now < cooldownUntil) {
+        // Client-Side Cooling Period Guard: ONLY for random strangers in queue within 60s
         console.warn("⏳ [v2 Cooling Period] Recently skipped stranger matched (" + targetId + "). Auto-requesting next stranger...");
         if (socket && socket.connected) {
           socket.emit("skip_peer", { targetId });
@@ -489,30 +577,59 @@ function initSocketConnection() {
 
       clearSearchTimeout();
 
-      if (data.isInvite || data.isInviteMatch || data.inviteCode || window.pendingV2InviteCode) {
-        isCurrentAdsterraImpressionV2 = false;
-        console.log("🤝 [v2 Invite Link] Personal invite match confirmed: Bypassing ad dwell lock for instant 0-delay connection.");
-      }
-
       const executeMatchTransition = async () => {
         isDisconnectedHandled = false;
+        closeV2ShareModal();
+        closeV2CallDrawer();
+        window.pendingV2InviteCode = null;
+        window.isJoiningPrivateInvite = false;
+        try { sessionStorage.removeItem("hg_pending_invite"); } catch (e) {}
         dismissV2AudioSharedMedia();
         dismissV2VideoSharedMedia();
         v2HideEngagedOverlay();
         currentMatchTargetId = targetId;
         window.currentMatchTargetId = currentMatchTargetId;
+        inCall = true;
+        window.inCall = inCall;
         window.socket = socket;
         updateStatus("connected", "🟢 Live Chat");
         trackV2Event("v2_matched", { mode: currentChatMode, targetId: targetId });
         if (el.searchStage) el.searchStage.classList.add("hidden");
-        if (el.heroStage) el.heroStage.classList.add("hidden");
+        const groupStage = document.getElementById("v2-group-chat-stage");
+        if (groupStage) groupStage.classList.add("hidden");
+        if (data.mode) {
+          currentChatMode = data.mode;
+        }
+        window.currentChatMode = currentChatMode;
+        if (currentChatMode !== "text" && !localStream) {
+          const hasPerm = await initLocalMedia(currentChatMode);
+          if (!hasPerm) {
+            v2ShowToast(`⚠️ ${currentChatMode === "video" ? "Camera & Microphone" : "Microphone"} access denied. Please allow in browser settings.`);
+          }
+        }
         if (el.btnFlagReport) el.btnFlagReport.classList.remove("hidden");
         const pwaBtn = document.getElementById("v2-btn-pwa-install");
         if (pwaBtn) pwaBtn.classList.add("hidden");
 
+        const peerDot = document.getElementById("v2-chat-peer-dot");
+        const peerStatus = document.getElementById("v2-chat-peer-status-text");
+        if (peerDot) peerDot.classList.remove("disc");
+        if (peerStatus) peerStatus.textContent = "Private Chat";
+
+        const chatInputRow = document.getElementById("v2-chat-input-row");
+        const discBar = document.getElementById("v2-chat-disconnected-bar");
+        if (chatInputRow) chatInputRow.style.display = "";
+        if (discBar) discBar.classList.add("hidden");
+
         // Clear previous stranger messages & display connection system badge
         clearChatHistory();
-        appendSystemCard("connect", "🟢 Connected with stranger! Say Hi 👋");
+        const isFromGroup = !!(data && (data.isGroupInvite || data.isInviteMatch || data.inviteCode || window.pendingV2InviteCode));
+        const partnerName = (data && data.partnerName) ? data.partnerName : (isFromGroup ? "Group Member" : "Stranger");
+
+        appendSystemCard("connect", isFromGroup 
+          ? `🟢 Connected in Private ${currentChatMode.toUpperCase()} with ${escapeHtml(partnerName)}! Say Hi 👋`
+          : "🟢 Connected with stranger! Say Hi 👋"
+        );
         updateToolbarForMode("active");
         playAudioChime("connect");
         if (navigator.vibrate) {
@@ -536,14 +653,20 @@ function initSocketConnection() {
 
         if (currentChatMode === "text") {
           if (el.chatDrawer) el.chatDrawer.classList.remove("closed");
+          if (el.chatInput) {
+            if (!el.chatInput.value) el.chatInput.value = "Hi 👋";
+            setTimeout(() => {
+              if (typeof autoGrowChatInput === "function") autoGrowChatInput();
+            }, 60);
+          }
         } else if (currentChatMode === "audio") {
           if (el.audioVisualizer) el.audioVisualizer.classList.remove("hidden");
           setAudioDisconnectedUI(false);
-          v2ShowToast("🎙️ Connected to Voice Stranger!");
+          v2ShowToast(isFromGroup ? `🎙️ Connected to Private Voice Call with ${partnerName}!` : "🎙️ Connected to Voice Stranger!");
         } else if (currentChatMode === "video") {
           if (el.localPip) el.localPip.classList.remove("hidden");
           setVideoDisconnectedUI(false);
-          v2ShowToast("🎥 Connected to Video Stranger!");
+          v2ShowToast(isFromGroup ? `🎥 Connected to Private Video Call with ${partnerName}!` : "🎥 Connected to Video Stranger!");
         }
 
         if (data.initiator && currentChatMode !== "text") {
@@ -570,10 +693,14 @@ function initSocketConnection() {
     });
 
     socket.on("invite_fallback", (data) => {
-      const mode = (data && data.mode) ? data.mode : (currentChatMode || "text");
-      console.log(`🔄 [v2 Invite Fallback] Inviter unavailable. Joining general stranger queue in [${mode}] mode.`);
-      v2ShowToast("🤝 Inviter unavailable. Connecting you to an online stranger...");
-      socket.emit("join_queue", { mode: mode });
+      const msg = (data && data.message) ? data.message : "🤝 Inviter unavailable.";
+      console.log(`🔄 [v2 Invite Fallback] ${msg}`);
+      v2ShowToast(`ℹ️ ${msg}`, 4500);
+
+      window.pendingV2InviteCode = null;
+      window.isJoiningPrivateInvite = false;
+      try { sessionStorage.removeItem("hg_pending_invite"); } catch (e) {}
+      joinGroupChatOnConnect();
     });
 
     socket.on("signal", async (data) => {
@@ -631,6 +758,45 @@ function initSocketConnection() {
         return;
       }
 
+      // Handle In-Call Mode Upgrade Invite (Text -> Audio / Video)
+      if (data.signal.type === "in_call_upgrade_invite") {
+        const upgradeMode = data.signal.mode || "video";
+        const inviterName = data.signal.senderName ? escapeHtml(data.signal.senderName) : "Stranger";
+        const promptDiv = document.createElement("div");
+        promptDiv.className = "v2-chat-upgrade-prompt";
+        promptDiv.innerHTML = `
+          <div class="v2-upgrade-prompt-icon"><i class="fa-solid fa-${upgradeMode === 'video' ? 'video' : 'microphone'}"></i></div>
+          <div class="v2-upgrade-prompt-text">
+            <strong>${inviterName}</strong> invited you to switch to a <strong>${upgradeMode.toUpperCase()} Call</strong>!
+          </div>
+          <div class="v2-upgrade-prompt-btns">
+            <button class="v2-btn-accept-upgrade" onclick="respondInCallModeUpgrade('${upgradeMode}', true, this)">Accept ${upgradeMode === 'video' ? 'Video' : 'Voice'}</button>
+            <button class="v2-btn-decline-upgrade" onclick="respondInCallModeUpgrade('${upgradeMode}', false, this)">Decline</button>
+          </div>
+        `;
+        if (el.chatMessages) {
+          el.chatMessages.appendChild(promptDiv);
+          el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+        }
+        if (el.chatDrawer) el.chatDrawer.classList.remove("closed");
+        playAudioChime("connect");
+        return;
+      }
+
+      // Handle In-Call Mode Upgrade Response
+      if (data.signal.type === "in_call_upgrade_response") {
+        const upgradeMode = data.signal.mode || "video";
+        if (data.signal.accepted) {
+          v2ShowToast(`🎉 Stranger accepted! Switching to ${upgradeMode.toUpperCase()} Call...`);
+          executeInCallModeUpgrade(upgradeMode, true);
+        } else {
+          v2ShowToast("Stranger preferred to continue in Text Chat.");
+          appendSystemCard("connect", "Stranger preferred to continue in Text Chat.");
+        }
+        return;
+      }
+
+
       // Handle WebRTC Peer Connection Signals (Audio / Video Modes)
       if (!currentPeerConnection && currentChatMode !== "text") {
         await createWebRTCPeerConnection(data.senderId || currentMatchTargetId, false);
@@ -658,6 +824,196 @@ function initSocketConnection() {
     socket.on("peer_disconnected", () => {
       console.log("❌ [Socket.io v2] Stranger disconnected.");
       handleStrangerDisconnected();
+    });
+
+    // ==========================================
+    // GROUP CHAT & DUAL-TRACK 1v1 CALL HANDLERS
+    // ==========================================
+
+    socket.on("group_joined", (data) => {
+      console.log("💬 [Group Chat] Successfully joined group room:", data.roomId);
+      activeGroupRoomId = data.roomId;
+      activeGroupRoomNumber = data.roomNumber || 1;
+      window.activeGroupRoomId = activeGroupRoomId;
+      window.activeGroupRoomNumber = activeGroupRoomNumber;
+      liveGroupMsgCounter = 0;
+
+      if (data.requestedRoomFull) {
+        v2ShowToast(`ℹ️ Group #${window.pendingV2RequestedRoom || 1} is at full capacity (25/25). Joined Group #${activeGroupRoomNumber}!`, 4500);
+      }
+      window.pendingV2RequestedRoom = null;
+
+      const badge = document.getElementById("v2-group-room-badge");
+      if (badge) badge.innerHTML = `<i class="fa-solid fa-comments"></i> Group #${data.roomNumber || 1}`;
+
+      const counter = document.getElementById("v2-group-online-count");
+      if (counter) counter.textContent = data.memberCount || 1;
+
+      if (data.nickname) {
+        currentNickname = data.nickname;
+        localStorage.setItem("hg_user_nickname", currentNickname);
+        updateNicknameDisplay(currentNickname);
+      }
+
+      // Render initial messages feed
+      const feed = document.getElementById("v2-group-messages-feed");
+      if (feed) {
+        feed.innerHTML = "";
+
+        const welcomeSlot = document.getElementById("v2-group-welcome-slot");
+        if (welcomeSlot) {
+          welcomeSlot.innerHTML = "";
+        }
+
+        const messages = Array.isArray(data.messages) ? data.messages : [];
+        const isStandalone = (typeof window !== "undefined" && ((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator && window.navigator.standalone)));
+
+        // 1. PWA App Card before the first message (at top of chat history)
+        if (!isStandalone) {
+          feed.appendChild(renderPWAInstallFeedCard("App"));
+        }
+
+        let adInjected = false;
+        let viralInjected = false;
+        const totalMsgs = messages.length;
+
+        messages.forEach((msg, idx) => {
+          feed.appendChild(renderGroupMessageRow(msg));
+
+          // In-feed card injection in middle of history: Show internal house promo without consuming live Adsterra quota
+          if (idx === Math.floor(totalMsgs * 0.35) && !adInjected && totalMsgs >= 6) {
+            feed.appendChild(renderMyLeaderPromoFeedCard());
+            adInjected = true;
+          } else if (idx === Math.floor(totalMsgs * 0.7) && !viralInjected && totalMsgs >= 12) {
+            feed.appendChild(renderViralCommunityCard());
+            viralInjected = true;
+          }
+        });
+
+        // 2. Inline Welcome Card placed directly AFTER the last backlog message!
+        feed.appendChild(renderWelcomeKnowledgeCard(activeGroupRoomNumber));
+
+        // 3. Render active call invites if any
+        if (Array.isArray(data.activeInvites)) {
+          data.activeInvites.forEach((inv) => {
+            feed.appendChild(renderCallInviteCard(inv));
+          });
+        }
+
+        // Auto-post invite if user requested upon return, now that room is 100% active
+        if (window.pendingAutoInviteMode) {
+          const modeToInvite = window.pendingAutoInviteMode;
+          window.pendingAutoInviteMode = null;
+          socket.emit("post_call_invite", { mode: modeToInvite, nickname: currentNickname });
+          v2ShowToast(`💬 You're back in Group! Your ${modeToInvite.toUpperCase()} invite is live.`);
+        }
+
+        setTimeout(() => { feed.scrollTop = feed.scrollHeight; }, 100);
+      }
+    });
+
+    socket.on("group_member_count", (data) => {
+      const counter = document.getElementById("v2-group-online-count");
+      if (counter && data && data.memberCount) {
+        counter.textContent = data.memberCount;
+      }
+    });
+
+    socket.on("nickname_updated", (data) => {
+      if (data && data.nickname) {
+        currentNickname = data.nickname;
+        localStorage.setItem("hg_user_nickname", currentNickname);
+        updateNicknameDisplay(currentNickname);
+      }
+    });
+
+    socket.on("new_group_msg", (msg) => {
+      const feed = document.getElementById("v2-group-messages-feed");
+      if (feed) {
+        feed.appendChild(renderGroupMessageRow(msg));
+        liveGroupMsgCounter++;
+        console.log(`💬 [In-Feed Pacing] Message count: ${liveGroupMsgCounter}`);
+        if (liveGroupMsgCounter % 12 === 0) {
+          handleInFeedPacingInjection(feed, liveGroupMsgCounter);
+        }
+        feed.scrollTop = feed.scrollHeight;
+      }
+    });
+
+    socket.on("new_group_reaction", (data) => {
+      const msgRow = document.getElementById(`msg-${data.messageId}`);
+      if (msgRow) {
+        let reactionsRow = msgRow.querySelector(".v2-msg-reactions-row");
+        if (!reactionsRow) {
+          reactionsRow = document.createElement("div");
+          reactionsRow.className = "v2-msg-reactions-row";
+          msgRow.appendChild(reactionsRow);
+        }
+        let found = false;
+        reactionsRow.querySelectorAll(".v2-reaction-chip").forEach((chip) => {
+          if (chip.textContent.includes(data.emoji)) {
+            const count = parseInt(chip.textContent.replace(data.emoji, "").trim()) || 0;
+            chip.textContent = `${data.emoji} ${count + 1}`;
+            chip.style.transform = "scale(1.25)";
+            setTimeout(() => { chip.style.transform = "scale(1)"; }, 200);
+            found = true;
+          }
+        });
+        if (!found) {
+          const newChip = document.createElement("span");
+          newChip.className = "v2-reaction-chip";
+          newChip.textContent = `${data.emoji} 1`;
+          newChip.onclick = () => quickSendReaction(data.messageId, data.emoji);
+          reactionsRow.appendChild(newChip);
+        }
+      }
+    });
+
+    socket.on("new_call_invite", (invite) => {
+      const feed = document.getElementById("v2-group-messages-feed");
+      if (feed) {
+        feed.appendChild(renderCallInviteCard(invite));
+        feed.scrollTop = feed.scrollHeight;
+      }
+    });
+
+    socket.on("call_invite_taken", (data) => {
+      const card = document.getElementById(`card-${data.inviteId}`);
+      if (card) {
+        card.className = "v2-feed-call-card taken";
+        const statusEl = document.getElementById(`status-${data.inviteId}`);
+        const taker = data.takerName ? escapeHtml(data.takerName) : "Group Member";
+        if (statusEl) statusEl.textContent = `🔒 Joined by ${taker}`;
+        const btn = card.querySelector(".v2-btn-join-call-action");
+        if (btn) {
+          btn.outerHTML = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); cursor: default;"><i class="fa-solid fa-check"></i> Connected in Private Call</div>`;
+        }
+      }
+    });
+
+    socket.on("call_invite_cancelled", (data) => {
+      const card = document.getElementById(`card-${data.inviteId}`);
+      if (card) {
+        card.className = "v2-feed-call-card expired";
+        const statusEl = document.getElementById(`status-${data.inviteId}`);
+        if (statusEl) statusEl.textContent = "⚪ Expired";
+        const btn = card.querySelector(".v2-btn-join-call-action");
+        if (btn) {
+          btn.outerHTML = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); cursor: default;"><i class="fa-solid fa-clock-rotate-left"></i> Invite Expired</div>`;
+        }
+      }
+    });
+
+    socket.on("call_invite_error", (data) => {
+      v2ShowToast(`⚠️ ${data.message || "Invite error"}`);
+    });
+
+    socket.on("group_message_error", (data) => {
+      v2ShowToast(data?.message || "⚠️ Message error");
+    });
+
+    socket.on("group_rate_limited", (data) => {
+      v2ShowToast(`⏳ ${data.message || "Slow down!"}`);
     });
   } catch (err) {
     console.error("Socket.io initialization error:", err);
@@ -737,10 +1093,6 @@ function v2SelectModeAndStart(mode) {
   console.log(`🌐 [v2 Mode Selected]: ${mode}`);
   trackV2Event("v2_mode_selected", { mode: mode });
   
-  // Highlight active mode card
-  document.querySelectorAll(".v2-mode-card").forEach(card => card.classList.remove("active"));
-  const activeBtn = document.getElementById(`v2-btn-mode-${mode}`);
-  if (activeBtn) activeBtn.classList.add("active");
 
   v2HandleStartOrNext();
 }
@@ -768,19 +1120,6 @@ function appendSystemCard(type, text) {
 
 let matchCount = 0;
 const ADSTERRA_TIMESTAMPS_KEY_V2 = "v2_adsterra_impression_timestamps";
-
-function getV2AdsterraCount() {
-  try {
-    const raw = localStorage.getItem(ADSTERRA_TIMESTAMPS_KEY_V2);
-    if (!raw) return 0;
-    const arr = JSON.parse(raw);
-    const now = Date.now();
-    const valid = Array.isArray(arr) ? arr.filter((ts) => now - ts < 3600000) : [];
-    return valid.length;
-  } catch (e) {
-    return 0;
-  }
-}
 
 function recordV2AdsterraImpression() {
   try {
@@ -1104,20 +1443,14 @@ function renderSearchingAd() {
 }
 
 let searchTimeoutTimer = null;
-let searchTimeout25sTimer = null;
 let searchingSecondsInterval = null;
 let searchingElapsedSeconds = 0;
-let v2TimeoutInviteCode = null;
 let v2TimeoutInviteUrl = "";
 
 function clearSearchTimeout() {
   if (searchTimeoutTimer) {
     clearTimeout(searchTimeoutTimer);
     searchTimeoutTimer = null;
-  }
-  if (searchTimeout25sTimer) {
-    clearTimeout(searchTimeout25sTimer);
-    searchTimeout25sTimer = null;
   }
   clearV2AdsterraAutoSwapTimer();
   stopSearchingTicker();
@@ -1221,18 +1554,13 @@ function v2SwitchModeAndSearch() {
   v2SelectModeAndStart(nextMode);
 }
 
-function v2KeepSearching() {
-  v2HideEngagedOverlay();
-  v2HandleStartOrNext();
-}
-
 /**
  * Handle Start / Next Stranger Chat
  */
 async function v2HandleStartOrNext() {
-  if (!el.heroStage) initDOMElements();
+  if (!el.searchStage) initDOMElements();
   isStoppedByUser = false;
-  cleanupPeerConnection();
+  cleanupPeerConnection(true);
   clearChatHistory();
   clearSearchTimeout();
   v2HideEngagedOverlay();
@@ -1245,7 +1573,6 @@ async function v2HandleStartOrNext() {
   if (currentChatMode !== "text") {
     const hasPerm = await initLocalMedia(currentChatMode);
     if (!hasPerm) {
-      if (el.heroStage) el.heroStage.classList.add("hidden");
       if (el.searchStage) el.searchStage.classList.remove("hidden");
       if (el.permGuideBox) el.permGuideBox.classList.remove("hidden");
 
@@ -1306,7 +1633,8 @@ async function v2HandleStartOrNext() {
   }
 
   if (el.permGuideBox) el.permGuideBox.classList.add("hidden");
-  if (el.heroStage) el.heroStage.classList.add("hidden");
+  const groupStage = document.getElementById("v2-group-chat-stage");
+  if (groupStage) groupStage.classList.add("hidden");
   if (el.searchStage) el.searchStage.classList.remove("hidden");
   
   // Render Searching Ad (Adsterra 3s Countdown or Fast Internal Ad)
@@ -1324,13 +1652,6 @@ async function v2HandleStartOrNext() {
     }
   }, 12000);
 
-  // Set 25s timeout to auto-stop search and show 25s Timeout Modal
-  searchTimeout25sTimer = setTimeout(() => {
-    if (!isStoppedByUser && el.searchStage && !el.searchStage.classList.contains("hidden")) {
-      v2Trigger25sSearchTimeout();
-    }
-  }, 25000);
-
   const queuePayload = {
     mode: currentChatMode
   };
@@ -1338,7 +1659,7 @@ async function v2HandleStartOrNext() {
   const emitJoinQueueWhenReady = (attemptsLeft = 30) => {
     if (socket && socket.connected) {
       if (window.pendingV2InviteCode) {
-        console.log(`🤝 [v2 Personal Invite] Joining 1-on-1 invite room: ${window.pendingV2InviteCode}`);
+        console.log(`🤝 [v2 Personal Invite] Joining private invite room: ${window.pendingV2InviteCode}`);
         socket.emit("join_invite_room", { inviteCode: window.pendingV2InviteCode, mode: currentChatMode, clientVersion: "v2" });
         window.pendingV2InviteCode = null;
       } else {
@@ -1353,7 +1674,7 @@ async function v2HandleStartOrNext() {
 }
 
 /**
- * Stop Call & Reset to Stage 1
+ * Stop Call & Reset to Group Chat
  */
 function v2StopCall() {
   isStoppedByUser = true;
@@ -1366,7 +1687,8 @@ function v2StopCall() {
     localStream = null;
   }
   if (el.searchStage) el.searchStage.classList.add("hidden");
-  if (el.heroStage) el.heroStage.classList.remove("hidden");
+  const groupStage = document.getElementById("v2-group-chat-stage");
+  if (groupStage) groupStage.classList.remove("hidden");
   if (el.chatDrawer) el.chatDrawer.classList.add("closed");
   if (el.btnFlagReport) el.btnFlagReport.classList.add("hidden");
   const pwaBtn = document.getElementById("v2-btn-pwa-install");
@@ -1376,10 +1698,11 @@ function v2StopCall() {
   if (el.videoTraceWatermark) el.videoTraceWatermark.classList.add("hidden");
   if (el.audioTraceWatermark) el.audioTraceWatermark.classList.add("hidden");
   if (el.btnNextLabel) el.btnNextLabel.textContent = "Start Chat";
-  updateStatus("idle", "Select Mode & Start");
+  updateStatus("idle", "In Group Chat");
   updateToolbarForMode("idle");
   if (socket && socket.connected) {
     socket.emit("leave_queue", { clientVersion: "v2" });
+    socket.emit("join_group_chat", { nickname: currentNickname });
   }
 }
 
@@ -1389,9 +1712,17 @@ function v2StopCall() {
 async function createWebRTCPeerConnection(targetId, isInitiator) {
   const iceServers = {
     iceServers: [
-      { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:stun1.l.google.com:19302" }
-    ]
+      { urls: [
+        "stun:stun.l.google.com:19302",
+        "stun:stun1.l.google.com:19302",
+        "stun:stun2.l.google.com:19302",
+        "stun:stun3.l.google.com:19302",
+        "stun:stun4.l.google.com:19302",
+        "stun:stun.services.mozilla.com:3478",
+        "stun:stun.global.stun.twilio.com:3478"
+      ]}
+    ],
+    iceCandidatePoolSize: 10
   };
 
   currentPeerConnection = new RTCPeerConnection(iceServers);
@@ -1444,28 +1775,20 @@ async function createWebRTCPeerConnection(targetId, isInitiator) {
   }
 }
 
-function cleanupPeerConnection() {
+function cleanupPeerConnection(isStrangerSkip = false) {
   dismissV2AudioSharedMedia();
   dismissV2VideoSharedMedia();
-  if (currentMatchTargetId) {
-    if (socket && socket.connected) {
-      try {
-        socket.emit("signal", {
-          targetId: currentMatchTargetId,
-          signal: { type: "peer_left" },
-          clientVersion: "v2"
-        });
-      } catch (err) {
-        console.warn("Error emitting peer_left signal:", err);
-      }
-    }
+  if (currentMatchTargetId && isStrangerSkip) {
     recordSkippedPeerV2(currentMatchTargetId);
   }
   if (currentPeerConnection) {
-    currentPeerConnection.close();
+    try {
+      currentPeerConnection.close();
+    } catch (e) {}
     currentPeerConnection = null;
   }
   currentMatchTargetId = null;
+  window.currentMatchTargetId = null;
   if (el.remoteVideo) el.remoteVideo.srcObject = null;
   if (localStream) {
     localStream.getTracks().forEach(track => track.stop());
@@ -1539,7 +1862,7 @@ function escapeHtml(str) {
 function autoGrowChatInput() {
   if (!el.chatInput) return;
   el.chatInput.style.height = "auto";
-  const newHeight = Math.min(el.chatInput.scrollHeight, 140);
+  const newHeight = Math.max(Math.min(el.chatInput.scrollHeight, 140), 36);
   el.chatInput.style.height = newHeight + "px";
   if (el.chatInput.scrollHeight > 140) {
     el.chatInput.style.overflowY = "auto";
@@ -1731,6 +2054,31 @@ function setupEventListeners() {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         sendChatMessage();
+      }
+    });
+  }
+
+  const groupInput = document.getElementById("v2-group-input-field");
+  if (groupInput) {
+    groupInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendGroupMessage();
+      }
+    });
+    groupInput.addEventListener("input", () => {
+      groupInput.style.height = "auto";
+      const newHeight = Math.min(groupInput.scrollHeight, 110);
+      groupInput.style.height = (newHeight > 36 ? newHeight : 36) + "px";
+    });
+  }
+
+  const inputNewNick = document.getElementById("v2-input-new-nick");
+  if (inputNewNick) {
+    inputNewNick.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        saveNewNickname();
       }
     });
   }
@@ -2041,7 +2389,7 @@ function updateStatus(state, text) {
 
 function updateUIState(state) {
   if (state === "idle") {
-    if (el.heroStage) el.heroStage.classList.remove("hidden");
+    if (el.groupChatStage) el.groupChatStage.classList.remove("hidden");
     if (el.searchStage) el.searchStage.classList.add("hidden");
     updateToolbarForMode("idle");
   }
@@ -2051,11 +2399,6 @@ function updateUIState(state) {
 function toggleV2Menu(e) {
   if (e) e.stopPropagation();
   if (el.popoverMenu) el.popoverMenu.classList.toggle("hidden");
-}
-
-function toggleV2SettingsPopover(e) {
-  if (e) e.stopPropagation();
-  if (el.settingsPopover) el.settingsPopover.classList.toggle("closed");
 }
 
 let currentV2InviteCode = null;
@@ -2071,26 +2414,28 @@ function generateV2InviteCode() {
 }
 
 let activeModalOrigin = "hero";
+let currentShare1v1Mode = "video";
 
-function openV2ShareModal(context = "invite") {
+function openV2ShareModal(context = "invite", selectedMode = null) {
+  const mode = selectedMode || (context === "direct_1v1" ? "video" : currentChatMode || "text");
+  currentShare1v1Mode = mode;
   currentV2InviteCode = generateV2InviteCode();
   const baseUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
   const timestamp = Date.now();
-  const mode = currentChatMode || "text";
   currentV2InviteUrl = `${baseUrl}?invite=${currentV2InviteCode}&mode=${mode}&t=${timestamp}`;
   v2TimeoutInviteUrl = currentV2InviteUrl;
   window.v2TimeoutInviteUrl = v2TimeoutInviteUrl;
   window.currentV2InviteCode = currentV2InviteCode;
+  window.currentV2InviteUrl = currentV2InviteUrl;
 
   if (socket && socket.connected) {
     socket.emit("create_invite_room", { inviteCode: currentV2InviteCode, mode: mode, clientVersion: "v2" });
   }
 
-  const isHeroVisible = el.heroStage && !el.heroStage.classList.contains("hidden");
-  if (context === "timeout") {
-    activeModalOrigin = "timeout";
-  } else if (isHeroVisible) {
-    activeModalOrigin = "hero";
+  if (context === "viral_card") {
+    activeModalOrigin = "viral_card";
+  } else if (context === "direct_1v1") {
+    activeModalOrigin = "direct_1v1";
   } else {
     activeModalOrigin = "search_early";
   }
@@ -2101,35 +2446,58 @@ function openV2ShareModal(context = "invite") {
   const subtextEl = document.getElementById("v2-timeout-subtext-para");
   const retryBtnText = document.getElementById("v2-btn-timeout-retry-text");
   const retryBtnIcon = document.getElementById("v2-btn-timeout-retry-icon");
+  const modeSelector = document.getElementById("v2-share-mode-selector");
+  const linkInputBox = document.getElementById("v2-share-link-input-box");
+  const linkInput = document.getElementById("v2-share-link-input");
+  const trustBox = document.getElementById("v2-timeout-trust-box");
+  const protipBox = document.getElementById("v2-timeout-protip-box");
 
-  if (activeModalOrigin === "timeout") {
-    if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-hourglass-end text-amber-400"></i> Searched for 25s';
-    if (headingEl) {
-      headingEl.className = "v2-timeout-status-badge timeout-mode";
-      headingEl.innerHTML = '<span class="v2-live-pulse">🔴</span> All Online Strangers are Busy in Active Chats!';
-    }
-    if (subtextEl) subtextEl.innerHTML = 'We searched for <strong>25 seconds</strong>! Right now, all live users are paired up in private 1-on-1 calls.';
-    if (retryBtnText) retryBtnText.textContent = "Select Mode";
-    if (retryBtnIcon) retryBtnIcon.className = "fa-solid fa-arrow-left";
-  } else if (activeModalOrigin === "search_early") {
-    if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-paper-plane text-purple-400"></i> Instant 1-on-1 Connect';
+  if (activeModalOrigin === "direct_1v1") {
+    const modeLabel = (mode === "video") ? "Video Call" : (mode === "audio") ? "Audio Call" : "Text Chat";
+    if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-lock text-purple-400"></i> Private Link';
     if (headingEl) {
       headingEl.className = "v2-timeout-status-badge invite-mode";
-      headingEl.innerHTML = '🚀 Invite Friends to HashGANG!';
+      headingEl.innerHTML = `🔒 Private ${modeLabel} Link`;
     }
-    if (subtextEl) subtextEl.innerHTML = 'Share your personal room link below to jump directly into a private chat or match instantly with active online users!';
-    if (retryBtnText) retryBtnText.textContent = "Back to Search";
-    if (retryBtnIcon) retryBtnIcon.className = "fa-solid fa-magnifying-glass";
+    if (subtextEl) subtextEl.innerHTML = `Share this private link with anyone. They click to connect directly with you in private ${modeLabel.toLowerCase()} (No phone number or login needed).`;
+    if (retryBtnText) retryBtnText.textContent = "Back to Group";
+    if (retryBtnIcon) retryBtnIcon.className = "fa-solid fa-arrow-left";
+
+    // Show mode selector & direct link input
+    if (modeSelector) modeSelector.classList.remove("hidden");
+    if (linkInputBox) linkInputBox.classList.remove("hidden");
+    if (linkInput) linkInput.value = currentV2InviteUrl;
+    updateShareModePillUI(mode);
+
+    // Hide unnecessary marketing text boxes
+    if (trustBox) trustBox.classList.add("hidden");
+    if (protipBox) protipBox.classList.add("hidden");
   } else {
-    // Mode Selection Screen (Hero Stage)
-    if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-paper-plane text-purple-400"></i> Instant 1-on-1 Connect';
-    if (headingEl) {
-      headingEl.className = "v2-timeout-status-badge invite-mode";
-      headingEl.innerHTML = '🚀 Invite Friends to HashGANG!';
+    // Normal share modes (Timeout, Group Room invite, or Hero)
+    if (modeSelector) modeSelector.classList.add("hidden");
+    if (linkInputBox) linkInputBox.classList.add("hidden");
+    if (trustBox) trustBox.classList.remove("hidden");
+    if (protipBox) protipBox.classList.remove("hidden");
+
+    if (activeModalOrigin === "viral_card") {
+      if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-user-group text-emerald-400"></i> Group #' + (activeGroupRoomNumber || 1) + ' Invite';
+      if (headingEl) {
+        headingEl.className = "v2-timeout-status-badge invite-mode";
+        headingEl.innerHTML = '👥 Bring Friends into Group #' + (activeGroupRoomNumber || 1) + '!';
+      }
+      if (subtextEl) subtextEl.innerHTML = 'Share the link on WhatsApp! Friends join this room anonymously with secret random nicknames.';
+      if (retryBtnText) retryBtnText.textContent = "Back to Chat";
+      if (retryBtnIcon) retryBtnIcon.className = "fa-solid fa-arrow-left";
+    } else {
+      if (badgeEl) badgeEl.innerHTML = '<i class="fa-solid fa-paper-plane text-purple-400"></i> Instant Direct Connect';
+      if (headingEl) {
+        headingEl.className = "v2-timeout-status-badge invite-mode";
+        headingEl.innerHTML = '🚀 Invite Friends to HashGANG!';
+      }
+      if (subtextEl) subtextEl.innerHTML = 'Share your personal room link below to jump directly into a private chat or match instantly with active online users!';
+      if (retryBtnText) retryBtnText.textContent = "Back to Search";
+      if (retryBtnIcon) retryBtnIcon.className = "fa-solid fa-magnifying-glass";
     }
-    if (subtextEl) subtextEl.innerHTML = 'Share your personal room link below to jump directly into a private chat or match instantly with active online users!';
-    if (retryBtnText) retryBtnText.textContent = "Select Mode";
-    if (retryBtnIcon) retryBtnIcon.className = "fa-solid fa-arrow-left";
   }
 
   const modal = document.getElementById("v2-share-modal");
@@ -2139,12 +2507,52 @@ function openV2ShareModal(context = "invite") {
   }
 }
 
-function handleDynamicModalAction() {
-  const origin = activeModalOrigin;
-  closeV2ShareModal();
-  if (origin === "timeout") {
-    v2StopCall();
+function switchShare1v1Mode(newMode) {
+  if (!["video", "audio", "text"].includes(newMode)) return;
+  currentShare1v1Mode = newMode;
+  updateShareModePillUI(newMode);
+
+  const baseUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
+  const timestamp = Date.now();
+  currentV2InviteUrl = `${baseUrl}?invite=${currentV2InviteCode}&mode=${newMode}&t=${timestamp}`;
+  v2TimeoutInviteUrl = currentV2InviteUrl;
+  window.v2TimeoutInviteUrl = v2TimeoutInviteUrl;
+
+  const headingEl = document.getElementById("v2-timeout-status-heading");
+  const subtextEl = document.getElementById("v2-timeout-subtext-para");
+  const linkInput = document.getElementById("v2-share-link-input");
+  const modeLabel = (newMode === "video") ? "Video Call" : (newMode === "audio") ? "Audio Call" : "Text Chat";
+
+  if (headingEl) headingEl.innerHTML = `🔒 Private ${modeLabel} Link`;
+  if (subtextEl) subtextEl.innerHTML = `Share this private link with anyone. They click to connect directly with you in private ${modeLabel.toLowerCase()} (No phone number or login needed).`;
+  if (linkInput) linkInput.value = currentV2InviteUrl;
+
+  if (socket && socket.connected && currentV2InviteCode) {
+    socket.emit("create_invite_room", { inviteCode: currentV2InviteCode, mode: newMode, clientVersion: "v2" });
   }
+
+  v2ShowToast(`Switched to ${modeLabel} link!`);
+}
+
+function updateShareModePillUI(mode) {
+  const pills = {
+    video: document.getElementById("v2-share-pill-video"),
+    audio: document.getElementById("v2-share-pill-audio"),
+    text: document.getElementById("v2-share-pill-text")
+  };
+  Object.keys(pills).forEach((k) => {
+    if (pills[k]) {
+      if (k === mode) {
+        pills[k].classList.add("active");
+      } else {
+        pills[k].classList.remove("active");
+      }
+    }
+  });
+}
+
+function handleDynamicModalAction() {
+  closeV2ShareModal();
 }
 
 function closeV2ShareModal(e) {
@@ -2156,10 +2564,6 @@ function closeV2ShareModal(e) {
     modal.classList.add("hidden");
     modal.style.display = "none";
   }
-
-  if (origin === "timeout") {
-    v2StopCall();
-  }
 }
 
 function closeV2TimeoutModal(e) {
@@ -2170,28 +2574,17 @@ function copyV2Link() {
   copyV2TimeoutInviteLink();
 }
 
-function v2Trigger25sSearchTimeout() {
-  clearSearchTimeout();
-  
-  if (socket && socket.connected) {
-    socket.emit("leave_queue");
-  }
-
-  const radarSpinner = document.getElementById("v2-radar-spinner");
-  if (radarSpinner) {
-    radarSpinner.classList.remove("engaged");
-  }
-
-  updateStatus("idle", "Search Paused — All Strangers Busy");
-
-  openV2ShareModal("timeout");
-}
-
 function triggerV2TimeoutNativeShare(platform) {
-  const shareText = `🔥 Hey! Join me on HashGANG (100% Real Humans, No Bots). Click to connect directly with me: ${v2TimeoutInviteUrl || window.location.href}`;
+  let shareText = `🔥 Hey! Join me on HashGANG (100% Real Humans, No Bots). Click to connect directly with me: ${v2TimeoutInviteUrl || window.location.href}`;
+  if (activeModalOrigin === "viral_card") {
+    shareText = `🔥 Hey! Join me in Group #${activeGroupRoomNumber || 1} on HashGANG! Everyone chats anonymously with secret nicknames: ${v2TimeoutInviteUrl || window.location.href}`;
+  } else if (activeModalOrigin === "direct_1v1") {
+    const modeLabel = (currentShare1v1Mode === "video") ? "Private Video Call" : (currentShare1v1Mode === "audio") ? "Private Audio Call" : "Private Text Chat";
+    shareText = `🔒 Join my ${modeLabel} on HashGANG (100% Free & Anonymous, No App Download):\n\n${currentV2InviteUrl}`;
+  }
   
   if (platform === "telegram") {
-    const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(v2TimeoutInviteUrl || window.location.href)}&text=${encodeURIComponent("🔥 Hey! Join me on HashGANG (100% Real Humans, No Bots). Click to connect directly with me:\n")}`;
+    const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(v2TimeoutInviteUrl || window.location.href)}&text=${encodeURIComponent(shareText)}`;
     window.open(tgUrl, "_blank");
     v2ShowToast("Opening Telegram Share... ✈️");
     return;
@@ -2219,11 +2612,16 @@ function triggerV2TimeoutNativeShare(platform) {
 }
 
 function copyV2TimeoutInviteLink() {
-  const shareText = `🔥 Hey! Join me on HashGANG (100% Real Humans, No Bots). Click to connect directly with me: ${v2TimeoutInviteUrl || window.location.href}`;
+  let shareText = v2TimeoutInviteUrl || window.location.href;
+  if (activeModalOrigin === "direct_1v1") {
+    shareText = currentV2InviteUrl;
+  } else if (activeModalOrigin === "viral_card") {
+    shareText = `🔥 Hey! Join me in Group #${activeGroupRoomNumber || 1} on HashGANG: ${v2TimeoutInviteUrl || window.location.href}`;
+  }
   
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(shareText).then(() => {
-      v2ShowToast("Invite Link Copied! Share in your groups 🚀");
+      v2ShowToast("Link copied to clipboard! 📋");
     }).catch(() => {
       fallbackCopyText(shareText);
     });
@@ -2273,21 +2671,60 @@ function checkV2UrlInviteParameters() {
     const parsedTs = parseInt(timestampParam, 10);
     const isExpired = !isNaN(parsedTs) && (Date.now() - parsedTs > 15 * 60 * 1000);
     if (isExpired) {
-      console.log("⏰ [v2 Url Invite] Invite link expired. Falling back to random stranger matchmaking.");
-      return;
+      console.log("⏰ [v2 Url Invite] Invite link expired. Falling back to group chat.");
+      v2ShowToast("⏰ This private link has expired. Welcome to Group Chat!");
+      try { sessionStorage.removeItem("hg_pending_invite"); } catch (e) {}
+    } else {
+      window.pendingV2InviteCode = inviteCode;
+      window.isJoiningPrivateInvite = true;
+      try {
+        sessionStorage.setItem("hg_pending_invite", JSON.stringify({
+          code: inviteCode,
+          mode: currentChatMode,
+          ts: !isNaN(parsedTs) ? parsedTs : Date.now()
+        }));
+      } catch (e) {}
+      console.log(`🔗 [v2 Url Invite] Found personal invite code: ${inviteCode} [Mode: ${currentChatMode}]`);
+      v2ShowToast(`🤝 Connecting to private ${currentChatMode.toUpperCase()} chat...`, 4000);
     }
+  } else {
+    // Check sessionStorage for persisted pending invite across page reload or SW activation
+    try {
+      const stored = sessionStorage.getItem("hg_pending_invite");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.code && (Date.now() - parsed.ts < 15 * 60 * 1000)) {
+          window.pendingV2InviteCode = parsed.code;
+          window.isJoiningPrivateInvite = true;
+          if (parsed.mode && ["video", "audio", "text"].includes(parsed.mode)) {
+            currentChatMode = parsed.mode;
+          }
+          console.log(`🔗 [v2 Session Invite] Restored pending invite from sessionStorage: ${parsed.code} [Mode: ${currentChatMode}]`);
+        } else {
+          sessionStorage.removeItem("hg_pending_invite");
+        }
+      }
+    } catch (e) {}
+  }
 
-    window.pendingV2InviteCode = inviteCode;
-    console.log(`🔗 [v2 Url Invite] Found personal invite code: ${inviteCode} [Mode: ${currentChatMode}]`);
-    
-    // Display warm personal welcome badge on Hero Screen for invited friend
-    const heroBrand = document.querySelector(".v2-hero-brand");
-    if (heroBrand && !document.querySelector(".v2-personal-invite-pill")) {
-      const invitePill = document.createElement("div");
-      invitePill.className = "v2-personal-invite-pill";
-      invitePill.innerHTML = `🤝 <strong>Your friend invited you to a 1-on-1 ${currentChatMode.toUpperCase()} chat!</strong> Click Start Chat to connect.`;
-      heroBrand.prepend(invitePill);
+  // Parse Group Room URL Parameter (e.g. ?room=2)
+  const roomParam = urlParams.get("room");
+  if (roomParam) {
+    const parsedRoom = parseInt(roomParam, 10);
+    if (!isNaN(parsedRoom) && parsedRoom > 0 && parsedRoom <= 1000) {
+      window.pendingV2RequestedRoom = parsedRoom;
+      console.log(`👥 [v2 Group Invite] Found requested group room: #${parsedRoom}`);
     }
+  }
+
+  // Clean address bar so user never retains or re-shares stale query parameters
+  if (urlParams.has("invite") || urlParams.has("room") || urlParams.has("mode") || urlParams.has("t")) {
+    try {
+      if (window.history && window.history.replaceState) {
+        const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    } catch (e) {}
   }
 }
 
@@ -2308,10 +2745,10 @@ function shareToSocial(platform) {
     window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}&quote=${encodedText}`);
   } else if (platform === "snapchat") {
     navigator.clipboard.writeText(messageText);
-    v2ShowToast("Message & 1-on-1 link copied! Paste in Snapchat Story or DM 👻");
+    v2ShowToast("Message & private link copied! Paste in Snapchat Story or DM 👻");
   } else if (platform === "instagram") {
     navigator.clipboard.writeText(messageText);
-    v2ShowToast("Message & 1-on-1 link copied! Paste in Instagram DM, Bio or Story 📸");
+    v2ShowToast("Message & private link copied! Paste in Instagram DM, Bio or Story 📸");
   }
 }
 
@@ -2558,3 +2995,1158 @@ async function recordAdImpressionBackend(adConfig, durationWatched = 0, complete
     }).catch(() => {});
   } catch (e) {}
 }
+
+// ==========================================
+// GROUP CHAT (MULTIPLAYER FALLBACK) ENGINE
+// ==========================================
+
+function checkAgeConfirmationOnLoad() {
+  if (!currentNickname) {
+    currentNickname = generateCoolNickname();
+    localStorage.setItem("hg_user_nickname", currentNickname);
+  }
+  updateNicknameDisplay(currentNickname);
+
+  const ageModal = document.getElementById("v2-age-modal");
+  if (!is18Confirmed) {
+    if (ageModal) ageModal.classList.remove("hidden");
+  } else {
+    if (ageModal) ageModal.classList.add("hidden");
+    if (socket && socket.connected) {
+      if (window.pendingV2InviteCode || window.isJoiningPrivateInvite) {
+        let codeToJoin = window.pendingV2InviteCode;
+        if (!codeToJoin) {
+          try {
+            const stored = sessionStorage.getItem("hg_pending_invite");
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              if (parsed && parsed.code && (Date.now() - parsed.ts < 15 * 60 * 1000)) codeToJoin = parsed.code;
+            }
+          } catch (e) {}
+        }
+        if (codeToJoin) {
+          console.log(`🤝 [v2 Personal Invite] Auto-joining private invite room: ${codeToJoin}`);
+          window.pendingV2InviteCode = null;
+          window.isJoiningPrivateInvite = true;
+          v2ShowToast("🤝 Connecting directly to your friend's private call...");
+          socket.emit("join_invite_room", { inviteCode: codeToJoin, mode: currentChatMode, clientVersion: "v2", nickname: currentNickname });
+          return;
+        }
+      }
+      joinGroupChatOnConnect();
+    }
+  }
+}
+
+function confirmAgeAndEnter() {
+  is18Confirmed = true;
+  localStorage.setItem("hg_18_confirmed", "true");
+  const ageModal = document.getElementById("v2-age-modal");
+  if (ageModal) ageModal.classList.add("hidden");
+
+  let codeToJoin = window.pendingV2InviteCode;
+  if (!codeToJoin) {
+    try {
+      const stored = sessionStorage.getItem("hg_pending_invite");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && parsed.code && (Date.now() - parsed.ts < 15 * 60 * 1000)) {
+          codeToJoin = parsed.code;
+          if (parsed.mode) currentChatMode = parsed.mode;
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (codeToJoin || window.isJoiningPrivateInvite) {
+    window.isJoiningPrivateInvite = true;
+    window.pendingV2InviteCode = codeToJoin;
+    v2ShowToast(`🤝 Connecting to private ${currentChatMode.toUpperCase()} chat...`);
+    if (socket && socket.connected) {
+      console.log(`🤝 [v2 Personal Invite] Joining private invite room directly: ${codeToJoin}`);
+      window.pendingV2InviteCode = null;
+      socket.emit("join_invite_room", { inviteCode: codeToJoin, mode: currentChatMode, clientVersion: "v2", nickname: currentNickname });
+    } else {
+      console.log(`⏳ [v2 Personal Invite] Socket connecting, invite code ${codeToJoin} will auto-join on connect.`);
+    }
+    return;
+  }
+  joinGroupChatOnConnect();
+}
+
+function generateCoolNickname() {
+  const maleCharacters = [
+    "Batman", "SpiderMan", "IronMan", "Deadpool", "Wolverine",
+    "Thor", "Hanuman", "Baahubali", "Bheem", "Vikram",
+    "Karna", "JonSnow", "MrBean", "Sherlock", "JackSparrow",
+    "WalterWhite", "HarryPotter", "JamesBond", "Krrish", "Shaktimaan",
+    "Joker", "DoctorStrange", "CaptainAmerica", "Tarzan", "Hulk",
+    "Superman", "BlackPanther", "Mario", "ThomasShelby", "PercyJackson"
+  ];
+
+  const femaleCharacters = [
+    "WonderWoman", "BlackWidow", "HarleyQuinn", "AryaStark", "SansaStark",
+    "Daenerys", "Hermione", "Wednesday", "Barbie", "Catwoman",
+    "LaraCroft", "ScarletWitch", "Supergirl", "Batgirl", "Gamora",
+    "Katniss", "Mulan", "Elsa", "Cleopatra", "Ahsoka",
+    "Rey", "Trinity", "CaptainMarvel", "Padme", "Maleficent",
+    "Moana", "Rapunzel", "SheHulk", "EnolaHolmes", "PrincessLeia"
+  ];
+
+  const neutralCharacters = [
+    "Eleven", "Loki", "Groot", "Yoda", "BabyYoda",
+    "Pikachu", "Sonic", "Baymax", "Toothless", "Stitch",
+    "WallE", "Kirby", "Minion", "Casper", "Phoenix"
+  ];
+
+  const allCharacters = [...maleCharacters, ...femaleCharacters, ...neutralCharacters];
+  const chosen = allCharacters[Math.floor(Math.random() * allCharacters.length)];
+  const num = Math.floor(10 + Math.random() * 90);
+  return `${chosen}_${num}`;
+}
+
+function joinGroupChatOnConnect() {
+  if (window.isJoiningPrivateInvite || window.pendingV2InviteCode) {
+    console.log("🛡️ [Group Chat] Prevented auto-join: 1-on-1 private invite is active.");
+    return;
+  }
+  if ((typeof inCall !== "undefined" && inCall) || currentMatchTargetId) {
+    console.log("🛡️ [Group Chat] Prevented auto-join: Already active in a 1-on-1 call.");
+    return;
+  }
+  if (!socket || !socket.connected) {
+    setTimeout(joinGroupChatOnConnect, 300);
+    return;
+  }
+  console.log("💬 [Group Chat] Emitting join_group_chat with nickname:", currentNickname);
+  const payload = { nickname: currentNickname };
+  if (window.pendingV2RequestedRoom) {
+    payload.requestedRoomNumber = window.pendingV2RequestedRoom;
+  }
+  socket.emit("join_group_chat", payload);
+}
+
+function promptEditNickname() {
+  const modal = document.getElementById("v2-nickname-modal");
+  const input = document.getElementById("v2-input-new-nick");
+  if (modal && input) {
+    input.value = currentNickname || "";
+    modal.classList.remove("hidden");
+    input.focus();
+  }
+}
+
+function closeNicknameModal() {
+  const modal = document.getElementById("v2-nickname-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function saveNewNickname() {
+  const input = document.getElementById("v2-input-new-nick");
+  if (!input) return;
+  const clean = input.value.trim().slice(0, 20);
+  if (clean) {
+    currentNickname = clean;
+    localStorage.setItem("hg_user_nickname", currentNickname);
+    updateNicknameDisplay(currentNickname);
+    if (socket && socket.connected) {
+      socket.emit("update_nickname", { nickname: currentNickname });
+    }
+    v2ShowToast(`✨ Nickname changed to ${currentNickname}`);
+  }
+  closeNicknameModal();
+}
+
+function updateNicknameDisplay(name) {
+  const display = document.getElementById("v2-user-nickname-display");
+  if (display) {
+    display.textContent = name || "Stranger";
+  }
+}
+
+function escapeHtml(text) {
+  if (!text) return "";
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function renderGroupMessageRow(msg) {
+  const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
+  const row = document.createElement("div");
+  row.className = `v2-group-msg-row ${isSelf ? "self" : "other"}`;
+  row.id = `msg-${msg.id}`;
+
+  let replyHtml = "";
+  if (msg.replyTo) {
+    replyHtml = `
+      <div class="v2-bubble-reply-quote">
+        <strong>${escapeHtml(msg.replyTo.nickname)}</strong>: ${escapeHtml(msg.replyTo.text)}
+      </div>
+    `;
+  }
+
+  let reactionsHtml = "";
+  if (msg.reactions && Object.keys(msg.reactions).length > 0) {
+    reactionsHtml = `<div class="v2-msg-reactions-row">`;
+    for (const [emoji, count] of Object.entries(msg.reactions)) {
+      if (count > 0) {
+        reactionsHtml += `<span class="v2-reaction-chip" onclick="quickSendReaction('${msg.id}', '${emoji}')">${emoji} ${count}</span>`;
+      }
+    }
+    reactionsHtml += `</div>`;
+  }
+
+  const senderNick = escapeHtml(msg.nickname || "Stranger");
+  const cleanText = escapeHtml(msg.text);
+
+  let actionsHtml = "";
+  if (isSelf) {
+    actionsHtml = `
+      <div class="v2-msg-external-actions">
+        <button class="v2-ext-act-btn hidden" id="group-react-btn-${msg.id}" title="Reaction" style="pointer-events: none; cursor: default;">😊</button>
+        <button class="v2-ext-act-btn" title="Reply" onclick="startReplyToMessage('${msg.id}', 'You', '${cleanText.slice(0, 50)}')">↩️</button>
+      </div>
+    `;
+  } else {
+    actionsHtml = `
+      <div class="v2-msg-external-actions">
+        <button class="v2-ext-act-btn" title="Reply" onclick="startReplyToMessage('${msg.id}', '${senderNick}', '${cleanText.slice(0, 50)}')">↩️</button>
+        <button class="v2-ext-act-btn" id="group-react-btn-${msg.id}" title="React" onclick="toggleGroupReactionPicker('${msg.id}', event)">😊</button>
+      </div>
+    `;
+  }
+
+  const senderLabel = isSelf
+    ? `<span class="v2-msg-sender-name self"><span class="v2-you-pill">You</span> ${senderNick}</span>`
+    : `<span class="v2-msg-sender-name">${senderNick}</span>`;
+
+  row.innerHTML = `
+    ${senderLabel}
+    <div class="v2-msg-bubble">
+      ${replyHtml}
+      <span>${cleanText}</span>
+      ${actionsHtml}
+    </div>
+    ${reactionsHtml}
+  `;
+
+  return row;
+}
+
+function renderCallInviteCard(invite) {
+  const isSelf = (socket && socket.id && invite.inviterSocketId === socket.id);
+  const card = document.createElement("div");
+  card.className = `v2-feed-call-card ${invite.status}`;
+  card.id = `card-${invite.inviteId}`;
+
+  const modeIcon = invite.mode === "video" ? "video" : (invite.mode === "audio" ? "microphone" : "comment-dots");
+
+  let actionBtnHtml = "";
+  if (invite.status === "open") {
+    if (isSelf) {
+      actionBtnHtml = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.1); cursor: default;">
+        <i class="fa-solid fa-satellite-dish"></i> Your Open Invite (Waiting for member...)
+      </div>`;
+    } else {
+      actionBtnHtml = `<button class="v2-btn-join-call-action" onclick="acceptCallInvite('${invite.inviteId}', '${invite.mode}')">
+        <i class="fa-solid fa-bolt"></i> Join Private ${invite.mode.toUpperCase()} Chat ⚡
+      </button>`;
+    }
+  } else if (invite.status === "accepted") {
+    actionBtnHtml = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); cursor: default;">
+      <i class="fa-solid fa-check"></i> Connected in Private Call
+    </div>`;
+  } else {
+    actionBtnHtml = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); cursor: default;">
+      <i class="fa-solid fa-clock-rotate-left"></i> Invite Expired
+    </div>`;
+  }
+
+  card.innerHTML = `
+    <div class="v2-call-card-top">
+      <span class="v2-card-mode-pill ${invite.mode}">
+        <i class="fa-solid fa-${modeIcon}"></i> Private ${invite.mode}
+      </span>
+      <span class="v2-card-status-text" id="status-${invite.inviteId}">
+        ${invite.status === 'open' ? '🟢 Active Now' : (invite.status === 'accepted' ? '🔒 Connected' : '⚪ Expired')}
+      </span>
+    </div>
+    <div class="v2-call-card-desc">
+      <strong>${escapeHtml(invite.inviterName || "Member")}</strong> invited the group to a private ${invite.mode} chat!
+    </div>
+    ${actionBtnHtml}
+  `;
+
+  // Client-side visual auto-expiry guard (60s lifetime from invite creation)
+  if (invite.status === "open") {
+    const elapsed = Date.now() - (invite.createdAt || Date.now());
+    const remainingMs = Math.max(0, 60000 - elapsed);
+    setTimeout(() => {
+      const cardEl = document.getElementById(`card-${invite.inviteId}`);
+      if (cardEl && !cardEl.classList.contains("taken")) {
+        cardEl.className = "v2-feed-call-card expired";
+        const statusEl = document.getElementById(`status-${invite.inviteId}`);
+        if (statusEl) statusEl.textContent = "⚪ Expired";
+        const btn = cardEl.querySelector(".v2-btn-join-call-action");
+        if (btn) {
+          btn.outerHTML = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); cursor: default;"><i class="fa-solid fa-clock-rotate-left"></i> Invite Expired</div>`;
+        }
+      }
+    }, remainingMs);
+  }
+
+  return card;
+}
+
+function renderWelcomeKnowledgeCard(roomNumber = 1) {
+  const card = document.createElement("div");
+  card.className = "v2-feed-welcome-card inline-welcome";
+  card.id = "v2-feed-welcome-card";
+  const nick = escapeHtml(currentNickname || "Anonymous");
+  card.innerHTML = `
+    <div class="v2-welcome-top">
+      <span class="v2-welcome-emoji">👋</span>
+      <div class="v2-welcome-headings">
+        <h4>Welcome to HashGANG</h4>
+        <p>You are chatting as <strong style="color: #c084fc;">${nick}</strong>. Chat freely or start a private call:</p>
+      </div>
+    </div>
+    <div class="v2-welcome-modes-strip">
+      <button class="v2-welcome-mode-btn video" onclick="request1v1CallInvite('video')" title="Start Private Video Call">
+        <i class="fa-solid fa-video"></i> <span>Video Call</span>
+      </button>
+      <button class="v2-welcome-mode-btn audio" onclick="request1v1CallInvite('audio')" title="Start Private Voice Call">
+        <i class="fa-solid fa-microphone"></i> <span>Voice Call</span>
+      </button>
+      <button class="v2-welcome-mode-btn text" onclick="request1v1CallInvite('text')" title="Start Private Text Chat">
+        <i class="fa-solid fa-comment-dots"></i> <span>Text Chat</span>
+      </button>
+    </div>
+  `;
+  return card;
+}
+
+function render1v1DiscoveryFeedCard() {
+  const card = document.createElement("div");
+  card.className = "v2-feed-discovery-card";
+  card.innerHTML = `
+    <div class="v2-discovery-card-header">
+      <div class="v2-discovery-badge">
+        <i class="fa-solid fa-bolt text-amber-400"></i> Direct Private Chat
+      </div>
+      <span class="v2-discovery-tag">Direct Match</span>
+    </div>
+    <div class="v2-discovery-card-body">
+      <h5>Skip the crowd! Connect privately</h5>
+      <p>Connect with an anonymous stranger in an encrypted room:</p>
+      <div class="v2-discovery-action-tiles">
+        <button class="v2-discovery-tile video" onclick="request1v1CallInvite('video')" title="Start Private Video Call">
+          <i class="fa-solid fa-video"></i>
+          <span>Video Call</span>
+        </button>
+        <button class="v2-discovery-tile audio" onclick="request1v1CallInvite('audio')" title="Start Private Voice Call">
+          <i class="fa-solid fa-microphone"></i>
+          <span>Voice Call</span>
+        </button>
+        <button class="v2-discovery-tile text" onclick="request1v1CallInvite('text')" title="Start Private Text Chat">
+          <i class="fa-solid fa-comment-dots"></i>
+          <span>Text Chat</span>
+        </button>
+      </div>
+    </div>
+  `;
+  return card;
+}
+
+function dismissWelcomeKnowledgeCard() {
+  const slot = document.getElementById("v2-group-welcome-slot");
+  if (slot) slot.innerHTML = "";
+  const card = document.getElementById("v2-feed-welcome-card");
+  if (card) card.remove();
+  try {
+    localStorage.setItem("hg_welcome_dismissed", "true");
+  } catch (e) {}
+}
+
+function renderViralCommunityCard() {
+  const card = document.createElement("div");
+  card.className = "v2-feed-viral-card";
+  card.id = "v2-feed-viral-card";
+  card.innerHTML = `
+    <div class="v2-viral-top-content">
+      <div class="v2-viral-badge">
+        <i class="fa-solid fa-user-group text-emerald-400"></i> Better with Friends
+      </div>
+      <h5>Bring your friends into this group chat!</h5>
+      <p>Share with friends — they'll join anonymously with secret nicknames too!</p>
+    </div>
+    <div class="v2-viral-share-strip">
+      <button class="v2-social-strip-btn whatsapp" onclick="triggerDirectPlatformShare('whatsapp')" title="Share to WhatsApp">
+        <i class="fa-brands fa-whatsapp"></i> WhatsApp
+      </button>
+      <button class="v2-social-strip-btn telegram" onclick="triggerDirectPlatformShare('telegram')" title="Share to Telegram">
+        <i class="fa-brands fa-telegram"></i> Telegram
+      </button>
+      <button class="v2-social-strip-btn instagram" onclick="triggerDirectPlatformShare('instagram')" title="Share to Instagram">
+        <i class="fa-brands fa-instagram"></i> Instagram
+      </button>
+      <button class="v2-social-strip-btn snapchat" onclick="triggerDirectPlatformShare('snapchat')" title="Share to Snapchat">
+        <i class="fa-brands fa-snapchat"></i> Snapchat
+      </button>
+      <button class="v2-social-strip-btn twitter" onclick="triggerDirectPlatformShare('twitter')" title="Share to X (Twitter)">
+        <i class="fa-brands fa-x-twitter"></i> X
+      </button>
+      <button class="v2-social-strip-btn copy" onclick="triggerDirectPlatformShare('copy')" title="Copy Room Invite Link">
+        <i class="fa-solid fa-link"></i> Copy Link
+      </button>
+    </div>
+  `;
+  return card;
+}
+
+function renderDirect1v1SocialInviteFeedCard() {
+  const card = document.createElement("div");
+  card.className = "v2-feed-viral-card direct-1v1";
+  card.id = "v2-feed-direct-1v1-card";
+  card.innerHTML = `
+    <div class="v2-viral-top-content">
+      <div class="v2-viral-badge" style="color: #c084fc;">
+        <i class="fa-solid fa-lock text-purple-400"></i> Secret Private Link
+      </div>
+      <h5>Invite a friend to private chat!</h5>
+      <p>Send a secret link on WhatsApp or Telegram to connect in a private encrypted room:</p>
+    </div>
+    <div class="v2-viral-share-strip">
+      <button class="v2-social-strip-btn whatsapp" onclick="triggerDirect1v1Share('video')" title="Share Private Video Link on WhatsApp">
+        <i class="fa-brands fa-whatsapp"></i> WhatsApp Link
+      </button>
+      <button class="v2-social-strip-btn telegram" onclick="triggerDirect1v1Share('video')" title="Share Private Video Link on Telegram">
+        <i class="fa-brands fa-telegram"></i> Telegram Link
+      </button>
+      <button class="v2-social-strip-btn" onclick="openV2ShareModal('direct_1v1', 'video')" title="Choose Video, Audio, or Text Mode" style="background: rgba(192, 132, 252, 0.15); border-color: rgba(192, 132, 252, 0.4); color: #e9d5ff;">
+        <i class="fa-solid fa-link"></i> Get Secret Link
+      </button>
+    </div>
+  `;
+  return card;
+}
+
+function triggerDirectPlatformShare(platform) {
+  const roomNum = activeGroupRoomNumber || 1;
+  const baseUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
+  const shareUrl = `${baseUrl}?room=${roomNum}`;
+  const shareText = `Hey! Come join me in HashGANG Anonymous Group #${roomNum} — chat freely with strangers anonymously without login!`;
+  const fullMessage = `${shareText} ${shareUrl}`;
+
+  switch (platform) {
+    case "whatsapp": {
+      const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(fullMessage)}`;
+      window.open(waUrl, "_blank");
+      break;
+    }
+    case "telegram": {
+      const tgUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`;
+      window.open(tgUrl, "_blank");
+      break;
+    }
+    case "instagram": {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(fullMessage).catch(() => {});
+      }
+      v2ShowToast("Opening Instagram... Link copied! Paste in Story/DM 📸");
+      setTimeout(() => {
+        window.location.href = "instagram://app";
+      }, 400);
+      break;
+    }
+    case "snapchat": {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(fullMessage).catch(() => {});
+      }
+      v2ShowToast("Opening Snapchat... Link copied! Paste in Snap/Story 👻");
+      setTimeout(() => {
+        window.location.href = "snapchat://";
+      }, 400);
+      break;
+    }
+    case "twitter": {
+      const twUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+      window.open(twUrl, "_blank");
+      break;
+    }
+    case "copy":
+    default: {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          v2ShowToast("📋 Room invite link copied to clipboard!");
+        }).catch(() => {
+          v2CopyFallback(shareUrl);
+        });
+      } else {
+        v2CopyFallback(shareUrl);
+      }
+      break;
+    }
+  }
+}
+
+const GROUP_ADSTERRA_HOURLY_KEY = "v2_group_adsterra_hourly_tracker_v2";
+const MAX_GROUP_ADSTERRA_PER_HOUR = 4;
+let houseCardCycleIndex = 0;
+
+function getGroupHourlyAdsterraStatus() {
+  try {
+    const raw = localStorage.getItem(GROUP_ADSTERRA_HOURLY_KEY);
+    const now = Date.now();
+    if (!raw) return { canShow: true, count: 0 };
+    const data = JSON.parse(raw);
+    if (!data || typeof data.count !== "number" || typeof data.windowStart !== "number") {
+      return { canShow: true, count: 0 };
+    }
+    if (now - data.windowStart > 3600000) {
+      localStorage.removeItem(GROUP_ADSTERRA_HOURLY_KEY);
+      return { canShow: true, count: 0 };
+    }
+    return { canShow: data.count < MAX_GROUP_ADSTERRA_PER_HOUR, count: data.count };
+  } catch (e) {
+    return { canShow: true, count: 0 };
+  }
+}
+
+function incrementGroupHourlyAdsterraCount() {
+  try {
+    const now = Date.now();
+    const status = getGroupHourlyAdsterraStatus();
+    const raw = localStorage.getItem(GROUP_ADSTERRA_HOURLY_KEY);
+    let windowStart = now;
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.windowStart && (now - parsed.windowStart <= 3600000)) {
+          windowStart = parsed.windowStart;
+        }
+      } catch (e) {}
+    }
+    const newCount = status.count + 1;
+    localStorage.setItem(GROUP_ADSTERRA_HOURLY_KEY, JSON.stringify({ count: newCount, windowStart }));
+  } catch (e) {}
+}
+
+function renderPWAInstallFeedCard(badgeText = "Promoted") {
+  const card = document.createElement("div");
+  card.className = "v2-feed-house-card pwa";
+  card.innerHTML = `
+    <div class="v2-house-card-header">
+      <span class="v2-house-tag"><i class="fa-solid fa-mobile-screen-button"></i> 1-Tap Fast App</span>
+      <span class="v2-house-ad-badge">${badgeText}</span>
+    </div>
+    <div class="v2-house-card-body">
+      <div class="v2-house-icon-wrap">
+        <img src="logo-sm.webp" alt="HashGANG" class="v2-house-app-icon" width="40" height="40" />
+      </div>
+      <div class="v2-house-card-text">
+        <h5>Install HashGANG on Home Screen</h5>
+        <p>Instant stranger chat & zero browser reload lag.</p>
+      </div>
+    </div>
+    <button class="v2-btn-house-action pwa" onclick="handlePwaInstallPrompt(event)">
+      <i class="fa-solid fa-download"></i> Add to Home Screen (Free)
+    </button>
+  `;
+  return card;
+}
+
+function renderMyLeaderPromoFeedCard() {
+  const card = document.createElement("div");
+  card.className = "v2-feed-house-card myleader";
+  card.innerHTML = `
+    <div class="v2-house-card-header">
+      <span class="v2-house-tag business"><i class="fa-solid fa-rocket"></i> Business Tools</span>
+      <span class="v2-house-ad-badge">Promoted</span>
+    </div>
+    <div class="v2-house-card-body">
+      <div class="v2-house-icon-wrap myleader">
+        <i class="fa-solid fa-users-gear"></i>
+      </div>
+      <div class="v2-house-card-text">
+        <h5>MyLeader AI Workspace</h5>
+        <p>Automate team management, attendance, payroll & leave policies with AI.</p>
+      </div>
+    </div>
+    <a href="https://hashgang.com" target="_blank" rel="noopener noreferrer" class="v2-btn-house-action myleader">
+      <span>Explore MyLeader Platform</span> <i class="fa-solid fa-arrow-up-right-from-square"></i>
+    </a>
+  `;
+  return card;
+}
+
+function handleInFeedPacingInjection(feed, currentCount) {
+  if (!feed) return;
+  const count = typeof currentCount === "number" ? currentCount : liveGroupMsgCounter;
+  const cycleIndex = Math.floor(count / 12);
+
+  if (cycleIndex % 2 === 1) {
+    // ==========================================
+    // ODD SLOTS (12, 36, 60, 84, 108, 132...): REVENUE FIRST!
+    // ==========================================
+    const status = getGroupHourlyAdsterraStatus();
+    if (status.canShow) {
+      injectInFeedAdsterraBanner(feed);
+      incrementGroupHourlyAdsterraCount();
+      console.log(`🎯 [In-Feed Monetization] Injected Adsterra Ad (${status.count + 1}/${MAX_GROUP_ADSTERRA_PER_HOUR})`);
+    } else {
+      feed.appendChild(renderMyLeaderPromoFeedCard());
+      console.log(`💼 [In-Feed Monetization] 4/hr Adsterra quota reached (${status.count}/${MAX_GROUP_ADSTERRA_PER_HOUR}). Injected MyLeader AI House Promo.`);
+    }
+  } else {
+    // ==========================================
+    // EVEN SLOTS (24, 48, 72, 96, 120...): 4-CARD FEATURE ROTATION
+    // ==========================================
+    const evenStep = Math.floor(cycleIndex / 2); // 1, 2, 3, 4, 5...
+    const rotationIndex = (evenStep - 1) % 4;    // 0, 1, 2, 3
+
+    switch (rotationIndex) {
+      case 0:
+        // Msg 24, 120...: Card 3 - Direct 1-on-1 Discovery within Group
+        feed.appendChild(render1v1DiscoveryFeedCard());
+        console.log("⚡ [In-Feed Discovery] Injected 1-on-1 Discovery Card (Inside Group).");
+        break;
+
+      case 1:
+        // Msg 48, 144...: Card 1 - Social Share (Group Chat Invite)
+        feed.appendChild(renderViralCommunityCard());
+        console.log("🔗 [In-Feed Community] Injected Group Chat Social Share Card.");
+        break;
+
+      case 2:
+        // Msg 72, 168...: Card 2 - Social Share (Direct 1-on-1 Outside Invite)
+        feed.appendChild(renderDirect1v1SocialInviteFeedCard());
+        console.log("🔒 [In-Feed 1v1 Share] Injected Direct 1-on-1 Outside Social Share Card.");
+        break;
+
+      case 3:
+      default: {
+        // Msg 96, 192...: Card 4 - PWA Install Card
+        const isStandalone = (typeof window !== "undefined" && ((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator && window.navigator.standalone)));
+        if (!isStandalone) {
+          feed.appendChild(renderPWAInstallFeedCard("App"));
+          console.log("📱 [In-Feed PWA] Injected PWA Install Card.");
+        } else {
+          feed.appendChild(render1v1DiscoveryFeedCard());
+          console.log("⚡ [In-Feed PWA Fallback] App is standalone. Injected 1-on-1 Discovery Card.");
+        }
+        break;
+      }
+    }
+  }
+}
+
+let inFeedAdSequence = 0;
+function injectInFeedAdsterraBanner(container) {
+  inFeedAdSequence++;
+  const slotId = inFeedAdSequence === 1 ? "v2-infeed-ad-slot" : `v2-infeed-ad-slot-${inFeedAdSequence}`;
+  const wrapperId = inFeedAdSequence === 1 ? "v2-infeed-ad-wrapper" : `v2-infeed-ad-wrapper-${inFeedAdSequence}`;
+
+  const adBox = document.createElement("div");
+  adBox.className = "v2-infeed-ad-wrapper";
+  adBox.id = wrapperId;
+  adBox.innerHTML = `
+    <div class="v2-infeed-ad-header">
+      <span class="v2-infeed-ad-badge">Ad</span>
+    </div>
+    <div id="${slotId}" class="v2-infeed-ad-slot">
+      <div class="v2-infeed-ad-placeholder">
+        <span class="v2-ad-loading-text"><i class="fa-solid fa-circle-notch fa-spin"></i> Sponsored</span>
+      </div>
+    </div>
+  `;
+  container.appendChild(adBox);
+
+  setTimeout(() => {
+    try {
+      const slot = document.getElementById(slotId);
+      if (!slot) return;
+      const iframe = document.createElement("iframe");
+      iframe.width = "300";
+      iframe.height = "250";
+      iframe.style.border = "none";
+      iframe.style.overflow = "hidden";
+      iframe.style.borderRadius = "8px";
+      iframe.style.background = "transparent";
+      iframe.setAttribute("scrolling", "no");
+
+      const adHtml = `<!DOCTYPE html><html><head><base target="_blank"><style>body{margin:0;padding:0;display:flex;justify-content:center;align-items:center;background:transparent;overflow:hidden;height:100vh;}</style></head><body><script type="text/javascript">atOptions={'key':'ede40fc4ab13bf9c6140311ae9860f4f','format':'iframe','height':250,'width':300,'params':{}};</script><script type="text/javascript" src="https://www.highperformanceformat.com/ede40fc4ab13bf9c6140311ae9860f4f/invoke.js"></script></body></html>`;
+
+      if ("srcdoc" in iframe) {
+        iframe.srcdoc = adHtml;
+      }
+      if (iframe.contentWindow) {
+        try {
+          const doc = iframe.contentWindow.document;
+          doc.open();
+          doc.write(adHtml);
+          doc.close();
+        } catch (e) {}
+      }
+      iframe.onload = () => {
+        if (slot) slot.classList.add("loaded");
+      };
+      // Fallback reveal after 1.2s to guarantee visibility
+      setTimeout(() => {
+        if (slot) slot.classList.add("loaded");
+      }, 1200);
+
+      slot.appendChild(iframe);
+    } catch (e) {
+      console.warn("⚠️ [In-Feed Adsterra] Notice:", e);
+    }
+  }, 350);
+}
+
+let lastGroupMsgTime = 0;
+function sendGroupMessage() {
+  const input = document.getElementById("v2-group-input-field");
+  if (!input) return;
+  const rawText = input.value.trim();
+  if (!rawText) return;
+
+  const text = rawText.slice(0, 180);
+
+  // Link / URL blocking: Prevent external links, promos, and spam
+  const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|in|org|net|xyz|me|io|co|ai|app|site|online|tv|ru|cn|cc|to|is|gg|link|live|fun|store|club)[^\s]*)|(t\.me\/[^\s]+)|(wa\.me\/[^\s]+)/i;
+  if (urlRegex.test(text)) {
+    v2ShowToast("⚠️ Links are not allowed in group chat to keep everyone safe.");
+    return;
+  }
+
+  const now = Date.now();
+  if (now - lastGroupMsgTime < 1000) {
+    v2ShowToast("⏳ Slow down! 1 message per second.");
+    return;
+  }
+  lastGroupMsgTime = now;
+
+  if (socket && socket.connected) {
+    socket.emit("send_group_msg", {
+      text,
+      replyTo: activeGroupReplyTo,
+      nickname: currentNickname
+    });
+    input.value = "";
+    input.style.height = "36px";
+    cancelGroupReply();
+  } else {
+    v2ShowToast("⚠️ Connecting to chat server...");
+  }
+}
+
+function quickSendEmoji(emoji) {
+  const input = document.getElementById("v2-group-input-field");
+  if (input) {
+    input.value += emoji;
+    input.focus();
+  }
+}
+
+function quickSendReaction(msgId, emoji) {
+  if (socket && socket.connected) {
+    socket.emit("send_group_reaction", { messageId: msgId, emoji });
+  }
+}
+
+function toggleGroupReactionPicker(msgId, event) {
+  if (event) event.stopPropagation();
+
+  const oldPicker = document.querySelector(".v2-reaction-picker");
+  if (oldPicker) {
+    const parentMsgId = oldPicker.dataset.forMsgId;
+    oldPicker.remove();
+    if (parentMsgId === msgId) return;
+  }
+
+  const btn = document.getElementById(`group-react-btn-${msgId}`);
+  if (!btn) return;
+
+  const rect = btn.getBoundingClientRect();
+  const picker = document.createElement("div");
+  picker.className = "v2-reaction-picker";
+  picker.dataset.forMsgId = msgId;
+
+  const pickerWidth = 240;
+  let leftPos = rect.left - 40;
+  if (leftPos < 8) leftPos = 8;
+  if (leftPos + pickerWidth > window.innerWidth - 8) {
+    leftPos = window.innerWidth - pickerWidth - 8;
+  }
+  let topPos = rect.top - 46;
+  if (topPos < 10) topPos = rect.bottom + 8;
+
+  picker.style.cssText = `position: fixed !important; top: ${topPos}px !important; left: ${leftPos}px !important; z-index: 9999 !important;`;
+
+  const emojis = ["❤️", "🔥", "😂", "👏", "👍", "🎉"];
+  emojis.forEach((emoji) => {
+    const item = document.createElement("span");
+    item.className = "v2-reaction-emoji-item";
+    item.textContent = emoji;
+    item.onclick = (e) => {
+      e.stopPropagation();
+      quickSendReaction(msgId, emoji);
+      picker.remove();
+    };
+    picker.appendChild(item);
+  });
+
+  document.body.appendChild(picker);
+
+  const closeHandler = (e) => {
+    if (!picker.contains(e.target)) {
+      picker.remove();
+      document.removeEventListener("click", closeHandler);
+    }
+  };
+  setTimeout(() => document.addEventListener("click", closeHandler), 50);
+}
+
+function startReplyToMessage(id, nickname, text) {
+  activeGroupReplyTo = { id, nickname, text: text.slice(0, 60) };
+  const replyBar = document.getElementById("v2-group-reply-bar");
+  const targetName = document.getElementById("v2-reply-target-name");
+  const targetSnippet = document.getElementById("v2-reply-target-snippet");
+  if (replyBar && targetName && targetSnippet) {
+    targetName.textContent = nickname;
+    targetSnippet.textContent = text.slice(0, 60) + (text.length > 60 ? "..." : "");
+    replyBar.classList.remove("hidden");
+  }
+  const input = document.getElementById("v2-group-input-field");
+  if (input) input.focus();
+}
+
+function cancelGroupReply() {
+  activeGroupReplyTo = null;
+  const replyBar = document.getElementById("v2-group-reply-bar");
+  if (replyBar) replyBar.classList.add("hidden");
+}
+
+async function request1v1CallInvite(mode) {
+  if (!socket || !socket.connected) {
+    v2ShowToast("⚠️ Connecting to server... please wait 1 sec.");
+    return;
+  }
+
+  // Pre-flight permission verification
+  if (mode === "audio") {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch (err) {
+      console.warn("Mic permission denied for audio invite:", err);
+      alert("🎙️ Microphone Access Required\n\nPlease allow microphone permissions in your browser to start a Voice Call.");
+      return;
+    }
+  } else if (mode === "video") {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch (err) {
+      console.warn("Camera/Mic permission denied for video invite:", err);
+      alert("📹 Camera & Microphone Access Required\n\nPlease allow camera and microphone permissions in your browser to start a Video Call.");
+      return;
+    }
+  }
+
+  currentChatMode = mode;
+  socket.emit("post_call_invite", { mode, nickname: currentNickname });
+  v2ShowToast(`🚀 Private ${mode.toUpperCase()} Invite sent to group!`);
+}
+
+async function acceptCallInvite(inviteId, mode) {
+  if (!socket || !socket.connected) {
+    v2ShowToast("⚠️ Connecting to server... please wait.");
+    return;
+  }
+
+  // Pre-flight permission verification for joiner
+  if (mode === "audio") {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch (err) {
+      alert("🎙️ Microphone Access Required\n\nPlease allow microphone permissions in your browser to join this Voice Call.");
+      return;
+    }
+  } else if (mode === "video") {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch (err) {
+      alert("📹 Camera & Microphone Access Required\n\nPlease allow camera and microphone permissions in your browser to join this Video Call.");
+      return;
+    }
+  }
+
+  currentChatMode = mode;
+  socket.emit("accept_call_invite", { inviteId });
+}
+
+async function requestInCallModeUpgrade(mode) {
+  if (!currentMatchTargetId || !socket || !socket.connected) {
+    v2ShowToast("⚠️ Not connected to a stranger.");
+    return;
+  }
+
+  // Pre-flight permission verification
+  if (mode === "audio") {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch (err) {
+      alert("🎙️ Microphone Access Required\n\nPlease allow microphone permissions in your browser to start a Voice Call.");
+      return;
+    }
+  } else if (mode === "video") {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch (err) {
+      alert("📹 Camera & Microphone Access Required\n\nPlease allow camera and microphone permissions in your browser to start a Video Call.");
+      return;
+    }
+  }
+
+  socket.emit("signal", {
+    targetId: currentMatchTargetId,
+    signal: {
+      type: "in_call_upgrade_invite",
+      mode,
+      senderName: currentNickname
+    }
+  });
+
+  v2ShowToast(`🚀 Sent ${mode.toUpperCase()} Call invite to stranger!`);
+  appendSystemCard("connect", `You invited stranger to switch to ${mode.toUpperCase()} Call. Waiting for response...`);
+}
+
+async function respondInCallModeUpgrade(mode, accepted, btnEl) {
+  if (btnEl && btnEl.closest(".v2-chat-upgrade-prompt")) {
+    const prompt = btnEl.closest(".v2-chat-upgrade-prompt");
+    prompt.innerHTML = `<div class="v2-upgrade-status-text">${accepted ? `Accepted ${mode.toUpperCase()} Call invite! Connecting...` : "Declined call invite. Continuing in text chat."}</div>`;
+  }
+
+  if (!accepted) {
+    if (socket && socket.connected && currentMatchTargetId) {
+      socket.emit("signal", {
+        targetId: currentMatchTargetId,
+        signal: {
+          type: "in_call_upgrade_response",
+          accepted: false,
+          mode
+        }
+      });
+    }
+    return;
+  }
+
+  // If accepted, check pre-flight permission
+  if (mode === "audio") {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch (err) {
+      alert("🎙️ Microphone Access Required\n\nPlease allow microphone permissions in your browser to join this Voice Call.");
+      return;
+    }
+  } else if (mode === "video") {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      stream.getTracks().forEach((t) => t.stop());
+    } catch (err) {
+      alert("📹 Camera & Microphone Access Required\n\nPlease allow camera and microphone permissions in your browser to join this Video Call.");
+      return;
+    }
+  }
+
+  if (socket && socket.connected && currentMatchTargetId) {
+    socket.emit("signal", {
+      targetId: currentMatchTargetId,
+      signal: {
+        type: "in_call_upgrade_response",
+        accepted: true,
+        mode
+      }
+    });
+    executeInCallModeUpgrade(mode, false);
+  }
+}
+
+async function executeInCallModeUpgrade(newMode, isInitiator) {
+  if (!currentMatchTargetId || !socket || !socket.connected) return;
+
+  currentChatMode = newMode;
+
+  // 1. Initialize local media
+  const hasPerm = await initLocalMedia(newMode);
+  if (!hasPerm) {
+    v2ShowToast(`⚠️ ${newMode === "video" ? "Camera & Microphone" : "Microphone"} access required. Please allow in browser.`);
+    return;
+  }
+
+  // 2. Adjust UI stages
+  if (el.chatDrawer) el.chatDrawer.classList.add("closed");
+  const groupStage = document.getElementById("v2-group-chat-stage");
+  if (groupStage) groupStage.classList.add("hidden");
+  if (el.searchStage) el.searchStage.classList.add("hidden");
+
+  if (newMode === "video") {
+    if (el.localPip) el.localPip.classList.remove("hidden");
+    if (el.audioVisualizer) el.audioVisualizer.classList.add("hidden");
+    setVideoDisconnectedUI(false);
+  } else if (newMode === "audio") {
+    if (el.localPip) el.localPip.classList.add("hidden");
+    if (el.audioVisualizer) el.audioVisualizer.classList.remove("hidden");
+    setAudioDisconnectedUI(false);
+  }
+
+  updateToolbarForMode("active");
+
+  // 3. Reset peer connection for media streaming
+  if (currentPeerConnection) {
+    try { currentPeerConnection.close(); } catch (e) {}
+    currentPeerConnection = null;
+  }
+
+  await createWebRTCPeerConnection(currentMatchTargetId, isInitiator);
+  v2ShowToast(`🚀 Switched to ${newMode.toUpperCase()} Call!`);
+}
+
+
+function v2ReturnToGroupChat(autoInvite = false) {
+  isDisconnectedHandled = false;
+  clearSearchTimeout();
+
+  const oldTargetId = currentMatchTargetId;
+  if (oldTargetId) {
+    skippedPeersCooldownMapV2.delete(oldTargetId);
+  }
+
+  cleanupPeerConnection(false);
+  clearChatHistory();
+
+  currentMatchTargetId = null;
+  window.currentMatchTargetId = null;
+  inCall = false;
+
+  if (localStream) {
+    localStream.getTracks().forEach((t) => t.stop());
+    localStream = null;
+  }
+  window.isJoiningPrivateInvite = false;
+  window.pendingV2InviteCode = null;
+  try { sessionStorage.removeItem("hg_pending_invite"); } catch (e) {}
+  if (el.searchStage) el.searchStage.classList.add("hidden");
+  const groupStage = document.getElementById("v2-group-chat-stage");
+  if (groupStage) groupStage.classList.remove("hidden");
+  if (el.chatDrawer) el.chatDrawer.classList.add("closed");
+  if (el.localPip) el.localPip.classList.add("hidden");
+  if (el.audioVisualizer) el.audioVisualizer.classList.add("hidden");
+  if (el.btnFlagReport) el.btnFlagReport.classList.add("hidden");
+
+  const chatInputRow = document.getElementById("v2-chat-input-row");
+  const discBar = document.getElementById("v2-chat-disconnected-bar");
+  if (chatInputRow) chatInputRow.style.display = "";
+  if (discBar) discBar.classList.add("hidden");
+
+  const videoDisc = document.getElementById("v2-video-disc-overlay");
+  if (videoDisc) videoDisc.classList.add("hidden");
+
+  // Reset top bar peer status
+  const peerDot = document.getElementById("v2-chat-peer-dot");
+  const peerStatus = document.getElementById("v2-chat-peer-status-text");
+  if (peerDot) peerDot.classList.remove("disc");
+  if (peerStatus) peerStatus.textContent = "Private Chat";
+
+  const prevMode = currentChatMode;
+  currentChatMode = "text";
+  updateStatus("idle", "In Group Chat");
+  updateToolbarForMode("idle");
+
+  if (socket && socket.connected) {
+    // Explicitly unpair from 1v1 private call on server cleanly (no cooldown)
+    socket.emit("leave_1v1_call");
+
+    if (autoInvite && prevMode) {
+      window.pendingAutoInviteMode = prevMode;
+    } else {
+      window.pendingAutoInviteMode = null;
+    }
+    activeGroupRoomNumber = null;
+    activeGroupRoomId = null;
+
+    // Fresh journey into group: rejoin Group #1 cleanly
+    socket.emit("join_group_chat", { nickname: currentNickname, requestedRoomNumber: 1 });
+  }
+}
+
+function triggerDirect1v1Share(mode = "video") {
+  closeV2CallDrawer();
+  openV2ShareModal("direct_1v1", mode);
+}
+
+function toggleV2CallDrawer() {
+  const backdrop = document.getElementById("v2-call-drawer-backdrop");
+  if (!backdrop) return;
+  if (backdrop.classList.contains("hidden")) {
+    backdrop.classList.remove("hidden");
+    backdrop.classList.add("open");
+  } else {
+    closeV2CallDrawer();
+  }
+}
+
+function closeV2CallDrawer(event) {
+  if (event && event.target && event.target.id !== "v2-call-drawer-backdrop" && !event.target.classList.contains("v2-drawer-close-btn") && !event.target.closest(".v2-drawer-close-btn")) {
+    return;
+  }
+  const backdrop = document.getElementById("v2-call-drawer-backdrop");
+  if (backdrop) {
+    backdrop.classList.remove("open");
+    backdrop.classList.add("hidden");
+  }
+}
+
+function selectDrawerCallMode(mode) {
+  closeV2CallDrawer();
+  request1v1CallInvite(mode);
+}
+
+// Window object bindings for all interactive handlers
+window.promptEditNickname = promptEditNickname;
+window.closeNicknameModal = closeNicknameModal;
+window.saveNewNickname = saveNewNickname;
+window.confirmAgeAndEnter = confirmAgeAndEnter;
+window.request1v1CallInvite = request1v1CallInvite;
+window.acceptCallInvite = acceptCallInvite;
+window.sendGroupMessage = sendGroupMessage;
+window.quickSendEmoji = quickSendEmoji;
+window.quickSendReaction = quickSendReaction;
+window.startReplyToMessage = startReplyToMessage;
+window.cancelGroupReply = cancelGroupReply;
+window.toggleGroupReactionPicker = toggleGroupReactionPicker;
+window.dismissWelcomeKnowledgeCard = dismissWelcomeKnowledgeCard;
+window.renderWelcomeKnowledgeCard = renderWelcomeKnowledgeCard;
+window.renderViralCommunityCard = renderViralCommunityCard;
+window.v2ReturnToGroupChat = v2ReturnToGroupChat;
+window.toggleV2CallDrawer = toggleV2CallDrawer;
+window.closeV2CallDrawer = closeV2CallDrawer;
+window.selectDrawerCallMode = selectDrawerCallMode;
+window.triggerDirectPlatformShare = triggerDirectPlatformShare;
+window.triggerDirect1v1Share = triggerDirect1v1Share;
+window.switchShare1v1Mode = switchShare1v1Mode;
+window.handleStrangerDisconnected = handleStrangerDisconnected;
+window.render1v1DiscoveryFeedCard = render1v1DiscoveryFeedCard;
+window.requestInCallModeUpgrade = requestInCallModeUpgrade;
+window.respondInCallModeUpgrade = respondInCallModeUpgrade;
+window.executeInCallModeUpgrade = executeInCallModeUpgrade;
