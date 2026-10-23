@@ -135,7 +135,8 @@ function registerV2ServiceWorker() {
       navigator.serviceWorker
         .register(swPath, { updateViaCache: "none" })
         .then((reg) => {
-          console.log("⚡ [PWA v2] ServiceWorker registered with updateViaCache:none", reg.scope);
+          if (!reg) return;
+          console.log("⚡ [PWA v2] ServiceWorker registered with updateViaCache:none", reg.scope || "");
           // Check for fresh deployment on server
           try { reg.update(); } catch (e) {}
 
@@ -866,6 +867,7 @@ function initSocketConnection() {
         }
 
         const messages = Array.isArray(data.messages) ? data.messages : [];
+
         const isStandalone = (typeof window !== "undefined" && ((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator && window.navigator.standalone)));
 
         // 1. PWA App Card before the first message (at top of chat history)
@@ -876,9 +878,15 @@ function initSocketConnection() {
         let adInjected = false;
         let viralInjected = false;
         const totalMsgs = messages.length;
+        const renderedInviteIds = new Set();
 
         messages.forEach((msg, idx) => {
-          feed.appendChild(renderGroupMessageRow(msg));
+          if (msg.type === "call_invite") {
+            renderedInviteIds.add(msg.inviteId);
+            feed.appendChild(renderCallInviteCard(msg));
+          } else {
+            feed.appendChild(renderGroupMessageRow(msg));
+          }
 
           // In-feed card injection in middle of history: Show internal house promo without consuming live Adsterra quota
           if (idx === Math.floor(totalMsgs * 0.35) && !adInjected && totalMsgs >= 6) {
@@ -893,10 +901,12 @@ function initSocketConnection() {
         // 2. Inline Welcome Card placed directly AFTER the last backlog message!
         feed.appendChild(renderWelcomeKnowledgeCard(activeGroupRoomNumber));
 
-        // 3. Render active call invites if any
+        // 3. Render active call invites if not already rendered in backlog
         if (Array.isArray(data.activeInvites)) {
           data.activeInvites.forEach((inv) => {
-            feed.appendChild(renderCallInviteCard(inv));
+            if (!renderedInviteIds.has(inv.inviteId)) {
+              feed.appendChild(renderCallInviteCard(inv));
+            }
           });
         }
 
@@ -908,7 +918,15 @@ function initSocketConnection() {
           v2ShowToast(`💬 You're back in Group! Your ${modeToInvite.toUpperCase()} invite is live.`);
         }
 
-        setTimeout(() => { feed.scrollTop = feed.scrollHeight; }, 100);
+        const scrollFeedToBottom = () => {
+          if (feed) {
+            feed.scrollTop = feed.scrollHeight;
+          }
+        };
+        scrollFeedToBottom();
+        requestAnimationFrame(scrollFeedToBottom);
+        setTimeout(scrollFeedToBottom, 100);
+        setTimeout(scrollFeedToBottom, 300);
       }
     });
 
@@ -970,10 +988,19 @@ function initSocketConnection() {
     });
 
     socket.on("new_call_invite", (invite) => {
+      if (socket && socket.id && invite.inviterSocketId === socket.id) {
+        if (typeof saveMyRecentInviteId === "function") {
+          saveMyRecentInviteId(invite.inviteId);
+        } else {
+          try { sessionStorage.setItem("hg_my_recent_invite", invite.inviteId); } catch (e) {}
+        }
+      }
       const feed = document.getElementById("v2-group-messages-feed");
       if (feed) {
-        feed.appendChild(renderCallInviteCard(invite));
-        feed.scrollTop = feed.scrollHeight;
+        if (!document.getElementById(`card-${invite.inviteId}`)) {
+          feed.appendChild(renderCallInviteCard(invite));
+          feed.scrollTop = feed.scrollHeight;
+        }
       }
     });
 
@@ -994,12 +1021,33 @@ function initSocketConnection() {
     socket.on("call_invite_cancelled", (data) => {
       const card = document.getElementById(`card-${data.inviteId}`);
       if (card) {
-        card.className = "v2-feed-call-card expired";
+        let isSelf = (socket && socket.id && data.inviterSocketId === socket.id);
+        if (typeof isMyRecentInviteId === "function" && isMyRecentInviteId(data.inviteId)) {
+          isSelf = true;
+        } else {
+          try {
+            const mySaved = sessionStorage.getItem("hg_my_recent_invite");
+            if (mySaved && mySaved === data.inviteId) isSelf = true;
+          } catch (e) {}
+        }
+
         const statusEl = document.getElementById(`status-${data.inviteId}`);
-        if (statusEl) statusEl.textContent = "⚪ Expired";
         const btn = card.querySelector(".v2-btn-join-call-action");
-        if (btn) {
-          btn.outerHTML = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); cursor: default;"><i class="fa-solid fa-clock-rotate-left"></i> Invite Expired</div>`;
+
+        if (isSelf) {
+          card.className = "v2-feed-call-card expired";
+          if (statusEl) statusEl.textContent = "⚪ Expired";
+          if (btn) {
+            btn.outerHTML = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); cursor: default;"><i class="fa-solid fa-clock-rotate-left"></i> Invite Expired</div>`;
+          }
+        } else {
+          // Social illusion: for other users in the lobby, show as connected!
+          card.className = "v2-feed-call-card taken";
+          const taker = data.simulatedTakerName ? escapeHtml(data.simulatedTakerName) : "Member";
+          if (statusEl) statusEl.textContent = `🔒 Joined by ${taker}`;
+          if (btn) {
+            btn.outerHTML = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); cursor: default;"><i class="fa-solid fa-check"></i> Connected in Private Call</div>`;
+          }
         }
       }
     });
@@ -1028,6 +1076,11 @@ function removeElementById(id) {
   if (elem) elem.remove();
 }
 
+let privateChatMsgCounter = 0;
+let privateChatPwaInjected = false;
+let privateChatAdInjected = false;
+let privateChatPromoInjected = false;
+
 /**
  * Clear Chat History for New Stranger Match
  */
@@ -1035,6 +1088,10 @@ function clearChatHistory() {
   if (el.chatMessages) {
     el.chatMessages.innerHTML = '<div class="v2-chat-spacer"></div>';
   }
+  privateChatMsgCounter = 0;
+  privateChatPwaInjected = false;
+  privateChatAdInjected = false;
+  privateChatPromoInjected = false;
   if (typeof cancelV2ChatReply === "function") cancelV2ChatReply();
   if (el.chatInput) {
     el.chatInput.value = "Hi 👋";
@@ -2339,6 +2396,11 @@ function appendChatMessage(sender, text, type, replyTo = null, msgId = null) {
   msgDiv.innerHTML = `${replyHtml}${textHtml}${actionsHtml}`;
   el.chatMessages.appendChild(msgDiv);
 
+  privateChatMsgCounter++;
+  if (typeof handlePrivateChatPacing === "function") {
+    handlePrivateChatPacing();
+  }
+
   setTimeout(() => {
     if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
   }, 30);
@@ -2376,6 +2438,11 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
 
   msgDiv.innerHTML = `${replyHtml}${mediaHtml}${actionsHtml}`;
   el.chatMessages.appendChild(msgDiv);
+
+  privateChatMsgCounter++;
+  if (typeof handlePrivateChatPacing === "function") {
+    handlePrivateChatPacing();
+  }
 
   setTimeout(() => {
     if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
@@ -3237,16 +3304,49 @@ function renderGroupMessageRow(msg) {
   return row;
 }
 
-function renderCallInviteCard(invite) {
-  const isSelf = (socket && socket.id && invite.inviterSocketId === socket.id);
-  const card = document.createElement("div");
-  card.className = `v2-feed-call-card ${invite.status}`;
-  card.id = `card-${invite.inviteId}`;
+function saveMyRecentInviteId(inviteId) {
+  try {
+    if (!inviteId) return;
+    sessionStorage.setItem("hg_my_recent_invite", inviteId);
+    const raw = sessionStorage.getItem("hg_my_recent_invites");
+    const list = raw ? JSON.parse(raw) : [];
+    if (!list.includes(inviteId)) {
+      list.push(inviteId);
+      if (list.length > 25) list.shift();
+      sessionStorage.setItem("hg_my_recent_invites", JSON.stringify(list));
+    }
+  } catch (e) {}
+}
 
+function isMyRecentInviteId(inviteId) {
+  try {
+    if (!inviteId) return false;
+    if (sessionStorage.getItem("hg_my_recent_invite") === inviteId) return true;
+    const raw = sessionStorage.getItem("hg_my_recent_invites");
+    if (!raw) return false;
+    const list = JSON.parse(raw);
+    return Array.isArray(list) && list.includes(inviteId);
+  } catch (e) {
+    return false;
+  }
+}
+
+function renderCallInviteCard(invite) {
+  let isSelf = (socket && socket.id && invite.inviterSocketId === socket.id);
+  if (isMyRecentInviteId(invite.inviteId)) {
+    isSelf = true;
+  }
+
+  const card = document.createElement("div");
   const modeIcon = invite.mode === "video" ? "video" : (invite.mode === "audio" ? "microphone" : "comment-dots");
 
+  let statusClass = invite.status;
+  let statusText = "";
   let actionBtnHtml = "";
+
   if (invite.status === "open") {
+    statusClass = "open";
+    statusText = "🟢 Active Now";
     if (isSelf) {
       actionBtnHtml = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.1); cursor: default;">
         <i class="fa-solid fa-satellite-dish"></i> Your Open Invite (Waiting for member...)
@@ -3257,14 +3357,33 @@ function renderCallInviteCard(invite) {
       </button>`;
     }
   } else if (invite.status === "accepted") {
+    statusClass = "taken";
+    const taker = invite.takerName ? escapeHtml(invite.takerName) : "Member";
+    statusText = `🔒 Joined by ${taker}`;
     actionBtnHtml = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); cursor: default;">
       <i class="fa-solid fa-check"></i> Connected in Private Call
     </div>`;
   } else {
-    actionBtnHtml = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); cursor: default;">
-      <i class="fa-solid fa-clock-rotate-left"></i> Invite Expired
-    </div>`;
+    // Expired status logic:
+    if (isSelf) {
+      statusClass = "expired";
+      statusText = "⚪ Expired";
+      actionBtnHtml = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); cursor: default;">
+        <i class="fa-solid fa-clock-rotate-left"></i> Invite Expired
+      </div>`;
+    } else {
+      // Social illusion for other lobby members: show as successfully connected!
+      statusClass = "taken";
+      const taker = invite.simulatedTakerName || invite.takerName || "Member";
+      statusText = `🔒 Joined by ${escapeHtml(taker)}`;
+      actionBtnHtml = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); cursor: default;">
+        <i class="fa-solid fa-check"></i> Connected in Private Call
+      </div>`;
+    }
   }
+
+  card.className = `v2-feed-call-card ${statusClass}`;
+  card.id = `card-${invite.inviteId}`;
 
   card.innerHTML = `
     <div class="v2-call-card-top">
@@ -3272,7 +3391,7 @@ function renderCallInviteCard(invite) {
         <i class="fa-solid fa-${modeIcon}"></i> Private ${invite.mode}
       </span>
       <span class="v2-card-status-text" id="status-${invite.inviteId}">
-        ${invite.status === 'open' ? '🟢 Active Now' : (invite.status === 'accepted' ? '🔒 Connected' : '⚪ Expired')}
+        ${statusText}
       </span>
     </div>
     <div class="v2-call-card-desc">
@@ -3288,12 +3407,21 @@ function renderCallInviteCard(invite) {
     setTimeout(() => {
       const cardEl = document.getElementById(`card-${invite.inviteId}`);
       if (cardEl && !cardEl.classList.contains("taken")) {
-        cardEl.className = "v2-feed-call-card expired";
         const statusEl = document.getElementById(`status-${invite.inviteId}`);
-        if (statusEl) statusEl.textContent = "⚪ Expired";
         const btn = cardEl.querySelector(".v2-btn-join-call-action");
-        if (btn) {
-          btn.outerHTML = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); cursor: default;"><i class="fa-solid fa-clock-rotate-left"></i> Invite Expired</div>`;
+        if (isSelf) {
+          cardEl.className = "v2-feed-call-card expired";
+          if (statusEl) statusEl.textContent = "⚪ Expired";
+          if (btn) {
+            btn.outerHTML = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); cursor: default;"><i class="fa-solid fa-clock-rotate-left"></i> Invite Expired</div>`;
+          }
+        } else {
+          cardEl.className = "v2-feed-call-card taken";
+          const taker = invite.simulatedTakerName || "Member";
+          if (statusEl) statusEl.textContent = `🔒 Joined by ${escapeHtml(taker)}`;
+          if (btn) {
+            btn.outerHTML = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); cursor: default;"><i class="fa-solid fa-check"></i> Connected in Private Call</div>`;
+          }
         }
       }
     }, remainingMs);
@@ -3566,7 +3694,7 @@ function renderMyLeaderPromoFeedCard() {
   card.innerHTML = `
     <div class="v2-house-card-header">
       <span class="v2-house-tag business"><i class="fa-solid fa-rocket"></i> Business Tools</span>
-      <span class="v2-house-ad-badge">Promoted</span>
+      <span class="v2-house-ad-badge">Ad</span>
     </div>
     <div class="v2-house-card-body">
       <div class="v2-house-icon-wrap myleader">
@@ -3655,12 +3783,10 @@ function injectInFeedAdsterraBanner(container) {
   adBox.className = "v2-infeed-ad-wrapper";
   adBox.id = wrapperId;
   adBox.innerHTML = `
-    <div class="v2-infeed-ad-header">
-      <span class="v2-infeed-ad-badge">Ad</span>
-    </div>
+    <span class="v2-micro-ad-badge">Ad</span>
     <div id="${slotId}" class="v2-infeed-ad-slot">
       <div class="v2-infeed-ad-placeholder">
-        <span class="v2-ad-loading-text"><i class="fa-solid fa-circle-notch fa-spin"></i> Sponsored</span>
+        <span class="v2-ad-loading-text"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading Ad...</span>
       </div>
     </div>
   `;
@@ -3705,6 +3831,163 @@ function injectInFeedAdsterraBanner(container) {
       console.warn("⚠️ [In-Feed Adsterra] Notice:", e);
     }
   }, 350);
+}
+
+/**
+ * 1v1 Private Chat Native Pacing & Monetization Controller
+ */
+function handlePrivateChatPacing() {
+  if (!el.chatMessages) {
+    el.chatMessages = document.getElementById("v2-chat-messages") || document.getElementById("chat-messages");
+  }
+  if (!el.chatMessages) return;
+
+  const isStandalone = (typeof window !== "undefined" && ((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator && window.navigator.standalone)));
+
+  // Threshold 1: At 12 messages - Hook high-intent users with PWA install or House Promo
+  if (privateChatMsgCounter === 12) {
+    if (!isStandalone && !privateChatPwaInjected) {
+      el.chatMessages.appendChild(renderPrivateChatPWAInlineCard());
+      privateChatPwaInjected = true;
+      console.log("📱 [1v1 Pacing] Injected compact PWA prompt at message 12.");
+    } else if (!privateChatPromoInjected) {
+      el.chatMessages.appendChild(renderPrivateChatHouseInlineCard());
+      privateChatPromoInjected = true;
+      console.log("💼 [1v1 Pacing] Injected compact MyLeader promo at message 12.");
+    }
+    setTimeout(() => {
+      if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+    }, 40);
+  }
+  // Threshold 2: At 24 messages - Monetize deep engagement with Adsterra banner or House promo
+  else if (privateChatMsgCounter === 24) {
+    if (!privateChatAdInjected) {
+      const status = getGroupHourlyAdsterraStatus();
+      if (status.canShow) {
+        injectPrivateChatAdsterraBanner(el.chatMessages);
+        incrementGroupHourlyAdsterraCount();
+        privateChatAdInjected = true;
+        console.log(`🎯 [1v1 Pacing] Injected Adsterra banner at message 24 (${status.count + 1}/${MAX_GROUP_ADSTERRA_PER_HOUR}).`);
+      } else if (!privateChatPromoInjected) {
+        el.chatMessages.appendChild(renderPrivateChatHouseInlineCard());
+        privateChatPromoInjected = true;
+        console.log("💼 [1v1 Pacing] Adsterra quota capped, injected MyLeader promo at message 24.");
+      }
+      setTimeout(() => {
+        if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+      }, 40);
+    }
+  }
+  // Threshold 3: At 36 messages
+  else if (privateChatMsgCounter === 36 && !privateChatPromoInjected) {
+    el.chatMessages.appendChild(renderPrivateChatHouseInlineCard());
+    privateChatPromoInjected = true;
+    console.log("🚀 [1v1 Pacing] Injected house promo card at message 36.");
+    setTimeout(() => {
+      if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+    }, 40);
+  }
+}
+
+function renderPrivateChatPWAInlineCard() {
+  const card = document.createElement("div");
+  card.className = "v2-chat-inline-card pwa";
+  card.innerHTML = `
+    <div class="v2-inline-card-content">
+      <img src="logo-sm.webp" alt="HashGANG" class="v2-inline-card-icon" width="32" height="32" />
+      <div class="v2-inline-card-body">
+        <div class="v2-inline-card-title">
+          <span>Add HashGANG to Home Screen</span>
+          <span class="v2-inline-card-tag">Fast App</span>
+        </div>
+        <p class="v2-inline-card-desc">Instant stranger chat without browser reload lag.</p>
+      </div>
+      <button class="v2-inline-card-btn pwa" onclick="handlePwaInstallPrompt(event)">
+        <i class="fa-solid fa-download"></i> Install
+      </button>
+    </div>
+  `;
+  return card;
+}
+
+function renderPrivateChatHouseInlineCard() {
+  const card = document.createElement("div");
+  card.className = "v2-chat-inline-card myleader";
+  card.innerHTML = `
+    <div class="v2-inline-card-content">
+      <div class="v2-inline-card-icon myleader">
+        <i class="fa-solid fa-rocket"></i>
+      </div>
+      <div class="v2-inline-card-body">
+        <div class="v2-inline-card-title">
+          <span>MyLeader AI Workspace</span>
+          <span class="v2-inline-card-tag business">Ad</span>
+        </div>
+        <p class="v2-inline-card-desc">Automate team payroll, attendance & leave policies with AI.</p>
+      </div>
+      <a href="https://hashgang.com" target="_blank" rel="noopener noreferrer" class="v2-inline-card-btn myleader">
+        <span>Explore</span> <i class="fa-solid fa-arrow-up-right-from-square"></i>
+      </a>
+    </div>
+  `;
+  return card;
+}
+
+let privateChatAdSequence = 0;
+function injectPrivateChatAdsterraBanner(container) {
+  if (!container) return;
+  privateChatAdSequence++;
+  const slotId = `v2-private-chat-ad-${privateChatAdSequence}`;
+  const wrapperId = `v2-private-chat-ad-wrapper-${privateChatAdSequence}`;
+
+  const adBox = document.createElement("div");
+  adBox.className = "v2-chat-inline-card ad";
+  adBox.id = wrapperId;
+  adBox.innerHTML = `
+    <span class="v2-micro-ad-badge">Ad</span>
+    <div id="${slotId}" class="v2-infeed-ad-slot">
+      <div class="v2-infeed-ad-placeholder">
+        <span class="v2-ad-loading-text"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading Ad...</span>
+      </div>
+    </div>
+  `;
+  container.appendChild(adBox);
+
+  setTimeout(() => {
+    try {
+      const slot = document.getElementById(slotId);
+      if (!slot) return;
+      const iframe = document.createElement("iframe");
+      iframe.width = "300";
+      iframe.height = "250";
+      iframe.style.border = "none";
+      iframe.style.overflow = "hidden";
+      iframe.style.borderRadius = "8px";
+      iframe.style.background = "transparent";
+      iframe.setAttribute("scrolling", "no");
+
+      const adHtml = `<!DOCTYPE html><html><head><base target="_blank"><style>body{margin:0;padding:0;display:flex;justify-content:center;align-items:center;background:transparent;overflow:hidden;height:100vh;}</style></head><body><script type="text/javascript">atOptions={'key':'ede40fc4ab13bf9c6140311ae9860f4f','format':'iframe','height':250,'width':300,'params':{}};</script><script type="text/javascript" src="https://www.highperformanceformat.com/ede40fc4ab13bf9c6140311ae9860f4f/invoke.js"></script></body></html>`;
+
+      if ("srcdoc" in iframe) {
+        iframe.srcdoc = adHtml;
+      }
+      if (iframe.contentWindow) {
+        try {
+          const doc = iframe.contentWindow.document;
+          doc.open();
+          doc.write(adHtml);
+          doc.close();
+        } catch (e) {}
+      }
+      iframe.onload = () => {
+        if (slot) slot.classList.add("loaded");
+      };
+      slot.innerHTML = "";
+      slot.appendChild(iframe);
+    } catch (e) {
+      console.warn("⚠️ [1v1 Adsterra Injection] Failed loading banner:", e);
+    }
+  }, 100);
 }
 
 let lastGroupMsgTime = 0;
@@ -3986,6 +4269,7 @@ async function executeInCallModeUpgrade(newMode, isInitiator) {
   if (!currentMatchTargetId || !socket || !socket.connected) return;
 
   currentChatMode = newMode;
+  window.currentChatMode = currentChatMode;
 
   // 1. Initialize local media
   const hasPerm = await initLocalMedia(newMode);
