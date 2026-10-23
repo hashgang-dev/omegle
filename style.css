@@ -3714,6 +3714,145 @@ html, body {
   box-shadow: 0 4px 14px rgba(168, 85, 247, 0.4);
 }
 
+/* Drawer Mini-Games Section */
+.v2-drawer-game-card {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  border-radius: 14px;
+  padding: 10px 14px;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.v2-drawer-game-card:hover {
+  background: rgba(250, 204, 21, 0.1);
+  border-color: rgba(250, 204, 21, 0.6);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(250, 204, 21, 0.2);
+}
+
+.v2-drawer-game-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
+  flex-shrink: 0;
+}
+
+.v2-drawer-game-info {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.v2-drawer-game-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.v2-drawer-game-title strong {
+  font-size: 0.88rem;
+  color: #fff;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.v2-drawer-game-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.15);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  padding: 1px 6px;
+  border-radius: 9999px;
+  letter-spacing: 0.4px;
+}
+
+.v2-drawer-game-desc {
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.7);
+  margin: 0;
+  line-height: 1.35;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.v2-btn-play-tile {
+  background: linear-gradient(135deg, #eab308, #ca8a04);
+  color: #000;
+  font-weight: 800;
+  font-size: 0.74rem;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 10px rgba(234, 179, 8, 0.35);
+  transition: all 0.2s ease;
+}
+
+.v2-drawer-game-card:hover .v2-btn-play-tile {
+  filter: brightness(1.15);
+  transform: scale(1.05);
+}
+
+@media (max-width: 480px) {
+  .v2-drawer-game-card {
+    padding: 9px 10px;
+    gap: 10px;
+  }
+  .v2-drawer-game-icon {
+    font-size: 1.6rem;
+  }
+  .v2-drawer-game-title strong {
+    font-size: 0.82rem;
+  }
+  .v2-drawer-game-desc {
+    font-size: 0.70rem;
+    line-height: 1.3;
+  }
+  .v2-btn-play-tile {
+    padding: 5px 10px;
+    font-size: 0.70rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .v2-drawer-game-card {
+    padding: 8px 8px;
+    gap: 8px;
+  }
+  .v2-drawer-game-icon {
+    font-size: 1.4rem;
+  }
+  .v2-drawer-game-title strong {
+    font-size: 0.76rem;
+  }
+  .v2-drawer-game-tag {
+    font-size: 0.58rem;
+    padding: 1px 4px;
+  }
+  .v2-drawer-game-desc {
+    font-size: 0.65rem;
+  }
+  .v2-btn-play-tile {
+    padding: 5px 8px;
+    font-size: 0.65rem;
+  }
+}
+
 /* Slide-Up 1-on-1 Call Drawer Modal */
 .v2-call-drawer-backdrop {
   position: fixed;
@@ -4822,6 +4961,524 @@ html, body {
     font-size: 0.75rem;
     border-radius: 6px;
     justify-content: center;
+  }
+}
+
+/* ==========================================================================
+   Single Player Balloon Pop Mini-Game (Bottom Docked, Above Input, Web Audio, Levels)
+   ========================================================================== */
+.v2-group-pinned-game-slot {
+  width: 100%;
+  max-width: 580px;
+  flex-shrink: 0;
+  z-index: 35;
+  margin-top: 4px;
+  margin-bottom: 6px;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.v2-game-card.balloon-pop {
+  width: 100%;
+  background: rgba(18, 14, 28, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  border-radius: 14px;
+  padding: 8px 10px 10px 10px;
+  box-shadow: 0 4px 22px rgba(0, 0, 0, 0.45), 0 0 15px rgba(250, 204, 21, 0.08);
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  animation: v2FadeInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.v2-game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  width: 100%;
+  flex-wrap: nowrap;
+}
+
+.v2-game-target-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  flex-shrink: 0;
+  box-shadow: 0 0 10px rgba(250, 204, 21, 0.2);
+}
+
+.v2-game-target-lbl {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.v2-game-target-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 8px currentColor;
+  animation: v2PulseDot 1.5s infinite ease-in-out;
+}
+
+.v2-game-meta-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.v2-game-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.v2-game-pill.level {
+  background: rgba(168, 85, 247, 0.18);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  color: #c084fc;
+}
+
+.v2-game-pill.score {
+  background: rgba(234, 179, 8, 0.18);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  color: #fde047;
+}
+
+.v2-game-hearts {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.72rem;
+}
+
+.v2-game-hearts .heart {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.v2-game-hearts .heart.lost {
+  opacity: 0.2;
+  filter: grayscale(1);
+  transform: scale(0.8);
+}
+
+.v2-game-ctrls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.v2-game-ctrl-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.v2-game-ctrl-btn.stop {
+  background: rgba(239, 68, 68, 0.14);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+
+.v2-game-ctrl-btn.stop:hover {
+  background: rgba(239, 68, 68, 0.3);
+  border-color: #ef4444;
+  color: #fff;
+  transform: scale(1.1);
+}
+
+/* Bottom Controls & Footer Bar (Below Conveyor Track - 100% Unobstructed Balloons) */
+.v2-game-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding: 0 4px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.v2-game-footer-hint {
+  font-size: 0.68rem;
+  color: rgba(255, 255, 255, 0.55);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.v2-game-footer-hint i {
+  color: #facc15;
+  font-size: 0.72rem;
+}
+
+.v2-game-bottom-ctrls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.v2-game-mini-ctrl-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.68rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.v2-game-mini-ctrl-btn:hover,
+.v2-game-mini-ctrl-btn:active {
+  background: rgba(250, 204, 21, 0.22);
+  border-color: rgba(250, 204, 21, 0.65);
+  color: #facc15;
+  transform: scale(1.1);
+}
+
+/* Conveyor Track Container */
+.v2-game-track-container {
+  width: 100%;
+  height: 78px;
+  border-radius: 10px;
+  background: radial-gradient(circle at 50% 50%, rgba(30, 20, 50, 0.6) 0%, rgba(10, 6, 20, 0.85) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+  touch-action: manipulation;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.v2-balloon-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: pointer;
+}
+
+/* Countdown Overlay */
+.v2-game-countdown-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 6, 20, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 15;
+  border-radius: 14px;
+}
+
+.v2-game-countdown-box {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #facc15;
+  text-shadow: 0 0 20px rgba(250, 204, 21, 0.6);
+  animation: v2CountdownPulse 0.8s ease-in-out infinite;
+}
+
+@keyframes v2CountdownPulse {
+  0% { transform: scale(0.6); opacity: 0.4; }
+  50% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 0.8; }
+}
+
+/* Level Up Centered Celebration Overlay (2-3s Breathing Break) */
+.v2-game-level-up-banner {
+  position: absolute;
+  inset: 0;
+  background: rgba(14, 8, 26, 0.88);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 21;
+  border-radius: 14px;
+  animation: v2FadeIn 0.25s ease;
+  pointer-events: none;
+}
+
+.v2-levelup-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  padding: 0 16px;
+}
+
+.v2-levelup-headline {
+  font-size: 1.05rem;
+  font-weight: 900;
+  background: linear-gradient(135deg, #facc15, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 16px rgba(250, 204, 21, 0.4);
+}
+
+.v2-levelup-sub {
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Game Paused Overlay */
+.v2-game-paused-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 6, 20, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 22;
+  border-radius: 14px;
+  animation: v2FadeIn 0.2s ease;
+  gap: 6px;
+}
+
+.v2-game-paused-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #facc15;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.5px;
+}
+
+.v2-game-paused-subtitle {
+  font-size: 0.76rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.v2-btn-resume {
+  background: linear-gradient(135deg, #eab308, #ca8a04);
+  color: #000;
+  font-weight: 800;
+  font-size: 0.76rem;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 14px rgba(234, 179, 8, 0.4);
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.v2-btn-resume:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+/* Game Over Overlay */
+.v2-game-over-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 6, 20, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 25;
+  border-radius: 14px;
+  animation: v2FadeIn 0.25s ease;
+}
+
+.v2-game-over-close-btn {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  z-index: 30;
+}
+
+.v2-game-over-close-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.55);
+  color: #fff;
+  transform: scale(1.1);
+}
+
+.v2-game-over-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  width: 90%;
+}
+
+.v2-game-over-title {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #ef4444;
+  letter-spacing: 0.5px;
+}
+
+.v2-game-over-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.v2-game-over-stats strong {
+  color: #facc15;
+}
+
+.v2-game-over-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.v2-btn-game-action {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.v2-btn-game-action.play-again {
+  background: linear-gradient(135deg, #eab308, #ca8a04);
+  color: #000;
+}
+
+.v2-btn-game-action.play-again:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.v2-btn-game-action.share-group {
+  background: rgba(168, 85, 247, 0.25);
+  border: 1px solid rgba(168, 85, 247, 0.45);
+  color: #e9d5ff;
+}
+
+.v2-btn-game-action.share-group:hover {
+  background: rgba(168, 85, 247, 0.4);
+}
+
+/* Minimized Floating Chip */
+.v2-game-minimized-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(26, 16, 42, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  border-radius: 9999px;
+  padding: 4px 12px;
+  color: #facc15;
+  font-size: 0.74rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  animation: v2FadeInUp 0.3s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.v2-game-minimized-chip:hover {
+  border-color: rgba(250, 204, 21, 0.6);
+  transform: translateY(-1px);
+}
+
+.v2-chip-action {
+  font-size: 0.65rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+@media (max-width: 420px) {
+  .v2-game-target-badge {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+  }
+  .v2-game-pill {
+    font-size: 0.62rem;
+    padding: 1px 5px;
+  }
+  .v2-game-track-container {
+    height: 70px;
+  }
+}
+
+@media (max-width: 440px) {
+  .v2-dock-call-trigger {
+    width: 30px;
+    height: 30px;
+    font-size: 0.82rem;
   }
 }
 

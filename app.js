@@ -927,6 +927,11 @@ function initSocketConnection() {
         requestAnimationFrame(scrollFeedToBottom);
         setTimeout(scrollFeedToBottom, 100);
         setTimeout(scrollFeedToBottom, 300);
+
+        // Auto-start Balloon Pop Mini-Game after 6.5s delay
+        if (typeof scheduleBalloonGameAutoStart === "function") {
+          scheduleBalloonGameAutoStart();
+        }
       }
     });
 
@@ -4434,3 +4439,959 @@ window.render1v1DiscoveryFeedCard = render1v1DiscoveryFeedCard;
 window.requestInCallModeUpgrade = requestInCallModeUpgrade;
 window.respondInCallModeUpgrade = respondInCallModeUpgrade;
 window.executeInCallModeUpgrade = executeInCallModeUpgrade;
+
+/* ==========================================================================
+   Single Player Balloon Pop Mini-Game Engine (Sticky Docked, Web Audio, Levels)
+   ========================================================================== */
+
+const BALLOON_COLORS = [
+  { name: "YELLOW", hex: "#facc15", label: "Yellow" },
+  { name: "RED", hex: "#ef4444", label: "Red" },
+  { name: "PINK", hex: "#ec4899", label: "Pink" },
+  { name: "GREEN", hex: "#22c55e", label: "Green" },
+  { name: "BLUE", hex: "#3b82f6", label: "Blue" },
+  { name: "PURPLE", hex: "#a855f7", label: "Purple" }
+];
+
+const BALLOON_LEVEL_CONFIG = [
+  { level: 1, speed: 65, targetColor: "YELLOW", targetPops: 5, colorHex: "#facc15" },
+  { level: 2, speed: 88, targetColor: "RED", targetPops: 7, colorHex: "#ef4444" },
+  { level: 3, speed: 115, targetColor: "PINK", targetPops: 9, colorHex: "#ec4899" },
+  { level: 4, speed: 145, targetColor: "GREEN", targetPops: 12, colorHex: "#22c55e" },
+  { level: 5, speed: 180, targetColor: "BLUE", targetPops: 15, colorHex: "#3b82f6" }
+];
+
+let balloonGameState = {
+  isActive: false,
+  isPaused: false,
+  isAutoPausedByInput: false,
+  level: 1,
+  score: 0,
+  hearts: 3,
+  currentLevelPops: 0,
+  targetColor: "YELLOW",
+  targetColorHex: "#facc15",
+  targetPopsNeeded: 5,
+  speed: 65,
+  streak: 1,
+  soundEnabled: true,
+  balloons: [],
+  particles: [],
+  floatingTexts: [],
+  levelDividers: [],
+  animationFrameId: null,
+  lastFrameTime: 0,
+  hasUserInteracted: false,
+  autoMinimizeTimer: null,
+  isMinimized: false,
+  isLevelTransition: false
+};
+
+let balloonAudioCtx = null;
+function getBalloonAudioContext() {
+  if (!balloonAudioCtx) {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass) balloonAudioCtx = new AudioContextClass();
+  }
+  if (balloonAudioCtx && balloonAudioCtx.state === "suspended") {
+    balloonAudioCtx.resume();
+  }
+  return balloonAudioCtx;
+}
+
+function playBalloonSynthSound(type) {
+  if (!balloonGameState.soundEnabled) return;
+  try {
+    const ctx = getBalloonAudioContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    if (type === "pop_correct") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(820, now + 0.08);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.12);
+    } else if (type === "pop_wrong") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(160, now);
+      osc.frequency.linearRampToValueAtTime(90, now + 0.15);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.15);
+    } else if (type === "levelup") {
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const start = now + (i * 0.06);
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(freq, start);
+        gain.gain.setValueAtTime(0.25, start);
+        gain.gain.exponentialRampToValueAtTime(0.01, start + 0.16);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.16);
+      });
+    } else if (type === "countdown_beep") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(520, now);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.1);
+    } else if (type === "countdown_go") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(880, now);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.25);
+    }
+  } catch (e) {}
+}
+
+function scheduleBalloonGameAutoStart() {
+  if (window.balloonGameAutoStarted || window.balloonGameDismissed) return;
+  window.balloonGameAutoStarted = true;
+
+  setTimeout(() => {
+    if (!window.balloonGameDismissed) {
+      initBalloonGame();
+    }
+  }, 6500);
+}
+
+function initBalloonGame() {
+  const slot = document.getElementById("v2-group-pinned-game-slot");
+  if (!slot) return;
+
+  slot.innerHTML = `
+    <div class="v2-game-card balloon-pop" id="v2-balloon-game-card">
+      <div class="v2-game-header">
+        <div class="v2-game-target-badge" id="v2-game-target-badge">
+          <span class="v2-game-target-lbl">POP</span>
+          <span class="v2-game-target-dot" id="v2-game-target-dot" style="background:#facc15;"></span>
+          <strong id="v2-game-target-name" style="color:#facc15;">YELLOW</strong>
+        </div>
+
+        <div class="v2-game-meta-pills">
+          <span class="v2-game-pill level" id="v2-game-level-pill">
+            <i class="fa-solid fa-bolt"></i> Lvl <span id="v2-game-level-num">1</span>
+          </span>
+          <span class="v2-game-pill score" id="v2-game-score-pill">
+            <i class="fa-solid fa-star"></i> <span id="v2-game-score-num">0</span>
+          </span>
+          <div class="v2-game-hearts" id="v2-game-hearts" title="Lives">
+            <span class="heart" id="v2-heart-1">❤️</span>
+            <span class="heart" id="v2-heart-2">❤️</span>
+            <span class="heart" id="v2-heart-3">❤️</span>
+          </div>
+        </div>
+
+        <div class="v2-game-ctrls">
+          <button class="v2-game-ctrl-btn stop" id="v2-game-stop-btn" onclick="stopBalloonGame()" title="Stop & Exit Game">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="v2-game-countdown-overlay hidden" id="v2-game-countdown-overlay">
+        <div class="v2-game-countdown-box" id="v2-game-countdown-text">3</div>
+      </div>
+
+      <div class="v2-game-paused-overlay hidden" id="v2-game-paused-overlay">
+        <div class="v2-game-paused-title">
+          <i class="fa-solid fa-circle-pause"></i> PAUSED
+        </div>
+        <div class="v2-game-paused-subtitle">
+          Level <strong id="v2-game-paused-lvl">1</strong> • Score <strong id="v2-game-paused-score">0</strong>
+        </div>
+        <button class="v2-btn-resume" onclick="resumeBalloonGame()">
+          <i class="fa-solid fa-play"></i> Resume
+        </button>
+      </div>
+
+      <div class="v2-game-level-up-banner hidden" id="v2-game-levelup-banner">
+        <div class="v2-levelup-box">
+          <div class="v2-levelup-headline" id="v2-levelup-headline">🎉 LEVEL 1 CLEARED!</div>
+          <div class="v2-levelup-sub">Get Ready: POP <strong id="v2-levelup-color" style="color: #ef4444;">RED</strong> 🎯</div>
+        </div>
+      </div>
+
+      <div class="v2-game-track-container" id="v2-game-track-container">
+        <canvas id="v2-balloon-game-canvas" class="v2-balloon-canvas"></canvas>
+      </div>
+
+      <!-- Dedicated Controls & Status Footer (Below Canvas Track - Zero Obstruction to Balloons) -->
+      <div class="v2-game-footer">
+        <span class="v2-game-footer-hint"><i class="fa-regular fa-hand-pointer"></i> Tap matching balloons</span>
+        <div class="v2-game-bottom-ctrls">
+          <button class="v2-game-mini-ctrl-btn" id="v2-game-pause-btn" onclick="toggleBalloonGamePause()" title="Pause/Resume Game">
+            <i class="fa-solid fa-pause"></i>
+          </button>
+          <button class="v2-game-mini-ctrl-btn" id="v2-game-sound-btn" onclick="toggleBalloonGameSound()" title="Sound On/Off">
+            <i class="fa-solid fa-volume-high"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="v2-game-over-overlay hidden" id="v2-game-over-overlay">
+        <!-- Top-Right Close Icon -->
+        <button class="v2-game-over-close-btn close-game" id="v2-game-over-close-btn" onclick="dismissBalloonGame()" title="Close Game">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="v2-game-over-content">
+          <div class="v2-game-over-title">💥 POPPED OUT!</div>
+          <div class="v2-game-over-stats">
+            <span>Score: <strong id="v2-game-final-score">0</strong></span>
+            <span>Reached: <strong id="v2-game-final-level">Level 1</strong></span>
+          </div>
+          <div class="v2-game-over-actions">
+            <button class="v2-btn-game-action play-again" onclick="restartBalloonGame()">
+              <i class="fa-solid fa-rotate-right"></i> Play Again
+            </button>
+            <button class="v2-btn-game-action share-group" onclick="shareBalloonScoreInGroup()">
+              <i class="fa-solid fa-comment-dots"></i> Post Score in Group
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  slot.classList.remove("hidden");
+  balloonGameState.isMinimized = false;
+
+  // Auto-pause when user focuses group input field to type
+  const groupInputField = document.getElementById("v2-group-input-field");
+  if (groupInputField && !groupInputField._balloonPauseBound) {
+    groupInputField._balloonPauseBound = true;
+    groupInputField.addEventListener("focus", () => {
+      if (balloonGameState.isActive && !balloonGameState.isPaused && !balloonGameState.isMinimized) {
+        pauseBalloonGame(true);
+      }
+    });
+  }
+
+  setupBalloonCanvas();
+  startBalloonGameCountdown();
+}
+
+function setupBalloonCanvas() {
+  const canvas = document.getElementById("v2-balloon-game-canvas");
+  const container = document.getElementById("v2-game-track-container");
+  if (!canvas || !container) return;
+
+  const rect = container.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(300, rect.width) * dpr;
+  canvas.height = 78 * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+
+  canvas.addEventListener("pointerdown", handleBalloonCanvasTouch);
+}
+
+function startBalloonGameCountdown() {
+  const overlay = document.getElementById("v2-game-countdown-overlay");
+  const countText = document.getElementById("v2-game-countdown-text");
+  if (!overlay || !countText) return;
+
+  overlay.classList.remove("hidden");
+  let count = 3;
+  countText.textContent = count;
+  playBalloonSynthSound("countdown_beep");
+
+  const interval = setInterval(() => {
+    count--;
+    if (count > 0) {
+      countText.textContent = count;
+      playBalloonSynthSound("countdown_beep");
+    } else if (count === 0) {
+      countText.textContent = "GO!";
+      playBalloonSynthSound("countdown_go");
+    } else {
+      clearInterval(interval);
+      overlay.classList.add("hidden");
+      startBalloonGameLoop();
+    }
+  }, 750);
+}
+
+function resetBalloonGameState() {
+  const cfg = BALLOON_LEVEL_CONFIG[0];
+  balloonGameState.level = 1;
+  balloonGameState.score = 0;
+  balloonGameState.hearts = 3;
+  balloonGameState.currentLevelPops = 0;
+  balloonGameState.targetColor = cfg.targetColor;
+  balloonGameState.targetColorHex = cfg.colorHex;
+  balloonGameState.targetPopsNeeded = cfg.targetPops;
+  balloonGameState.speed = cfg.speed;
+  balloonGameState.streak = 1;
+  balloonGameState.balloons = [];
+  balloonGameState.particles = [];
+  balloonGameState.floatingTexts = [];
+  balloonGameState.levelDividers = [];
+  balloonGameState.hasUserInteracted = false;
+  balloonGameState.isActive = true;
+  balloonGameState.isPaused = false;
+  balloonGameState.isAutoPausedByInput = false;
+
+  updateBalloonGameUI();
+}
+
+function updateBalloonGameUI() {
+  const targetDot = document.getElementById("v2-game-target-dot");
+  const targetName = document.getElementById("v2-game-target-name");
+  const targetBadge = document.getElementById("v2-game-target-badge");
+  const scoreNum = document.getElementById("v2-game-score-num");
+  const levelNum = document.getElementById("v2-game-level-num");
+
+  if (targetDot) {
+    targetDot.style.background = balloonGameState.targetColorHex;
+    targetDot.style.color = balloonGameState.targetColorHex;
+  }
+  if (targetName) {
+    targetName.textContent = balloonGameState.targetColor;
+    targetName.style.color = balloonGameState.targetColorHex;
+  }
+  if (targetBadge) {
+    targetBadge.style.boxShadow = `0 0 10px ${balloonGameState.targetColorHex}40`;
+  }
+  if (scoreNum) scoreNum.textContent = balloonGameState.score;
+  if (levelNum) levelNum.textContent = balloonGameState.level;
+
+  for (let i = 1; i <= 3; i++) {
+    const heartEl = document.getElementById(`v2-heart-${i}`);
+    if (heartEl) {
+      if (i <= balloonGameState.hearts) {
+        heartEl.classList.remove("lost");
+      } else {
+        heartEl.classList.add("lost");
+      }
+    }
+  }
+
+  const chipScore = document.getElementById("v2-chip-score");
+  const chipLevel = document.getElementById("v2-chip-level");
+  if (chipScore) chipScore.textContent = balloonGameState.score;
+  if (chipLevel) chipLevel.textContent = `Lvl ${balloonGameState.level}`;
+}
+
+function startBalloonGameLoop() {
+  resetBalloonGameState();
+  balloonGameState.lastFrameTime = performance.now();
+  if (balloonGameState.animationFrameId) cancelAnimationFrame(balloonGameState.animationFrameId);
+  balloonGameState.animationFrameId = requestAnimationFrame(balloonGameTick);
+}
+
+function balloonGameTick(timestamp) {
+  if (!balloonGameState.isActive || balloonGameState.isPaused) {
+    balloonGameState.animationFrameId = null;
+    return;
+  }
+
+  const dt = Math.min(0.1, (timestamp - balloonGameState.lastFrameTime) / 1000);
+  balloonGameState.lastFrameTime = timestamp;
+
+  const canvas = document.getElementById("v2-balloon-game-canvas");
+  if (canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.width / dpr;
+    const height = canvas.height / dpr;
+    const ctx = canvas.getContext("2d");
+
+    ctx.clearRect(0, 0, width, height);
+
+    // 1. If not in level transition break, spawn and advance balloons
+    if (!balloonGameState.isLevelTransition) {
+      maybeSpawnBalloon(width, height);
+
+      // 2. Update & Draw Balloons
+      for (let i = balloonGameState.balloons.length - 1; i >= 0; i--) {
+        const b = balloonGameState.balloons[i];
+        b.x -= balloonGameState.speed * dt;
+        drawBalloon(ctx, b);
+
+        if (b.x < -40) {
+          balloonGameState.balloons.splice(i, 1);
+        }
+      }
+    } else {
+      // Transition break (2.2s rest): render balloons statically
+      for (let i = 0; i < balloonGameState.balloons.length; i++) {
+        drawBalloon(ctx, balloonGameState.balloons[i]);
+      }
+    }
+
+    // 3. Update & Draw Level Divider Checkpoint Ribbons
+    for (let i = balloonGameState.levelDividers.length - 1; i >= 0; i--) {
+      const d = balloonGameState.levelDividers[i];
+      d.x -= balloonGameState.speed * dt;
+      drawLevelDivider(ctx, d, height);
+
+      // Trigger ambient glow when divider crosses center
+      if (!d.passedCenter && d.x <= (width / 2)) {
+        d.passedCenter = true;
+        const track = document.getElementById("v2-game-track-container");
+        if (track) {
+          track.style.borderColor = `${d.colorHex}90`;
+          track.style.boxShadow = `inset 0 0 16px ${d.colorHex}35, 0 0 12px ${d.colorHex}25`;
+        }
+      }
+
+      if (d.x < -200) {
+        balloonGameState.levelDividers.splice(i, 1);
+      }
+    }
+
+    // 4. Update & Draw Particles
+    for (let i = balloonGameState.particles.length - 1; i >= 0; i--) {
+      const p = balloonGameState.particles[i];
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.alpha -= 1.8 * dt;
+
+      if (p.alpha <= 0) {
+        balloonGameState.particles.splice(i, 1);
+      } else {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.alpha);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // 4. Update & Draw Floating Score Texts
+    for (let i = balloonGameState.floatingTexts.length - 1; i >= 0; i--) {
+      const ft = balloonGameState.floatingTexts[i];
+      ft.y -= 30 * dt;
+      ft.alpha -= 1.5 * dt;
+
+      if (ft.alpha <= 0) {
+        balloonGameState.floatingTexts.splice(i, 1);
+      } else {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, ft.alpha);
+        ctx.fillStyle = ft.color;
+        ctx.font = "bold 13px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      }
+    }
+  }
+
+  balloonGameState.animationFrameId = requestAnimationFrame(balloonGameTick);
+}
+
+function maybeSpawnBalloon(canvasWidth, canvasHeight) {
+  const minSpacing = 75;
+  const lastBalloon = balloonGameState.balloons[balloonGameState.balloons.length - 1];
+
+  if (!lastBalloon || (canvasWidth - lastBalloon.x) >= minSpacing) {
+    let chosenColor;
+    if (Math.random() < 0.40) {
+      chosenColor = BALLOON_COLORS.find(c => c.name === balloonGameState.targetColor) || BALLOON_COLORS[0];
+    } else {
+      const otherColors = BALLOON_COLORS.filter(c => c.name !== balloonGameState.targetColor);
+      chosenColor = otherColors[Math.floor(Math.random() * otherColors.length)];
+    }
+
+    const yCenter = (canvasHeight / 2) + ((Math.random() - 0.5) * 14);
+
+    balloonGameState.balloons.push({
+      x: canvasWidth + 25,
+      y: yCenter,
+      radiusX: 18,
+      radiusY: 22,
+      color: chosenColor,
+      wobbleOffset: Math.random() * Math.PI * 2
+    });
+  }
+}
+
+function drawBalloon(ctx, b) {
+  ctx.save();
+  const x = b.x;
+  const y = b.y;
+  const rx = b.radiusX;
+  const ry = b.radiusY;
+
+  // Dangler String
+  ctx.beginPath();
+  ctx.moveTo(x, y + ry);
+  ctx.quadraticCurveTo(x + 5, y + ry + 8, x - 2, y + ry + 16);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Balloon Knot
+  ctx.beginPath();
+  ctx.moveTo(x - 3, y + ry);
+  ctx.lineTo(x + 3, y + ry);
+  ctx.lineTo(x, y + ry + 4);
+  ctx.fillStyle = b.color.hex;
+  ctx.fill();
+
+  // Balloon Body Oval
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fillStyle = b.color.hex;
+  ctx.shadowColor = b.color.hex;
+  ctx.shadowBlur = 8;
+  ctx.fill();
+
+  // Glossy Specular Highlight
+  ctx.beginPath();
+  ctx.ellipse(x - (rx * 0.35), y - (ry * 0.35), rx * 0.3, ry * 0.4, -0.4, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+  ctx.shadowBlur = 0;
+  ctx.fill();
+
+  ctx.restore();
+}
+
+function drawLevelDivider(ctx, d, height) {
+  ctx.save();
+  const x = d.x;
+
+  // 1. Vertical glowing laser ribbon beam
+  const grad = ctx.createLinearGradient(x, 0, x, height);
+  grad.addColorStop(0, "rgba(255, 255, 255, 0)");
+  grad.addColorStop(0.2, d.colorHex);
+  grad.addColorStop(0.5, "#ffffff");
+  grad.addColorStop(0.8, d.colorHex);
+  grad.addColorStop(1, "rgba(255, 255, 255, 0)");
+
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = d.colorHex;
+  ctx.shadowBlur = 12;
+
+  ctx.beginPath();
+  ctx.moveTo(x, 2);
+  ctx.lineTo(x, height - 2);
+  ctx.stroke();
+
+  // 2. Floating High-Contrast Pill Banner
+  const pillW = 146;
+  const pillH = 24;
+  const pillX = x - (pillW / 2);
+  const pillY = (height / 2) - (pillH / 2);
+  const radius = 12;
+
+  ctx.shadowBlur = 14;
+  ctx.shadowColor = d.colorHex;
+  ctx.fillStyle = "rgba(12, 8, 22, 0.94)";
+  ctx.strokeStyle = d.colorHex;
+  ctx.lineWidth = 1.5;
+
+  ctx.beginPath();
+  if (typeof ctx.roundRect === "function") {
+    ctx.roundRect(pillX, pillY, pillW, pillH, radius);
+  } else {
+    ctx.rect(pillX, pillY, pillW, pillH);
+  }
+  ctx.fill();
+  ctx.stroke();
+
+  // 3. Text: 🏁 LVL X • POP COLOR 🎯
+  ctx.shadowBlur = 0;
+  ctx.font = "bold 11px Inter, sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(`🏁 LVL ${d.level} • POP `, pillX + 52, pillY + (pillH / 2));
+
+  ctx.fillStyle = d.colorHex;
+  ctx.fillText(`${d.targetColor}!`, pillX + 115, pillY + (pillH / 2));
+
+  ctx.restore();
+}
+
+function handleBalloonCanvasTouch(e) {
+  if (!balloonGameState.isActive || balloonGameState.isPaused) return;
+  e.preventDefault();
+
+  const canvas = document.getElementById("v2-balloon-game-canvas");
+  if (!canvas) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+  const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+
+  const clickX = clientX - rect.left;
+  const clickY = clientY - rect.top;
+
+  balloonGameState.hasUserInteracted = true;
+  if (balloonGameState.autoMinimizeTimer) clearTimeout(balloonGameState.autoMinimizeTimer);
+
+  for (let i = balloonGameState.balloons.length - 1; i >= 0; i--) {
+    const b = balloonGameState.balloons[i];
+    const dx = clickX - b.x;
+    const dy = clickY - b.y;
+    const distSq = (dx * dx) / (b.radiusX * b.radiusX) + (dy * dy) / (b.radiusY * b.radiusY);
+
+    if (distSq <= 1.25) {
+      const isTarget = (b.color.name === balloonGameState.targetColor);
+      balloonGameState.balloons.splice(i, 1);
+
+      if (isTarget) {
+        const points = 10 * balloonGameState.streak;
+        balloonGameState.score += points;
+        balloonGameState.streak = Math.min(4, balloonGameState.streak + 1);
+        balloonGameState.currentLevelPops++;
+
+        playBalloonSynthSound("pop_correct");
+        spawnPopParticles(b.x, b.y, b.color.hex);
+        spawnFloatingText(b.x, b.y - 10, `+${points}`, "#facc15");
+
+        if (balloonGameState.currentLevelPops >= balloonGameState.targetPopsNeeded) {
+          advanceBalloonGameLevel();
+        }
+      } else {
+        balloonGameState.hearts--;
+        balloonGameState.streak = 1;
+        balloonGameState.score = Math.max(0, balloonGameState.score - 5);
+
+        playBalloonSynthSound("pop_wrong");
+        spawnPopParticles(b.x, b.y, "#ef4444");
+        spawnFloatingText(b.x, b.y - 10, "-5 💔", "#ef4444");
+
+        if (balloonGameState.hearts <= 0) {
+          endBalloonGameOver();
+          return;
+        }
+      }
+
+      updateBalloonGameUI();
+      break;
+    }
+  }
+}
+
+function spawnPopParticles(x, y, color) {
+  for (let i = 0; i < 9; i++) {
+    const angle = (Math.PI * 2 * i) / 9 + (Math.random() * 0.4);
+    const speed = 40 + Math.random() * 70;
+    balloonGameState.particles.push({
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      color,
+      size: 2.5 + Math.random() * 2,
+      alpha: 1.0
+    });
+  }
+}
+
+function spawnFloatingText(x, y, text, color) {
+  balloonGameState.floatingTexts.push({
+    x,
+    y,
+    text,
+    color,
+    alpha: 1.0
+  });
+}
+
+function advanceBalloonGameLevel() {
+  const completedLevel = balloonGameState.level;
+  balloonGameState.level++;
+  balloonGameState.currentLevelPops = 0;
+  balloonGameState.isLevelTransition = true;
+
+  const nextConfig = BALLOON_LEVEL_CONFIG[balloonGameState.level - 1] || {
+    level: balloonGameState.level,
+    speed: Math.min(240, 180 + (balloonGameState.level - 5) * 20),
+    targetColor: BALLOON_COLORS[(balloonGameState.level - 1) % BALLOON_COLORS.length].name,
+    colorHex: BALLOON_COLORS[(balloonGameState.level - 1) % BALLOON_COLORS.length].hex,
+    targetPops: 15 + (balloonGameState.level - 5) * 3
+  };
+
+  balloonGameState.targetColor = nextConfig.targetColor;
+  balloonGameState.targetColorHex = nextConfig.colorHex;
+  balloonGameState.targetPopsNeeded = nextConfig.targetPops;
+  balloonGameState.speed = nextConfig.speed;
+
+  playBalloonSynthSound("levelup");
+
+  // Reset conveyor balloons so new level starts fresh after the rest break
+  balloonGameState.balloons = [];
+  balloonGameState.levelDividers = [];
+
+  // Show Centered Level Up Celebration Banner (2.2s Rest Break)
+  const banner = document.getElementById("v2-game-levelup-banner");
+  const headline = document.getElementById("v2-levelup-headline");
+  const colorSpan = document.getElementById("v2-levelup-color");
+
+  if (banner) {
+    if (headline) headline.textContent = `🎉 LEVEL ${completedLevel} CLEARED!`;
+    if (colorSpan) {
+      colorSpan.textContent = nextConfig.targetColor;
+      colorSpan.style.color = nextConfig.colorHex;
+    }
+    banner.classList.remove("hidden");
+  }
+
+  // Ambient glow pulse on track container
+  const track = document.getElementById("v2-game-track-container");
+  if (track) {
+    track.style.borderColor = `${nextConfig.colorHex}90`;
+    track.style.boxShadow = `inset 0 0 20px ${nextConfig.colorHex}40, 0 0 14px ${nextConfig.colorHex}30`;
+  }
+
+  updateBalloonGameUI();
+
+  // 2.2 seconds breathing break
+  setTimeout(() => {
+    balloonGameState.isLevelTransition = false;
+    if (banner) banner.classList.add("hidden");
+    balloonGameState.lastFrameTime = performance.now();
+  }, 2200);
+}
+
+function stopBalloonGame() {
+  endBalloonGameOver("💥 GAME STOPPED");
+}
+
+function endBalloonGameOver(customTitle = "💥 POPPED OUT!") {
+  balloonGameState.isActive = false;
+  if (balloonGameState.animationFrameId) {
+    cancelAnimationFrame(balloonGameState.animationFrameId);
+    balloonGameState.animationFrameId = null;
+  }
+
+  const overlay = document.getElementById("v2-game-over-overlay");
+  const titleEl = overlay ? overlay.querySelector(".v2-game-over-title") : null;
+  const finalScore = document.getElementById("v2-game-final-score");
+  const finalLevel = document.getElementById("v2-game-final-level");
+
+  if (titleEl) titleEl.textContent = customTitle;
+  if (finalScore) finalScore.textContent = balloonGameState.score;
+  if (finalLevel) finalLevel.textContent = `Level ${balloonGameState.level}`;
+  if (overlay) overlay.classList.remove("hidden");
+}
+
+function restartBalloonGame() {
+  const overlay = document.getElementById("v2-game-over-overlay");
+  if (overlay) overlay.classList.add("hidden");
+  startBalloonGameCountdown();
+}
+
+function shareBalloonScoreInGroup() {
+  if (typeof socket !== "undefined" && socket && socket.connected) {
+    const text = `🎈 Just scored ${balloonGameState.score} points reaching Level ${balloonGameState.level} in Pop Color Balloon! Can anyone beat me? ⚡`;
+    socket.emit("send_group_msg", { text });
+    if (typeof v2ShowToast === "function") {
+      v2ShowToast("🎉 Posted your score to the Group Lounge!");
+    }
+  }
+}
+
+function toggleBalloonGameSound() {
+  balloonGameState.soundEnabled = !balloonGameState.soundEnabled;
+  const btn = document.getElementById("v2-game-sound-btn");
+  if (btn) {
+    btn.innerHTML = balloonGameState.soundEnabled
+      ? '<i class="fa-solid fa-volume-high"></i>'
+      : '<i class="fa-solid fa-volume-xmark" style="color:#ef4444;"></i>';
+  }
+}
+
+function minimizeBalloonGame() {
+  balloonGameState.isMinimized = true;
+  balloonGameState.isPaused = true;
+  const card = document.getElementById("v2-balloon-game-card");
+  const chip = document.getElementById("v2-game-minimized-chip");
+
+  if (card) card.classList.add("hidden");
+  if (chip) chip.classList.remove("hidden");
+}
+
+function expandBalloonGame() {
+  balloonGameState.isMinimized = false;
+  balloonGameState.isPaused = false;
+  balloonGameState.hasUserInteracted = true;
+  const card = document.getElementById("v2-balloon-game-card");
+  const chip = document.getElementById("v2-game-minimized-chip");
+
+  if (chip) chip.classList.add("hidden");
+  if (card) card.classList.remove("hidden");
+
+  balloonGameState.lastFrameTime = performance.now();
+  if (balloonGameState.isActive) {
+    if (balloonGameState.animationFrameId) cancelAnimationFrame(balloonGameState.animationFrameId);
+    balloonGameState.animationFrameId = requestAnimationFrame(balloonGameTick);
+  }
+}
+
+function dismissBalloonGame() {
+  window.balloonGameDismissed = true;
+  balloonGameState.isActive = false;
+  if (balloonGameState.autoMinimizeTimer) {
+    clearTimeout(balloonGameState.autoMinimizeTimer);
+    balloonGameState.autoMinimizeTimer = null;
+  }
+  if (balloonGameState.animationFrameId) {
+    cancelAnimationFrame(balloonGameState.animationFrameId);
+    balloonGameState.animationFrameId = null;
+  }
+  const slot = document.getElementById("v2-group-pinned-game-slot");
+  if (slot) {
+    slot.classList.add("hidden");
+    slot.innerHTML = "";
+  }
+}
+
+function toggleBalloonGamePause() {
+  if (!balloonGameState.isActive) return;
+  if (balloonGameState.isPaused) {
+    resumeBalloonGame();
+  } else {
+    pauseBalloonGame(false);
+  }
+}
+
+function pauseBalloonGame(isAutoPaused = false) {
+  if (!balloonGameState.isActive || balloonGameState.isPaused) return;
+  balloonGameState.isPaused = true;
+  balloonGameState.isAutoPausedByInput = isAutoPaused;
+  balloonGameState.hasUserInteracted = true;
+
+  if (balloonGameState.autoMinimizeTimer) {
+    clearTimeout(balloonGameState.autoMinimizeTimer);
+    balloonGameState.autoMinimizeTimer = null;
+  }
+
+  if (balloonGameState.animationFrameId) {
+    cancelAnimationFrame(balloonGameState.animationFrameId);
+    balloonGameState.animationFrameId = null;
+  }
+
+  const pauseBtn = document.getElementById("v2-game-pause-btn");
+  if (pauseBtn) {
+    pauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+    pauseBtn.title = "Resume Game";
+  }
+
+  const pausedOverlay = document.getElementById("v2-game-paused-overlay");
+  const pausedLvl = document.getElementById("v2-game-paused-lvl");
+  const pausedScore = document.getElementById("v2-game-paused-score");
+  if (pausedLvl) pausedLvl.textContent = balloonGameState.level;
+  if (pausedScore) pausedScore.textContent = balloonGameState.score;
+  if (pausedOverlay) pausedOverlay.classList.remove("hidden");
+}
+
+function resumeBalloonGame() {
+  if (!balloonGameState.isActive || !balloonGameState.isPaused) return;
+  balloonGameState.isPaused = false;
+  balloonGameState.isAutoPausedByInput = false;
+  balloonGameState.hasUserInteracted = true;
+
+  if (balloonGameState.autoMinimizeTimer) {
+    clearTimeout(balloonGameState.autoMinimizeTimer);
+    balloonGameState.autoMinimizeTimer = null;
+  }
+
+  const pauseBtn = document.getElementById("v2-game-pause-btn");
+  if (pauseBtn) {
+    pauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+    pauseBtn.title = "Pause Game";
+  }
+
+  const pausedOverlay = document.getElementById("v2-game-paused-overlay");
+  if (pausedOverlay) pausedOverlay.classList.add("hidden");
+
+  balloonGameState.lastFrameTime = performance.now();
+  if (balloonGameState.animationFrameId) {
+    cancelAnimationFrame(balloonGameState.animationFrameId);
+    balloonGameState.animationFrameId = null;
+  }
+  balloonGameState.animationFrameId = requestAnimationFrame(balloonGameTick);
+}
+
+function toggleBalloonGameFromDock() {
+  const slot = document.getElementById("v2-group-pinned-game-slot");
+  const card = document.getElementById("v2-balloon-game-card");
+
+  // If game is not active or slot is hidden/empty:
+  if (!balloonGameState.isActive || !slot || slot.classList.contains("hidden") || !card) {
+    window.balloonGameDismissed = false;
+    initBalloonGame();
+    return;
+  }
+
+  // If game is minimized: expand and resume
+  if (balloonGameState.isMinimized) {
+    expandBalloonGame();
+    return;
+  }
+
+  // If game is paused: resume
+  if (balloonGameState.isPaused) {
+    resumeBalloonGame();
+    return;
+  }
+
+  // Otherwise, toggle minimize
+  minimizeBalloonGame();
+}
+
+function launchBalloonGameFromDrawer() {
+  if (typeof closeV2CallDrawer === "function") {
+    closeV2CallDrawer();
+  }
+  window.balloonGameDismissed = false;
+  balloonGameState.hasUserInteracted = true;
+  initBalloonGame();
+  const slot = document.getElementById("v2-group-pinned-game-slot");
+  if (slot) {
+    slot.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+}
+
+window.scheduleBalloonGameAutoStart = scheduleBalloonGameAutoStart;
+window.initBalloonGame = initBalloonGame;
+window.restartBalloonGame = restartBalloonGame;
+window.shareBalloonScoreInGroup = shareBalloonScoreInGroup;
+window.toggleBalloonGameSound = toggleBalloonGameSound;
+window.toggleBalloonGamePause = toggleBalloonGamePause;
+window.pauseBalloonGame = pauseBalloonGame;
+window.resumeBalloonGame = resumeBalloonGame;
+window.stopBalloonGame = stopBalloonGame;
+window.launchBalloonGameFromDrawer = launchBalloonGameFromDrawer;
+window.toggleBalloonGameFromDock = toggleBalloonGameFromDock;
+window.dismissBalloonGame = dismissBalloonGame;
+window.advanceBalloonGameLevel = advanceBalloonGameLevel;
+window.balloonGameState = balloonGameState;
+

@@ -395,6 +395,9 @@
             <button class="v2-group-reply-dismiss" onclick="cancelGroupReply()">&times;</button>
           </div>
 
+          <!-- Pinned Mini-Game Slot (Bottom-Docked, Above Input Field, Easy Thumb Reach) -->
+          <div id="v2-group-pinned-game-slot" class="v2-group-pinned-game-slot bottom-docked hidden"></div>
+
           <!-- Group Message Input Dock (Full Width, Centered) with Attachment-Style Thunder Trigger -->
           <div class="v2-group-dock">
             <div class="v2-group-input-pill">
@@ -444,10 +447,6 @@
                 </div>
               </div>
 
-              <div class="v2-drawer-divider">
-                <span>OR</span>
-              </div>
-
               <!-- Section 2: Invite your friends via private link -->
               <div class="v2-drawer-section">
                 <div class="v2-drawer-section-title">
@@ -466,6 +465,27 @@
                   <button class="v2-drawer-tile link-text" id="v2-btn-share-direct-text" onclick="triggerDirect1v1Share('text')" title="Share Private Text Chat Link">
                     <div class="v2-drawer-tile-icon"><i class="fa-solid fa-message"></i></div>
                     <span class="v2-drawer-tile-label">Text Link</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Section 3: Lounge Mini-Games -->
+              <div class="v2-drawer-section">
+                <div class="v2-drawer-section-title">
+                  <i class="fa-solid fa-gamepad text-yellow-400"></i>
+                  <span>Mini Games</span>
+                </div>
+                <div class="v2-drawer-game-card" id="v2-drawer-balloon-game-card" onclick="launchBalloonGameFromDrawer()">
+                  <div class="v2-drawer-game-icon">🎈</div>
+                  <div class="v2-drawer-game-info">
+                    <div class="v2-drawer-game-title">
+                      <strong>Pop Color Balloon</strong>
+                      <span class="v2-drawer-game-tag">SOLO</span>
+                    </div>
+                    <p class="v2-drawer-game-desc">Pop matching colors on the conveyor belt & level up!</p>
+                  </div>
+                  <button class="v2-btn-play-tile" title="Play Game">
+                    <i class="fa-solid fa-play"></i> PLAY
                   </button>
                 </div>
               </div>
