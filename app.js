@@ -3246,11 +3246,47 @@ function escapeHtml(text) {
     .replace(/'/g, "&#039;");
 }
 
+function extractGameChallenge(text, gameScore) {
+  if (gameScore && typeof gameScore === "object" && gameScore.score) {
+    return {
+      score: parseInt(gameScore.score, 10),
+      level: parseInt(gameScore.level || 1, 10),
+      game: gameScore.game || "Pop Color Balloon",
+      beatChallenger: gameScore.beatChallenger || null
+    };
+  }
+  if (!text || typeof text !== "string") return null;
+  const match1 = text.match(/(?:Just scored|scored)\s+(\d+)\s+points\s+reaching\s+Level\s+(\d+)\s+in\s+Pop Color Balloon/i);
+  if (match1) {
+    return {
+      score: parseInt(match1[1], 10),
+      level: parseInt(match1[2], 10),
+      game: "Pop Color Balloon",
+      beatChallenger: null
+    };
+  }
+  const match2 = text.match(/with\s+(\d+)\s+points\s+\(Level\s+(\d+)\)\s+in\s+Pop Color Balloon/i);
+  if (match2) {
+    return {
+      score: parseInt(match2[1], 10),
+      level: parseInt(match2[2], 10),
+      game: "Pop Color Balloon",
+      beatChallenger: null
+    };
+  }
+  return null;
+}
+
 function renderGroupMessageRow(msg) {
   const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
   const row = document.createElement("div");
   row.className = `v2-group-msg-row ${isSelf ? "self" : "other"}`;
   row.id = `msg-${msg.id}`;
+
+  const challengeInfo = extractGameChallenge(msg.text, msg.gameScore);
+  if (challengeInfo) {
+    row.classList.add("game-challenge");
+  }
 
   let replyHtml = "";
   if (msg.replyTo) {
@@ -3296,11 +3332,42 @@ function renderGroupMessageRow(msg) {
     ? `<span class="v2-msg-sender-name self"><span class="v2-you-pill">You</span> ${senderNick}</span>`
     : `<span class="v2-msg-sender-name">${senderNick}</span>`;
 
+  let bubbleContentHtml;
+  if (challengeInfo) {
+    bubbleContentHtml = `
+      <div class="v2-game-challenge-bubble">
+        <div class="v2-challenge-header">
+          <span class="v2-challenge-badge"><i class="fa-solid fa-trophy"></i> CHALLENGE</span>
+          <span class="v2-challenge-game">🎈 Pop Color Balloon</span>
+        </div>
+        <div class="v2-challenge-stats">
+          <div class="v2-challenge-stat-item">
+            <span class="v2-stat-lbl">SCORE TO BEAT</span>
+            <span class="v2-stat-val score">${challengeInfo.score}</span>
+          </div>
+          <div class="v2-challenge-stat-sep"></div>
+          <div class="v2-challenge-stat-item">
+            <span class="v2-stat-lbl">REACHED</span>
+            <span class="v2-stat-val level">Lvl ${challengeInfo.level}</span>
+          </div>
+        </div>
+        <p class="v2-challenge-caption">
+          ${isSelf ? "I set this score! Think anyone here can beat it? ⚡" : `Can you beat ${senderNick}'s high score of <strong>${challengeInfo.score} pts</strong>?`}
+        </p>
+        <button class="v2-btn-challenge-play ${isSelf ? 'self-beat' : ''}" onclick="launchBalloonGameWithTarget(${challengeInfo.score}, '${senderNick}')">
+          <i class="fa-solid fa-bolt"></i> ${isSelf ? 'Beat My Score' : `Beat ${senderNick}'s Score (${challengeInfo.score})`}
+        </button>
+      </div>
+    `;
+  } else {
+    bubbleContentHtml = `<span>${cleanText}</span>`;
+  }
+
   row.innerHTML = `
     ${senderLabel}
     <div class="v2-msg-bubble">
       ${replyHtml}
-      <span>${cleanText}</span>
+      ${bubbleContentHtml}
       ${actionsHtml}
     </div>
     ${reactionsHtml}
@@ -4484,7 +4551,10 @@ let balloonGameState = {
   hasUserInteracted: false,
   autoMinimizeTimer: null,
   isMinimized: false,
-  isLevelTransition: false
+  isLevelTransition: false,
+  targetToBeat: 0,
+  challengerName: "",
+  beatAnnounced: false
 };
 
 let balloonAudioCtx = null;
@@ -4596,6 +4666,9 @@ function initBalloonGame() {
         </div>
 
         <div class="v2-game-meta-pills">
+          <span class="v2-game-pill beat-target hidden" id="v2-game-beat-target-pill" title="Target to beat">
+            <i class="fa-solid fa-bullseye"></i> Beat: <span id="v2-game-beat-target-num">0</span>
+          </span>
           <span class="v2-game-pill level" id="v2-game-level-pill">
             <i class="fa-solid fa-bolt"></i> Lvl <span id="v2-game-level-num">1</span>
           </span>
@@ -4696,6 +4769,7 @@ function initBalloonGame() {
   }
 
   setupBalloonCanvas();
+  updateBalloonGameUI();
   startBalloonGameCountdown();
 }
 
@@ -4759,6 +4833,7 @@ function resetBalloonGameState() {
   balloonGameState.isActive = true;
   balloonGameState.isPaused = false;
   balloonGameState.isAutoPausedByInput = false;
+  balloonGameState.beatAnnounced = false;
 
   updateBalloonGameUI();
 }
@@ -4783,6 +4858,22 @@ function updateBalloonGameUI() {
   }
   if (scoreNum) scoreNum.textContent = balloonGameState.score;
   if (levelNum) levelNum.textContent = balloonGameState.level;
+
+  const beatPill = document.getElementById("v2-game-beat-target-pill");
+  if (beatPill) {
+    if (balloonGameState.targetToBeat && balloonGameState.targetToBeat > 0) {
+      beatPill.classList.remove("hidden");
+      if (balloonGameState.score > balloonGameState.targetToBeat) {
+        beatPill.classList.add("beaten");
+        beatPill.innerHTML = '<i class="fa-solid fa-trophy"></i> Beaten!';
+      } else {
+        beatPill.classList.remove("beaten");
+        beatPill.innerHTML = `<i class="fa-solid fa-bullseye"></i> Beat: <span id="v2-game-beat-target-num">${balloonGameState.targetToBeat}</span>`;
+      }
+    } else {
+      beatPill.classList.add("hidden");
+    }
+  }
 
   for (let i = 1; i <= 3; i++) {
     const heartEl = document.getElementById(`v2-heart-${i}`);
@@ -5074,6 +5165,15 @@ function handleBalloonCanvasTouch(e) {
         spawnPopParticles(b.x, b.y, b.color.hex);
         spawnFloatingText(b.x, b.y - 10, `+${points}`, "#facc15");
 
+        if (balloonGameState.targetToBeat && balloonGameState.score > balloonGameState.targetToBeat && !balloonGameState.beatAnnounced) {
+          balloonGameState.beatAnnounced = true;
+          playBalloonSynthSound("levelup");
+          spawnFloatingText(b.x, b.y - 28, "👑 BEATEN!", "#22c55e");
+          if (typeof v2ShowToast === "function") {
+            v2ShowToast(`🎉 Awesome! You beat ${escapeHtml(balloonGameState.challengerName)}'s score with ${balloonGameState.score} pts!`);
+          }
+        }
+
         if (balloonGameState.currentLevelPops >= balloonGameState.targetPopsNeeded) {
           advanceBalloonGameLevel();
         }
@@ -5196,7 +5296,12 @@ function endBalloonGameOver(customTitle = "💥 POPPED OUT!") {
   const finalScore = document.getElementById("v2-game-final-score");
   const finalLevel = document.getElementById("v2-game-final-level");
 
-  if (titleEl) titleEl.textContent = customTitle;
+  let displayTitle = customTitle;
+  if (balloonGameState.targetToBeat && balloonGameState.score > balloonGameState.targetToBeat) {
+    displayTitle = `👑 YOU BEAT ${escapeHtml(balloonGameState.challengerName).toUpperCase()}!`;
+  }
+
+  if (titleEl) titleEl.textContent = displayTitle;
   if (finalScore) finalScore.textContent = balloonGameState.score;
   if (finalLevel) finalLevel.textContent = `Level ${balloonGameState.level}`;
   if (overlay) overlay.classList.remove("hidden");
@@ -5210,8 +5315,21 @@ function restartBalloonGame() {
 
 function shareBalloonScoreInGroup() {
   if (typeof socket !== "undefined" && socket && socket.connected) {
-    const text = `🎈 Just scored ${balloonGameState.score} points reaching Level ${balloonGameState.level} in Pop Color Balloon! Can anyone beat me? ⚡`;
-    socket.emit("send_group_msg", { text });
+    let text;
+    if (balloonGameState.targetToBeat && balloonGameState.score > balloonGameState.targetToBeat) {
+      text = `🎈 Just scored ${balloonGameState.score} points reaching Level ${balloonGameState.level} in Pop Color Balloon (beat ${balloonGameState.challengerName})! Can anyone beat me? ⚡`;
+    } else {
+      text = `🎈 Just scored ${balloonGameState.score} points reaching Level ${balloonGameState.level} in Pop Color Balloon! Can anyone beat me? ⚡`;
+    }
+    socket.emit("send_group_msg", {
+      text,
+      gameScore: {
+        game: "Pop Color Balloon",
+        score: balloonGameState.score,
+        level: balloonGameState.level,
+        beatChallenger: (balloonGameState.targetToBeat && balloonGameState.score > balloonGameState.targetToBeat) ? balloonGameState.challengerName : null
+      }
+    });
     if (typeof v2ShowToast === "function") {
       v2ShowToast("🎉 Posted your score to the Group Lounge!");
     }
@@ -5373,10 +5491,32 @@ function launchBalloonGameFromDrawer() {
   }
   window.balloonGameDismissed = false;
   balloonGameState.hasUserInteracted = true;
+  balloonGameState.targetToBeat = 0;
+  balloonGameState.challengerName = "";
+  balloonGameState.beatAnnounced = false;
   initBalloonGame();
   const slot = document.getElementById("v2-group-pinned-game-slot");
   if (slot) {
     slot.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+}
+
+function launchBalloonGameWithTarget(targetScore, challengerName) {
+  if (typeof closeV2CallDrawer === "function") {
+    closeV2CallDrawer();
+  }
+  window.balloonGameDismissed = false;
+  balloonGameState.targetToBeat = parseInt(targetScore, 10) || 0;
+  balloonGameState.challengerName = challengerName || "Stranger";
+  balloonGameState.beatAnnounced = false;
+  balloonGameState.hasUserInteracted = true;
+  initBalloonGame();
+  const slot = document.getElementById("v2-group-pinned-game-slot");
+  if (slot) {
+    slot.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+  if (typeof v2ShowToast === "function") {
+    v2ShowToast(`🎯 Challenge Accepted! Beat ${targetScore} pts by ${challengerName}!`);
   }
 }
 
@@ -5390,6 +5530,7 @@ window.pauseBalloonGame = pauseBalloonGame;
 window.resumeBalloonGame = resumeBalloonGame;
 window.stopBalloonGame = stopBalloonGame;
 window.launchBalloonGameFromDrawer = launchBalloonGameFromDrawer;
+window.launchBalloonGameWithTarget = launchBalloonGameWithTarget;
 window.toggleBalloonGameFromDock = toggleBalloonGameFromDock;
 window.dismissBalloonGame = dismissBalloonGame;
 window.advanceBalloonGameLevel = advanceBalloonGameLevel;
