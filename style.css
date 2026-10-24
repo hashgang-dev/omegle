@@ -2892,6 +2892,30 @@ html, body {
   border-radius: 4px;
 }
 
+/* Group Chat Join Notification Pill */
+.v2-group-join-pill {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 6px auto;
+  padding: 5px 14px;
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.22);
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  color: #d8b4fe;
+  max-width: fit-content;
+  text-align: center;
+  backdrop-filter: blur(8px);
+  animation: v2FadeInMsg 0.25s ease-out;
+  pointer-events: none;
+  user-select: none;
+}
+.v2-group-join-pill strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
 /* Message Rows (Timeless, Clean, Flex-Safe) */
 .v2-group-msg-row {
   display: flex;
