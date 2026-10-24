@@ -198,17 +198,54 @@ function startBrandTitleAnimation() {
 }
 
 if (document.readyState === "loading") {
-  window.addEventListener("DOMContentLoaded", initV2App);
+  window.addEventListener("DOMContentLoaded", () => {
+    unlockAudioContextOnGesture();
+    initV2App();
+  });
 } else {
+  unlockAudioContextOnGesture();
   initV2App();
 }
 
 // Top-Level Application Helper Functions
-function playAudioChime(type) {
+let globalAudioCtx = null;
+function getSharedAudioContext() {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
+    if (!AudioCtx) return null;
+    if (!globalAudioCtx) {
+      globalAudioCtx = new AudioCtx();
+    }
+    if (globalAudioCtx.state === "suspended") {
+      globalAudioCtx.resume().catch(() => {});
+    }
+    return globalAudioCtx;
+  } catch (e) {
+    return null;
+  }
+}
+
+function unlockAudioContextOnGesture() {
+  const unlock = () => {
+    const ctx = getSharedAudioContext();
+    if (ctx && ctx.state === "running") {
+      document.removeEventListener("click", unlock);
+      document.removeEventListener("touchstart", unlock);
+      document.removeEventListener("keydown", unlock);
+    }
+  };
+  document.addEventListener("click", unlock, { passive: true });
+  document.addEventListener("touchstart", unlock, { passive: true });
+  document.addEventListener("keydown", unlock, { passive: true });
+}
+
+function playAudioChime(type) {
+  try {
+    const ctx = getSharedAudioContext();
+    if (!ctx) return;
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
@@ -231,9 +268,47 @@ function playAudioChime(type) {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
       osc.start();
       osc.stop(ctx.currentTime + 0.35);
+    } else if (type === "join") {
+      // Gentle 2-tone soft chime for newcomer arrival
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.28);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.28);
+    } else if (type === "msg" || type === "pop") {
+      // Crisp, subtle organic bubble pop / tap (WhatsApp/Telegram style)
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(420, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.045);
+      gain.gain.setValueAtTime(0.09, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.09);
     }
   } catch (err) {
     console.warn("Audio chime playback error:", err);
+  }
+}
+
+let lastJoinChimeTime = 0;
+function triggerUserJoinNotification(nickname) {
+  const cleanNick = escapeHtml(nickname || "Stranger");
+  const feed = document.getElementById("v2-group-messages-feed");
+  if (feed) {
+    const joinPill = document.createElement("div");
+    joinPill.className = "v2-group-join-pill";
+    joinPill.innerHTML = `<span>👋 <strong>${cleanNick}</strong> joined the group</span>`;
+    feed.appendChild(joinPill);
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  // Throttle sound with 4-second cooldown to prevent audio fatigue
+  const now = Date.now();
+  if (now - lastJoinChimeTime > 4000) {
+    lastJoinChimeTime = now;
+    playAudioChime("join");
   }
 }
 
@@ -267,6 +342,8 @@ function renderSharedAudioMedia(mediaType, dataUrl) {
   const content = document.getElementById("v2-audio-media-content");
   if (!stage || !content) return;
 
+  playAudioChime("msg");
+
   content.innerHTML = "";
   if (mediaType === "image") {
     content.innerHTML = `<img src="${dataUrl}" class="v2-audio-media-img" alt="Shared Media" onclick="openV2Lightbox('image', '${dataUrl}')" />`;
@@ -292,6 +369,8 @@ function renderSharedVideoMedia(mediaType, dataUrl) {
   const content = document.getElementById("v2-video-media-content");
   const viewport = document.querySelector(".v2-viewport-area");
   if (!stage || !content) return;
+
+  playAudioChime("msg");
 
   content.innerHTML = "";
   if (mediaType === "image") {
@@ -780,7 +859,7 @@ function initSocketConnection() {
           el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
         }
         if (el.chatDrawer) el.chatDrawer.classList.remove("closed");
-        playAudioChime("connect");
+        playAudioChime("msg");
         return;
       }
 
@@ -942,6 +1021,11 @@ function initSocketConnection() {
       }
     });
 
+    socket.on("user_joined_group", (data) => {
+      if (!data || !data.nickname) return;
+      triggerUserJoinNotification(data.nickname);
+    });
+
     socket.on("nickname_updated", (data) => {
       if (data && data.nickname) {
         currentNickname = data.nickname;
@@ -954,6 +1038,7 @@ function initSocketConnection() {
       const feed = document.getElementById("v2-group-messages-feed");
       if (feed) {
         feed.appendChild(renderGroupMessageRow(msg));
+        playAudioChime("msg");
         liveGroupMsgCounter++;
         console.log(`💬 [In-Feed Pacing] Message count: ${liveGroupMsgCounter}`);
         if (liveGroupMsgCounter % 12 === 0) {
@@ -1004,6 +1089,7 @@ function initSocketConnection() {
       if (feed) {
         if (!document.getElementById(`card-${invite.inviteId}`)) {
           feed.appendChild(renderCallInviteCard(invite));
+          playAudioChime("msg");
           feed.scrollTop = feed.scrollHeight;
         }
       }
@@ -2365,6 +2451,8 @@ function appendChatMessage(sender, text, type, replyTo = null, msgId = null) {
   if (!el.chatMessages) el.chatMessages = document.getElementById("v2-chat-messages") || document.getElementById("chat-messages");
   if (!el.chatMessages) return;
 
+  playAudioChime("msg");
+
   if (!msgId) msgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
   const msgDiv = document.createElement("div");
@@ -2415,6 +2503,8 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
   if (!el.chatMessages) initDOMElements();
   if (!el.chatMessages) el.chatMessages = document.getElementById("v2-chat-messages") || document.getElementById("chat-messages");
   if (!el.chatMessages) return;
+
+  playAudioChime("msg");
 
   if (!msgId) msgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
@@ -4281,6 +4371,7 @@ async function requestInCallModeUpgrade(mode) {
     }
   });
 
+  playAudioChime("msg");
   v2ShowToast(`🚀 Sent ${mode.toUpperCase()} Call invite to stranger!`);
   appendSystemCard("connect", `You invited stranger to switch to ${mode.toUpperCase()} Call. Waiting for response...`);
 }
