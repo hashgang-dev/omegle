@@ -683,16 +683,24 @@ async function runMasterE2ESuite() {
 
       logResult("Multi-Tab Real-Time Group Message Sync", true);
 
-      await pageBob.evaluate(() => {
-        const feed = document.getElementById("v2-group-messages-feed");
-        const replyBtn = feed.querySelector(".v2-group-msg-row.other button[title='Reply'], .v2-group-msg-row.other .v2-ext-act-btn:first-child");
-        if (replyBtn) replyBtn.click();
-      });
+      await pageBob.evaluate((expected) => {
+        const rows = document.querySelectorAll(".v2-group-msg-row");
+        for (const row of rows) {
+          if (row.textContent.includes(expected)) {
+            const replyBtn = row.querySelector("button[title='Reply']");
+            if (replyBtn) replyBtn.click();
+            break;
+          }
+        }
+      }, aliceMsgText);
 
-      const isReplyBarVisible = await pageBob.evaluate(() => {
-        const bar = document.getElementById("v2-group-reply-bar");
-        return bar && !bar.classList.contains("hidden");
-      });
+      let isReplyBarVisible = false;
+      try {
+        await pageBob.waitForSelector("#v2-group-reply-bar:not(.hidden)", { timeout: 4000 });
+        isReplyBarVisible = true;
+      } catch (e) {
+        isReplyBarVisible = false;
+      }
       logResult("Quoted Reply Input Dock Activation", isReplyBarVisible);
 
       const bobReplyText = "Hey Alice, received loud and clear!";
