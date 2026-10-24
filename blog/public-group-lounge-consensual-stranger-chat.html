@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      Why Public Group Lounges &amp; Consensual Call Invites Beat Random Video Roulette | HashGANG
+    </title>
+    <meta
+      name="description"
+      content="Discover why old-school random video roulette (Omegle/Chatroulette) failed and how HashGANG Chat's hybrid Public Group Lounge with consensual 1-on-1 call invites creates a safer, zero-ghosting stranger chat experience."
+    />
+    <meta
+      name="keywords"
+      content="consensual video chat, public group lounge stranger chat, omegle alternative group chat, safe stranger video call, no random skip video chat, warm pool matchmaking, stranger chat invite links"
+    />
+    <link
+      rel="canonical"
+      href="https://chat.hashgang.com/blog/public-group-lounge-consensual-stranger-chat.html"
+    />
+
+    <!-- Open Graph Tags -->
+    <meta property="og:title" content="Why Public Group Lounges & Consensual Call Invites Beat Random Video Roulette" />
+    <meta
+      property="og:description"
+      content="Learn how HashGANG Chat replaced toxic camera roulette and empty loading queues with an active Public Group Lounge and mutual-consent 1-on-1 calling."
+    />
+    <meta
+      property="og:url"
+      content="https://chat.hashgang.com/blog/public-group-lounge-consensual-stranger-chat.html"
+    />
+    <meta property="og:type" content="article" />
+    <meta property="og:image" content="https://chat.hashgang.com/og-image.webp" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+
+    <style>
+      :root {
+        --primary-purple: #9911ee;
+        --accent-magenta: #f066ff;
+        --bg-dark: #0d0515;
+        --bg-card: rgba(22, 10, 36, 0.88);
+        --border-glass: rgba(255, 255, 255, 0.12);
+        --text-main: #e2e8f0;
+        --text-muted: #cbd5e1;
+      }
+
+      body {
+        background: var(--bg-dark);
+        background-image: radial-gradient(circle at 50% 0%, rgba(153, 17, 238, 0.18), transparent 70%);
+        color: var(--text-main);
+        font-family: "Outfit", sans-serif;
+        line-height: 1.75;
+        margin: 0;
+        padding: 0;
+      }
+      header.site-header {
+        background: rgba(13, 5, 21, 0.9);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border-glass);
+        padding: 16px 24px;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .brand-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: #ffffff;
+        font-weight: 800;
+        font-size: 1.25rem;
+      }
+      .brand-logo img {
+        height: 38px;
+        width: 38px;
+        border-radius: 8px;
+        object-fit: contain;
+      }
+      .nav-hamburger-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: #ffffff;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .nav-hamburger-btn:hover {
+        background: rgba(153, 17, 238, 0.3);
+        border-color: #f066ff;
+      }
+      .nav-hamburger-dropdown {
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        width: 230px;
+        background: rgba(20, 8, 35, 0.95);
+        border: 1px solid rgba(240, 102, 255, 0.25);
+        border-radius: 14px;
+        padding: 8px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(16px);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        z-index: 101;
+      }
+      .nav-hamburger-dropdown.closed {
+        display: none;
+      }
+      .nav-hamburger-dropdown a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        color: #e2e8f0;
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border-radius: 8px;
+        transition: all 0.15s ease;
+      }
+      .nav-hamburger-dropdown a:hover {
+        background: rgba(153, 17, 238, 0.25);
+        color: #ffffff;
+      }
+      .article-container {
+        max-width: 840px;
+        margin: 40px auto;
+        padding: 0 24px 80px;
+      }
+      .badge-arch {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(153, 17, 238, 0.2);
+        border: 1px solid rgba(240, 102, 255, 0.45);
+        color: #f066ff;
+        font-size: 0.82rem;
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 16px;
+      }
+      h1 {
+        font-size: 2.35rem;
+        font-weight: 800;
+        color: #fff;
+        line-height: 1.3;
+        margin-bottom: 14px;
+        background: linear-gradient(135deg, #ffffff 0%, var(--accent-magenta) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .meta {
+        color: #f066ff;
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 24px;
+      }
+      h2 {
+        font-size: 1.6rem;
+        color: #fff;
+        margin-top: 38px;
+        border-bottom: 1px solid var(--border-glass);
+        padding-bottom: 8px;
+      }
+      h3 {
+        font-size: 1.25rem;
+        color: #f066ff;
+        margin-top: 24px;
+      }
+      p {
+        margin-bottom: 20px;
+        font-size: 1.05rem;
+        color: #cbd5e1;
+      }
+      .highlight-box {
+        background: rgba(168, 85, 247, 0.1);
+        border-left: 4px solid var(--accent-magenta);
+        padding: 18px 22px;
+        margin: 28px 0;
+        border-radius: 0 12px 12px 0;
+      }
+      .comparison-table-wrapper {
+        overflow-x: auto;
+        margin: 28px 0;
+      }
+      table.comparison-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--bg-card);
+        border: 1px solid var(--border-glass);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      table.comparison-table th, table.comparison-table td {
+        padding: 14px 18px;
+        text-align: left;
+        border-bottom: 1px solid var(--border-glass);
+        font-size: 0.95rem;
+      }
+      table.comparison-table th {
+        background: rgba(153, 17, 238, 0.25);
+        color: #ffffff;
+        font-weight: 700;
+      }
+      table.comparison-table td:first-child {
+        font-weight: 600;
+        color: #f066ff;
+      }
+      .feature-card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 18px;
+        margin: 28px 0;
+      }
+      .feature-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-glass);
+        border-radius: 14px;
+        padding: 20px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      }
+      .feature-card h4 {
+        color: #ffffff;
+        margin: 0 0 10px 0;
+        font-size: 1.1rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .feature-card p {
+        font-size: 0.95rem;
+        margin: 0;
+        color: #94a3b8;
+      }
+      .cta-card {
+        background: linear-gradient(135deg, rgba(153, 17, 238, 0.35), rgba(240, 102, 255, 0.25));
+        border: 1px solid #f066ff;
+        border-radius: 16px;
+        padding: 32px;
+        text-align: center;
+        margin: 44px 0;
+      }
+      .cta-btn {
+        display: inline-block;
+        background: linear-gradient(135deg, #9911ee, #f066ff);
+        color: #fff;
+        padding: 14px 34px;
+        border-radius: 28px;
+        text-decoration: none;
+        font-weight: 700;
+        font-size: 1.05rem;
+        box-shadow: 0 4px 20px rgba(240, 102, 255, 0.4);
+        transition: all 0.2s ease;
+      }
+      .cta-btn:hover {
+        transform: translateY(-2px);
+        filter: brightness(1.15);
+      }
+      .article-share-bar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 10px 16px;
+        border-radius: 12px;
+        margin: 16px 0 24px;
+      }
+      .share-label {
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: #94a3b8;
+        margin-right: 4px;
+      }
+      .share-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 16px;
+        color: #fff;
+        text-decoration: none;
+        font-size: 0.82rem;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .share-icon-btn:hover {
+        transform: translateY(-2px);
+      }
+      .btn-share-wa { background: #25d366; }
+      .btn-share-tg { background: #0088cc; }
+      .btn-share-tw { background: #000; border: 1px solid rgba(255, 255, 255, 0.2); }
+      .btn-share-fb { background: #1877f2; }
+      .btn-share-copy { background: rgba(153, 17, 238, 0.4); border: 1px solid #f066ff; }
+
+      .article-hashtag-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 28px 0 16px;
+      }
+      .hashtag-pill {
+        background: rgba(153, 17, 238, 0.15);
+        border: 1px solid rgba(240, 102, 255, 0.3);
+        color: #f066ff;
+        font-size: 0.8rem;
+        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 16px;
+        text-decoration: none;
+      }
+      .legal-disclaimer-box {
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        padding: 14px 18px;
+        margin-top: 40px;
+        font-size: 0.8rem;
+        color: #64748b;
+        line-height: 1.5;
+      }
+      .btn-back-to-top {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: linear-gradient(135deg, #9911ee, #f066ff);
+        color: #ffffff;
+        border: none;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.3s ease;
+        z-index: 99;
+      }
+      .btn-back-to-top.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+    </style>
+
+    <!-- Schema Markup -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://chat.hashgang.com/" },
+          { "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://chat.hashgang.com/blog/index.html" },
+          { "@type": "ListItem", "position": 3, "name": "Group Lounge vs Video Roulette", "item": "https://chat.hashgang.com/blog/public-group-lounge-consensual-stranger-chat.html" }
+        ]
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "BlogPosting",
+        "headline": "Why Public Group Lounges & Consensual Call Invites Beat Random Video Roulette",
+        "description": "Discover why old-school random video roulette (Omegle/Chatroulette) failed and how HashGANG Chat's hybrid Public Group Lounge with consensual 1-on-1 call invites creates a safer, zero-ghosting stranger chat experience.",
+        "url": "https://chat.hashgang.com/blog/public-group-lounge-consensual-stranger-chat.html",
+        "datePublished": "2026-10-24",
+        "author": { "@type": "Organization", "name": "HashGANG Team", "url": "https://chat.hashgang.com/" },
+        "publisher": { "@type": "Organization", "name": "HashGANG Chat", "url": "https://chat.hashgang.com/" }
+      }
+    </script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="../website.html" class="brand-logo">
+        <img src="../logo-sm.webp" alt="HashGANG Logo" width="38" height="38" />
+        <span>HashGANG</span>
+      </a>
+      <div style="position: relative;">
+        <button class="nav-hamburger-btn" onclick="toggleArticleNavMenu(event)" aria-label="Toggle Navigation Menu">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="nav-hamburger-dropdown closed" id="article-nav-menu">
+          <a href="../index.html"><i class="fa-solid fa-video"></i> Start Chat</a>
+          <a href="../website.html"><i class="fa-solid fa-house"></i> Home</a>
+          <a href="../website.html#features"><i class="fa-solid fa-bolt"></i> Features</a>
+          <a href="index.html"><i class="fa-solid fa-newspaper"></i> Blog &amp; Articles</a>
+          <a href="../terms-of-service.html"><i class="fa-solid fa-file-contract"></i> Terms of Service</a>
+          <a href="../privacy-policy.html"><i class="fa-solid fa-user-shield"></i> Privacy Policy</a>
+        </div>
+      </div>
+    </header>
+
+    <article class="article-container">
+      <div class="badge-arch"><i class="fa-solid fa-layer-group"></i> Architecture &amp; Social Safety</div>
+      <h1>Why Public Group Lounges &amp; Consensual Call Invites Beat Random Video Roulette</h1>
+      <div class="meta">
+        Category: Social Tech &amp; Platform Design • Published: October 2026 • 7 min read
+      </div>
+
+      <!-- Social Share Bar -->
+      <div class="article-share-bar">
+        <span class="share-label"><i class="fa-solid fa-share-nodes"></i> Share:</span>
+        <button class="share-icon-btn btn-share-wa" onclick="shareCurrentArticle('whatsapp')">
+          <i class="fa-brands fa-whatsapp"></i> WhatsApp
+        </button>
+        <button class="share-icon-btn btn-share-tg" onclick="shareCurrentArticle('telegram')">
+          <i class="fa-brands fa-telegram"></i> Telegram
+        </button>
+        <button class="share-icon-btn btn-share-tw" onclick="shareCurrentArticle('twitter')">
+          <i class="fa-brands fa-x-twitter"></i> Twitter / X
+        </button>
+        <button class="share-icon-btn btn-share-fb" onclick="shareCurrentArticle('facebook')">
+          <i class="fa-brands fa-facebook"></i> Facebook
+        </button>
+        <button class="share-icon-btn btn-share-copy" onclick="shareCurrentArticle('copy')">
+          <i class="fa-solid fa-link"></i> Copy Link
+        </button>
+      </div>
+
+      <p>
+        In November 2023, Omegle—the pioneer of random stranger video chat—officially closed its doors after 14 years. While its demise was mourned by internet nostalgics, the underlying truth had been clear for years: <strong>the 2010-era "blind video roulette" model was fundamentally broken</strong>.
+      </p>
+      <p>
+        Forcing two completely unacquainted users directly into an open webcam feed created rampant toxicity, unwanted visual exposure, and a notorious "skip epidemic" where users skipped 50 people in a minute without having a single real conversation. Furthermore, during off-peak hours, users were stuck staring at endless loading spinners in digital ghost towns.
+      </p>
+      <p>
+        <strong>HashGANG Chat</strong> was built from the ground up to solve these structural flaws. By merging a lively <strong>Public Group Lounge (Warm Pool)</strong> with <strong>Consensual 1-on-1 Call Invites</strong>, HashGANG creates a social space that is safe, engaging, and genuinely enjoyable.
+      </p>
+
+      <div class="highlight-box">
+        <strong>⚡ The Core Difference:</strong> You are never forced onto camera with an unknown stranger without mutual consent, and you are never left alone in an empty queue. You enter a warm, active public room first, break the ice, and call only when both parties agree!
+      </div>
+
+      <h2>1. The Fatal Flaws of Classic Blind Video Roulette</h2>
+      <p>
+        Traditional platforms like Omegle, Chatroulette, and early clones suffered from three crippling systemic issues:
+      </p>
+      <ul>
+        <li>
+          <strong>The "Skip Epidemic" &amp; Rejection Fatigue:</strong> Users treated humans like disposable slot machine pulls. Being skipped 30 times in 60 seconds ruined user confidence and destroyed conversational depth.
+        </li>
+        <li>
+          <strong>The Ambush Problem (Zero Consent):</strong> Turning on a user's camera and pairing them with a random peer meant users frequently witnessed harassment, non-consensual nudity, or inappropriate behavior before they could even hit "Next".
+        </li>
+        <li>
+          <strong>The Empty Room Cold-Start Dilemma:</strong> If a platform had 15 online users at 3:00 AM, pairing was mathematically sporadic. Users waited 45 seconds for a match, gave up, and closed the tab, perpetuating low retention.
+        </li>
+      </ul>
+
+      <h2>2. Architectural Comparison: Roulette vs. HashGANG Lounge</h2>
+      <div class="comparison-table-wrapper">
+        <table class="comparison-table">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Legacy Video Roulette (Omegle/OmeTV)</th>
+              <th>HashGANG Hybrid Group Lounge</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Landing Experience</td>
+              <td>Blank spinner / Searching queue</td>
+              <td>Instant Public Group Lounge with active chat stream</td>
+            </tr>
+            <tr>
+              <td>Camera Activation</td>
+              <td>Automatic &amp; unexpected upon match</td>
+              <td>Strictly consensual via accepted Call Invites</td>
+            </tr>
+            <tr>
+              <td>Low-Traffic Resilience</td>
+              <td>Dead queues, abandoned sessions</td>
+              <td>Real-time message feed, reactions &amp; mini-games</td>
+            </tr>
+            <tr>
+              <td>Icebreaker Options</td>
+              <td>None (Awkward silence / skips)</td>
+              <td>Group text, emojis, quoted replies, Pop Color Balloon</td>
+            </tr>
+            <tr>
+              <td>Modality Transitions</td>
+              <td>Fixed mode (Locked to Video or Text)</td>
+              <td>Seamless In-Call Upgrades (Text &rarr; Voice &rarr; HD Video)</td>
+            </tr>
+            <tr>
+              <td>User Dignity</td>
+              <td>High skip rate, frequent harassment</td>
+              <td>Mutual respect, zero surprise nudity, Session Trace safety</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>3. The Public Group Lounge as a "Social Warm Pool"</h2>
+      <p>
+        In physics and server engineering, a "warm pool" refers to pre-warmed resources ready for instant deployment. In social software, HashGANG's Group Lounge functions as a human warm pool:
+      </p>
+      <div class="feature-card-grid">
+        <div class="feature-card">
+          <h4><i class="fa-solid fa-users" style="color:#f066ff;"></i> Zero Waiting Time</h4>
+          <p>The moment you arrive, you see current messages, online counters, and active community banter. You are part of the conversation immediately.</p>
+        </div>
+        <div class="feature-card">
+          <h4><i class="fa-regular fa-comments" style="color:#38bdf8;"></i> Group Interactivity</h4>
+          <p>Send text messages, quote other strangers' thoughts, drop emoji reactions, or read humorous comments without any camera pressure.</p>
+        </div>
+        <div class="feature-card">
+          <h4><i class="fa-solid fa-gamepad" style="color:#facc15;"></i> Built-In Arcade Entertainment</h4>
+          <p>Play Pop Color Balloon directly above the dock and post your high score to challenge the room asynchronously.</p>
+        </div>
+      </div>
+
+      <h2>4. Consensual 1-on-1 Calling via the Call Drawer</h2>
+      <p>
+        When you spot someone you want to chat with privately, HashGANG empowers you with full conversational agency:
+      </p>
+      <ul>
+        <li>
+          <strong>Open the Call Drawer:</strong> Tap the <strong>Call (⚡)</strong> action button in the bottom dock.
+        </li>
+        <li>
+          <strong>Select Your Comfort Level:</strong> Choose to post a <strong>Video 📹</strong>, <strong>Audio 🎙️</strong>, or <strong>Text 💬</strong> call invite tile to the lounge.
+        </li>
+        <li>
+          <strong>Mutual Acceptance:</strong> Your tile appears in the public stream. A stranger taps "Join Call" only if they are genuinely interested in that specific format.
+        </li>
+        <li>
+          <strong>Instant Private P2P Room:</strong> The moment the invite is accepted, both users transition smoothly into a private 1v1 encrypted WebRTC room.
+        </li>
+      </ul>
+
+      <h2>5. Progressive Trust: In-Call Upgrades &amp; Fallbacks</h2>
+      <p>
+        Real human relationships are built on progressive disclosure. You wouldn't invite a stranger into your living room within 3 seconds of saying hello on the street. Why should online chat be any different?
+      </p>
+      <p>
+        HashGANG's architecture supports <strong>progressive trust escalation</strong>:
+      </p>
+      <ol>
+        <li>Start in the Public Group Lounge with low-stakes group chatter.</li>
+        <li>Move to a private 1-on-1 Text chat to establish rapport safely.</li>
+        <li>Tap the microphone icon to upgrade to crystal-clear anonymous voice calling.</li>
+        <li>When comfortable, send an <strong>In-Call Video Upgrade Request</strong> to reveal webcams—with zero disconnection or room resets.</li>
+        <li>When the private call ends, tap "Back to Group" to return seamlessly to the lounge!</li>
+      </ol>
+
+      <div class="cta-card">
+        <h3>Experience Consensual Stranger Chat Today</h3>
+        <p>No sudden cameras. No endless skipping. Join the lively HashGANG Group Lounge now—100% free and no login required.</p>
+        <a href="../index.html" class="cta-btn"
+          ><i class="fa-solid fa-comments"></i> Enter HashGANG Group Lounge</a
+        >
+      </div>
+
+      <!-- Legal Disclaimer -->
+      <div class="legal-disclaimer-box">
+        <strong>Legal Disclaimer &amp; Fair Use Notice:</strong> Omegle, OmeTV, Chatroulette, and CamSurf are registered trademarks of their respective owners. Mention of these platforms in this article is solely for comparative analysis and technical commentary under Nominative Fair Use guidelines.
+      </div>
+
+      <!-- Viral Hashtag Pills -->
+      <div class="article-hashtag-bar">
+        <span class="hashtag-pill">#GANG</span>
+        <span class="hashtag-pill">#GroupLounge</span>
+        <span class="hashtag-pill">#StrangerChat</span>
+        <span class="hashtag-pill">#ConsensualChat</span>
+        <span class="hashtag-pill">#OmegleAlternative</span>
+        <span class="hashtag-pill">#SafeVideoChat</span>
+        <span class="hashtag-pill">#WebRTC</span>
+      </div>
+    </article>
+
+    <footer style="padding: 50px 20px 30px; background: rgba(10, 3, 18, 0.95); border-top: 1px solid rgba(255, 255, 255, 0.1);">
+      <div style="max-width: 1000px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 40px; text-align: left;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 0.9rem; font-weight: 800; color: #ffffff; margin-bottom: 4px;">HashGANG</span>
+          <a href="https://hashgang.com/?utm_source=chat_subdomain&utm_medium=footer&utm_campaign=internal_referral" target="_blank" rel="noopener" style="color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.88rem;">🌐 HashGANG Corporate</a>
+          <a href="https://hashgang.com/#services" target="_blank" rel="noopener" style="color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.88rem;">🚀 Software Solutions</a>
+          <a href="../privacy-policy.html" style="color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.88rem;">🔒 Privacy Policy</a>
+          <a href="../terms-of-service.html" style="color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.88rem;">📑 Terms of Service</a>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 0.9rem; font-weight: 800; color: #ffffff; margin-bottom: 4px;">Navigation</span>
+          <a href="../index.html" style="color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.88rem;">Start Chat</a>
+          <a href="../website.html" style="color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.88rem;">Home</a>
+          <a href="index.html" style="color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.88rem;">Blog &amp; Articles</a>
+          <a href="../press.html" style="color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.88rem;">Press Coverage</a>
+        </div>
+      </div>
+      <div style="max-width: 1000px; margin: 30px auto 0; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.08); text-align: center;">
+        <p style="font-size: 0.82rem; color: rgba(255, 255, 255, 0.6); margin: 0;">&copy; 2026 HashGANG. All Rights Reserved.</p>
+      </div>
+    </footer>
+
+    <!-- Back to top button -->
+    <button class="btn-back-to-top" id="btn-back-to-top" onclick="window.scrollTo({ top: 0, behavior: 'smooth' })" title="Back to Top" aria-label="Back to Top">
+      <i class="fa-solid fa-arrow-up"></i>
+    </button>
+
+    <script>
+      function toggleArticleNavMenu(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById("article-nav-menu");
+        if (menu) menu.classList.toggle("closed");
+      }
+      document.addEventListener("click", function (e) {
+        const menu = document.getElementById("article-nav-menu");
+        if (menu && !menu.classList.contains("closed") && !e.target.closest(".nav-hamburger-btn")) {
+          menu.classList.add("closed");
+        }
+      });
+
+      const btnBackToTop = document.getElementById("btn-back-to-top");
+      window.addEventListener("scroll", function () {
+        if (window.scrollY > 300) {
+          if (btnBackToTop) btnBackToTop.classList.add("visible");
+        } else {
+          if (btnBackToTop) btnBackToTop.classList.remove("visible");
+        }
+      });
+
+      function shareCurrentArticle(platform) {
+        const url = encodeURIComponent(window.location.href);
+        const title = encodeURIComponent(document.title);
+        let shareUrl = "";
+
+        if (platform === "whatsapp") {
+          shareUrl = `https://api.whatsapp.com/send?text=${title}%20${url}`;
+        } else if (platform === "telegram") {
+          shareUrl = `https://t.me/share/url?url=${url}&text=${title}`;
+        } else if (platform === "twitter") {
+          shareUrl = `https://twitter.com/intent/tweet?text=${title}&url=${url}&hashtags=StrangerChat,OmegleAlternative,GroupLounge`;
+        } else if (platform === "facebook") {
+          shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${url}`;
+        } else if (platform === "copy") {
+          navigator.clipboard.writeText(window.location.href).then(() => {
+            alert("Article link copied to clipboard!");
+          });
+          return;
+        }
+        if (shareUrl) window.open(shareUrl, "_blank", "noopener,noreferrer");
+      }
+    </script>
+  </body>
+</html>

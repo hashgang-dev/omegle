@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-v261';
+const CACHE_NAME = 'hashgang-v262';
 
 const ASSETS_TO_CACHE = [
   '/',
@@ -66,7 +66,9 @@ const ASSETS_TO_CACHE = [
   '/blog/coomeet-vs-hashgang-chat-review.html',
   '/blog/how-to-practice-spoken-english-with-strangers-free.html',
   '/blog/do-you-need-vpn-for-stranger-video-chat.html',
-  '/blog/bored-at-night-fun-ways-to-talk-to-strangers-online.html'
+  '/blog/bored-at-night-fun-ways-to-talk-to-strangers-online.html',
+  '/blog/stranger-chat-mini-games-play-with-strangers.html',
+  '/blog/public-group-lounge-consensual-stranger-chat.html'
 ];
 
 self.addEventListener('install', (event) => {

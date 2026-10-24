@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://chat.hashgang.com/</loc>
-    <lastmod>2026-10-16</lastmod>
+    <lastmod>2026-10-24</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
@@ -152,7 +152,7 @@
   </url>
   <url>
     <loc>https://chat.hashgang.com/blog/index.html</loc>
-    <lastmod>2026-10-16</lastmod>
+    <lastmod>2026-10-24</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.90</priority>
   </url>
@@ -302,7 +302,7 @@
   </url>
   <url>
     <loc>https://chat.hashgang.com/blog/zero-wait-instant-video-chat-matchmaking.html</loc>
-    <lastmod>2026-10-16</lastmod>
+    <lastmod>2026-10-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.80</priority>
   </url>
@@ -320,7 +320,7 @@
   </url>
   <url>
     <loc>https://chat.hashgang.com/blog/3-way-text-voice-video-stranger-chat-guide.html</loc>
-    <lastmod>2026-10-16</lastmod>
+    <lastmod>2026-10-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
   </url>
@@ -374,8 +374,20 @@
   </url>
   <url>
     <loc>https://chat.hashgang.com/blog/bored-at-night-fun-ways-to-talk-to-strangers-online.html</loc>
-    <lastmod>2026-10-14</lastmod>
+    <lastmod>2026-10-24</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
+  </url>
+  <url>
+    <loc>https://chat.hashgang.com/blog/stranger-chat-mini-games-play-with-strangers.html</loc>
+    <lastmod>2026-10-24</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+  </url>
+  <url>
+    <loc>https://chat.hashgang.com/blog/public-group-lounge-consensual-stranger-chat.html</loc>
+    <lastmod>2026-10-24</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
   </url>
 </urlset>
