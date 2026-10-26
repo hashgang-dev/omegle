@@ -2461,10 +2461,6 @@ function setupEventListeners() {
   if (el.chatInput) {
     el.chatInput.addEventListener("input", () => {
       autoGrowChatInput();
-      if (typeof handle1v1TypingAutoDismiss === "function") handle1v1TypingAutoDismiss();
-    });
-    el.chatInput.addEventListener("focus", () => {
-      if (typeof handle1v1TypingAutoDismiss === "function") handle1v1TypingAutoDismiss();
     });
     el.chatInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
@@ -6131,16 +6127,8 @@ function render1v1GamePromptCard(gameType) {
 }
 
 function handle1v1TypingAutoDismiss() {
-  if (v2GamePromptState.active && v2GamePromptState.cardElement) {
-    const inputVal = el.chatInput ? el.chatInput.value.trim() : "";
-    if (inputVal.length > 0) {
-      console.log("⌨️ [1v1 Game] Auto-dismissing proactive prompt as user is typing.");
-      if (v2GamePromptState.gameType === "rps") {
-        v2RpsDeclined = true;
-      }
-      dismiss1v1GamePrompt(false);
-    }
-  }
+  // Retained as no-op so typing in chat input never hides the game prompt;
+  // user can explicitly tap "No" if they choose not to play.
 }
 
 function dismiss1v1GamePrompt(immediate = false) {
