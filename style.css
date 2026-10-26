@@ -2881,7 +2881,6 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  scroll-behavior: smooth;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   scroll-padding-bottom: 12px;
@@ -3700,6 +3699,57 @@ html, body {
   font-size: 1.2rem;
   cursor: pointer;
   padding: 0 4px;
+}
+
+/* Floating Scroll-to-Bottom / New Messages Pill */
+.v2-group-scroll-bottom-btn {
+  position: absolute;
+  bottom: 70px;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.95), rgba(217, 70, 239, 0.95));
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 9999px;
+  padding: 7px 18px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 18px rgba(168, 85, 247, 0.5), 0 2px 8px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  z-index: 55;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(8px);
+  user-select: none;
+}
+
+.v2-group-scroll-bottom-btn:hover {
+  background: linear-gradient(135deg, rgba(168, 85, 247, 1), rgba(236, 72, 153, 1));
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 6px 22px rgba(217, 70, 239, 0.65);
+}
+
+.v2-group-scroll-bottom-btn:active {
+  transform: translateX(-50%) translateY(1px);
+}
+
+.v2-group-scroll-bottom-btn.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-50%) translateY(14px);
+}
+
+/* Dynamic positioning adjustment when bottom docks are visible */
+#v2-group-reply-bar:not(.hidden) ~ #v2-group-scroll-bottom-btn {
+  bottom: 110px;
+}
+#v2-group-pinned-game-slot:not(.hidden) ~ #v2-group-scroll-bottom-btn {
+  bottom: 220px;
+}
+#v2-group-pinned-game-slot:not(.hidden) ~ #v2-group-reply-bar:not(.hidden) ~ #v2-group-scroll-bottom-btn {
+  bottom: 260px;
 }
 
 /* Input Dock (Full Width Across Messages Feed) */

@@ -65,7 +65,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=274" />
+  <link rel="stylesheet" href="style.css?v=275" />
 
   <!-- Schema.org JSON-LD Structured Data for Google Search Ranking -->
   <script type="application/ld+json">
@@ -397,6 +397,12 @@
 
           <!-- Pinned Mini-Game Slot (Bottom-Docked, Above Input Field, Easy Thumb Reach) -->
           <div id="v2-group-pinned-game-slot" class="v2-group-pinned-game-slot bottom-docked hidden"></div>
+
+          <!-- Floating Scroll-to-Bottom / New Messages Pill -->
+          <button id="v2-group-scroll-bottom-btn" class="v2-group-scroll-bottom-btn hidden" onclick="scrollGroupFeedToBottom(true, true)" title="Scroll to latest messages">
+            <i class="fa-solid fa-arrow-down"></i>
+            <span id="v2-group-scroll-bottom-label">New messages</span>
+          </button>
 
           <!-- Group Message Input Dock (Full Width, Centered) with Attachment-Style Thunder Trigger -->
           <div class="v2-group-dock">
@@ -828,10 +834,10 @@
     </div>
 
     <!-- Scripts Injection -->
-    <script src="ads.js?v=274" defer></script>
-    <script src="ad_mediation_config.js?v=274" defer></script>
-    <script src="socket.io.min.js?v=274"></script>
-    <script src="app.js?v=274" defer></script>
+    <script src="ads.js?v=275" defer></script>
+    <script src="ad_mediation_config.js?v=275" defer></script>
+    <script src="socket.io.min.js?v=275"></script>
+    <script src="app.js?v=275" defer></script>
 </body>
 
 </html>
