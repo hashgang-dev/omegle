@@ -106,15 +106,75 @@ function trackV2Event(eventName, params = {}) {
 }
 window.trackV2Event = trackV2Event;
 
-// Auto-Scroll Helpers to Guarantee Messages Window Sits Cleanly Above Game Cards
-function scrollGroupFeedToBottom(smooth = false) {
+// Auto-Scroll Helpers & Unread Indicator to Guarantee Seamless Reading Experience
+let unreadGroupMsgCount = 0;
+
+function isGroupFeedNearBottom(threshold = 120) {
+  const feed = document.getElementById("v2-group-messages-feed");
+  if (!feed) return true;
+  const distanceFromBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight;
+  return distanceFromBottom <= threshold;
+}
+window.isGroupFeedNearBottom = isGroupFeedNearBottom;
+
+function showGroupScrollBottomBtn() {
+  unreadGroupMsgCount++;
+  const btn = document.getElementById("v2-group-scroll-bottom-btn");
+  const label = document.getElementById("v2-group-scroll-bottom-label");
+  if (!btn) return;
+  if (label) {
+    if (unreadGroupMsgCount > 1) {
+      label.textContent = `${unreadGroupMsgCount} New messages`;
+    } else {
+      label.textContent = "New message";
+    }
+  }
+  btn.classList.remove("hidden");
+}
+window.showGroupScrollBottomBtn = showGroupScrollBottomBtn;
+
+function hideGroupScrollBottomBtn() {
+  unreadGroupMsgCount = 0;
+  const btn = document.getElementById("v2-group-scroll-bottom-btn");
+  if (btn) {
+    btn.classList.add("hidden");
+  }
+}
+window.hideGroupScrollBottomBtn = hideGroupScrollBottomBtn;
+
+function initGroupFeedScrollListener() {
+  const feed = document.getElementById("v2-group-messages-feed");
+  if (!feed || feed._scrollListenerAttached) return;
+  feed._scrollListenerAttached = true;
+
+  feed.addEventListener("scroll", () => {
+    const distanceFromBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight;
+    if (distanceFromBottom <= 80) {
+      hideGroupScrollBottomBtn();
+    } else if (distanceFromBottom > 350 && unreadGroupMsgCount === 0) {
+      const btn = document.getElementById("v2-group-scroll-bottom-btn");
+      const label = document.getElementById("v2-group-scroll-bottom-label");
+      if (btn && label) {
+        label.textContent = "Latest messages";
+        btn.classList.remove("hidden");
+      }
+    }
+  }, { passive: true });
+}
+window.initGroupFeedScrollListener = initGroupFeedScrollListener;
+
+function scrollGroupFeedToBottom(smooth = false, force = false) {
   const feed = document.getElementById("v2-group-messages-feed");
   if (!feed) return;
+  if (!force && !isGroupFeedNearBottom(120)) {
+    return;
+  }
   if (smooth) {
     feed.scrollTo({ top: feed.scrollHeight, behavior: "smooth" });
   } else {
     feed.scrollTop = feed.scrollHeight;
   }
+  hideGroupScrollBottomBtn();
 }
 window.scrollGroupFeedToBottom = scrollGroupFeedToBottom;
 
@@ -140,8 +200,10 @@ function initGameDockLayoutObservers() {
         const height = Math.round(entry.contentRect.height);
         if (height !== lastGroupHeight) {
           lastGroupHeight = height;
-          scrollGroupFeedToBottom(false);
-          requestAnimationFrame(() => scrollGroupFeedToBottom(false));
+          if (isGroupFeedNearBottom(120)) {
+            scrollGroupFeedToBottom(false, true);
+            requestAnimationFrame(() => scrollGroupFeedToBottom(false, true));
+          }
         }
       }
     });
@@ -165,6 +227,56 @@ function initGameDockLayoutObservers() {
   }
 }
 
+// ============================================================================
+// ALWAYS-ON SCREEN WAKE LOCK (Keeps screen awake during chat & standby prevention)
+// ============================================================================
+let screenWakeLock = null;
+
+async function acquireScreenWakeLock() {
+  if (!("wakeLock" in navigator)) return;
+  try {
+    if (!screenWakeLock || screenWakeLock.released) {
+      screenWakeLock = await navigator.wakeLock.request("screen");
+      console.log("☀️ [WakeLock] Screen Wake Lock active - screen will remain awake.");
+      screenWakeLock.addEventListener("release", () => {
+        screenWakeLock = null;
+      });
+    }
+  } catch (err) {
+    console.warn("⚠️ [WakeLock] Wake Lock request:", err && err.message ? err.message : err);
+  }
+}
+window.acquireScreenWakeLock = acquireScreenWakeLock;
+
+async function releaseScreenWakeLock() {
+  if (screenWakeLock !== null) {
+    try {
+      await screenWakeLock.release();
+    } catch (e) {}
+    screenWakeLock = null;
+  }
+}
+window.releaseScreenWakeLock = releaseScreenWakeLock;
+
+function initScreenWakeLock() {
+  // Re-acquire Wake Lock whenever user returns to this tab / app
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      acquireScreenWakeLock();
+    }
+  });
+
+  // Acquire on first interaction to satisfy browser user-activation security policies
+  const onFirstInteraction = () => {
+    acquireScreenWakeLock();
+    window.removeEventListener("click", onFirstInteraction, { capture: true });
+    window.removeEventListener("touchstart", onFirstInteraction, { capture: true });
+  };
+  window.addEventListener("click", onFirstInteraction, { capture: true, once: true });
+  window.addEventListener("touchstart", onFirstInteraction, { capture: true, once: true });
+}
+window.initScreenWakeLock = initScreenWakeLock;
+
 // Initialize Application Engine on Page Load
 function initV2App() {
   initDOMElements();
@@ -173,7 +285,9 @@ function initV2App() {
   checkV2UrlInviteParameters();
   initSocketConnection();
   setupEventListeners();
+  initGroupFeedScrollListener();
   initGameDockLayoutObservers();
+  initScreenWakeLock();
   startBrandTitleAnimation();
   checkAgeConfirmationOnLoad();
   updateUIState("idle");
@@ -357,11 +471,14 @@ function triggerUserJoinNotification(nickname) {
   const cleanNick = escapeHtml(nickname || "Stranger");
   const feed = document.getElementById("v2-group-messages-feed");
   if (feed) {
+    const isNearBottom = isGroupFeedNearBottom(120);
     const joinPill = document.createElement("div");
     joinPill.className = "v2-group-join-pill";
     joinPill.innerHTML = `<span>👋 <strong>${cleanNick}</strong> joined the group</span>`;
     feed.appendChild(joinPill);
-    feed.scrollTop = feed.scrollHeight;
+    if (isNearBottom) {
+      feed.scrollTop = feed.scrollHeight;
+    }
   }
 
   // Throttle sound with 4-second cooldown to prevent audio fatigue
@@ -1002,6 +1119,7 @@ function initSocketConnection() {
       window.activeGroupRoomId = activeGroupRoomId;
       window.activeGroupRoomNumber = activeGroupRoomNumber;
       liveGroupMsgCounter = 0;
+      acquireScreenWakeLock();
 
       if (data.requestedRoomFull) {
         v2ShowToast(`ℹ️ Group #${window.pendingV2RequestedRoom || 1} is at full capacity (25/25). Joined Group #${activeGroupRoomNumber}!`, 4500);
@@ -1091,6 +1209,8 @@ function initSocketConnection() {
         requestAnimationFrame(scrollFeedToBottom);
         setTimeout(scrollFeedToBottom, 100);
         setTimeout(scrollFeedToBottom, 300);
+        initGroupFeedScrollListener();
+        hideGroupScrollBottomBtn();
 
         // Auto-start Balloon Pop Mini-Game after 6.5s delay
         if (typeof scheduleBalloonGameAutoStart === "function") {
@@ -1122,6 +1242,9 @@ function initSocketConnection() {
     socket.on("new_group_msg", (msg) => {
       const feed = document.getElementById("v2-group-messages-feed");
       if (feed) {
+        const isNearBottom = isGroupFeedNearBottom(120);
+        const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
+
         feed.appendChild(renderGroupMessageRow(msg));
         playAudioChime("msg");
         liveGroupMsgCounter++;
@@ -1129,7 +1252,13 @@ function initSocketConnection() {
         if (liveGroupMsgCounter % 12 === 0) {
           handleInFeedPacingInjection(feed, liveGroupMsgCounter);
         }
-        feed.scrollTop = feed.scrollHeight;
+
+        if (isSelf || isNearBottom) {
+          feed.scrollTop = feed.scrollHeight;
+          hideGroupScrollBottomBtn();
+        } else {
+          showGroupScrollBottomBtn();
+        }
       }
     });
 
@@ -1173,9 +1302,15 @@ function initSocketConnection() {
       const feed = document.getElementById("v2-group-messages-feed");
       if (feed) {
         if (!document.getElementById(`card-${invite.inviteId}`)) {
+          const isNearBottom = isGroupFeedNearBottom(120);
           feed.appendChild(renderCallInviteCard(invite));
           playAudioChime("msg");
-          feed.scrollTop = feed.scrollHeight;
+          if (isNearBottom) {
+            feed.scrollTop = feed.scrollHeight;
+            hideGroupScrollBottomBtn();
+          } else {
+            showGroupScrollBottomBtn();
+          }
         }
       }
     });
@@ -2619,6 +2754,8 @@ function appendChatMessage(sender, text, type, replyTo = null, msgId = null) {
     actionsHtml = `<div class="v2-msg-external-actions"><button class="v2-ext-act-btn" title="Reply" onclick="initiateV2ChatReply('${msgId}', 'Stranger')">↩️</button><button class="v2-ext-act-btn" id="react-btn-${msgId}" title="React" onclick="toggleV2ReactionPicker('${msgId}', event)">😊</button></div>`;
   }
 
+  const isNearBottom = el.chatMessages ? ((el.chatMessages.scrollHeight - el.chatMessages.scrollTop - el.chatMessages.clientHeight) <= 120) : true;
+
   msgDiv.innerHTML = `${replyHtml}${textHtml}${actionsHtml}`;
   el.chatMessages.appendChild(msgDiv);
 
@@ -2628,7 +2765,9 @@ function appendChatMessage(sender, text, type, replyTo = null, msgId = null) {
   }
 
   setTimeout(() => {
-    if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+    if (el.chatMessages && (type === "user" || isNearBottom)) {
+      el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+    }
   }, 30);
 }
 
@@ -2636,6 +2775,8 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
   if (!el.chatMessages) initDOMElements();
   if (!el.chatMessages) el.chatMessages = document.getElementById("v2-chat-messages") || document.getElementById("chat-messages");
   if (!el.chatMessages) return;
+
+  const isNearBottom = el.chatMessages ? ((el.chatMessages.scrollHeight - el.chatMessages.scrollTop - el.chatMessages.clientHeight) <= 120) : true;
 
   playAudioChime("msg");
 
@@ -2673,7 +2814,9 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
   }
 
   setTimeout(() => {
-    if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+    if (el.chatMessages && (type === "user" || isNearBottom)) {
+      el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+    }
   }, 30);
 }
 
@@ -3338,6 +3481,7 @@ function confirmAgeAndEnter() {
   localStorage.setItem("hg_18_confirmed", "true");
   const ageModal = document.getElementById("v2-age-modal");
   if (ageModal) ageModal.classList.add("hidden");
+  acquireScreenWakeLock();
 
   let codeToJoin = window.pendingV2InviteCode;
   if (!codeToJoin) {
@@ -4348,6 +4492,7 @@ function sendGroupMessage() {
     input.value = "";
     input.style.height = "36px";
     cancelGroupReply();
+    scrollGroupFeedToBottom(false, true);
   } else {
     v2ShowToast("⚠️ Connecting to chat server...");
   }
