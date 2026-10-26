@@ -65,7 +65,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=265" />
+  <link rel="stylesheet" href="style.css?v=274" />
 
   <!-- Schema.org JSON-LD Structured Data for Google Search Ranking -->
   <script type="application/ld+json">
@@ -402,7 +402,7 @@
           <div class="v2-group-dock">
             <div class="v2-group-input-pill">
               <button class="v2-dock-call-trigger" id="v2-btn-open-1v1-drawer" onclick="toggleV2CallDrawer()" title="Start Private Chat">
-                <i class="fa-solid fa-bolt"></i>
+                <i class="fa-solid fa-paperclip"></i>
               </button>
               <textarea id="v2-group-input-field" placeholder="Say something nice to everyone..." maxlength="180" rows="1" autocomplete="off"></textarea>
               <button class="v2-group-send-btn" id="v2-btn-group-send" onclick="sendGroupMessage()" title="Send Message">
@@ -644,13 +644,15 @@
             </div>
             <button class="v2-reply-preview-close" onclick="cancelV2ChatReply()">&times;</button>
           </div>
+          <!-- 1v1 Sticky Game Dock (Above Chat Input) -->
+          <div class="v2-1v1-game-dock hidden" id="v2-1v1-game-dock"></div>
           <div class="v2-chat-input-row" id="v2-chat-input-row">
             <div class="v2-chat-input-pill">
-              <label class="v2-attach-btn" title="Send Image or Video" for="v2-media-file-input">
+              <button class="v2-attach-btn" id="v2-btn-attachment-menu" title="Share Photo/Video or Play Games" type="button" onclick="openV2AttachmentMenu()">
                 <i class="fa-solid fa-paperclip"></i>
-                <input type="file" id="v2-media-file-input" accept="image/*,video/*" style="display: none"
-                  onchange="v2HandleMediaUpload(event)" />
-              </label>
+              </button>
+              <input type="file" id="v2-media-file-input" accept="image/*,video/*" style="display: none"
+                onchange="v2HandleMediaUpload(event)" />
               <textarea id="chat-input" placeholder="Type a message..." rows="1" autocomplete="off">Hi 👋</textarea>
               <button class="v2-send-btn" id="btn-send-chat" title="Send">
                 <i class="fa-solid fa-paper-plane"></i>
@@ -731,6 +733,39 @@
       </div>
     </div>
 
+    <!-- Unified 1v1 Attachment Action Sheet Modal -->
+    <div class="v2-modal-overlay hidden" id="v2-attachment-modal" onclick="closeV2AttachmentMenu(event)">
+      <div class="v2-modal-card v2-attach-menu-card" onclick="event.stopPropagation()">
+        <div class="v2-timeout-header">
+          <span class="v2-timeout-badge"><i class="fa-solid fa-sparkles text-purple-400"></i> Share & Play</span>
+          <button class="v2-close-btn" onclick="closeV2AttachmentMenu()">&times;</button>
+        </div>
+        <div class="v2-attach-menu-grid">
+          <button class="v2-attach-tile media-tile" onclick="triggerAttachmentMediaUpload()">
+            <div class="v2-attach-tile-icon"><i class="fa-solid fa-camera-retro"></i></div>
+            <div class="v2-attach-tile-body">
+              <span class="v2-attach-tile-label">Photo / Video</span>
+              <span class="v2-attach-tile-sub">Share a camera picture or clip</span>
+            </div>
+          </button>
+          <button class="v2-attach-tile rps-tile" onclick="triggerManualGameChallenge('rps')">
+            <div class="v2-attach-tile-icon"><span style="font-size: 1.6rem; line-height: 1;">✊</span></div>
+            <div class="v2-attach-tile-body">
+              <span class="v2-attach-tile-label">Rock-Paper-Scissors</span>
+              <span class="v2-attach-tile-sub">Best of 3 fast 15s duel</span>
+            </div>
+          </button>
+          <button class="v2-attach-tile balloon-tile" onclick="triggerManualGameChallenge('balloon')">
+            <div class="v2-attach-tile-icon"><span style="font-size: 1.6rem; line-height: 1;">🎈</span></div>
+            <div class="v2-attach-tile-body">
+              <span class="v2-attach-tile-label">Balloon Pop Duel</span>
+              <span class="v2-attach-tile-sub">30s live speed pop battle</span>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
 
     <!-- Toast Feedback Notification -->
     <div class="v2-toast hidden" id="v2-toast">
@@ -793,10 +828,10 @@
     </div>
 
     <!-- Scripts Injection -->
-    <script src="ads.js?v=265" defer></script>
-    <script src="ad_mediation_config.js?v=265" defer></script>
-    <script src="socket.io.min.js?v=265"></script>
-    <script src="app.js?v=265" defer></script>
+    <script src="ads.js?v=274" defer></script>
+    <script src="ad_mediation_config.js?v=274" defer></script>
+    <script src="socket.io.min.js?v=274"></script>
+    <script src="app.js?v=274" defer></script>
 </body>
 
 </html>

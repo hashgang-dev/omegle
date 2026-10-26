@@ -106,6 +106,65 @@ function trackV2Event(eventName, params = {}) {
 }
 window.trackV2Event = trackV2Event;
 
+// Auto-Scroll Helpers to Guarantee Messages Window Sits Cleanly Above Game Cards
+function scrollGroupFeedToBottom(smooth = false) {
+  const feed = document.getElementById("v2-group-messages-feed");
+  if (!feed) return;
+  if (smooth) {
+    feed.scrollTo({ top: feed.scrollHeight, behavior: "smooth" });
+  } else {
+    feed.scrollTop = feed.scrollHeight;
+  }
+}
+window.scrollGroupFeedToBottom = scrollGroupFeedToBottom;
+
+function scrollPrivateChatToBottom(smooth = false) {
+  if (!el.chatMessages) {
+    el.chatMessages = document.getElementById("v2-chat-messages") || document.getElementById("chat-messages");
+  }
+  if (!el.chatMessages) return;
+  if (smooth) {
+    el.chatMessages.scrollTo({ top: el.chatMessages.scrollHeight, behavior: "smooth" });
+  } else {
+    el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+  }
+}
+window.scrollPrivateChatToBottom = scrollPrivateChatToBottom;
+
+function initGameDockLayoutObservers() {
+  const groupSlot = document.getElementById("v2-group-pinned-game-slot");
+  if (groupSlot && window.ResizeObserver) {
+    let lastGroupHeight = 0;
+    const groupObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = Math.round(entry.contentRect.height);
+        if (height !== lastGroupHeight) {
+          lastGroupHeight = height;
+          scrollGroupFeedToBottom(false);
+          requestAnimationFrame(() => scrollGroupFeedToBottom(false));
+        }
+      }
+    });
+    groupObserver.observe(groupSlot);
+  }
+
+  const privateDock = document.getElementById("v2-1v1-game-dock");
+  if (privateDock && window.ResizeObserver) {
+    let lastPrivateHeight = 0;
+    const privateObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = Math.round(entry.contentRect.height);
+        if (height !== lastPrivateHeight) {
+          lastPrivateHeight = height;
+          scrollPrivateChatToBottom(false);
+          requestAnimationFrame(() => scrollPrivateChatToBottom(false));
+        }
+      }
+    });
+    privateObserver.observe(privateDock);
+  }
+}
+
 // Initialize Application Engine on Page Load
 function initV2App() {
   initDOMElements();
@@ -114,6 +173,7 @@ function initV2App() {
   checkV2UrlInviteParameters();
   initSocketConnection();
   setupEventListeners();
+  initGameDockLayoutObservers();
   startBrandTitleAnimation();
   checkAgeConfirmationOnLoad();
   updateUIState("idle");
@@ -430,6 +490,8 @@ function handleStrangerDisconnected(force = false) {
   }
   dismissV2AudioSharedMedia();
   dismissV2VideoSharedMedia();
+  if (typeof dismiss1v1GameDock === "function") dismiss1v1GameDock(false);
+  if (typeof dismiss1v1GamePrompt === "function") dismiss1v1GamePrompt(true);
   cleanupPeerConnection(false);
   playAudioChime("disconnect");
   if (navigator.vibrate) {
@@ -677,6 +739,18 @@ function initSocketConnection() {
         if (el.searchStage) el.searchStage.classList.add("hidden");
         const groupStage = document.getElementById("v2-group-chat-stage");
         if (groupStage) groupStage.classList.add("hidden");
+
+        // Cleanly stop & dismiss any group solo balloon game so it never runs during 1v1 chat
+        if (typeof stopBalloonGame === "function" && typeof balloonGameState !== "undefined" && balloonGameState && balloonGameState.isActive) {
+          stopBalloonGame();
+        }
+        const groupSlot = document.getElementById("v2-group-pinned-game-slot");
+        if (groupSlot) {
+          groupSlot.classList.add("hidden");
+          groupSlot.innerHTML = "";
+        }
+        window.balloonGameDismissed = true;
+
         if (data.mode) {
           currentChatMode = data.mode;
         }
@@ -705,6 +779,9 @@ function initSocketConnection() {
         clearChatHistory();
         const isFromGroup = !!(data && (data.isGroupInvite || data.isInviteMatch || data.inviteCode || window.pendingV2InviteCode));
         const partnerName = (data && data.partnerName) ? data.partnerName : (isFromGroup ? "Group Member" : "Stranger");
+        currentStrangerPartnerName = partnerName;
+        is1v1CallInitiator = !!(data && data.initiator);
+        window.is1v1CallInitiator = is1v1CallInitiator;
 
         appendSystemCard("connect", isFromGroup 
           ? `🟢 Connected in Private ${currentChatMode.toUpperCase()} with ${escapeHtml(partnerName)}! Say Hi 👋`
@@ -785,6 +862,14 @@ function initSocketConnection() {
 
     socket.on("signal", async (data) => {
       if (!data || !data.signal) return;
+
+      // Handle 1v1 Mini-Game Signals (Invite, RPS moves, Balloon taps, End)
+      if (data.signal.type && data.signal.type.startsWith("1v1_game_")) {
+        if (typeof handleIncoming1v1GameSignal === "function") {
+          handleIncoming1v1GameSignal(data.signal);
+        }
+        return;
+      }
 
       // Handle Instant Peer Left / Disconnect Signal
       if (data.signal.type === "peer_left") {
@@ -1171,6 +1256,42 @@ let privateChatMsgCounter = 0;
 let privateChatPwaInjected = false;
 let privateChatAdInjected = false;
 let privateChatPromoInjected = false;
+let currentStrangerPartnerName = "Stranger";
+let is1v1CallInitiator = false;
+let v2GamesPrompted = { rps: false, balloon: false };
+let last12CardInjectedAtMsg = -1;
+let v2RpsDeclined = false;
+let v2RpsMatchCompleted = false;
+let v2RpsCompletedAtMsg = -1;
+let v21v1BalloonResultPosted = false;
+
+if (typeof window !== "undefined") {
+  Object.defineProperty(window, "privateChatMsgCounter", {
+    get() { return privateChatMsgCounter; },
+    set(v) { privateChatMsgCounter = v; },
+    configurable: true
+  });
+  Object.defineProperty(window, "v2GamesPrompted", {
+    get() { return v2GamesPrompted; },
+    set(v) { v2GamesPrompted = v; },
+    configurable: true
+  });
+  Object.defineProperty(window, "last12CardInjectedAtMsg", {
+    get() { return last12CardInjectedAtMsg; },
+    set(v) { last12CardInjectedAtMsg = v; },
+    configurable: true
+  });
+  Object.defineProperty(window, "v2RpsMatchCompleted", {
+    get() { return v2RpsMatchCompleted; },
+    set(v) { v2RpsMatchCompleted = v; },
+    configurable: true
+  });
+  Object.defineProperty(window, "v2RpsDeclined", {
+    get() { return v2RpsDeclined; },
+    set(v) { v2RpsDeclined = v; },
+    configurable: true
+  });
+}
 
 /**
  * Clear Chat History for New Stranger Match
@@ -1183,6 +1304,12 @@ function clearChatHistory() {
   privateChatPwaInjected = false;
   privateChatAdInjected = false;
   privateChatPromoInjected = false;
+  last12CardInjectedAtMsg = -1;
+  v2RpsDeclined = false;
+  v2RpsMatchCompleted = false;
+  v2RpsCompletedAtMsg = -1;
+  v21v1BalloonResultPosted = false;
+  if (typeof reset1v1GamePacing === "function") reset1v1GamePacing();
   if (typeof cancelV2ChatReply === "function") cancelV2ChatReply();
   if (el.chatInput) {
     el.chatInput.value = "Hi 👋";
@@ -2197,7 +2324,13 @@ function setupEventListeners() {
     el.btnSendChat.addEventListener("click", sendChatMessage);
   }
   if (el.chatInput) {
-    el.chatInput.addEventListener("input", autoGrowChatInput);
+    el.chatInput.addEventListener("input", () => {
+      autoGrowChatInput();
+      if (typeof handle1v1TypingAutoDismiss === "function") handle1v1TypingAutoDismiss();
+    });
+    el.chatInput.addEventListener("focus", () => {
+      if (typeof handle1v1TypingAutoDismiss === "function") handle1v1TypingAutoDismiss();
+    });
     el.chatInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
@@ -4006,45 +4139,76 @@ function handlePrivateChatPacing() {
 
   const isStandalone = (typeof window !== "undefined" && ((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator && window.navigator.standalone)));
 
-  // Threshold 1: At 12 messages - Hook high-intent users with PWA install or House Promo
-  if (privateChatMsgCounter === 12) {
-    if (!isStandalone && !privateChatPwaInjected) {
-      el.chatMessages.appendChild(renderPrivateChatPWAInlineCard());
-      privateChatPwaInjected = true;
-      console.log("📱 [1v1 Pacing] Injected compact PWA prompt at message 12.");
-    } else if (!privateChatPromoInjected) {
-      el.chatMessages.appendChild(renderPrivateChatHouseInlineCard());
-      privateChatPromoInjected = true;
-      console.log("💼 [1v1 Pacing] Injected compact MyLeader promo at message 12.");
+  // =========================================================================
+  // 1. MINI-GAME DUEL PACING (PROACTIVE PROMPTS - ONE SIDE ONLY)
+  // =========================================================================
+  // Game 1: At 6 messages - Rock-Paper-Scissors Prompt (ONLY to Initiator!)
+  if (privateChatMsgCounter === 6) {
+    if (is1v1CallInitiator && !v2GamesPrompted.rps && inCall) {
+      v2GamesPrompted.rps = true;
+      if (typeof render1v1GamePromptCard === "function") {
+        render1v1GamePromptCard("rps");
+      }
+      console.log("🎮 [1v1 Pacing] Injected proactive Rock-Paper-Scissors prompt to initiator at message " + privateChatMsgCounter);
     }
-    setTimeout(() => {
-      if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
-    }, 40);
   }
-  // Threshold 2: At 24 messages - Monetize deep engagement with Adsterra banner or House promo
-  else if (privateChatMsgCounter === 24) {
-    if (!privateChatAdInjected) {
+
+  // Game 2: Balloon Pop Game Prompt (ONLY to Non-Initiator!)
+  // Conditions to trigger:
+  // - If Game 1 (RPS) was played: Trigger after short chat gap (v2RpsCompletedAtMsg + 3 messages, e.g. msg 10 or 14)
+  // - If Game 1 (RPS) was declined: Trigger at msg 9 (3 messages after msg 6)
+  // - Default fallback: at msg 15
+  const shouldPromptBalloon = (
+    !is1v1CallInitiator &&
+    !v2GamesPrompted.balloon &&
+    inCall &&
+    (
+      (v2RpsMatchCompleted && v2RpsCompletedAtMsg > 0 && privateChatMsgCounter >= v2RpsCompletedAtMsg + 3) ||
+      (v2RpsDeclined && privateChatMsgCounter >= 9) ||
+      (privateChatMsgCounter >= 15)
+    ) &&
+    (privateChatMsgCounter % 12 !== 0) // Avoid injecting on the same message as 12-message card
+  );
+
+  if (shouldPromptBalloon) {
+    v2GamesPrompted.balloon = true;
+    if (typeof render1v1GamePromptCard === "function") {
+      render1v1GamePromptCard("balloon");
+    }
+    console.log("🎈 [1v1 Pacing] Injected proactive Balloon Pop prompt to non-initiator at message " + privateChatMsgCounter);
+  }
+
+  // =========================================================================
+  // 2. 12-MESSAGE RECURRING FREQUENCY CARDS (EVERY 12 MESSAGES)
+  // =========================================================================
+  // Strictly fires ONLY on exact multiples of 12 (12, 24, 36, 48, 60...), never at 13 or other numbers!
+  if (privateChatMsgCounter > 0 && privateChatMsgCounter % 12 === 0 && last12CardInjectedAtMsg !== privateChatMsgCounter) {
+    last12CardInjectedAtMsg = privateChatMsgCounter;
+
+    // At 12 messages: PWA Card (if not installed) or MyLeader house promo
+    if (privateChatMsgCounter === 12) {
+      if (!isStandalone) {
+        el.chatMessages.appendChild(renderPrivateChatPWAInlineCard());
+        console.log("📱 [1v1 Pacing] Injected compact PWA prompt at message 12.");
+      } else {
+        el.chatMessages.appendChild(renderPrivateChatHouseInlineCard());
+        console.log("💼 [1v1 Pacing] Injected compact MyLeader promo at message 12.");
+      }
+    }
+    // At 24, 36, 48, 60, 72... (all subsequent 12-message intervals):
+    // Monetize with Adsterra banner if quota allows, else House promo
+    else {
       const status = getGroupHourlyAdsterraStatus();
       if (status.canShow) {
         injectPrivateChatAdsterraBanner(el.chatMessages);
         incrementGroupHourlyAdsterraCount();
-        privateChatAdInjected = true;
-        console.log(`🎯 [1v1 Pacing] Injected Adsterra banner at message 24 (${status.count + 1}/${MAX_GROUP_ADSTERRA_PER_HOUR}).`);
-      } else if (!privateChatPromoInjected) {
+        console.log(`🎯 [1v1 Pacing] Injected Adsterra banner at message ${privateChatMsgCounter} (${status.count + 1}/${MAX_GROUP_ADSTERRA_PER_HOUR}).`);
+      } else {
         el.chatMessages.appendChild(renderPrivateChatHouseInlineCard());
-        privateChatPromoInjected = true;
-        console.log("💼 [1v1 Pacing] Adsterra quota capped, injected MyLeader promo at message 24.");
+        console.log(`💼 [1v1 Pacing] Injected MyLeader promo at message ${privateChatMsgCounter}.`);
       }
-      setTimeout(() => {
-        if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
-      }, 40);
     }
-  }
-  // Threshold 3: At 36 messages
-  else if (privateChatMsgCounter === 36 && !privateChatPromoInjected) {
-    el.chatMessages.appendChild(renderPrivateChatHouseInlineCard());
-    privateChatPromoInjected = true;
-    console.log("🚀 [1v1 Pacing] Injected house promo card at message 36.");
+
     setTimeout(() => {
       if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
     }, 40);
@@ -4482,9 +4646,41 @@ function v2ReturnToGroupChat(autoInvite = false) {
   cleanupPeerConnection(false);
   clearChatHistory();
 
+  // 1. Immediately dismiss and tear down any 1v1 mini-game duel
+  if (typeof dismiss1v1GameDock === "function") {
+    dismiss1v1GameDock(false);
+  }
+  if (typeof reset1v1GamePacing === "function") {
+    reset1v1GamePacing();
+  }
+  if (typeof v21v1BalloonGame !== "undefined" && v21v1BalloonGame) {
+    v21v1BalloonGame.active = false;
+    if (v21v1BalloonGame.timerInterval) {
+      clearInterval(v21v1BalloonGame.timerInterval);
+      v21v1BalloonGame.timerInterval = null;
+    }
+    if (v21v1BalloonGame.animFrameId) {
+      cancelAnimationFrame(v21v1BalloonGame.animFrameId);
+      v21v1BalloonGame.animFrameId = null;
+    }
+  }
+
+  // 2. Ensure group chat pinned game slot is clean and not auto-playing
+  const groupSlot = document.getElementById("v2-group-pinned-game-slot");
+  if (groupSlot) {
+    groupSlot.classList.add("hidden");
+    groupSlot.innerHTML = "";
+  }
+  if (typeof stopBalloonGame === "function" && typeof balloonGameState !== "undefined" && balloonGameState && balloonGameState.isActive) {
+    stopBalloonGame();
+  }
+  window.balloonGameDismissed = true;
+  window.balloonGameAutoStarted = true;
+
   currentMatchTargetId = null;
   window.currentMatchTargetId = null;
   inCall = false;
+  window.inCall = false;
 
   if (localStream) {
     localStream.getTracks().forEach((t) => t.stop());
@@ -4496,6 +4692,8 @@ function v2ReturnToGroupChat(autoInvite = false) {
   if (el.searchStage) el.searchStage.classList.add("hidden");
   const groupStage = document.getElementById("v2-group-chat-stage");
   if (groupStage) groupStage.classList.remove("hidden");
+  const chatDrawer = document.getElementById("v2-chat-drawer");
+  if (chatDrawer) chatDrawer.classList.add("closed");
   if (el.chatDrawer) el.chatDrawer.classList.add("closed");
   if (el.localPip) el.localPip.classList.add("hidden");
   if (el.audioVisualizer) el.audioVisualizer.classList.add("hidden");
@@ -4737,7 +4935,7 @@ function scheduleBalloonGameAutoStart() {
   window.balloonGameAutoStarted = true;
 
   setTimeout(() => {
-    if (!window.balloonGameDismissed) {
+    if (!window.balloonGameDismissed && !inCall && !currentMatchTargetId) {
       initBalloonGame();
     }
   }, 6500);
@@ -4847,6 +5045,8 @@ function initBalloonGame() {
 
   slot.classList.remove("hidden");
   balloonGameState.isMinimized = false;
+  scrollGroupFeedToBottom(false);
+  setTimeout(() => scrollGroupFeedToBottom(false), 50);
 
   // Auto-pause when user focuses group input field to type
   const groupInputField = document.getElementById("v2-group-input-field");
@@ -5479,6 +5679,7 @@ function dismissBalloonGame() {
   if (slot) {
     slot.classList.add("hidden");
     slot.innerHTML = "";
+    scrollGroupFeedToBottom(false);
   }
 }
 
@@ -5626,4 +5827,1232 @@ window.toggleBalloonGameFromDock = toggleBalloonGameFromDock;
 window.dismissBalloonGame = dismissBalloonGame;
 window.advanceBalloonGameLevel = advanceBalloonGameLevel;
 window.balloonGameState = balloonGameState;
+
+/* ==========================================================================
+   1v1 PRIVATE CHAT MINI-GAMES ENGAGEMENT ENGINE
+   ========================================================================== */
+
+let v2GamePromptState = {
+  active: false,
+  gameType: null,
+  cardElement: null
+};
+
+let v2RpsState = {
+  active: false,
+  round: 1,
+  maxRounds: 3,
+  localScore: 0,
+  remoteScore: 0,
+  localMove: null,
+  remoteMove: null,
+  timerInterval: null,
+  roundSecondsLeft: 10,
+  resolved: false
+};
+
+const V2_BALLOON_PALETTE = [
+  { name: "YELLOW", hex: "#facc15" },
+  { name: "RED", hex: "#ef4444" },
+  { name: "BLUE", hex: "#3b82f6" },
+  { name: "GREEN", hex: "#22c55e" },
+  { name: "PURPLE", hex: "#a855f7" }
+];
+
+let v21v1BalloonGame = {
+  active: false,
+  secondsLeft: 100,
+  timerInterval: null,
+  localScore: 0,
+  remoteScore: 0,
+  targetColorIndex: 0,
+  targetColor: "YELLOW",
+  targetColorHex: "#facc15",
+  targetPopsCount: 0,
+  balloons: [],
+  particles: [],
+  floatingTexts: [],
+  canvas: null,
+  ctx: null,
+  animFrameId: null,
+  lastFrameTime: 0,
+  lastSyncTime: 0
+};
+
+function reset1v1GamePacing() {
+  v2GamesPrompted = { rps: false, balloon: false };
+  v2RpsDeclined = false;
+  v2RpsMatchCompleted = false;
+  v2RpsCompletedAtMsg = -1;
+  last12CardInjectedAtMsg = -1;
+  v21v1BalloonResultPosted = false;
+  dismiss1v1GamePrompt(true);
+  dismiss1v1GameDock(false);
+  const pendingPill = document.getElementById("v2-game-pending-invite-pill");
+  if (pendingPill) pendingPill.remove();
+}
+
+function render1v1GamePromptCard(gameType) {
+  if (!el.chatMessages) {
+    el.chatMessages = document.getElementById("v2-chat-messages") || document.getElementById("chat-messages");
+  }
+  if (!el.chatMessages) return;
+
+  // If dock already has an active game, don't interrupt
+  if (v2RpsState.active || (v21v1BalloonGame && v21v1BalloonGame.active)) return;
+  // If a prompt card is already active, dismiss it first
+  if (v2GamePromptState.active && v2GamePromptState.cardElement) {
+    dismiss1v1GamePrompt(true);
+  }
+
+  const partnerName = currentStrangerPartnerName || "Stranger";
+  const isRps = gameType === "rps";
+
+  const card = document.createElement("div");
+  card.className = "v2-game-prompt-card";
+  card.id = `v2-game-prompt-${gameType}`;
+
+  let previewGraphic = "";
+  let promptTitle = "";
+  let promptSub = "";
+
+  if (isRps) {
+    promptTitle = `Hey, wanna play Rock-Paper-Scissors with ${escapeHtml(partnerName)}?`;
+    promptSub = "Best of 3 quick clash • 10s moves";
+    previewGraphic = `
+      <div class="v2-game-preview-card rps">
+        <div class="v2-preview-header">
+          <span class="v2-preview-tag">✊ Best of 3 Duel</span>
+          <span class="v2-preview-timer">⏱️ 10s Moves</span>
+        </div>
+        <div class="v2-preview-rps-arena">
+          <div class="v2-preview-hand left">✊</div>
+          <div class="v2-preview-vs">VS</div>
+          <div class="v2-preview-hand right">✌️</div>
+        </div>
+        <div class="v2-preview-moves-row">
+          <span class="v2-preview-chip">✊ Rock</span>
+          <span class="v2-preview-chip">✋ Paper</span>
+          <span class="v2-preview-chip">✌️ Scissors</span>
+        </div>
+      </div>
+    `;
+  } else {
+    promptTitle = `Hey, wanna play Balloon Pop with ${escapeHtml(partnerName)}?`;
+    promptSub = "100s live balloon pop challenge • Tap to score!";
+    previewGraphic = `
+      <div class="v2-game-preview-card balloon">
+        <div class="v2-preview-header">
+          <span class="v2-preview-tag">🎯 POP TARGET</span>
+          <span class="v2-preview-dot"></span>
+          <span class="v2-preview-timer">⏱️ 100s Match</span>
+        </div>
+        <div class="v2-preview-balloon-track">
+          <span class="v2-mini-balloon" style="color:#ef4444;">🎈</span>
+          <span class="v2-mini-balloon pop-glow" style="color:#facc15;">🟡💥</span>
+          <span class="v2-mini-balloon" style="color:#3b82f6;">🎈</span>
+          <span class="v2-mini-balloon" style="color:#22c55e;">🎈</span>
+          <span class="v2-mini-balloon" style="color:#a855f7;">🎈</span>
+        </div>
+        <div class="v2-preview-sub-hint">Tap floating balloons matching the target color!</div>
+      </div>
+    `;
+  }
+
+  card.innerHTML = `
+    ${previewGraphic}
+    <div class="v2-prompt-graphic-row" style="margin-bottom: 8px;">
+      <div class="v2-prompt-text-block">
+        <div class="v2-prompt-title">${promptTitle}</div>
+        <div class="v2-prompt-sub">${promptSub}</div>
+      </div>
+    </div>
+    <div class="v2-prompt-actions">
+      <button class="v2-btn-prompt-no" onclick="handle1v1GamePromptDecline('${gameType}')">
+        No
+      </button>
+      <button class="v2-btn-prompt-yes" onclick="handle1v1GamePromptAccept('${gameType}')">
+        Play ⚡
+      </button>
+    </div>
+  `;
+
+  el.chatMessages.appendChild(card);
+  v2GamePromptState = { active: true, gameType: gameType, cardElement: card };
+
+  setTimeout(() => {
+    if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+  }, 40);
+}
+
+function handle1v1TypingAutoDismiss() {
+  if (v2GamePromptState.active && v2GamePromptState.cardElement) {
+    const inputVal = el.chatInput ? el.chatInput.value.trim() : "";
+    if (inputVal.length > 0) {
+      console.log("⌨️ [1v1 Game] Auto-dismissing proactive prompt as user is typing.");
+      if (v2GamePromptState.gameType === "rps") {
+        v2RpsDeclined = true;
+      }
+      dismiss1v1GamePrompt(false);
+    }
+  }
+}
+
+function dismiss1v1GamePrompt(immediate = false) {
+  if (!v2GamePromptState.cardElement) {
+    v2GamePromptState.active = false;
+    v2GamePromptState.gameType = null;
+    return;
+  }
+  const card = v2GamePromptState.cardElement;
+  v2GamePromptState.active = false;
+  v2GamePromptState.gameType = null;
+  v2GamePromptState.cardElement = null;
+
+  if (immediate) {
+    try { card.remove(); } catch (e) {}
+  } else {
+    card.classList.add("fade-out");
+    setTimeout(() => {
+      try { card.remove(); } catch (e) {}
+    }, 280);
+  }
+}
+
+function handle1v1GamePromptDecline(gameType) {
+  dismiss1v1GamePrompt(false);
+  if (gameType === "rps") {
+    v2RpsDeclined = true;
+  }
+  console.log(`🙅 [1v1 Game] User declined proactive ${gameType} prompt.`);
+}
+
+function handle1v1GamePromptAccept(gameType) {
+  dismiss1v1GamePrompt(false);
+  send1v1GameInvite(gameType);
+}
+
+function send1v1GameInvite(gameType) {
+  if (!inCall || !currentMatchTargetId) {
+    if (typeof v2ShowToast === "function") {
+      v2ShowToast("⚠️ Connect with a stranger first to play!");
+    }
+    return;
+  }
+  const partnerName = currentStrangerPartnerName || "Stranger";
+  const gameTitle = gameType === "rps" ? "Rock-Paper-Scissors" : "Balloon Pop";
+
+  const oldPill = document.getElementById("v2-game-pending-invite-pill");
+  if (oldPill) oldPill.remove();
+
+  const pendingPill = document.createElement("div");
+  pendingPill.id = "v2-game-pending-invite-pill";
+  pendingPill.className = "v2-system-card";
+  pendingPill.style.cssText = "background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.35); color: #e9d5ff; padding: 8px 12px; border-radius: 12px; margin: 6px auto; font-size: 0.82rem; text-align: center;";
+  pendingPill.innerHTML = `<span>⏳ Sent <strong>${gameTitle}</strong> invitation to ${escapeHtml(partnerName)}...</span>`;
+
+  if (el.chatMessages) {
+    el.chatMessages.appendChild(pendingPill);
+    el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+  }
+
+  const myNick = (typeof currentNickname !== "undefined" && currentNickname) ? currentNickname : "Stranger";
+  socket.emit("signal", {
+    targetId: currentMatchTargetId,
+    signal: {
+      type: "1v1_game_invite",
+      gameType: gameType,
+      senderName: myNick
+    },
+    clientVersion: "v2"
+  });
+  console.log(`🎮 [1v1 Game] Sent invite for ${gameType} to ${currentMatchTargetId}`);
+}
+
+function handleIncoming1v1GameInvite(signal) {
+  if (v2RpsState.active || (v21v1BalloonGame && v21v1BalloonGame.active)) {
+    socket.emit("signal", {
+      targetId: currentMatchTargetId,
+      signal: { type: "1v1_game_invite_busy", gameType: signal.gameType },
+      clientVersion: "v2"
+    });
+    return;
+  }
+
+  dismiss1v1GamePrompt(true);
+
+  const senderName = signal.senderName || "Stranger";
+  const gameType = signal.gameType || "rps";
+  const isRps = gameType === "rps";
+  const gameTitle = isRps ? "Rock-Paper-Scissors" : "Balloon Pop";
+
+  const card = document.createElement("div");
+  card.className = "v2-game-prompt-card";
+  card.id = `v2-game-incoming-${gameType}`;
+
+  card.innerHTML = `
+    <div class="v2-prompt-graphic-row">
+      <div class="v2-prompt-icon-badge"><span>${isRps ? '✊' : '🎈'}</span></div>
+      <div class="v2-prompt-text-block">
+        <div class="v2-prompt-title">⚡ ${escapeHtml(senderName)} invites you to ${gameTitle}!</div>
+        <div class="v2-prompt-sub">${isRps ? 'Best of 3 quick duel' : '100s live balloon pop battle'}</div>
+      </div>
+    </div>
+    <div class="v2-prompt-actions">
+      <button class="v2-btn-prompt-no" onclick="handleDeclineIncomingGameInvite('${gameType}')">
+        Decline ✕
+      </button>
+      <button class="v2-btn-prompt-yes" onclick="handleAcceptIncomingGameInvite('${gameType}')">
+        Accept & Play 🎮
+      </button>
+    </div>
+  `;
+
+  if (el.chatMessages) {
+    el.chatMessages.appendChild(card);
+    el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+  }
+  v2GamePromptState = { active: true, gameType: gameType, cardElement: card };
+  if (typeof playAudioChime === "function") playAudioChime("pop");
+}
+
+function handleAcceptIncomingGameInvite(gameType) {
+  dismiss1v1GamePrompt(false);
+  socket.emit("signal", {
+    targetId: currentMatchTargetId,
+    signal: { type: "1v1_game_invite_accept", gameType: gameType },
+    clientVersion: "v2"
+  });
+  if (gameType === "rps") {
+    start1v1RpsMatch();
+  } else {
+    start1v1BalloonDuel();
+  }
+}
+
+function handleDeclineIncomingGameInvite(gameType) {
+  dismiss1v1GamePrompt(false);
+  socket.emit("signal", {
+    targetId: currentMatchTargetId,
+    signal: { type: "1v1_game_invite_decline", gameType: gameType },
+    clientVersion: "v2"
+  });
+}
+
+function handleIncoming1v1GameSignal(signal) {
+  if (!signal || !signal.type) return;
+
+  switch (signal.type) {
+    case "1v1_game_invite":
+      handleIncoming1v1GameInvite(signal);
+      break;
+
+    case "1v1_game_invite_accept": {
+      const pendingPill = document.getElementById("v2-game-pending-invite-pill");
+      if (pendingPill) pendingPill.remove();
+      if (signal.gameType === "rps") {
+        start1v1RpsMatch();
+      } else {
+        start1v1BalloonDuel();
+      }
+      break;
+    }
+
+    case "1v1_game_invite_decline": {
+      const pendingPill = document.getElementById("v2-game-pending-invite-pill");
+      if (pendingPill) pendingPill.remove();
+      if (typeof v2ShowToast === "function") {
+        v2ShowToast(`${currentStrangerPartnerName || "Stranger"} wants to continue chatting.`);
+      }
+      break;
+    }
+
+    case "1v1_game_invite_busy": {
+      const pendingPill = document.getElementById("v2-game-pending-invite-pill");
+      if (pendingPill) pendingPill.remove();
+      if (typeof v2ShowToast === "function") {
+        v2ShowToast("Stranger is currently busy.");
+      }
+      break;
+    }
+
+    case "1v1_game_rps_move":
+      handleRemoteRpsMove(signal);
+      break;
+
+    case "1v1_game_balloon_score":
+      handleRemote1v1BalloonScore(signal);
+      break;
+
+    case "1v1_game_balloon_finish":
+      if (v21v1BalloonGame.active) {
+        v21v1BalloonGame.remoteScore = signal.score || 0;
+        const peerEl = document.getElementById("v2-1v1-score-peer");
+        if (peerEl) peerEl.textContent = v21v1BalloonGame.remoteScore;
+        finish1v1BalloonGame(true);
+      }
+      break;
+
+    case "1v1_game_result_post":
+      // Post result in chat feed from stranger
+      v21v1BalloonResultPosted = true;
+      appendChatMessage("Stranger", signal.text, "stranger");
+      break;
+
+    case "1v1_game_ended":
+      if (typeof v2ShowToast === "function") {
+        v2ShowToast("Stranger ended the game duel.");
+      }
+      if (v21v1BalloonGame.active) {
+        finish1v1BalloonGame(true);
+      } else if (v2RpsState.active) {
+        finish1v1RpsMatch();
+      } else {
+        dismiss1v1GameDock(false);
+      }
+      break;
+  }
+}
+
+/**
+ * Broadcast Game Result Message to BOTH users in 1v1 Chat
+ */
+function broadcast1v1GameResult(resultText) {
+  // 1. Post in local chat feed
+  appendChatMessage("You", resultText, "user");
+
+  // 2. Send to peer so peer receives it in their chat feed
+  if (socket && socket.connected && currentMatchTargetId) {
+    socket.emit("signal", {
+      targetId: currentMatchTargetId,
+      signal: {
+        type: "1v1_game_result_post",
+        text: resultText
+      },
+      clientVersion: "v2"
+    });
+  }
+}
+
+function dismiss1v1GameDock(notifyPeer = false) {
+  const dock = document.getElementById("v2-1v1-game-dock");
+  if (dock) {
+    dock.classList.add("hidden");
+    dock.innerHTML = "";
+    scrollPrivateChatToBottom(false);
+  }
+  if (v2RpsState.timerInterval) {
+    clearInterval(v2RpsState.timerInterval);
+    v2RpsState.timerInterval = null;
+  }
+  if (v21v1BalloonGame.timerInterval) {
+    clearInterval(v21v1BalloonGame.timerInterval);
+    v21v1BalloonGame.timerInterval = null;
+  }
+  if (v21v1BalloonGame.animFrameId) {
+    cancelAnimationFrame(v21v1BalloonGame.animFrameId);
+    v21v1BalloonGame.animFrameId = null;
+  }
+  v2RpsState.active = false;
+  v21v1BalloonGame.active = false;
+
+  if (notifyPeer && inCall && currentMatchTargetId) {
+    socket.emit("signal", {
+      targetId: currentMatchTargetId,
+      signal: { type: "1v1_game_ended" },
+      clientVersion: "v2"
+    });
+  }
+}
+
+function openV2AttachmentMenu() {
+  const modal = document.getElementById("v2-attachment-modal");
+  if (modal) modal.classList.remove("hidden");
+}
+
+function closeV2AttachmentMenu(event) {
+  if (event && event.target && event.currentTarget && event.target !== event.currentTarget) {
+    return;
+  }
+  const modal = document.getElementById("v2-attachment-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function triggerAttachmentMediaUpload() {
+  const modal = document.getElementById("v2-attachment-modal");
+  if (modal) modal.classList.add("hidden");
+  const fileInput = document.getElementById("v2-media-file-input");
+  if (fileInput) fileInput.click();
+}
+
+function triggerManualGameChallenge(gameType) {
+  const modal = document.getElementById("v2-attachment-modal");
+  if (modal) modal.classList.add("hidden");
+
+  if (!inCall || !currentMatchTargetId) {
+    if (typeof v2ShowToast === "function") {
+      v2ShowToast("⚠️ Connect with a stranger first to challenge!");
+    }
+    return;
+  }
+  send1v1GameInvite(gameType);
+}
+
+function start1v1RpsMatch() {
+  const dock = document.getElementById("v2-1v1-game-dock");
+  if (!dock) return;
+  dock.classList.remove("hidden");
+  scrollPrivateChatToBottom(false);
+  setTimeout(() => scrollPrivateChatToBottom(false), 50);
+
+  v2RpsState = {
+    active: true,
+    round: 1,
+    maxRounds: 3,
+    localScore: 0,
+    remoteScore: 0,
+    localMove: null,
+    remoteMove: null,
+    timerInterval: null,
+    roundSecondsLeft: 10,
+    resolved: false
+  };
+
+  renderRpsRound();
+}
+
+function renderRpsRound() {
+  const dock = document.getElementById("v2-1v1-game-dock");
+  if (!dock) return;
+
+  if (v2RpsState.timerInterval) {
+    clearInterval(v2RpsState.timerInterval);
+    v2RpsState.timerInterval = null;
+  }
+
+  v2RpsState.localMove = null;
+  v2RpsState.remoteMove = null;
+  v2RpsState.roundSecondsLeft = 10;
+  v2RpsState.resolved = false;
+
+  dock.innerHTML = `
+    <div class="v2-rps-container">
+      <div class="v2-rps-header">
+        <span class="v2-rps-badge">✊ RPS • Round ${v2RpsState.round}/3</span>
+        <div class="v2-rps-score-pill">
+          You: <span class="me" id="v2-rps-score-me">${v2RpsState.localScore}</span> | 
+          Stranger: <span class="peer" id="v2-rps-score-peer">${v2RpsState.remoteScore}</span>
+        </div>
+        <div class="v2-rps-timer-bar-wrap">
+          <div class="v2-rps-timer-bar" id="v2-rps-timer-bar" style="width: 100%;"></div>
+        </div>
+        <button class="v2-rps-close-btn" onclick="finish1v1RpsMatch()" title="End Game">&times;</button>
+      </div>
+      <div class="v2-rps-moves-row" id="v2-rps-moves-row">
+        <button class="v2-btn-rps-move" id="v2-rps-move-rock" onclick="selectRpsMove('rock')">
+          <span class="icon">✊</span>
+          <span>Rock</span>
+        </button>
+        <button class="v2-btn-rps-move" id="v2-rps-move-paper" onclick="selectRpsMove('paper')">
+          <span class="icon">✋</span>
+          <span>Paper</span>
+        </button>
+        <button class="v2-btn-rps-move" id="v2-rps-move-scissors" onclick="selectRpsMove('scissors')">
+          <span class="icon">✌️</span>
+          <span>Scissors</span>
+        </button>
+      </div>
+      <div id="v2-rps-round-status" style="font-size: 0.72rem; color: rgba(216, 180, 254, 0.75); text-align: center; margin-top: 2px;">
+        Pick your move (10s)!
+      </div>
+    </div>
+  `;
+
+  const timerBar = document.getElementById("v2-rps-timer-bar");
+  const totalMs = 10000;
+  let remainingMs = totalMs;
+
+  v2RpsState.timerInterval = setInterval(() => {
+    remainingMs -= 100;
+    if (timerBar) {
+      const pct = Math.max(0, (remainingMs / totalMs) * 100);
+      timerBar.style.width = pct + "%";
+    }
+    if (remainingMs <= 0) {
+      clearInterval(v2RpsState.timerInterval);
+      v2RpsState.timerInterval = null;
+      if (!v2RpsState.localMove) {
+        const moves = ["rock", "paper", "scissors"];
+        const autoMove = moves[Math.floor(Math.random() * moves.length)];
+        selectRpsMove(autoMove);
+      } else if (!v2RpsState.resolved) {
+        resolveRpsRound();
+      }
+    }
+  }, 100);
+}
+
+function selectRpsMove(move) {
+  if (v2RpsState.localMove || v2RpsState.resolved) return;
+  v2RpsState.localMove = move;
+
+  if (typeof playAudioChime === "function") playAudioChime("pop");
+
+  document.querySelectorAll(".v2-btn-rps-move").forEach(btn => {
+    btn.disabled = true;
+  });
+  const selectedBtn = document.getElementById(`v2-rps-move-${move}`);
+  if (selectedBtn) selectedBtn.classList.add("selected");
+
+  const statusEl = document.getElementById("v2-rps-round-status");
+  if (statusEl) statusEl.textContent = "Move locked! Waiting for stranger...";
+
+  socket.emit("signal", {
+    targetId: currentMatchTargetId,
+    signal: {
+      type: "1v1_game_rps_move",
+      round: v2RpsState.round,
+      move: move
+    },
+    clientVersion: "v2"
+  });
+
+  if (v2RpsState.remoteMove) {
+    resolveRpsRound();
+  }
+}
+
+function handleRemoteRpsMove(signal) {
+  if (!v2RpsState.active) return;
+  if (signal.round === v2RpsState.round) {
+    v2RpsState.remoteMove = signal.move;
+    if (v2RpsState.localMove) {
+      resolveRpsRound();
+    }
+  }
+}
+
+function resolveRpsRound() {
+  if (v2RpsState.resolved) return;
+  v2RpsState.resolved = true;
+
+  if (v2RpsState.timerInterval) {
+    clearInterval(v2RpsState.timerInterval);
+    v2RpsState.timerInterval = null;
+  }
+
+  const movesRow = document.getElementById("v2-rps-moves-row");
+  const statusEl = document.getElementById("v2-rps-round-status");
+  if (statusEl) statusEl.textContent = "";
+
+  const local = v2RpsState.localMove || "rock";
+  const remote = v2RpsState.remoteMove || "rock";
+
+  const iconMap = { rock: "✊", paper: "✋", scissors: "✌️" };
+
+  let outcome = "tie";
+  if (local === remote) {
+    outcome = "tie";
+  } else if (
+    (local === "rock" && remote === "scissors") ||
+    (local === "paper" && remote === "rock") ||
+    (local === "scissors" && remote === "paper")
+  ) {
+    outcome = "win";
+    v2RpsState.localScore++;
+  } else {
+    outcome = "loss";
+    v2RpsState.remoteScore++;
+  }
+
+  const meScoreEl = document.getElementById("v2-rps-score-me");
+  const peerScoreEl = document.getElementById("v2-rps-score-peer");
+  if (meScoreEl) meScoreEl.textContent = v2RpsState.localScore;
+  if (peerScoreEl) peerScoreEl.textContent = v2RpsState.remoteScore;
+
+  let resultBadge = "";
+  if (outcome === "win") resultBadge = "🎉 You Won Round " + v2RpsState.round + "!";
+  else if (outcome === "loss") resultBadge = "Stranger Won Round " + v2RpsState.round + "!";
+  else resultBadge = "🤝 Round " + v2RpsState.round + " Tied!";
+
+  if (movesRow) {
+    movesRow.innerHTML = `
+      <div class="v2-rps-clash-box">
+        <div class="v2-rps-clash-fighters">
+          <span>${iconMap[local]}</span>
+          <span class="v2-rps-clash-vs">VS</span>
+          <span>${iconMap[remote]}</span>
+        </div>
+        <div class="v2-rps-clash-result">${resultBadge}</div>
+      </div>
+    `;
+  }
+
+  setTimeout(() => {
+    if (!v2RpsState.active) return;
+    if (v2RpsState.round < 3) {
+      v2RpsState.round++;
+      renderRpsRound();
+    } else {
+      finish1v1RpsMatch();
+    }
+  }, 2200);
+}
+
+function finish1v1RpsMatch() {
+  const dock = document.getElementById("v2-1v1-game-dock");
+  if (!dock) return;
+
+  if (v2RpsState.timerInterval) {
+    clearInterval(v2RpsState.timerInterval);
+    v2RpsState.timerInterval = null;
+  }
+  v2RpsState.active = false;
+  v2RpsMatchCompleted = true;
+  v2RpsCompletedAtMsg = privateChatMsgCounter;
+
+  const myName = (typeof currentNickname !== "undefined" && currentNickname) ? currentNickname : "You";
+  const partnerName = currentStrangerPartnerName || "Stranger";
+
+  let finalTitle = "";
+  let resultMsg = "";
+
+  if (v2RpsState.localScore > v2RpsState.remoteScore) {
+    finalTitle = `🏆 YOU WON THE DUEL! (${v2RpsState.localScore} - ${v2RpsState.remoteScore})`;
+    resultMsg = `🏆 Game Result: ${myName} won Rock-Paper-Scissors against ${partnerName} (${v2RpsState.localScore} - ${v2RpsState.remoteScore})! 🎉`;
+  } else if (v2RpsState.localScore < v2RpsState.remoteScore) {
+    finalTitle = `👏 Stranger Won the Duel! (${v2RpsState.remoteScore} - ${v2RpsState.localScore})`;
+    resultMsg = `🏆 Game Result: ${partnerName} won Rock-Paper-Scissors against ${myName} (${v2RpsState.remoteScore} - ${v2RpsState.localScore})! 👏`;
+  } else {
+    finalTitle = `🤝 Match Tied! (${v2RpsState.localScore} - ${v2RpsState.remoteScore})`;
+    resultMsg = `🤝 Game Result: Rock-Paper-Scissors ended in a Tie (${v2RpsState.localScore} - ${v2RpsState.remoteScore})!`;
+  }
+
+  // Broadcast to both users in chat (post by winner or initiator if tie)
+  const shouldBroadcast = (v2RpsState.localScore > v2RpsState.remoteScore) || (v2RpsState.localScore === v2RpsState.remoteScore && is1v1CallInitiator);
+  if (shouldBroadcast) {
+    broadcast1v1GameResult(resultMsg);
+  }
+
+  dock.innerHTML = `
+    <div class="v2-rps-container">
+      <div class="v2-rps-header">
+        <span class="v2-rps-badge">🏆 Match Final</span>
+        <button class="v2-rps-close-btn" onclick="dismiss1v1GameDock(false)">&times;</button>
+      </div>
+      <div style="text-align: center; font-weight: 800; font-size: 0.88rem; color: #facc15; margin: 4px 0;">
+        ${finalTitle}
+      </div>
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+        <span style="font-size: 0.72rem; color: #d8b4fe;">💬 Fun Truth/Dare: Ask stranger a question!</span>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;">
+          <button class="v2-rps-truth-chip" onclick="insertTruthQuestionToChat('Favorite midnight food?')">🍕 Late food</button>
+          <button class="v2-rps-truth-chip" onclick="insertTruthQuestionToChat('Craziest movie you watched?')">🎬 Favorite movie</button>
+          <button class="v2-rps-truth-chip" onclick="insertTruthQuestionToChat('Superpower you wish you had?')">🦸 Superpower</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  setTimeout(() => {
+    if (dock && !dock.classList.contains("hidden")) {
+      dismiss1v1GameDock(false);
+    }
+  }, 5000);
+}
+
+function insertTruthQuestionToChat(text) {
+  if (el.chatInput) {
+    el.chatInput.value = text;
+    if (typeof autoGrowChatInput === "function") autoGrowChatInput();
+    el.chatInput.focus();
+  }
+}
+
+/**
+ * 1v1 Canvas-Based Balloon Pop Game (Group Chat Style with 100s Timer)
+ */
+function start1v1BalloonDuel() {
+  const dock = document.getElementById("v2-1v1-game-dock");
+  if (!dock) return;
+  dock.classList.remove("hidden");
+  scrollPrivateChatToBottom(false);
+  setTimeout(() => scrollPrivateChatToBottom(false), 50);
+
+  // Reset 1v1 Balloon Game State
+  v21v1BalloonGame.active = true;
+  v21v1BalloonGame.secondsLeft = 100;
+  v21v1BalloonGame.localScore = 0;
+  v21v1BalloonGame.remoteScore = 0;
+  v21v1BalloonGame.targetColorIndex = 0;
+  v21v1BalloonGame.targetColor = V2_BALLOON_PALETTE[0].name;
+  v21v1BalloonGame.targetColorHex = V2_BALLOON_PALETTE[0].hex;
+  v21v1BalloonGame.targetPopsCount = 0;
+  v21v1BalloonGame.balloons = [];
+  v21v1BalloonGame.particles = [];
+  v21v1BalloonGame.lastFrameTime = performance.now();
+  v21v1BalloonGame.lastSyncTime = 0;
+  v21v1BalloonResultPosted = false;
+
+  if (v21v1BalloonGame.timerInterval) clearInterval(v21v1BalloonGame.timerInterval);
+  if (v21v1BalloonGame.animFrameId) cancelAnimationFrame(v21v1BalloonGame.animFrameId);
+
+  dock.innerHTML = `
+    <div class="v2-1v1-balloon-game">
+      <div class="v2-1v1-balloon-header">
+        <div class="v2-game-target-badge" id="v2-1v1-target-badge" style="box-shadow: 0 0 10px ${v21v1BalloonGame.targetColorHex}40;">
+          <span class="v2-game-target-lbl">POP</span>
+          <span id="v2-1v1-target-dot" class="v2-game-target-dot" style="background:${v21v1BalloonGame.targetColorHex}; color:${v21v1BalloonGame.targetColorHex};"></span>
+          <strong id="v2-1v1-target-name" style="color:${v21v1BalloonGame.targetColorHex};">${v21v1BalloonGame.targetColor}</strong>
+        </div>
+        <div class="v2-1v1-score-pill" title="You (Green) vs Stranger (Red)">
+          🟢 <span id="v2-1v1-score-me" style="color:#34d399; font-weight:800;">0</span> : <span id="v2-1v1-score-peer" style="color:#f43f5e; font-weight:800;">0</span> 🔴
+        </div>
+        <div class="v2-1v1-timer-pill" id="v2-1v1-balloon-timer">
+          ⏱️ 100s
+        </div>
+        <button class="v2-rps-close-btn" onclick="finish1v1BalloonGame()" title="End Game">&times;</button>
+      </div>
+      <div class="v2-1v1-canvas-wrap" id="v2-1v1-canvas-wrap" style="border-color:${v21v1BalloonGame.targetColorHex}70; box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 12px ${v21v1BalloonGame.targetColorHex}30;">
+        <canvas id="v2-1v1-balloon-canvas" class="v2-1v1-balloon-canvas"></canvas>
+      </div>
+    </div>
+  `;
+
+  setup1v1BalloonCanvas();
+
+  // 100-Second Countdown Timer
+  v21v1BalloonGame.timerInterval = setInterval(() => {
+    v21v1BalloonGame.secondsLeft--;
+    const timerEl = document.getElementById("v2-1v1-balloon-timer");
+    if (timerEl) timerEl.textContent = `⏱️ ${v21v1BalloonGame.secondsLeft}s`;
+
+    // Rotate target color every 20 seconds
+    if (v21v1BalloonGame.secondsLeft % 20 === 0 && v21v1BalloonGame.secondsLeft > 0) {
+      rotate1v1TargetColor();
+    }
+
+    if (v21v1BalloonGame.secondsLeft <= 0) {
+      clearInterval(v21v1BalloonGame.timerInterval);
+      v21v1BalloonGame.timerInterval = null;
+      finish1v1BalloonGame();
+    }
+  }, 1000);
+}
+
+function rotate1v1TargetColor() {
+  v21v1BalloonGame.targetColorIndex = (v21v1BalloonGame.targetColorIndex + 1) % V2_BALLOON_PALETTE.length;
+  const item = V2_BALLOON_PALETTE[v21v1BalloonGame.targetColorIndex];
+  v21v1BalloonGame.targetColor = item.name;
+  v21v1BalloonGame.targetColorHex = item.hex;
+
+  const badge = document.getElementById("v2-1v1-target-badge");
+  const dot = document.getElementById("v2-1v1-target-dot");
+  const name = document.getElementById("v2-1v1-target-name");
+  const wrap = document.getElementById("v2-1v1-canvas-wrap");
+  if (badge) badge.style.boxShadow = `0 0 10px ${item.hex}40`;
+  if (dot) {
+    dot.style.background = item.hex;
+    dot.style.color = item.hex;
+  }
+  if (name) {
+    name.textContent = item.name;
+    name.style.color = item.hex;
+  }
+  if (wrap) {
+    wrap.style.borderColor = `${item.hex}70`;
+    wrap.style.boxShadow = `inset 0 2px 10px rgba(0, 0, 0, 0.5), 0 0 12px ${item.hex}30`;
+  }
+}
+
+function setup1v1BalloonCanvas() {
+  const canvas = document.getElementById("v2-1v1-balloon-canvas");
+  const wrap = document.getElementById("v2-1v1-canvas-wrap");
+  if (!canvas || !wrap) return;
+
+  const rect = wrap.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const width = Math.max(300, rect.width || wrap.offsetWidth || 340);
+  const height = 78;
+
+  canvas.width = width * dpr;
+  canvas.height = height * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+
+  v21v1BalloonGame.canvas = canvas;
+  v21v1BalloonGame.ctx = ctx;
+
+  canvas.addEventListener("pointerdown", handle1v1BalloonCanvasTap);
+
+  // Initial seed of balloons
+  v21v1BalloonGame.balloons = [];
+  v21v1BalloonGame.particles = [];
+  v21v1BalloonGame.floatingTexts = [];
+  for (let i = 0; i < 4; i++) {
+    spawn1v1Balloon(width + i * 85, height);
+  }
+
+  v21v1BalloonGame.lastFrameTime = performance.now();
+  v21v1BalloonGame.animFrameId = requestAnimationFrame(v21v1BalloonLoop);
+}
+
+function spawn1v1Balloon(startX, height) {
+  let chosenColor;
+  if (Math.random() < 0.40) {
+    chosenColor = V2_BALLOON_PALETTE.find(c => c.name === v21v1BalloonGame.targetColor) || V2_BALLOON_PALETTE[0];
+  } else {
+    const others = V2_BALLOON_PALETTE.filter(c => c.name !== v21v1BalloonGame.targetColor);
+    chosenColor = others[Math.floor(Math.random() * others.length)] || V2_BALLOON_PALETTE[0];
+  }
+
+  const yCenter = (height / 2) + ((Math.random() - 0.5) * 14);
+
+  v21v1BalloonGame.balloons.push({
+    x: startX,
+    y: yCenter,
+    radiusX: 18,
+    radiusY: 22,
+    colorName: chosenColor.name,
+    colorHex: chosenColor.hex,
+    speed: 75 + Math.random() * 30,
+    wobble: Math.random() * Math.PI * 2
+  });
+}
+
+function v21v1BalloonLoop(timestamp) {
+  if (!v21v1BalloonGame.active) return;
+
+  const dt = Math.min(0.1, (timestamp - v21v1BalloonGame.lastFrameTime) / 1000);
+  v21v1BalloonGame.lastFrameTime = timestamp;
+
+  const canvas = v21v1BalloonGame.canvas;
+  const ctx = v21v1BalloonGame.ctx;
+  if (!canvas || !ctx) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const width = canvas.width / dpr;
+  const height = canvas.height / dpr;
+
+  ctx.clearRect(0, 0, width, height);
+
+  // Spawn new balloon if needed
+  if (v21v1BalloonGame.balloons.length < 5) {
+    spawn1v1Balloon(width + 20 + Math.random() * 40, height);
+  }
+
+  // Update & Draw Balloons
+  for (let i = v21v1BalloonGame.balloons.length - 1; i >= 0; i--) {
+    const b = v21v1BalloonGame.balloons[i];
+    b.x -= b.speed * dt;
+    b.wobble += dt * 3;
+    const drawY = b.y + Math.sin(b.wobble) * 4;
+
+    ctx.save();
+    const x = b.x;
+    const y = drawY;
+    const rx = b.radiusX;
+    const ry = b.radiusY;
+
+    // Dangler String
+    ctx.beginPath();
+    ctx.moveTo(x, y + ry);
+    ctx.quadraticCurveTo(x + 5, y + ry + 8, x - 2, y + ry + 16);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Balloon Knot
+    ctx.beginPath();
+    ctx.moveTo(x - 3, y + ry);
+    ctx.lineTo(x + 3, y + ry);
+    ctx.lineTo(x, y + ry + 4);
+    ctx.fillStyle = b.colorHex;
+    ctx.fill();
+
+    // Balloon Body Oval with 3D Shadow/Glow
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = b.colorHex;
+    ctx.shadowColor = b.colorHex;
+    ctx.shadowBlur = 8;
+    ctx.fill();
+
+    // Glossy Specular Highlight
+    ctx.beginPath();
+    ctx.ellipse(x - (rx * 0.35), y - (ry * 0.35), rx * 0.3, ry * 0.4, -0.4, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
+    ctx.shadowBlur = 0;
+    ctx.fill();
+
+    ctx.restore();
+
+    // Remove if floated past left edge
+    if (b.x < -40) {
+      v21v1BalloonGame.balloons.splice(i, 1);
+    }
+  }
+
+  // Update & Draw Pop Particles
+  for (let i = v21v1BalloonGame.particles.length - 1; i >= 0; i--) {
+    const p = v21v1BalloonGame.particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.life -= dt;
+    if (p.life <= 0) {
+      v21v1BalloonGame.particles.splice(i, 1);
+      continue;
+    }
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * (p.life / 0.4), 0, Math.PI * 2);
+    ctx.fillStyle = p.color;
+    ctx.globalAlpha = Math.max(0, p.life / 0.4);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Update & Draw Floating Score Texts (+10, -5)
+  if (v21v1BalloonGame.floatingTexts) {
+    for (let i = v21v1BalloonGame.floatingTexts.length - 1; i >= 0; i--) {
+      const ft = v21v1BalloonGame.floatingTexts[i];
+      ft.y -= 30 * dt;
+      ft.alpha -= 1.5 * dt;
+
+      if (ft.alpha <= 0) {
+        v21v1BalloonGame.floatingTexts.splice(i, 1);
+      } else {
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, ft.alpha);
+        ctx.fillStyle = ft.color;
+        ctx.font = "bold 13px Inter, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(ft.text, ft.x, ft.y);
+        ctx.restore();
+      }
+    }
+  }
+
+  v21v1BalloonGame.animFrameId = requestAnimationFrame(v21v1BalloonLoop);
+}
+
+function handle1v1BalloonCanvasTap(e) {
+  if (!v21v1BalloonGame.active || v21v1BalloonGame.secondsLeft <= 0) return;
+
+  const canvas = v21v1BalloonGame.canvas;
+  if (!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const clickX = e.clientX - rect.left;
+  const clickY = e.clientY - rect.top;
+
+  // Check hit test against balloons
+  for (let i = v21v1BalloonGame.balloons.length - 1; i >= 0; i--) {
+    const b = v21v1BalloonGame.balloons[i];
+    const drawY = b.y + Math.sin(b.wobble || 0) * 4;
+    const dx = clickX - b.x;
+    const dy = clickY - drawY;
+    const distSq = dx * dx + dy * dy;
+
+    if (distSq <= (b.radiusX + 12) * (b.radiusX + 12)) {
+      // Pop hit!
+      const isTarget = (b.colorName === v21v1BalloonGame.targetColor);
+
+      if (isTarget) {
+        v21v1BalloonGame.localScore += 10;
+        v21v1BalloonGame.targetPopsCount++;
+        if (typeof playBalloonSynthSound === "function") {
+          playBalloonSynthSound("pop_correct");
+        } else if (typeof playAudioChime === "function") {
+          playAudioChime("pop");
+        }
+        if (v21v1BalloonGame.floatingTexts) {
+          v21v1BalloonGame.floatingTexts.push({
+            x: b.x,
+            y: drawY,
+            text: "+10",
+            color: "#34d399",
+            alpha: 1.0
+          });
+        }
+        // Pop particles
+        for (let k = 0; k < 10; k++) {
+          const angle = Math.random() * Math.PI * 2;
+          const spd = 60 + Math.random() * 80;
+          v21v1BalloonGame.particles.push({
+            x: b.x,
+            y: drawY,
+            vx: Math.cos(angle) * spd,
+            vy: Math.sin(angle) * spd,
+            size: 3 + Math.random() * 3,
+            color: b.colorHex,
+            life: 0.4
+          });
+        }
+        if (v21v1BalloonGame.targetPopsCount % 5 === 0) {
+          rotate1v1TargetColor();
+        }
+      } else {
+        // Wrong color: mild penalty
+        v21v1BalloonGame.localScore = Math.max(0, v21v1BalloonGame.localScore - 5);
+        if (typeof playBalloonSynthSound === "function") {
+          playBalloonSynthSound("pop_wrong");
+        } else if (typeof playAudioChime === "function") {
+          playAudioChime("disconnect");
+        }
+        if (v21v1BalloonGame.floatingTexts) {
+          v21v1BalloonGame.floatingTexts.push({
+            x: b.x,
+            y: drawY,
+            text: "-5",
+            color: "#ef4444",
+            alpha: 1.0
+          });
+        }
+      }
+
+      v21v1BalloonGame.balloons.splice(i, 1);
+
+      const scoreEl = document.getElementById("v2-1v1-score-me");
+      if (scoreEl) scoreEl.textContent = v21v1BalloonGame.localScore;
+
+      // Sync score to stranger
+      const now = Date.now();
+      if (now - v21v1BalloonGame.lastSyncTime > 200 || isTarget) {
+        v21v1BalloonGame.lastSyncTime = now;
+        socket.emit("signal", {
+          targetId: currentMatchTargetId,
+          signal: {
+            type: "1v1_game_balloon_score",
+            score: v21v1BalloonGame.localScore
+          },
+          clientVersion: "v2"
+        });
+      }
+      break;
+    }
+  }
+}
+
+function handleRemote1v1BalloonScore(signal) {
+  if (!v21v1BalloonGame.active) return;
+  v21v1BalloonGame.remoteScore = signal.score || 0;
+  const peerEl = document.getElementById("v2-1v1-score-peer");
+  if (peerEl) peerEl.textContent = v21v1BalloonGame.remoteScore;
+}
+
+function finish1v1BalloonGame(fromRemote = false) {
+  if (!v21v1BalloonGame.active) return;
+  v21v1BalloonGame.active = false;
+
+  if (v21v1BalloonGame.timerInterval) {
+    clearInterval(v21v1BalloonGame.timerInterval);
+    v21v1BalloonGame.timerInterval = null;
+  }
+  if (v21v1BalloonGame.animFrameId) {
+    cancelAnimationFrame(v21v1BalloonGame.animFrameId);
+    v21v1BalloonGame.animFrameId = null;
+  }
+
+  // Sync final score if local initiator
+  if (!fromRemote && inCall && currentMatchTargetId) {
+    socket.emit("signal", {
+      targetId: currentMatchTargetId,
+      signal: {
+        type: "1v1_game_balloon_finish",
+        score: v21v1BalloonGame.localScore
+      },
+      clientVersion: "v2"
+    });
+  }
+
+  const dock = document.getElementById("v2-1v1-game-dock");
+  const myName = (typeof currentNickname !== "undefined" && currentNickname) ? currentNickname : "You";
+  const partnerName = currentStrangerPartnerName || "Stranger";
+
+  let finalTitle = "";
+  let resultMsg = "";
+
+  if (v21v1BalloonGame.localScore > v21v1BalloonGame.remoteScore) {
+    finalTitle = `🏆 YOU WIN! (${v21v1BalloonGame.localScore} vs ${v21v1BalloonGame.remoteScore} pts) 🎉`;
+    resultMsg = `🎈 Game Result: ${myName} won Balloon Pop with ${v21v1BalloonGame.localScore} pts against ${partnerName} (${v21v1BalloonGame.remoteScore} pts)! 🏆`;
+  } else if (v21v1BalloonGame.localScore < v21v1BalloonGame.remoteScore) {
+    finalTitle = `👏 Stranger Wins! (${v21v1BalloonGame.remoteScore} vs ${v21v1BalloonGame.localScore} pts)`;
+    resultMsg = `🎈 Game Result: ${partnerName} won Balloon Pop with ${v21v1BalloonGame.remoteScore} pts against ${myName} (${v21v1BalloonGame.localScore} pts)! 👏`;
+  } else {
+    finalTitle = `🤝 Epic Tie! (${v21v1BalloonGame.localScore} pts each)`;
+    resultMsg = `🤝 Game Result: Balloon Pop ended in an Epic Tie (${v21v1BalloonGame.localScore} pts each)!`;
+  }
+
+  // Broadcast to both users in chat (guaranteed exactly once)
+  if (!v21v1BalloonResultPosted) {
+    if (!fromRemote) {
+      v21v1BalloonResultPosted = true;
+      broadcast1v1GameResult(resultMsg);
+    } else {
+      setTimeout(() => {
+        if (!v21v1BalloonResultPosted) {
+          v21v1BalloonResultPosted = true;
+          broadcast1v1GameResult(resultMsg);
+        }
+      }, 350);
+    }
+  }
+
+  if (dock) {
+    dock.innerHTML = `
+      <div class="v2-1v1-balloon-game">
+        <div class="v2-1v1-balloon-header">
+          <span class="v2-rps-badge">🏆 Match Complete</span>
+          <button class="v2-rps-close-btn" onclick="dismiss1v1GameDock(false)">&times;</button>
+        </div>
+        <div style="text-align: center; font-weight: 800; font-size: 0.88rem; color: #facc15; margin: 12px 0;">
+          ${finalTitle}
+        </div>
+        <div style="text-align: center; font-size: 0.74rem; color: rgba(216, 180, 254, 0.8);">
+          Match finished • Back to chatting 👋
+        </div>
+      </div>
+    `;
+
+    setTimeout(() => {
+      if (dock && !dock.classList.contains("hidden")) {
+        dismiss1v1GameDock(false);
+      }
+    }, 5000);
+  }
+}
+
+window.reset1v1GamePacing = reset1v1GamePacing;
+window.render1v1GamePromptCard = render1v1GamePromptCard;
+window.handle1v1TypingAutoDismiss = handle1v1TypingAutoDismiss;
+window.dismiss1v1GamePrompt = dismiss1v1GamePrompt;
+window.handle1v1GamePromptDecline = handle1v1GamePromptDecline;
+window.handle1v1GamePromptAccept = handle1v1GamePromptAccept;
+window.send1v1GameInvite = send1v1GameInvite;
+window.handleIncoming1v1GameInvite = handleIncoming1v1GameInvite;
+window.handleAcceptIncomingGameInvite = handleAcceptIncomingGameInvite;
+window.handleDeclineIncomingGameInvite = handleDeclineIncomingGameInvite;
+window.handleIncoming1v1GameSignal = handleIncoming1v1GameSignal;
+window.broadcast1v1GameResult = broadcast1v1GameResult;
+window.dismiss1v1GameDock = dismiss1v1GameDock;
+window.openV2AttachmentMenu = openV2AttachmentMenu;
+window.closeV2AttachmentMenu = closeV2AttachmentMenu;
+window.triggerAttachmentMediaUpload = triggerAttachmentMediaUpload;
+window.triggerManualGameChallenge = triggerManualGameChallenge;
+window.start1v1RpsMatch = start1v1RpsMatch;
+window.renderRpsRound = renderRpsRound;
+window.selectRpsMove = selectRpsMove;
+window.handleRemoteRpsMove = handleRemoteRpsMove;
+window.resolveRpsRound = resolveRpsRound;
+window.finish1v1RpsMatch = finish1v1RpsMatch;
+window.insertTruthQuestionToChat = insertTruthQuestionToChat;
+window.start1v1BalloonDuel = start1v1BalloonDuel;
+window.setup1v1BalloonCanvas = setup1v1BalloonCanvas;
+window.handle1v1BalloonCanvasTap = handle1v1BalloonCanvasTap;
+window.handleRemote1v1BalloonScore = handleRemote1v1BalloonScore;
+window.finish1v1BalloonGame = finish1v1BalloonGame;
+window.v21v1BalloonGame = v21v1BalloonGame;
+window.v2RpsState = v2RpsState;
+window.v2GamePromptState = v2GamePromptState;
 
