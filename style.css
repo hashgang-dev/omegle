@@ -3164,6 +3164,14 @@ html, body {
   box-shadow: 0 6px 18px rgba(217, 70, 239, 0.45);
 }
 
+/* Invite Cooldown Anti-Abuse Styling */
+.invite-btn-in-cooldown {
+  opacity: 0.55 !important;
+  cursor: not-allowed !important;
+  filter: grayscale(0.25);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
 /* Welcome Knowledge Card Slot directly under Mode Tray / docked at bottom */
 .v2-group-welcome-slot {
   width: 100%;
