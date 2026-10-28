@@ -78,6 +78,7 @@ let liveGroupMsgCounter = 0;
 var inviteCooldownTimerId = null;
 const INVITE_COOLDOWN_SECONDS = 20;
 const INVITE_COOLDOWN_MS = INVITE_COOLDOWN_SECONDS * 1000;
+const NICKNAME_CHANGE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour cooldown between nickname changes
 
 // DOM Elements Registry
 let el = {};
@@ -3664,7 +3665,30 @@ function joinGroupChatOnConnect() {
   socket.emit("join_group_chat", payload);
 }
 
+function getNicknameCooldownRemainingMs() {
+  const lastChanged = parseInt(localStorage.getItem("hg_nick_last_changed") || "0", 10);
+  if (!lastChanged || isNaN(lastChanged)) return 0;
+  const elapsed = Date.now() - lastChanged;
+  return Math.max(0, NICKNAME_CHANGE_COOLDOWN_MS - elapsed);
+}
+
+function formatNicknameCooldown(ms) {
+  const totalSeconds = Math.ceil(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+  return `${seconds}s`;
+}
+
 function promptEditNickname() {
+  const remainingMs = getNicknameCooldownRemainingMs();
+  if (remainingMs > 0 && !window.__E2E_BYPASS_NICK_COOLDOWN__) {
+    const timeFormatted = formatNicknameCooldown(remainingMs);
+    v2ShowToast(`⏳ Nickname can only be changed once every hour. Please wait ${timeFormatted}!`);
+    return;
+  }
   const modal = document.getElementById("v2-nickname-modal");
   const input = document.getElementById("v2-input-new-nick");
   if (modal && input) {
@@ -3680,17 +3704,25 @@ function closeNicknameModal() {
 }
 
 function saveNewNickname() {
+  const remainingMs = getNicknameCooldownRemainingMs();
+  if (remainingMs > 0 && !window.__E2E_BYPASS_NICK_COOLDOWN__) {
+    const timeFormatted = formatNicknameCooldown(remainingMs);
+    v2ShowToast(`⏳ Nickname change is on cooldown. Please wait ${timeFormatted}!`);
+    closeNicknameModal();
+    return;
+  }
   const input = document.getElementById("v2-input-new-nick");
   if (!input) return;
   const clean = input.value.trim().slice(0, 20);
-  if (clean) {
+  if (clean && clean !== currentNickname) {
     currentNickname = clean;
     localStorage.setItem("hg_user_nickname", currentNickname);
+    localStorage.setItem("hg_nick_last_changed", Date.now().toString());
     updateNicknameDisplay(currentNickname);
     if (socket && socket.connected) {
       socket.emit("update_nickname", { nickname: currentNickname });
     }
-    v2ShowToast(`✨ Nickname changed to ${currentNickname}`);
+    v2ShowToast(`✨ Nickname changed to ${currentNickname} (Cooldown: 1 hr)`);
   }
   closeNicknameModal();
 }
@@ -3699,6 +3731,15 @@ function updateNicknameDisplay(name) {
   const display = document.getElementById("v2-user-nickname-display");
   if (display) {
     display.textContent = name || "Stranger";
+  }
+  const editBtn = document.getElementById("v2-btn-edit-nick");
+  if (editBtn) {
+    const remainingMs = getNicknameCooldownRemainingMs();
+    if (remainingMs > 0) {
+      editBtn.title = `Name change available in ${formatNicknameCooldown(remainingMs)}`;
+    } else {
+      editBtn.title = "Tap to Change Your Name";
+    }
   }
 }
 
@@ -5155,6 +5196,8 @@ function selectDrawerCallMode(mode) {
 window.promptEditNickname = promptEditNickname;
 window.closeNicknameModal = closeNicknameModal;
 window.saveNewNickname = saveNewNickname;
+window.getNicknameCooldownRemainingMs = getNicknameCooldownRemainingMs;
+window.formatNicknameCooldown = formatNicknameCooldown;
 window.confirmAgeAndEnter = confirmAgeAndEnter;
 window.request1v1CallInvite = request1v1CallInvite;
 window.getActiveInviteCooldownRemaining = getActiveInviteCooldownRemaining;

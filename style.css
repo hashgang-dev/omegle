@@ -4481,6 +4481,22 @@ html, body {
   border-color: #a855f7;
 }
 
+.v2-nick-cooldown-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.v2-nick-cooldown-hint i {
+  color: #fbbf24;
+  font-size: 0.82rem;
+}
+
 .v2-nick-actions {
   display: flex;
   gap: 8px;
