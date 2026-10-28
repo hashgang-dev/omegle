@@ -4422,12 +4422,12 @@ html, body {
 
 .v2-btn-confirm-age {
   width: 100%;
-  padding: 13px 20px;
+  padding: 13px 18px;
   border-radius: 14px;
   border: none;
   background: linear-gradient(135deg, #7c3aed, #9333ea);
   color: #fff;
-  font-size: 1rem;
+  font-size: clamp(0.88rem, 3.8vw, 1.02rem);
   font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -4436,6 +4436,7 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  white-space: nowrap;
 }
 .v2-btn-confirm-age:hover {
   transform: translateY(-1px);
