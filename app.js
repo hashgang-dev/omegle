@@ -3,6 +3,56 @@
  * Modular 3-Stage User Experience Architecture
  */
 
+// Browser History Scroll Restoration Reset: Prevent viewport scroll from pushing bottom input dock off-screen on refresh
+if (typeof history !== "undefined" && "scrollRestoration" in history) {
+  try { history.scrollRestoration = "manual"; } catch (e) {}
+}
+if (typeof window !== "undefined") {
+  try {
+    window.scrollTo(0, 0);
+    if (document.body) document.body.scrollTop = 0;
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+  } catch (e) {}
+}
+
+function ensureInputFieldsVisibility() {
+  if (typeof history !== "undefined" && "scrollRestoration" in history) {
+    try { history.scrollRestoration = "manual"; } catch (e) {}
+  }
+  if (typeof window !== "undefined") {
+    try {
+      window.scrollTo(0, 0);
+      if (document.body) document.body.scrollTop = 0;
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+    } catch (e) {}
+  }
+
+  const groupStage = document.getElementById("v2-group-chat-stage");
+  if (groupStage && !(typeof inCall !== "undefined" && inCall) && !currentMatchTargetId) {
+    groupStage.classList.remove("hidden");
+  }
+  const groupDock = document.getElementById("v2-group-dock") || document.querySelector(".v2-group-dock");
+  if (groupDock) {
+    groupDock.classList.remove("hidden");
+    groupDock.style.display = "flex";
+  }
+  const groupInput = document.getElementById("v2-group-input-field");
+  if (groupInput) {
+    groupInput.style.display = "block";
+    groupInput.style.visibility = "visible";
+    groupInput.style.opacity = "1";
+    if (!groupInput.style.height || groupInput.style.height === "0px") {
+      groupInput.style.height = "36px";
+    }
+  }
+  const chatInputRow = document.getElementById("v2-chat-input-row");
+  if (chatInputRow) {
+    chatInputRow.style.display = "";
+    chatInputRow.classList.remove("hidden");
+  }
+}
+window.ensureInputFieldsVisibility = ensureInputFieldsVisibility;
+
 // Application State Variables
 let socket = null;
 let localStream = null;
@@ -15,6 +65,8 @@ let isAudioMuted = false;
 let isVideoOff = false;
 let inCall = false;
 window.inCall = inCall;
+let lastReportablePeerId = null;
+let lastReportableTraceCode = null;
 
 // Group Chat State Variables (Multiplayer Fallback & 1v1 Hub)
 let currentNickname = localStorage.getItem("hg_user_nickname") || "";
@@ -79,6 +131,7 @@ function initDOMElements() {
   if (el.chatInput && !el.chatInput.value) {
     el.chatInput.value = "Hi 👋";
   }
+  ensureInputFieldsVisibility();
 }
 
 let toastTimer = null;
@@ -308,6 +361,14 @@ function initV2App() {
   }, 30000);
 }
 
+let isAppShellReloading = false;
+function reloadAppShellSafely(reason) {
+  if (isAppShellReloading) return;
+  isAppShellReloading = true;
+  console.log(`⚡ [HashGANG v2] App shell update detected (${reason})! Refreshing app shell...`);
+  window.location.reload();
+}
+
 function registerV2ServiceWorker() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
@@ -325,8 +386,7 @@ function registerV2ServiceWorker() {
             if (newWorker) {
               newWorker.addEventListener("statechange", () => {
                 if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-                  console.log("⚡ [HashGANG v2] New update deployed! Refreshing app shell...");
-                  window.location.reload();
+                  reloadAppShellSafely("worker installed");
                 }
               });
             }
@@ -337,7 +397,6 @@ function registerV2ServiceWorker() {
         });
 
       const hadPreviousController = !!navigator.serviceWorker.controller;
-      let refreshing = false;
       navigator.serviceWorker.addEventListener("controllerchange", () => {
         // If there was no controller when the page initially loaded, this is the first SW installation.
         // DO NOT reload the page, as it resets user state and wipes query parameters on first visit!
@@ -345,11 +404,7 @@ function registerV2ServiceWorker() {
           console.log("⚡ [PWA v2] Initial Service Worker activated (skipping reload).");
           return;
         }
-        if (!refreshing) {
-          refreshing = true;
-          console.log("⚡ [HashGANG v2] Active controller changed! Refreshing app shell...");
-          window.location.reload();
-        }
+        reloadAppShellSafely("controller changed");
       });
     });
   }
@@ -582,7 +637,10 @@ function setAudioDisconnectedUI(isDisconnected) {
     if (pulse) pulse.classList.add("disconnected");
     if (icon) icon.className = "fa-solid fa-user-slash text-rose-400";
     if (eq) eq.classList.add("stopped");
-    if (label) label.innerHTML = `<span class="text-rose-400 font-bold">🔴 Voice Stranger Disconnected</span>`;
+    if (label) label.innerHTML = `<span class="text-rose-400 font-bold">🔴 Voice Stranger Disconnected</span>
+      <div style="margin-top: 12px; display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+        <button class="v2-btn-disc-back-group" onclick="v2ReturnToGroupChat(false)" style="padding: 7px 14px; font-size: 0.85rem; border-radius: 8px; background: rgba(153, 17, 238, 0.4); border: 1px solid #c084fc; color: #fff; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;"><i class="fa-solid fa-comments"></i> Back to Group</button>
+      </div>`;
   } else {
     dismissV2AudioSharedMedia();
     if (circle) circle.classList.remove("disconnected");
@@ -609,6 +667,12 @@ function handleStrangerDisconnected(force = false) {
   console.log("❌ [v2 Engine] Stranger Disconnected.");
   const leavingPeerId = currentMatchTargetId;
   if (leavingPeerId) {
+    lastReportablePeerId = leavingPeerId;
+    window.lastReportablePeerId = leavingPeerId;
+    if (window.currentSessionTraceCode) {
+      lastReportableTraceCode = window.currentSessionTraceCode;
+      window.lastReportableTraceCode = lastReportableTraceCode;
+    }
     skippedPeersCooldownMapV2.delete(leavingPeerId);
   }
   dismissV2AudioSharedMedia();
@@ -637,32 +701,14 @@ function handleStrangerDisconnected(force = false) {
     setVideoDisconnectedUI(true);
   }
   v2ShowToast("🔴 Stranger Disconnected");
-  if (el.btnFlagReport) el.btnFlagReport.classList.add("hidden");
+  // KEEP Report Button VISIBLE: User must still be able to report an abusive stranger even after they disconnect!
+  if (el.btnFlagReport) el.btnFlagReport.classList.remove("hidden");
   const pwaBtn = document.getElementById("v2-btn-pwa-install");
-  if (pwaBtn) pwaBtn.classList.remove("hidden");
+  if (pwaBtn) pwaBtn.classList.add("hidden");
   if (el.chatInput) el.chatInput.blur();
 }
 
-/**
- * Report & Block Stranger Action
- */
-function v2ReportAndBlockStranger() {
-  if (!currentMatchTargetId && !inCall) {
-    v2ShowToast("⚠️ No active stranger to report.");
-    return;
-  }
-  const targetId = currentMatchTargetId;
-  if (targetId) {
-    recordSkippedPeerV2(targetId);
-  }
-  if (socket && socket.connected && targetId) {
-    socket.emit("skip_peer", { targetId: targetId, clientVersion: "v2" });
-  }
-  handleStrangerDisconnected();
-  if (el.btnFlagReport) el.btnFlagReport.classList.add("hidden");
-  v2ShowToast("🚩 Stranger reported & blocked!");
-}
-window.v2ReportAndBlockStranger = v2ReportAndBlockStranger;
+// Primary v2ReportAndBlockStranger is implemented canonically below
 
 let isV2VideoSwapped = false;
 function toggleV2VideoSwap() {
@@ -854,6 +900,11 @@ function initSocketConnection() {
         v2HideEngagedOverlay();
         currentMatchTargetId = targetId;
         window.currentMatchTargetId = currentMatchTargetId;
+        lastReportablePeerId = targetId;
+        window.lastReportablePeerId = targetId;
+        lastReportableTraceCode = data.traceCode || window.currentSessionTraceCode || "N/A";
+        window.lastReportableTraceCode = lastReportableTraceCode;
+        window.currentSessionTraceCode = lastReportableTraceCode;
         inCall = true;
         window.inCall = inCall;
         window.socket = socket;
@@ -2218,6 +2269,14 @@ function cleanupPeerConnection(isStrangerSkip = false) {
     } catch (e) {}
     currentPeerConnection = null;
   }
+  if (currentMatchTargetId) {
+    lastReportablePeerId = currentMatchTargetId;
+    window.lastReportablePeerId = currentMatchTargetId;
+  }
+  if (window.currentSessionTraceCode) {
+    lastReportableTraceCode = window.currentSessionTraceCode;
+    window.lastReportableTraceCode = lastReportableTraceCode;
+  }
   currentMatchTargetId = null;
   window.currentMatchTargetId = null;
   if (el.remoteVideo) el.remoteVideo.srcObject = null;
@@ -2846,6 +2905,7 @@ function updateUIState(state) {
   if (state === "idle") {
     if (el.groupChatStage) el.groupChatStage.classList.remove("hidden");
     if (el.searchStage) el.searchStage.classList.add("hidden");
+    ensureInputFieldsVisibility();
     updateToolbarForMode("idle");
   }
 }
@@ -3129,6 +3189,8 @@ function checkV2UrlInviteParameters() {
       console.log("⏰ [v2 Url Invite] Invite link expired. Falling back to group chat.");
       v2ShowToast("⏰ This private link has expired. Welcome to Group Chat!");
       try { sessionStorage.removeItem("hg_pending_invite"); } catch (e) {}
+      window.pendingV2InviteCode = null;
+      window.isJoiningPrivateInvite = false;
     } else {
       window.pendingV2InviteCode = inviteCode;
       window.isJoiningPrivateInvite = true;
@@ -3143,23 +3205,13 @@ function checkV2UrlInviteParameters() {
       v2ShowToast(`🤝 Connecting to private ${currentChatMode.toUpperCase()} chat...`, 4000);
     }
   } else {
-    // Check sessionStorage for persisted pending invite across page reload or SW activation
+    // Normal visit or page refresh (no ?invite=... query param):
+    // Clear any lingering pending invite so reload never hijacks user into private invite limbo
     try {
-      const stored = sessionStorage.getItem("hg_pending_invite");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.code && (Date.now() - parsed.ts < 15 * 60 * 1000)) {
-          window.pendingV2InviteCode = parsed.code;
-          window.isJoiningPrivateInvite = true;
-          if (parsed.mode && ["video", "audio", "text"].includes(parsed.mode)) {
-            currentChatMode = parsed.mode;
-          }
-          console.log(`🔗 [v2 Session Invite] Restored pending invite from sessionStorage: ${parsed.code} [Mode: ${currentChatMode}]`);
-        } else {
-          sessionStorage.removeItem("hg_pending_invite");
-        }
-      }
+      sessionStorage.removeItem("hg_pending_invite");
     } catch (e) {}
+    window.pendingV2InviteCode = null;
+    window.isJoiningPrivateInvite = false;
   }
 
   // Parse Group Room URL Parameter (e.g. ?room=2)
@@ -3317,32 +3369,48 @@ window.copyV2TimeoutInviteLink = copyV2TimeoutInviteLink;
 window.retryV2SearchFromTimeout = retryV2SearchFromTimeout;
 window.handleDynamicModalAction = handleDynamicModalAction;
 
+/**
+ * Canonical Report & Block Stranger Action
+ * Works both during active call AND after stranger abruptly disconnects
+ * Always redirects user back to the safe Group Chat lobby
+ */
 function v2ReportAndBlockStranger() {
-  if (!currentMatchTargetId) {
-    v2ShowToast("⚠️ Connect to a stranger first before reporting.");
+  const targetId = currentMatchTargetId || lastReportablePeerId;
+  const traceCode = window.currentSessionTraceCode || lastReportableTraceCode || "N/A";
+
+  if (!targetId && (!traceCode || traceCode === "N/A")) {
+    v2ShowToast("⚠️ No recent stranger to report.");
     return;
   }
 
-  const traceCode = window.currentSessionTraceCode || "N/A";
   const confirmReport = confirm(`🚩 Report this stranger for inappropriate behavior / nudity?\n\nSession Trace Code: ${traceCode}\nThey will be immediately blocked and reported.`);
   if (!confirmReport) return;
 
-  const targetId = currentMatchTargetId;
-  currentMatchTargetId = null;
-  window.currentMatchTargetId = null;
-  recordSkippedPeerV2(targetId);
+  if (targetId) {
+    recordSkippedPeerV2(targetId);
+  }
 
-  // Auto-copy Session Trace Code to user's clipboard for legal reference
+  // Auto-copy Session Trace Code to user's clipboard for legal/police audit references
   if (traceCode && traceCode !== "N/A" && navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(`HashGANG Session Trace Code: ${traceCode}`).catch(() => {});
   }
 
-  if (socket && socket.connected) {
+  if (socket && socket.connected && targetId) {
     socket.emit("report_peer", { targetId: targetId, traceCode: traceCode, reason: "inappropriate" });
   }
 
   v2ShowToast(`🚩 Reported! Trace Code: ${traceCode} (Copied to Clipboard)`);
-  v2HandleStartOrNext();
+
+  // Clear reportable session after reporting
+  currentMatchTargetId = null;
+  window.currentMatchTargetId = null;
+  lastReportablePeerId = null;
+  window.lastReportablePeerId = null;
+  lastReportableTraceCode = null;
+  window.lastReportableTraceCode = null;
+
+  // USER REQUIREMENT: Return to Group Chat instead of restarting 1v1 search!
+  v2ReturnToGroupChat(false);
 }
 window.v2ReportAndBlockStranger = v2ReportAndBlockStranger;
 
@@ -3537,7 +3605,11 @@ function generateCoolNickname() {
     "Karna", "JonSnow", "MrBean", "Sherlock", "JackSparrow",
     "WalterWhite", "HarryPotter", "JamesBond", "Krrish", "Shaktimaan",
     "Joker", "DoctorStrange", "CaptainAmerica", "Tarzan", "Hulk",
-    "Superman", "BlackPanther", "Mario", "ThomasShelby", "PercyJackson"
+    "Superman", "BlackPanther", "Mario", "ThomasShelby", "PercyJackson",
+    "JohnWick", "Daredevil", "Luffy", "Goku", "Naruto",
+    "Zoro", "Kakashi", "Neo", "Aragorn", "Gandalf",
+    "OptimusPrime", "MadMax", "Rocky", "Rambo", "Kratos",
+    "Aladdin", "Simba", "RobinHood", "Hercules", "Achilles"
   ];
 
   const femaleCharacters = [
@@ -3546,13 +3618,22 @@ function generateCoolNickname() {
     "LaraCroft", "ScarletWitch", "Supergirl", "Batgirl", "Gamora",
     "Katniss", "Mulan", "Elsa", "Cleopatra", "Ahsoka",
     "Rey", "Trinity", "CaptainMarvel", "Padme", "Maleficent",
-    "Moana", "Rapunzel", "SheHulk", "EnolaHolmes", "PrincessLeia"
+    "Moana", "Rapunzel", "SheHulk", "EnolaHolmes", "PrincessLeia",
+    "Nami", "Mikasa", "Hinata", "Tsunade", "Katara",
+    "Toph", "Korra", "Cinderella", "SnowWhite", "Jasmine",
+    "Merida", "Vesper", "Buffy", "Xena", "Elektra",
+    "Storm", "JeanGrey", "Rogue", "Nebula", "Valkyrie"
   ];
 
   const neutralCharacters = [
     "Eleven", "Loki", "Groot", "Yoda", "BabyYoda",
     "Pikachu", "Sonic", "Baymax", "Toothless", "Stitch",
-    "WallE", "Kirby", "Minion", "Casper", "Phoenix"
+    "WallE", "Kirby", "Minion", "Casper", "Phoenix",
+    "Charizard", "Mewtwo", "Bulbasaur", "Squirtle", "Eevee",
+    "Gengar", "Snorlax", "Shrek", "Dobby", "Nemo",
+    "Dory", "Olaf", "Pumba", "Timon", "Mickey",
+    "Pooh", "ScoobyDoo", "Garfield", "Snoopy", "Kermit",
+    "PatrickStar", "SpongeBob", "Gizmo", "Shadow", "Zero"
   ];
 
   const allCharacters = [...maleCharacters, ...femaleCharacters, ...neutralCharacters];
@@ -3575,6 +3656,7 @@ function joinGroupChatOnConnect() {
     return;
   }
   console.log("💬 [Group Chat] Emitting join_group_chat with nickname:", currentNickname);
+  ensureInputFieldsVisibility();
   const payload = { nickname: currentNickname };
   if (window.pendingV2RequestedRoom) {
     payload.requestedRoomNumber = window.pendingV2RequestedRoom;
@@ -3674,9 +3756,11 @@ function renderGroupMessageRow(msg) {
 
   let replyHtml = "";
   if (msg.replyTo) {
+    const safeReplyNick = escapeHtml(msg.replyTo.nickname || "Stranger");
+    const safeReplyText = escapeHtml(maskSocialKeywords(maskPhoneNumbers(msg.replyTo.text || "")));
     replyHtml = `
       <div class="v2-bubble-reply-quote">
-        <strong>${escapeHtml(msg.replyTo.nickname)}</strong>: ${escapeHtml(msg.replyTo.text)}
+        <strong>${safeReplyNick}</strong>: ${safeReplyText}
       </div>
     `;
   }
@@ -3693,7 +3777,7 @@ function renderGroupMessageRow(msg) {
   }
 
   const senderNick = escapeHtml(msg.nickname || "Stranger");
-  const cleanText = escapeHtml(msg.text);
+  const cleanText = escapeHtml(maskSocialKeywords(maskPhoneNumbers(msg.text || "")));
 
   let actionsHtml = "";
   if (isSelf) {
@@ -4565,19 +4649,55 @@ function injectPrivateChatAdsterraBanner(container) {
 }
 
 let lastGroupMsgTime = 0;
+function maskPhoneNumbers(text) {
+  if (!text || typeof text !== "string") return text;
+  // Match standard and international phone numbers (10 to 14 digits with optional +, spaces, dashes, dots, parens)
+  const phonePattern = /(?:(?:\+|00)\d{1,3}[-.\s]?)?(?:\(?\d{2,5}\)?[-.\s]?)?\d{3,5}[-.\s]?\d{3,5}(?:[-.\s]?\d{1,4})?|\b(?:\d[-.\s]?){9,13}\d\b/g;
+
+  return text.replace(phonePattern, (match) => {
+    const digitsOnly = match.replace(/\D/g, "");
+    if (digitsOnly.length >= 10 && digitsOnly.length <= 15) {
+      return match.replace(/\d/g, "*");
+    }
+    return match;
+  });
+}
+
+function maskSocialKeywords(text) {
+  if (!text || typeof text !== "string") return text;
+  // Restrict words instagram, insta, facebook, fb, snapchat, snap, telegram (case-insensitive) and replace with *
+  const socialPattern = /(?:@)?\b(?:instagram|insta|facebook|fb|snapchat|snap|telegram)\b/gi;
+  return text.replace(socialPattern, (match) => "*".repeat(match.length));
+}
+window.maskSocialKeywords = maskSocialKeywords;
+
 function sendGroupMessage() {
   const input = document.getElementById("v2-group-input-field");
   if (!input) return;
   const rawText = input.value.trim();
   if (!rawText) return;
 
-  const text = rawText.slice(0, 180);
+  let text = rawText.slice(0, 180);
 
   // Link / URL blocking: Prevent external links, promos, and spam
   const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|in|org|net|xyz|me|io|co|ai|app|site|online|tv|ru|cn|cc|to|is|gg|link|live|fun|store|club)[^\s]*)|(t\.me\/[^\s]+)|(wa\.me\/[^\s]+)/i;
   if (urlRegex.test(text)) {
     v2ShowToast("⚠️ Links are not allowed in group chat to keep everyone safe.");
     return;
+  }
+
+  // Phone number masking: Replace sensitive phone numbers with '*' to protect personal privacy and prevent doxxing
+  const maskedPhoneText = maskPhoneNumbers(text);
+  if (maskedPhoneText !== text) {
+    text = maskedPhoneText;
+    v2ShowToast("🛡️ Phone number masked with * to protect personal privacy.");
+  }
+
+  // Social media handles & words masking: Restrict instagram, insta, facebook, fb, snapchat, snap, telegram
+  const maskedSocialText = maskSocialKeywords(text);
+  if (maskedSocialText !== text) {
+    text = maskedSocialText;
+    v2ShowToast("🛡️ Social media handles/words masked with * to protect personal privacy.");
   }
 
   const now = Date.now();
@@ -4726,7 +4846,7 @@ async function request1v1CallInvite(mode, forceBypass = false) {
   }
 
   currentChatMode = mode;
-  socket.emit("post_call_invite", { mode, nickname: currentNickname });
+  socket.emit("post_call_invite", { mode, nickname: currentNickname, testBypass: forceBypass });
   startActiveInviteCooldown();
   v2ShowToast(`🚀 Private ${mode.toUpperCase()} Invite sent to group!`);
 }

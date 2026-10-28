@@ -65,7 +65,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=277" />
+  <link rel="stylesheet" href="style.css?v=279" />
 
   <!-- Schema.org JSON-LD Structured Data for Google Search Ranking -->
   <script type="application/ld+json">
@@ -323,9 +323,11 @@
             <i class="fa-solid fa-video-slash"></i>
             <h3>🔴 Video Stranger Disconnected</h3>
             <p>The stranger has left the video call.</p>
-            <button class="v2-btn-disc-back-group" id="v2-btn-video-disc-back" onclick="v2ReturnToGroupChat(true)" title="Back to Group Chat">
-              <i class="fa-solid fa-comments"></i> Back to Group Chat
-            </button>
+            <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px;">
+              <button class="v2-btn-disc-back-group" id="v2-btn-video-disc-back" onclick="v2ReturnToGroupChat(false)" title="Back to Group Chat">
+                <i class="fa-solid fa-comments"></i> Back to Group Chat
+              </button>
+            </div>
           </div>
 
           <!-- Audio Mode Waveform Visualizer & Shared Co-Viewing Stage -->
@@ -405,7 +407,7 @@
           </button>
 
           <!-- Group Message Input Dock (Full Width, Centered) with Attachment-Style Thunder Trigger -->
-          <div class="v2-group-dock">
+          <div class="v2-group-dock" id="v2-group-dock">
             <div class="v2-group-input-pill">
               <button class="v2-dock-call-trigger" id="v2-btn-open-1v1-drawer" onclick="toggleV2CallDrawer()" title="Start Private Chat">
                 <i class="fa-solid fa-paperclip"></i>
@@ -834,10 +836,10 @@
     </div>
 
     <!-- Scripts Injection -->
-    <script src="ads.js?v=277" defer></script>
-    <script src="ad_mediation_config.js?v=277" defer></script>
-    <script src="socket.io.min.js?v=277"></script>
-    <script src="app.js?v=277" defer></script>
+    <script src="ads.js?v=279" defer></script>
+    <script src="ad_mediation_config.js?v=279" defer></script>
+    <script src="socket.io.min.js?v=279"></script>
+    <script src="app.js?v=279" defer></script>
 </body>
 
 </html>
