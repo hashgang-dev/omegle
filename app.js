@@ -1254,8 +1254,7 @@ function initSocketConnection() {
         if (window.pendingAutoInviteMode) {
           const modeToInvite = window.pendingAutoInviteMode;
           window.pendingAutoInviteMode = null;
-          socket.emit("post_call_invite", { mode: modeToInvite, nickname: currentNickname });
-          v2ShowToast(`💬 You're back in Group! Your ${modeToInvite.toUpperCase()} invite is live.`);
+          request1v1CallInvite(modeToInvite);
         }
 
         const scrollFeedToBottom = () => {
@@ -1361,8 +1360,9 @@ function initSocketConnection() {
           try { sessionStorage.setItem("hg_my_recent_invite", invite.inviteId); } catch (e) {}
         }
         if (typeof startActiveInviteCooldown === "function") {
-          startActiveInviteCooldown(invite.inviteId);
+          startActiveInviteCooldown(invite.inviteId, invite.createdAt || Date.now());
         }
+        v2ShowToast(`🚀 Private ${invite.mode.toUpperCase()} Invite live in group!`);
       }
       const feed = document.getElementById("v2-group-messages-feed");
       if (feed) {
@@ -1393,9 +1393,8 @@ function initSocketConnection() {
         }
       }
       if (typeof isMyRecentInviteId === "function" && isMyRecentInviteId(data.inviteId)) {
-        if (typeof clearActiveInviteCooldown === "function") {
-          clearActiveInviteCooldown();
-        }
+        // Anti-collusion fix: Do NOT clear inviter's cooldown on accept.
+        // Full 20s cooldown continues running to prevent rapid re-invite spam.
       }
     });
 
@@ -1438,9 +1437,18 @@ function initSocketConnection() {
 
     socket.on("call_invite_error", (data) => {
       v2ShowToast(`⚠️ ${data.message || "Invite error"}`);
+      if (data && typeof data.remainingSec === "number") {
+        if (typeof syncClientCooldownRemaining === "function") {
+          syncClientCooldownRemaining(data.remainingSec);
+        }
+      }
     });
 
     socket.on("group_message_error", (data) => {
+      v2ShowToast(data?.message || "⚠️ Message error");
+    });
+
+    socket.on("chat_message_error", (data) => {
       v2ShowToast(data?.message || "⚠️ Message error");
     });
 
@@ -2662,6 +2670,13 @@ function sendChatMessage() {
   if (!el.chatInput) return;
   const text = el.chatInput.value.trim();
   if (!text || !socket || !currentMatchTargetId) return;
+
+  // Link / URL blocking: Prevent external links, phishing, IP loggers, and spam in 1v1 private chat
+  const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-zA-Z0-9-]+\.(com|org|net|xyz|online|site|app|io|co|link|live|fun|store|club|ai|gg|ru|cn|cc|to|is)\b)|(\b[a-zA-Z0-9-]+\.(in|me|ly)\/[^\s]+)|(t\.me\/[^\s]+)|(wa\.me\/[^\s]+)|(iplogger\.[^\s]+)|(grabify\.[^\s]+)|(bit\.ly\/[^\s]+)|(tinyurl\.com\/[^\s]+)/i;
+  if (urlRegex.test(text)) {
+    v2ShowToast("⚠️ Links are blocked in private chat to protect against scams & malicious sites.");
+    return;
+  }
   
   const msgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
   const replyData = currentV2ReplyTarget ? { ...currentV2ReplyTarget } : null;
@@ -3929,12 +3944,25 @@ function getActiveInviteCooldownRemaining() {
   }
 }
 
-function startActiveInviteCooldown(inviteId) {
+function startActiveInviteCooldown(inviteId, timestamp) {
   try {
-    sessionStorage.setItem("hg_active_invite_ts", Date.now().toString());
+    const ts = timestamp ? parseInt(timestamp, 10) : Date.now();
+    sessionStorage.setItem("hg_active_invite_ts", ts.toString());
     if (inviteId) {
       sessionStorage.setItem("hg_active_invite_id", inviteId);
     }
+  } catch (e) {}
+  syncInviteButtonsCooldown();
+}
+
+function syncClientCooldownRemaining(remainingSec) {
+  if (typeof remainingSec !== "number" || remainingSec <= 0) {
+    clearActiveInviteCooldown();
+    return;
+  }
+  const simulatedTs = Date.now() - (INVITE_COOLDOWN_MS - (remainingSec * 1000));
+  try {
+    sessionStorage.setItem("hg_active_invite_ts", simulatedTs.toString());
   } catch (e) {}
   syncInviteButtonsCooldown();
 }
@@ -3953,13 +3981,41 @@ function clearActiveInviteCooldown() {
 
 function syncInviteButtonsCooldown() {
   const remaining = getActiveInviteCooldownRemaining();
-  const selector = ".v2-welcome-mode-btn, .v2-discovery-tile, .v2-drawer-tile, .v2-tray-btn";
+  const selector = ".v2-welcome-mode-btn, .v2-discovery-tile, .v2-drawer-tile.video, .v2-drawer-tile.voice, .v2-drawer-tile.text, .v2-tray-btn.video, .v2-tray-btn.voice, .v2-tray-btn.text";
   const buttons = document.querySelectorAll(selector);
+
+  // Update Drawer Cooldown Indicator Pill
+  const drawerCooldownBadge = document.getElementById("v2-drawer-cooldown-indicator");
+  if (drawerCooldownBadge) {
+    if (remaining > 0) {
+      drawerCooldownBadge.innerHTML = `<i class="fa-solid fa-hourglass-half"></i> Wait ${remaining}s`;
+      drawerCooldownBadge.classList.remove("hidden");
+    } else {
+      drawerCooldownBadge.classList.add("hidden");
+      drawerCooldownBadge.innerHTML = "";
+    }
+  }
+
+  // Update Welcome Card Cooldown Indicator Pill
+  const welcomeCooldownBadge = document.getElementById("v2-welcome-cooldown-indicator");
+  if (welcomeCooldownBadge) {
+    if (remaining > 0) {
+      welcomeCooldownBadge.innerHTML = `<i class="fa-solid fa-hourglass-half"></i> Wait ${remaining}s`;
+      welcomeCooldownBadge.classList.remove("hidden");
+    } else {
+      welcomeCooldownBadge.classList.add("hidden");
+      welcomeCooldownBadge.innerHTML = "";
+    }
+  }
+
+  // Remove individual pills from buttons (user requested: individual ga avasaram ledhu timer)
+  document.querySelectorAll(".v2-btn-cooldown-pill").forEach((p) => p.remove());
 
   if (remaining > 0) {
     buttons.forEach((btn) => {
       btn.classList.add("invite-btn-in-cooldown");
       btn.setAttribute("data-cooldown-active", "true");
+      btn.setAttribute("title", `⏳ Please wait ${remaining}s before sending another invite`);
     });
 
     if (!inviteCooldownTimerId) {
@@ -3967,6 +4023,8 @@ function syncInviteButtonsCooldown() {
         const rem = getActiveInviteCooldownRemaining();
         if (rem <= 0) {
           clearActiveInviteCooldown();
+        } else {
+          syncInviteButtonsCooldown();
         }
       }, 1000);
     }
@@ -3974,6 +4032,7 @@ function syncInviteButtonsCooldown() {
     buttons.forEach((btn) => {
       btn.classList.remove("invite-btn-in-cooldown");
       btn.removeAttribute("data-cooldown-active");
+      btn.removeAttribute("title");
     });
     if (inviteCooldownTimerId) {
       clearInterval(inviteCooldownTimerId);
@@ -4103,11 +4162,16 @@ function renderWelcomeKnowledgeCard(roomNumber = 1) {
   card.className = "v2-feed-welcome-card inline-welcome";
   card.id = "v2-feed-welcome-card";
   const nick = escapeHtml(currentNickname || "Anonymous");
+  const remaining = typeof getActiveInviteCooldownRemaining === "function" ? getActiveInviteCooldownRemaining() : 0;
+
   card.innerHTML = `
     <div class="v2-welcome-top">
       <span class="v2-welcome-emoji">👋</span>
       <div class="v2-welcome-headings">
-        <h4>Welcome to HashGANG</h4>
+        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <h4>Welcome to HashGANG</h4>
+          <span class="v2-welcome-cooldown-badge ${remaining > 0 ? '' : 'hidden'}" id="v2-welcome-cooldown-indicator">${remaining > 0 ? '<i class="fa-solid fa-hourglass-half"></i> Wait ' + remaining + 's' : ''}</span>
+        </div>
         <p>You are chatting as <strong style="color: #c084fc;">${nick}</strong>. Chat freely or start a private call:</p>
       </div>
     </div>
@@ -4123,6 +4187,14 @@ function renderWelcomeKnowledgeCard(roomNumber = 1) {
       </button>
     </div>
   `;
+  if (remaining > 0) {
+    const btns = card.querySelectorAll(".v2-welcome-mode-btn");
+    btns.forEach((btn) => {
+      btn.classList.add("invite-btn-in-cooldown");
+      btn.setAttribute("data-cooldown-active", "true");
+      btn.setAttribute("title", `⏳ Please wait ${remaining}s before sending another invite`);
+    });
+  }
   return card;
 }
 
@@ -4155,6 +4227,15 @@ function render1v1DiscoveryFeedCard() {
       </div>
     </div>
   `;
+  if (typeof getActiveInviteCooldownRemaining === "function" && getActiveInviteCooldownRemaining() > 0) {
+    const rem = getActiveInviteCooldownRemaining();
+    const btns = card.querySelectorAll(".v2-discovery-tile");
+    btns.forEach((btn) => {
+      btn.classList.add("invite-btn-in-cooldown");
+      btn.setAttribute("data-cooldown-active", "true");
+      btn.setAttribute("title", `⏳ Please wait ${rem}s before sending another invite`);
+    });
+  }
   return card;
 }
 
@@ -4887,9 +4968,8 @@ async function request1v1CallInvite(mode, forceBypass = false) {
   }
 
   currentChatMode = mode;
-  socket.emit("post_call_invite", { mode, nickname: currentNickname, testBypass: forceBypass });
-  startActiveInviteCooldown();
-  v2ShowToast(`🚀 Private ${mode.toUpperCase()} Invite sent to group!`);
+  socket.emit("post_call_invite", { mode, nickname: currentNickname, testBypass: forceBypass || Boolean(window.__E2E_BYPASS_COOLDOWN__) });
+  // Note: Cooldown is officially started and toast shown when server confirms via 'new_call_invite'.
 }
 
 async function acceptCallInvite(inviteId, mode) {
@@ -5066,6 +5146,19 @@ function v2ReturnToGroupChat(autoInvite = false) {
   cleanupPeerConnection(false);
   clearChatHistory();
 
+  // Anti-Abuse: Users returning from a 1v1 call (both inviter and taker) must observe the invite cooldown before posting a new group invite.
+  // Fresh group joiners are unaffected since v2ReturnToGroupChat is only called upon exiting a 1v1 call.
+  if (!window.__E2E_BYPASS_COOLDOWN__) {
+    const remaining = typeof getActiveInviteCooldownRemaining === "function" ? getActiveInviteCooldownRemaining() : 0;
+    if (remaining <= 0) {
+      if (typeof startActiveInviteCooldown === "function") {
+        startActiveInviteCooldown();
+      }
+    } else {
+      syncInviteButtonsCooldown();
+    }
+  }
+
   // 1. Immediately dismiss and tear down any 1v1 mini-game duel
   if (typeof dismiss1v1GameDock === "function") {
     dismiss1v1GameDock(false);
@@ -5166,6 +5259,9 @@ function toggleV2CallDrawer() {
   if (backdrop.classList.contains("hidden")) {
     backdrop.classList.remove("hidden");
     backdrop.classList.add("open");
+    if (typeof syncInviteButtonsCooldown === "function") {
+      syncInviteButtonsCooldown();
+    }
   } else {
     closeV2CallDrawer();
   }
@@ -5203,6 +5299,7 @@ window.request1v1CallInvite = request1v1CallInvite;
 window.getActiveInviteCooldownRemaining = getActiveInviteCooldownRemaining;
 window.clearActiveInviteCooldown = clearActiveInviteCooldown;
 window.startActiveInviteCooldown = startActiveInviteCooldown;
+window.syncClientCooldownRemaining = syncClientCooldownRemaining;
 window.syncInviteButtonsCooldown = syncInviteButtonsCooldown;
 window.acceptCallInvite = acceptCallInvite;
 window.sendGroupMessage = sendGroupMessage;

@@ -3166,10 +3166,50 @@ html, body {
 
 /* Invite Cooldown Anti-Abuse Styling */
 .invite-btn-in-cooldown {
-  opacity: 0.55 !important;
+  opacity: 0.65 !important;
   cursor: not-allowed !important;
-  filter: grayscale(0.25);
+  filter: grayscale(0.2);
   transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+/* Floating Countdown Pill on Invite Buttons */
+.v2-welcome-mode-btn,
+.v2-discovery-tile,
+.v2-drawer-tile {
+  position: relative !important;
+}
+
+.v2-welcome-cooldown-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: none;
+  letter-spacing: normal;
+  margin-left: auto;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+  animation: v2PillPulse 1.5s ease-in-out infinite alternate;
+}
+
+.v2-btn-cooldown-pill {
+  display: none !important;
+}
+
+@keyframes v2PillPulse {
+  0% {
+    border-color: rgba(251, 191, 36, 0.4);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7), 0 0 4px rgba(245, 158, 11, 0.2);
+  }
+  100% {
+    border-color: rgba(251, 191, 36, 0.9);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.7), 0 0 10px rgba(245, 158, 11, 0.5);
+  }
 }
 
 /* Welcome Knowledge Card Slot directly under Mode Tray / docked at bottom */
@@ -4042,20 +4082,43 @@ html, body {
 .v2-drawer-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
+  margin-top: 20px;
+}
+.v2-drawer-section:first-of-type {
+  margin-top: 0;
 }
 
 .v2-drawer-section-title {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 8px;
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  color: rgba(255, 255, 255, 0.7);
-  padding: 0 2px;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 0 4px 2px 4px;
+}
+
+.v2-drawer-cooldown-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.5);
+  color: #fbbf24;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: none;
+  letter-spacing: normal;
+  margin-left: auto;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+  animation: v2PillPulse 1.5s ease-in-out infinite alternate;
 }
 
 .v2-drawer-grid-3 {
