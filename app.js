@@ -363,8 +363,16 @@ function initV2App() {
 }
 
 let isAppShellReloading = false;
+let pendingAppShellReload = false;
 function reloadAppShellSafely(reason) {
   if (isAppShellReloading) return;
+  const inActiveCall = (typeof currentMatchTargetId !== "undefined" && currentMatchTargetId) &&
+                       (typeof isDisconnectedHandled !== "undefined" && !isDisconnectedHandled);
+  if (inActiveCall) {
+    console.log(`⚡ [HashGANG v2] App shell update detected (${reason}), but user is in active 1v1 chat. Deferring reload until lobby...`);
+    pendingAppShellReload = true;
+    return;
+  }
   isAppShellReloading = true;
   console.log(`⚡ [HashGANG v2] App shell update detected (${reason})! Refreshing app shell...`);
   window.location.reload();
@@ -676,6 +684,9 @@ function handleStrangerDisconnected(force = false) {
     }
     skippedPeersCooldownMapV2.delete(leavingPeerId);
   }
+  if (typeof inChatHeartbeatInterval !== "undefined" && inChatHeartbeatInterval) {
+    clearInterval(inChatHeartbeatInterval);
+  }
   dismissV2AudioSharedMedia();
   dismissV2VideoSharedMedia();
   if (typeof dismiss1v1GameDock === "function") dismiss1v1GameDock(false);
@@ -800,15 +811,39 @@ function initSocketConnection() {
       return;
     }
 
+    let clientGraceDisconnectTimeout = null;
+    let inChatHeartbeatInterval = null;
+
     socket = io(socketHost, {
       transports: ["websocket", "polling"],
       reconnection: true,
-      reconnectionAttempts: 10
+      reconnectionAttempts: 15,
+      reconnectionDelay: 1000
     });
     window.socket = socket;
 
     socket.on("connect", () => {
       console.log("🌐 [Socket.io v2] Connected to Signaling Server:", socket.id);
+      clearTimeout(clientGraceDisconnectTimeout);
+      const prevSocketId = window.lastActiveSocketId;
+      window.lastActiveSocketId = socket.id;
+
+      // In-Call Session Resume: If reconnected during active 1v1 private chat, resume with server!
+      if (inCall && currentMatchTargetId && prevSocketId && prevSocketId !== socket.id) {
+        console.log(`🔄 [v2 Recovery] Resuming 1v1 session (New Socket: ${socket.id}, Prev: ${prevSocketId}, Target: ${currentMatchTargetId})...`);
+        v2ShowToast("🔄 Signal restored! Reconnecting...", 2000);
+        socket.emit("resume_1v1_session", {
+          previousSocketId: prevSocketId,
+          targetId: currentMatchTargetId,
+          traceCode: window.currentSessionTraceCode
+        });
+        const peerDot = document.getElementById("v2-chat-peer-dot");
+        const peerStatus = document.getElementById("v2-chat-peer-status-text");
+        if (peerDot) peerDot.classList.remove("disc");
+        if (peerStatus) peerStatus.textContent = "Private Chat";
+        return;
+      }
+
       if (is18Confirmed) {
         let codeToJoin = window.pendingV2InviteCode;
         if (!codeToJoin) {
@@ -835,6 +870,74 @@ function initSocketConnection() {
         }
         updateStatus("idle", "In Group Chat");
         joinGroupChatOnConnect();
+      }
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.warn("🔌 [Socket.io v2] Disconnected from Signaling Server. Reason:", reason);
+      if (inChatHeartbeatInterval) clearInterval(inChatHeartbeatInterval);
+
+      if (inCall && currentMatchTargetId) {
+        // Subtle warning during 8s grace window
+        v2ShowToast("⚠️ Signal flicker... Reconnecting 🔄", 3500);
+        const peerDot = document.getElementById("v2-chat-peer-dot");
+        const peerStatus = document.getElementById("v2-chat-peer-status-text");
+        if (peerDot) peerDot.classList.add("disc");
+        if (peerStatus) peerStatus.textContent = "🟡 Reconnecting...";
+
+        clearTimeout(clientGraceDisconnectTimeout);
+        // If client fails to reconnect within 9 seconds (matching server 8s grace + 1s tolerance):
+        clientGraceDisconnectTimeout = setTimeout(() => {
+          if (inCall && (!socket || !socket.connected)) {
+            console.warn("❌ [v2 Recovery] Reconnect grace expired. Finalizing disconnect.");
+            handleStrangerDisconnected(true);
+            v2ShowToast("🔴 Connection lost. Stranger disconnected", 4000);
+          }
+        }, 9000);
+      } else {
+        updateStatus("idle", "Connecting...");
+      }
+    });
+
+    socket.on("1v1_session_resumed", (data) => {
+      console.log("✅ [v2 Recovery] 1v1 session resumed with partner:", data.targetId);
+      clearTimeout(clientGraceDisconnectTimeout);
+      const peerDot = document.getElementById("v2-chat-peer-dot");
+      const peerStatus = document.getElementById("v2-chat-peer-status-text");
+      if (peerDot) peerDot.classList.remove("disc");
+      if (peerStatus) peerStatus.textContent = "Private Chat";
+      v2ShowToast("🟢 Call Reconnected!", 2500);
+    });
+
+    socket.on("peer_reconnecting", (data) => {
+      console.log("⏳ [Socket.io v2] Stranger connection flickered, waiting for reconnect (Grace:", data.graceMs, "ms)");
+      const peerDot = document.getElementById("v2-chat-peer-dot");
+      const peerStatus = document.getElementById("v2-chat-peer-status-text");
+      if (peerDot) peerDot.classList.add("disc");
+      if (peerStatus) peerStatus.textContent = "🟡 Reconnecting...";
+      v2ShowToast("⚠️ Stranger's connection flickered... Waiting for reconnect 🔄", 3500);
+    });
+
+    socket.on("peer_reconnected", (data) => {
+      console.log("🟢 [Socket.io v2] Stranger reconnected with new socket ID:", data.newPeerId);
+      if (data.newPeerId) {
+        currentMatchTargetId = data.newPeerId;
+        window.currentMatchTargetId = currentMatchTargetId;
+      }
+      const peerDot = document.getElementById("v2-chat-peer-dot");
+      const peerStatus = document.getElementById("v2-chat-peer-status-text");
+      if (peerDot) peerDot.classList.remove("disc");
+      if (peerStatus) peerStatus.textContent = "Private Chat";
+      v2ShowToast("🟢 Stranger Reconnected!", 2500);
+    });
+
+    socket.on("chat_message_error", (data) => {
+      if (data && data.reason === "unpaired") {
+        console.warn("❌ [v2 Chat Error] Partner is no longer paired. Finalizing disconnect.");
+        handleStrangerDisconnected(true);
+        v2ShowToast(data.message || "🔴 Stranger has disconnected.", 3500);
+      } else if (data && data.message) {
+        v2ShowToast(data.message, 3500);
       }
     });
 
@@ -909,6 +1012,24 @@ function initSocketConnection() {
         inCall = true;
         window.inCall = inCall;
         window.socket = socket;
+        acquireScreenWakeLock(); // Hold wake lock during 1v1 chat so mobile screen does not sleep
+
+        // Start lightweight in-chat keepalive heartbeat (every 15s)
+        if (typeof inChatHeartbeatInterval !== "undefined" && inChatHeartbeatInterval) {
+          clearInterval(inChatHeartbeatInterval);
+        }
+        inChatHeartbeatInterval = setInterval(() => {
+          if (inCall && currentMatchTargetId && socket && socket.connected) {
+            socket.emit("signal", {
+              targetId: currentMatchTargetId,
+              signal: { type: "heartbeat" },
+              clientVersion: "v2"
+            });
+          } else if (!inCall) {
+            clearInterval(inChatHeartbeatInterval);
+          }
+        }, 15000);
+
         updateStatus("connected", "🟢 Live Chat");
         trackV2Event("v2_matched", { mode: currentChatMode, targetId: targetId });
         if (el.searchStage) el.searchStage.classList.add("hidden");
@@ -1120,6 +1241,11 @@ function initSocketConnection() {
         }
         if (el.chatDrawer) el.chatDrawer.classList.remove("closed");
         playAudioChime("msg");
+        return;
+      }
+
+      // Handle in-chat keepalive heartbeat silently
+      if (data.signal && data.signal.type === "heartbeat") {
         return;
       }
 
@@ -2267,6 +2393,9 @@ async function createWebRTCPeerConnection(targetId, isInitiator) {
 }
 
 function cleanupPeerConnection(isStrangerSkip = false) {
+  if (typeof inChatHeartbeatInterval !== "undefined" && inChatHeartbeatInterval) {
+    clearInterval(inChatHeartbeatInterval);
+  }
   dismissV2AudioSharedMedia();
   dismissV2VideoSharedMedia();
   if (currentMatchTargetId && isStrangerSkip) {
@@ -5198,6 +5327,10 @@ function v2ReturnToGroupChat(autoInvite = false) {
   if (localStream) {
     localStream.getTracks().forEach((t) => t.stop());
     localStream = null;
+  }
+  if (typeof pendingAppShellReload !== "undefined" && pendingAppShellReload) {
+    reloadAppShellSafely("deferred return to group");
+    return;
   }
   window.isJoiningPrivateInvite = false;
   window.pendingV2InviteCode = null;
