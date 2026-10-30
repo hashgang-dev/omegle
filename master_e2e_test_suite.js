@@ -318,7 +318,7 @@ async function runMasterE2ESuite() {
       });
     });
 
-    sGroup1.emit("post_call_invite", { mode: "video" });
+    sGroup1.emit("post_call_invite", { mode: "video", testBypass: true });
     await invitePromise;
 
     logResult("Dual-Track 1v1 Call Invite Card Creation",
@@ -375,7 +375,7 @@ async function runMasterE2ESuite() {
     const s3InvitePromise = new Promise((resolve) => {
       sGroup1.on("new_call_invite", (d) => { s3Invite = d; resolve(); });
     });
-    sGroup3.emit("post_call_invite", { mode: "audio" });
+    sGroup3.emit("post_call_invite", { mode: "audio", testBypass: true });
     await s3InvitePromise;
 
     let inviteCancelled = null;
@@ -766,6 +766,9 @@ async function runMasterE2ESuite() {
       await pageBob.waitForFunction(() => window.socket?.connected);
       await pageAlice.waitForTimeout(500);
 
+      await pageAlice.evaluate(() => { window.__E2E_BYPASS_COOLDOWN__ = true; });
+      await pageBob.evaluate(() => { window.__E2E_BYPASS_COOLDOWN__ = true; });
+
       if (await pageAlice.isVisible("#v2-btn-open-1v1-drawer")) {
         await pageAlice.click("#v2-btn-open-1v1-drawer");
         await pageAlice.waitForTimeout(300);
@@ -855,7 +858,7 @@ async function runMasterE2ESuite() {
     // 5.1 Repeat Call Cycle: Host posts text invite -> Guest accepts -> 1v1 match
     let invite1Data = null;
     const inv1Promise = new Promise(r => sEdge2.on("new_call_invite", d => { invite1Data = d; r(); }));
-    sEdge1.emit("post_call_invite", { mode: "text" });
+    sEdge1.emit("post_call_invite", { mode: "text", testBypass: true });
     await inv1Promise;
 
     let match1Host = null;
@@ -883,7 +886,7 @@ async function runMasterE2ESuite() {
     // 5.3 Host immediately posts second invite (Audio Call) -> Guest accepts -> 1v1 Audio match
     let invite2Data = null;
     const inv2Promise = new Promise(r => sEdge2.on("new_call_invite", d => { invite2Data = d; r(); }));
-    sEdge1.emit("post_call_invite", { mode: "audio" });
+    sEdge1.emit("post_call_invite", { mode: "audio", testBypass: true });
     await inv2Promise;
 
     let match2Host = null;
@@ -920,6 +923,60 @@ async function runMasterE2ESuite() {
     logResult("Server Anti-Spam External Link Block", 
       linkErrorMsg && linkErrorMsg.message && linkErrorMsg.message.includes("Links are not allowed")
     );
+
+    // 5.5b 1v1 Private Chat Link Restriction & Social Handle Allowance
+    const sPriv1 = io(SOCKET_URL, { transports: ["websocket"] });
+    const sPriv2 = io(SOCKET_URL, { transports: ["websocket"] });
+    await new Promise(r => {
+      let connected = 0;
+      const chk = () => { if (++connected === 2) r(); };
+      sPriv1.on("connect", chk);
+      sPriv2.on("connect", chk);
+    });
+    // Match them in 1v1 queue
+    let privMatched1 = null;
+    let privMatched2 = null;
+    const privMatchPromise = new Promise(r => {
+      let count = 0;
+      sPriv1.on("matched", d => { privMatched1 = d; if (++count === 2) r(); });
+      sPriv2.on("matched", d => { privMatched2 = d; if (++count === 2) r(); });
+    });
+    sPriv1.emit("join_queue", { mode: "text" });
+    sPriv2.emit("join_queue", { mode: "text" });
+    await privMatchPromise;
+
+    // Test 1: Sending URL in 1v1 chat is blocked
+    let privChatError = null;
+    let privReceivedLink = false;
+    sPriv1.once("chat_message_error", err => { privChatError = err; });
+    sPriv2.once("signal", sig => {
+      if (sig?.signal?.text?.includes("grabify.link")) privReceivedLink = true;
+    });
+    sPriv1.emit("signal", {
+      targetId: sPriv2.id,
+      signal: { type: "chat", text: "Click here: https://grabify.link/track" }
+    });
+    await new Promise(r => setTimeout(r, 600));
+
+    // Test 2: Sending social handle in 1v1 chat is allowed
+    let privReceivedHandle = false;
+    sPriv2.once("signal", sig => {
+      if (sig?.signal?.text?.includes("@rahul_23")) privReceivedHandle = true;
+    });
+    sPriv1.emit("signal", {
+      targetId: sPriv2.id,
+      signal: { type: "chat", text: "My insta is @rahul_23 and snap is rahul_snap" }
+    });
+    await new Promise(r => setTimeout(r, 600));
+
+    logResult("1v1 Private Chat Link Blocking & Handle Allowance",
+      privChatError && privChatError.message.includes("Links are blocked in private chat") &&
+      privReceivedLink === false &&
+      privReceivedHandle === true
+    );
+
+    sPriv1.disconnect();
+    sPriv2.disconnect();
 
     // 5.6 Private Link Offline Inviter Fallback
     const sInviter = io(SOCKET_URL, { transports: ["websocket"] });
@@ -975,6 +1032,326 @@ async function runMasterE2ESuite() {
     sFriend2.disconnect();
   } catch (err) {
     logResult("Phase 5 Edge Cases Suite", false, err.message);
+  }
+
+  // ===========================================================================
+  // PHASE 6: Social Keywords & Phone Masking, 1-Hour Nickname Cooldown & Versioning
+  // ===========================================================================
+  console.log("\n───────────────────────────────────────────────────────────────────────");
+  console.log("📌 PHASE 6: Social Keywords, Phone Masking, 1-Hour Nickname Cooldown & Versions");
+  console.log("───────────────────────────────────────────────────────────────────────");
+
+  try {
+    // 6.1 Backend & Socket Social Media Keyword Masking
+    const sMask1 = io(SOCKET_URL, { transports: ["websocket"] });
+    const sMask2 = io(SOCKET_URL, { transports: ["websocket"] });
+
+    await Promise.all([
+      new Promise(r => { sMask1.on("group_joined", r); sMask1.emit("join_group_chat", { nickname: "Sender_01" }); }),
+      new Promise(r => { sMask2.on("group_joined", r); sMask2.emit("join_group_chat", { nickname: "Receiver_01" }); })
+    ]);
+
+    let receivedMaskedMsg = null;
+    const msgPromise = new Promise(r => {
+      sMask2.on("new_group_msg", msg => {
+        if (msg.nickname === "Sender_01") {
+          receivedMaskedMsg = msg;
+          r();
+        }
+      });
+    });
+
+    sMask1.emit("send_group_msg", {
+      text: "Follow my instagram and insta, also add me on facebook or fb, ping snap or snapchat or telegram"
+    });
+    await Promise.race([msgPromise, new Promise(r => setTimeout(r, 2000))]);
+
+    const maskedText = receivedMaskedMsg?.text || "";
+    const isInstagramMasked = !maskedText.toLowerCase().includes("instagram") && maskedText.includes("*********");
+    const isInstaMasked = !maskedText.toLowerCase().includes("insta") && maskedText.includes("*****");
+    const isFacebookMasked = !maskedText.toLowerCase().includes("facebook") && maskedText.includes("********");
+    const isSnapchatMasked = !maskedText.toLowerCase().includes("snapchat") && maskedText.includes("********");
+    const isTelegramMasked = !maskedText.toLowerCase().includes("telegram") && maskedText.includes("********");
+    const isFbMasked = !maskedText.toLowerCase().includes("fb") && maskedText.includes("**");
+    const isSnapMasked = !maskedText.toLowerCase().includes("snap") && maskedText.includes("****");
+
+    logResult("Social Media Keyword Masking in Group Chat", 
+      isInstagramMasked && isInstaMasked && isFacebookMasked && isSnapchatMasked && isTelegramMasked && isFbMasked && isSnapMasked
+    );
+
+    // 6.2 Safe Substrings (Snapshot, Feedback, FBI) Preservation
+    await new Promise(r => setTimeout(r, 1200)); // wait for anti-spam rate limit
+    let receivedSafeMsg = null;
+    const safePromise = new Promise(r => {
+      sMask2.on("new_group_msg", msg => {
+        if (msg.text && msg.text.includes("snapshot")) {
+          receivedSafeMsg = msg;
+          r();
+        }
+      });
+    });
+    sMask1.emit("send_group_msg", { text: "Take a snapshot and submit feedback to the fbi safely" });
+    await Promise.race([safePromise, new Promise(r => setTimeout(r, 2000))]);
+
+    const safeText = receivedSafeMsg?.text || "";
+    logResult("Safe Word Boundary Preservation (snapshot, feedback, fbi)",
+      safeText.includes("snapshot") && safeText.includes("feedback") && safeText.includes("fbi")
+    );
+
+    // 6.3 Phone Number Masking Check
+    await new Promise(r => setTimeout(r, 1200)); // wait for anti-spam rate limit
+    let receivedPhoneMsg = null;
+    const phonePromise = new Promise(r => {
+      sMask2.on("new_group_msg", msg => {
+        if (msg.text && msg.text.includes("Call me")) {
+          receivedPhoneMsg = msg;
+          r();
+        }
+      });
+    });
+    sMask1.emit("send_group_msg", { text: "Call me now on 9876543210 please!" });
+    await Promise.race([phonePromise, new Promise(r => setTimeout(r, 2000))]);
+
+    const phoneText = receivedPhoneMsg?.text || "";
+    logResult("Phone Number Masking with Asterisks",
+      phoneText.includes("**********") && !phoneText.includes("9876543210")
+    );
+
+    sMask1.disconnect();
+    sMask2.disconnect();
+
+    // 6.4 Playwright Browser 1-Hour Nickname Cooldown & Persistence Test
+    const bNick = await chromium.launch({ headless: true });
+    const cNick = await bNick.newContext({ viewport: { width: 390, height: 844 } });
+    const pNick = await cNick.newPage();
+
+    await pNick.goto(APP_URL);
+    await pNick.waitForTimeout(500);
+    const ageBtn = pNick.locator("#v2-btn-age-confirm");
+    if (await ageBtn.isVisible()) await ageBtn.click();
+    await pNick.waitForTimeout(400);
+
+    // Initial change
+    await pNick.click("#v2-btn-edit-nick");
+    await pNick.waitForTimeout(300);
+    await pNick.fill("#v2-input-new-nick", "Starlight_Hero");
+    await pNick.click("#v2-btn-nickname-save");
+    await pNick.waitForTimeout(400);
+
+    const nickUpdated = await pNick.textContent("#v2-user-nickname-display");
+    logResult("Initial Nickname Customization", nickUpdated.trim() === "Starlight_Hero");
+
+    // Immediate attempt to edit again must be blocked with cooldown toast
+    await pNick.click("#v2-btn-edit-nick");
+    await pNick.waitForTimeout(300);
+    const isModalBlocked = await pNick.locator("#v2-nickname-modal").isHidden();
+    const cooldownRemaining = await pNick.evaluate(() => window.getNicknameCooldownRemainingMs());
+
+    logResult("1-Hour Nickname Cooldown Lockout Enforced", isModalBlocked && cooldownRemaining > 3500000);
+
+    // Persistence across reload (F5)
+    await pNick.reload();
+    await pNick.waitForTimeout(600);
+    const reloadedCooldown = await pNick.evaluate(() => window.getNicknameCooldownRemainingMs());
+    logResult("1-Hour Cooldown Persistence Across Page Reload (F5)", reloadedCooldown > 3400000);
+
+    // Fast forward 61 minutes
+    await pNick.evaluate(() => {
+      localStorage.setItem("hg_nick_last_changed", (Date.now() - (61 * 60 * 1000)).toString());
+    });
+    await pNick.click("#v2-btn-edit-nick");
+    await pNick.waitForTimeout(300);
+    const modalUnlocked = await pNick.locator("#v2-nickname-modal").isVisible();
+    logResult("Nickname Change Unlocked After 1-Hour Elapsed", modalUnlocked);
+    await bNick.close();
+
+    // 6.5 Asset Version Numbers Verification
+    const fs = require("fs");
+    const swFile = fs.readFileSync("/home/hashgang/Workspace/omegle/sw.js", "utf-8");
+    const indexFile = fs.readFileSync("/home/hashgang/Workspace/omegle/index.html", "utf-8");
+    logResult("Cache-Busting Asset Version Synchronization (v300)",
+      swFile.includes("hashgang-v300") &&
+      indexFile.includes("style.css?v=300") &&
+      indexFile.includes("ads.js?v=300") &&
+      indexFile.includes("app.js?v=300")
+    );
+
+    // 6.6 Voice Masking DSP & UI Bar Verification
+    const bVoice = await chromium.launch({ headless: true });
+    const pVoice = await bVoice.newPage();
+    await pVoice.goto("http://localhost:8000/index.html");
+    await pVoice.waitForTimeout(500);
+
+    const voiceBarExists = await pVoice.locator("#v2-voice-selector-bar").count() > 0;
+    const chipsExist = (await pVoice.locator("#v2-voice-chip-normal").count() > 0) &&
+                       (await pVoice.locator("#v2-voice-chip-girl").count() > 0) &&
+                       (await pVoice.locator("#v2-voice-chip-boy").count() > 0) &&
+                       (await pVoice.locator("#v2-voice-test-btn").count() > 0);
+    logResult("Voice Persona Floating Bar & Chips Rendered in DOM", voiceBarExists && chipsExist);
+
+    // Test selection and localStorage persistence
+    await pVoice.evaluate(() => window.setVoicePersona("girl"));
+    const isGirlActive = await pVoice.locator("#v2-voice-chip-girl").evaluate(el => el.classList.contains("active"));
+    const savedGirl = await pVoice.evaluate(() => localStorage.getItem("omg_voice_preset"));
+    logResult("Voice Persona Selection ('girl') & Active State", isGirlActive && savedGirl === "girl");
+
+    // Test persistence across page reload
+    await pVoice.reload();
+    await pVoice.waitForTimeout(500);
+    const persistedGirl = await pVoice.locator("#v2-voice-chip-girl").evaluate(el => el.classList.contains("active"));
+    logResult("Voice Persona ('girl') Persistence Across Reload (F5)", persistedGirl);
+
+    await bVoice.close();
+  } catch (err) {
+    logResult("Phase 6 Features Suite", false, err.message);
+  }
+
+  // ===========================================================================
+  // PHASE 7: Private Chat Report Redirection, Disconnect Auditing & Anti-Abuse
+  // ===========================================================================
+  console.log("\n───────────────────────────────────────────────────────────────────────");
+  console.log("📌 PHASE 7: Private Chat Report Redirection, Disconnect Trace Auditing & Anti-Abuse");
+  console.log("───────────────────────────────────────────────────────────────────────");
+
+  try {
+    const bReport = await chromium.launch({ headless: true });
+    const ctxA = await bReport.newContext({ viewport: { width: 390, height: 844 } });
+    const ctxB = await bReport.newContext({ viewport: { width: 390, height: 844 } });
+    const pAlice = await ctxA.newPage();
+    const pBob = await ctxB.newPage();
+
+    pAlice.on("dialog", async d => { await d.accept(); });
+    pBob.on("dialog", async d => { await d.accept(); });
+
+    await pAlice.goto(APP_URL);
+    await pBob.goto(APP_URL);
+    await Promise.all([pAlice.waitForTimeout(600), pBob.waitForTimeout(600)]);
+
+    if (await pAlice.locator("#v2-btn-age-confirm").isVisible()) await pAlice.click("#v2-btn-age-confirm");
+    if (await pBob.locator("#v2-btn-age-confirm").isVisible()) await pBob.click("#v2-btn-age-confirm");
+    await Promise.all([pAlice.waitForTimeout(600), pBob.waitForTimeout(600)]);
+
+    // 7.1 Private 1v1 Connect & Report Redirection to Group Chat
+    await pAlice.evaluate(() => window.request1v1CallInvite("text", true));
+    await pAlice.waitForTimeout(600);
+
+    const inviteId = await pAlice.evaluate(() => sessionStorage.getItem("hg_my_recent_invite"));
+    if (inviteId) {
+      await pBob.evaluate(invId => {
+        window.acceptCallInvite(invId);
+      }, inviteId);
+    }
+    await Promise.all([pAlice.waitForTimeout(800), pBob.waitForTimeout(800)]);
+
+    // Alice reports stranger -> must redirect to Group Chat
+    await pAlice.evaluate(() => window.v2ReportAndBlockStranger());
+    await pAlice.waitForTimeout(800);
+
+    const isGroupActiveAfterReport = await pAlice.evaluate(() => {
+      const groupStage = document.getElementById("v2-group-chat-stage");
+      const searchStage = document.getElementById("v2-search-stage");
+      return groupStage && !groupStage.classList.contains("hidden") &&
+             searchStage && searchStage.classList.contains("hidden");
+    });
+    logResult("Active Private Chat Report Redirects Directly to Group Lounge", isGroupActiveAfterReport);
+
+    // 7.2 Disconnected Peer Report Option Accessibility
+    await pAlice.evaluate(() => window.clearActiveInviteCooldown && window.clearActiveInviteCooldown());
+    await pAlice.evaluate(() => window.request1v1CallInvite("text", true));
+    await pAlice.waitForTimeout(600);
+
+    const inviteId2 = await pAlice.evaluate(() => sessionStorage.getItem("hg_my_recent_invite"));
+    if (inviteId2) {
+      await pBob.evaluate(invId => {
+        window.acceptCallInvite(invId);
+      }, inviteId2);
+    }
+    await Promise.all([pAlice.waitForTimeout(800), pBob.waitForTimeout(800)]);
+
+    // Bob abruptly leaves/disconnects
+    await pBob.evaluate(() => window.socket && window.socket.disconnect());
+    await pAlice.waitForTimeout(600);
+
+    const isHeaderFlagVisibleAfterDisconnect = await pAlice.locator("#v2-btn-flag-report").isVisible();
+    const hasFooterReportRemoved = (await pAlice.locator("#v2-btn-chat-disc-report").count()) === 0;
+
+    logResult("Top Bar Flag Report Remains Visible After Peer Disconnects", isHeaderFlagVisibleAfterDisconnect);
+    logResult("Footer Toolbar Has No Intrusive Inline Report Button", hasFooterReportRemoved);
+
+    await bReport.close();
+  } catch (err) {
+    logResult("Phase 7 Report & Anti-Abuse Suite", false, err.message);
+  }
+
+  // ===========================================================================
+  // PHASE 8: Anti-Collusion Duo Loophole & Return-To-Group Cooldown Verification
+  // ===========================================================================
+  console.log("───────────────────────────────────────────────────────────────────────");
+  console.log("📌 PHASE 8: Anti-Collusion Duo Loophole & Return-To-Group Cooldown");
+  console.log("───────────────────────────────────────────────────────────────────────");
+
+  try {
+    const bCollusion = await chromium.launch({ headless: true });
+    const ctxA = await bCollusion.newContext();
+    const ctxB = await bCollusion.newContext();
+    const ctxC = await bCollusion.newContext();
+
+    const pA = await ctxA.newPage();
+    const pB = await ctxB.newPage();
+
+    await pA.goto(APP_URL);
+    await pB.goto(APP_URL);
+    await pA.evaluate(() => typeof confirm18Plus === "function" && confirm18Plus());
+    await pB.evaluate(() => typeof confirm18Plus === "function" && confirm18Plus());
+    await new Promise(r => setTimeout(r, 600));
+
+    // 8.1 Fresh user has 0s cooldown
+    const freshCooldown = await pA.evaluate(() => window.getActiveInviteCooldownRemaining());
+    logResult("Fresh Group Joiner Has 0s Cooldown (Instant Discovery Access)", freshCooldown === 0);
+
+    // 8.2 User A posts invite & User B accepts
+    await pA.evaluate(() => window.request1v1CallInvite("text", true));
+    await new Promise(r => setTimeout(r, 800));
+    const invAId = await pA.evaluate(() => sessionStorage.getItem("hg_my_recent_invite") || sessionStorage.getItem("hg_active_invite_id"));
+    if (invAId) {
+      await pB.evaluate(id => window.acceptCallInvite(id, "text"), invAId);
+    }
+    await new Promise(r => setTimeout(r, 800));
+
+    // 8.3 User B leaves 1v1 call and returns to group
+    await pB.evaluate(() => window.v2ReturnToGroupChat(false));
+    await new Promise(r => setTimeout(r, 600));
+
+    const bobExitCooldown = await pB.evaluate(() => window.getActiveInviteCooldownRemaining());
+    const bobButtonDisabled = await pB.evaluate(() => {
+      const btns = document.querySelectorAll(".v2-welcome-mode-btn, .v2-discovery-tile, .v2-drawer-tile, .v2-tray-btn");
+      let hasClass = false;
+      btns.forEach((b) => {
+        if (b.classList.contains("invite-btn-in-cooldown")) hasClass = true;
+      });
+      return hasClass;
+    });
+
+    const bobWaitBadgeVisible = await pB.evaluate(() => {
+      const badge = document.getElementById("v2-welcome-cooldown-indicator") || document.getElementById("v2-drawer-cooldown-indicator");
+      return badge && badge.textContent.includes("Wait");
+    });
+
+    logResult("Rule 2: Returning Peer Has 20s Exit Cooldown Applied", bobExitCooldown > 0 && bobExitCooldown <= 20);
+    logResult("Rule 2: Returning Peer Buttons Have In-Cooldown Styling", bobButtonDisabled === true);
+    logResult("Rule 2: Header Cooldown Timer Badge Visible With 'Wait'", bobWaitBadgeVisible === true);
+
+    // 8.4 User C is fresh and unaffected by others' calls
+    const pC = await ctxC.newPage();
+    await pC.goto(APP_URL);
+    await pC.evaluate(() => typeof confirm18Plus === "function" && confirm18Plus());
+    await new Promise(r => setTimeout(r, 600));
+    const cCooldown = await pC.evaluate(() => window.getActiveInviteCooldownRemaining());
+    logResult("No Group-Level Hostage: Independent Member Cooldown Remains 0s", cCooldown === 0);
+
+    await bCollusion.close();
+  } catch (err) {
+    logResult("Phase 8 Anti-Collusion Verification", false, err.message);
   }
 
   console.log("\n=======================================================================");

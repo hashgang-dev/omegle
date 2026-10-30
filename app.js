@@ -1056,7 +1056,7 @@ function initSocketConnection() {
         if (currentChatMode !== "text" && !localStream) {
           const hasPerm = await initLocalMedia(currentChatMode);
           if (!hasPerm) {
-            v2ShowToast(`⚠️ ${currentChatMode === "video" ? "Camera & Microphone" : "Microphone"} access denied. Please allow in browser settings.`);
+            showMediaPermissionModal(currentChatMode, "denied");
           }
         }
         if (el.btnFlagReport) el.btnFlagReport.classList.remove("hidden");
@@ -2203,6 +2203,7 @@ async function v2HandleStartOrNext() {
   if (currentChatMode !== "text") {
     const hasPerm = await initLocalMedia(currentChatMode);
     if (!hasPerm) {
+      showMediaPermissionModal(currentChatMode, "denied");
       if (el.searchStage) el.searchStage.classList.remove("hidden");
       if (el.permGuideBox) el.permGuideBox.classList.remove("hidden");
 
@@ -2692,17 +2693,17 @@ async function initVoiceEngine(stream) {
 
       // FX path (for Girl and Boy voice)
       voiceFxGain = voiceAudioCtx.createGain();
-      voiceFxGain.gain.value = activeVoicePreset === "girl" ? 1.18 : (activeVoicePreset === "normal" ? 0.0 : 1.0);
+      voiceFxGain.gain.value = activeVoicePreset === "girl" ? 1.22 : (activeVoicePreset === "normal" ? 0.0 : 1.0);
 
       // RubberBand Real-Time Formant Preservation AudioWorklet:
-      // Shifts pitch to natural female register (195-205 Hz) while locking
-      // vocal tract length to 1.00 - eliminating the cartoon chipmunk effect!
+      // Shifts pitch to natural adult female register (205-215 Hz) with authentic
+      // anatomical vocal tract scaling (1.18) - eliminating androgynous/hijra artifacts!
       let useWorklet = false;
       if (voiceAudioCtx.audioWorklet && typeof voiceAudioCtx.audioWorklet.addModule === "function") {
         try {
-          const wasmRes = await fetch("/rubberband.wasm?v=298");
+          const wasmRes = await fetch("/rubberband.wasm?v=299");
           const wasmBuf = await wasmRes.arrayBuffer();
-          await voiceAudioCtx.audioWorklet.addModule("/rubberband-processor.js?v=298");
+          await voiceAudioCtx.audioWorklet.addModule("/rubberband-processor.js?v=299");
           voiceRubberBandNode = new AudioWorkletNode(voiceAudioCtx, "rubberband-processor", {
             numberOfInputs: 1,
             numberOfOutputs: 1,
@@ -2712,8 +2713,8 @@ async function initVoiceEngine(stream) {
             type: "init",
             wasmBytes: wasmBuf,
             sampleRate: voiceAudioCtx.sampleRate,
-            pitchScale: activeVoicePreset === "boy" ? 0.7937 : 1.33,
-            formantScale: activeVoicePreset === "boy" ? 1.00 : 1.10,
+            pitchScale: activeVoicePreset === "boy" ? 0.7937 : 1.48,
+            formantScale: activeVoicePreset === "boy" ? 1.00 : 1.18,
             preset: activeVoicePreset
           }, [wasmBuf]);
           useWorklet = true;
@@ -2725,7 +2726,7 @@ async function initVoiceEngine(stream) {
 
       if (!useWorklet && voiceAudioCtx.audioWorklet && typeof voiceAudioCtx.audioWorklet.addModule === "function") {
         try {
-          await voiceAudioCtx.audioWorklet.addModule("/soundtouch-processor.js?v=298");
+          await voiceAudioCtx.audioWorklet.addModule("/soundtouch-processor.js?v=299");
           voiceSoundTouchNode = new AudioWorkletNode(voiceAudioCtx, "soundtouch-processor", {
             numberOfInputs: 1,
             numberOfOutputs: 1,
@@ -2743,18 +2744,18 @@ async function initVoiceEngine(stream) {
         voicePitchShifter = createJunglePitchShifter(voiceAudioCtx);
       }
 
-      // 1. Sub-Bass Highpass (95Hz cuts 50/60Hz mains hum and fan rumble cleanly)
+      // 1. Sub-Bass Highpass (175Hz eliminates male 100-170Hz chest boom completely)
       voiceGirlHighpass = voiceAudioCtx.createBiquadFilter();
       voiceGirlHighpass.type = "highpass";
-      voiceGirlHighpass.frequency.value = activeVoicePreset === "girl" ? 95 : 20;
-      voiceGirlHighpass.Q.value = 0.6;
+      voiceGirlHighpass.frequency.value = activeVoicePreset === "girl" ? 175 : 20;
+      voiceGirlHighpass.Q.value = 0.707;
 
-      // 2. Transparent warmth (flat 0dB - RubberBand naturally preserves formants)
+      // 2. Chest Cut (250Hz -3.5dB cuts male throat thickness and muddy weight)
       voiceGirlWarmth = voiceAudioCtx.createBiquadFilter();
       voiceGirlWarmth.type = "peaking";
-      voiceGirlWarmth.frequency.value = 230;
-      voiceGirlWarmth.gain.value = 0;
-      voiceGirlWarmth.Q.value = 1.0;
+      voiceGirlWarmth.frequency.value = 250;
+      voiceGirlWarmth.gain.value = activeVoicePreset === "girl" ? -3.5 : 0;
+      voiceGirlWarmth.Q.value = 1.2;
 
       // 3. Transparent mid (flat 0dB)
       voiceGirlDeMumble = voiceAudioCtx.createBiquadFilter();
@@ -2763,11 +2764,11 @@ async function initVoiceEngine(stream) {
       voiceGirlDeMumble.gain.value = 0;
       voiceGirlDeMumble.Q.value = 1.0;
 
-      // 4. Transparent articulation (flat 0dB)
+      // 4. Feminine Articulation (3.2kHz +2.5dB adds natural female vocal clarity and sweetness)
       voiceGirlFormant = voiceAudioCtx.createBiquadFilter();
       voiceGirlFormant.type = "peaking";
-      voiceGirlFormant.frequency.value = 2300;
-      voiceGirlFormant.gain.value = 0;
+      voiceGirlFormant.frequency.value = 3200;
+      voiceGirlFormant.gain.value = activeVoicePreset === "girl" ? 2.5 : 0;
       voiceGirlFormant.Q.value = 1.0;
 
       // 5. Transparent air (flat 0dB)
@@ -2776,10 +2777,10 @@ async function initVoiceEngine(stream) {
       voiceGirlAir.frequency.value = 6500;
       voiceGirlAir.gain.value = 0;
 
-      // 6. Clean high frequencies (8kHz studio lowpass cuts fan hiss and mic preamp noise cleanly)
+      // 6. Clean high frequencies (8.5kHz studio lowpass cuts mic hiss cleanly)
       voiceGirlDeMetallic = voiceAudioCtx.createBiquadFilter();
       voiceGirlDeMetallic.type = "lowpass";
-      voiceGirlDeMetallic.frequency.value = activeVoicePreset === "girl" ? 8000 : 20000;
+      voiceGirlDeMetallic.frequency.value = activeVoicePreset === "girl" ? 8500 : 20000;
       voiceGirlDeMetallic.Q.value = 0.707;
 
       // 7. Lowshelf (Boy baritone resonance - UNTOUCHED, user confirmed depth is great)
@@ -2796,10 +2797,10 @@ async function initVoiceEngine(stream) {
 
       // 9. Dynamics Compressor (Transparent studio vocal presence - NO volume drop!)
       voiceCompressor = voiceAudioCtx.createDynamicsCompressor();
-      voiceCompressor.threshold.value = activeVoicePreset === "girl" ? -12 : 0;
+      voiceCompressor.threshold.value = activeVoicePreset === "girl" ? -14 : 0;
       voiceCompressor.knee.value = 18;
-      voiceCompressor.ratio.value = 1.6;
-      voiceCompressor.attack.value = 0.020;
+      voiceCompressor.ratio.value = 1.7;
+      voiceCompressor.attack.value = 0.015;
       voiceCompressor.release.value = 0.180;
 
       // Connect FX chain:
@@ -2847,31 +2848,31 @@ function applyVoicePresetToEngine(preset) {
 
   if (preset === "girl") {
     // 🌸 Natural Mature Adult Female Voice with Formant Preservation:
-    // pitchScale: 1.33 (+4.4 semitones -> ~170-185 Hz natural conversational adult female)
-    // formantScale: 1.10 (Anatomical male-to-female vocal tract scaling ~17cm -> ~15.4cm)
-    // Zero artificial static peaking EQ boosts - perfectly flat studio transparency!
+    // pitchScale: 1.48 (+6.5 semitones -> ~205-215 Hz natural conversational adult female)
+    // formantScale: 1.18 (Anatomical male-to-female vocal tract scaling ~17cm -> ~14.4cm)
+    // 175Hz Highpass + -3.5dB @ 250Hz removes male chest weight completely!
     if (voiceRubberBandNode) {
       voiceRubberBandNode.port.postMessage({
         type: "setPitch",
-        pitchScale: 1.33,
-        formantScale: 1.10,
+        pitchScale: 1.48,
+        formantScale: 1.18,
         preset: "girl"
       });
     } else if (voiceSoundTouchNode) {
       const p = voiceSoundTouchNode.parameters.get("pitchSemitones");
-      if (p) p.setValueAtTime(4.4, now);
+      if (p) p.setValueAtTime(6.5, now);
     } else if (voicePitchShifter) {
-      voicePitchShifter.setPitchOffset(getPitchMultiplier(4.4));
+      voicePitchShifter.setPitchOffset(getPitchMultiplier(6.5));
     }
 
     if (voiceGirlHighpass) {
-      voiceGirlHighpass.frequency.setTargetAtTime(95, now, 0.01);
-      voiceGirlHighpass.Q.setTargetAtTime(0.6, now, 0.01);
+      voiceGirlHighpass.frequency.setTargetAtTime(175, now, 0.01);
+      voiceGirlHighpass.Q.setTargetAtTime(0.707, now, 0.01);
     }
     if (voiceGirlWarmth) {
-      voiceGirlWarmth.frequency.setTargetAtTime(230, now, 0.01);
-      voiceGirlWarmth.gain.setTargetAtTime(0, now, 0.01);
-      voiceGirlWarmth.Q.setTargetAtTime(1.0, now, 0.01);
+      voiceGirlWarmth.frequency.setTargetAtTime(250, now, 0.01);
+      voiceGirlWarmth.gain.setTargetAtTime(-3.5, now, 0.01);
+      voiceGirlWarmth.Q.setTargetAtTime(1.2, now, 0.01);
     }
     if (voiceGirlDeMumble) {
       voiceGirlDeMumble.frequency.setTargetAtTime(850, now, 0.01);
@@ -2879,8 +2880,8 @@ function applyVoicePresetToEngine(preset) {
       voiceGirlDeMumble.Q.setTargetAtTime(1.0, now, 0.01);
     }
     if (voiceGirlFormant) {
-      voiceGirlFormant.frequency.setTargetAtTime(2300, now, 0.01);
-      voiceGirlFormant.gain.setTargetAtTime(0, now, 0.01);
+      voiceGirlFormant.frequency.setTargetAtTime(3200, now, 0.01);
+      voiceGirlFormant.gain.setTargetAtTime(2.5, now, 0.01);
       voiceGirlFormant.Q.setTargetAtTime(1.0, now, 0.01);
     }
     if (voiceGirlAir) {
@@ -2888,14 +2889,14 @@ function applyVoicePresetToEngine(preset) {
       voiceGirlAir.gain.setTargetAtTime(0, now, 0.01);
     }
     if (voiceGirlDeMetallic) {
-      voiceGirlDeMetallic.frequency.setTargetAtTime(8000, now, 0.01);
+      voiceGirlDeMetallic.frequency.setTargetAtTime(8500, now, 0.01);
       voiceGirlDeMetallic.Q.setTargetAtTime(0.707, now, 0.01);
     }
     if (voiceCompressor) {
-      voiceCompressor.threshold.setTargetAtTime(-12, now, 0.01);
+      voiceCompressor.threshold.setTargetAtTime(-14, now, 0.01);
       voiceCompressor.knee.setTargetAtTime(18, now, 0.01);
-      voiceCompressor.ratio.setTargetAtTime(1.6, now, 0.01);
-      voiceCompressor.attack.setTargetAtTime(0.020, now, 0.01);
+      voiceCompressor.ratio.setTargetAtTime(1.7, now, 0.01);
+      voiceCompressor.attack.setTargetAtTime(0.015, now, 0.01);
       voiceCompressor.release.setTargetAtTime(0.180, now, 0.01);
     }
 
@@ -2908,8 +2909,8 @@ function applyVoicePresetToEngine(preset) {
     }
 
     voiceBypassGain.gain.setTargetAtTime(0, now, 0.02);
-    // 🌸 +1.4 dB Studio Makeup Gain: natural conversational volume without amplifying room noise
-    voiceFxGain.gain.setTargetAtTime(1.18, now, 0.02);
+    // 🌸 +1.7 dB Studio Makeup Gain: natural conversational volume
+    voiceFxGain.gain.setTargetAtTime(1.22, now, 0.02);
 
   } else if (preset === "boy") {
     // 👨 Deep Man Voice (Preserved 100% untouched)
@@ -3139,6 +3140,12 @@ function stopLocalMedia() {
  */
 async function initLocalMedia(mode) {
   try {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+      console.warn("navigator.mediaDevices.getUserMedia is unavailable (HTTPS required).");
+      showMediaPermissionModal(mode, "unsupported");
+      return false;
+    }
+
     const mediaConstraintsHierarchy = mode === "audio"
       ? [
           { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false },
@@ -5787,6 +5794,108 @@ function cancelGroupReply() {
   if (replyBar) replyBar.classList.add("hidden");
 }
 
+function isPwaStandalone() {
+  return window.matchMedia("(display-mode: standalone)").matches ||
+         window.navigator.standalone === true ||
+         document.referrer.includes("android-app://");
+}
+window.isPwaStandalone = isPwaStandalone;
+
+let pendingPermissionMode = null;
+let pendingPermissionContext = null;
+
+function showMediaPermissionModal(mode, reason = "prompt") {
+  pendingPermissionMode = mode;
+  const modal = document.getElementById("v2-permission-modal");
+  const icon = document.getElementById("v2-perm-modal-icon");
+  const title = document.getElementById("v2-perm-modal-title");
+  const desc = document.getElementById("v2-perm-modal-desc");
+  const steps = document.getElementById("v2-perm-guide-steps");
+
+  const isVideo = mode === "video";
+  const mediaName = isVideo ? "Camera & Microphone" : "Microphone";
+
+  if (icon) icon.textContent = isVideo ? "📹" : "🎙️";
+  if (title) title.textContent = `${mediaName} Required`;
+  if (desc) {
+    desc.textContent = isVideo 
+      ? "To start a Video Call, please allow camera and microphone access on your device."
+      : "To start a Voice Call, please allow microphone access on your device.";
+  }
+
+  const inApp = isPwaStandalone();
+  if (steps) {
+    if (inApp) {
+      steps.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #c084fc; margin-bottom: 6px;">
+          <i class="fa-solid fa-mobile-screen"></i> In Installed App:
+        </div>
+        <ol style="margin: 0; padding-left: 18px; line-height: 1.6;">
+          <li>Open your phone <strong>Settings ⚙️</strong> ➔ <strong>Apps</strong></li>
+          <li>Find <strong>#GANG</strong> (or Chrome)</li>
+          <li>Tap <strong>Permissions</strong> ➔ Allow <strong>${mediaName}</strong></li>
+          <li>Return here and tap <strong>Grant Permission</strong> below</li>
+        </ol>
+        <div style="margin-top: 10px; padding: 8px 10px; background: rgba(234, 179, 8, 0.12); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 8px; font-size: 0.8rem; color: #fde047; text-align: left;">
+          💡 <strong>Why no popup?</strong> In installed apps, once permissions are dismissed or blocked, Android will not show a popup. Enabling it in Phone Settings fixes it permanently.
+        </div>
+      `;
+    } else {
+      steps.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #38bdf8; margin-bottom: 6px;">
+          <i class="fa-solid fa-globe"></i> In Web Browser:
+        </div>
+        <ol style="margin: 0; padding-left: 18px; line-height: 1.6;">
+          <li>Tap the <strong>Lock icon 🔒</strong> in your address bar</li>
+          <li>Set <strong>${mediaName}</strong> to <strong>Allow</strong></li>
+          <li>Tap <strong>Grant Permission</strong> below to start</li>
+        </ol>
+      `;
+    }
+  }
+
+  if (modal) modal.classList.remove("hidden");
+}
+window.showMediaPermissionModal = showMediaPermissionModal;
+
+function closePermissionModal(e) {
+  if (e && e.target && e.target !== e.currentTarget && !e.target.classList.contains("v2-close-btn") && !e.target.classList.contains("v2-btn-cancel-nick")) {
+    return;
+  }
+  const modal = document.getElementById("v2-permission-modal");
+  if (modal) modal.classList.add("hidden");
+  pendingPermissionMode = null;
+  pendingPermissionContext = null;
+}
+window.closePermissionModal = closePermissionModal;
+
+async function retryMediaPermission() {
+  const mode = pendingPermissionMode || "audio";
+  const ctx = pendingPermissionContext;
+  closePermissionModal();
+  try {
+    v2ShowToast(`🔄 Checking ${mode === "video" ? "camera & mic" : "microphone"} permission...`);
+    const hasPerm = await initLocalMedia(mode);
+    if (hasPerm) {
+      v2ShowToast(`✅ ${mode === "video" ? "Camera & Mic" : "Microphone"} ready!`);
+      if (ctx) {
+        pendingPermissionContext = null;
+        if (ctx.action === "request_invite") {
+          await request1v1CallInvite(ctx.mode, ctx.forceBypass);
+        } else if (ctx.action === "accept_invite") {
+          await acceptCallInvite(ctx.inviteId, ctx.mode);
+        }
+      }
+    } else {
+      v2ShowToast(`⚠️ Permission not granted yet. Please check phone Settings.`);
+      showMediaPermissionModal(mode, "denied");
+    }
+  } catch (e) {
+    console.warn("Retry permission notice:", e);
+  }
+}
+window.retryMediaPermission = retryMediaPermission;
+
 async function request1v1CallInvite(mode, forceBypass = false) {
   if (!socket || !socket.connected) {
     v2ShowToast("⚠️ Connecting to server... please wait 1 sec.");
@@ -5802,30 +5911,39 @@ async function request1v1CallInvite(mode, forceBypass = false) {
     }
   }
 
-  // Pre-flight permission verification
-  if (mode === "audio") {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-    } catch (err) {
-      console.warn("Mic permission denied for audio invite:", err);
-      alert("🎙️ Microphone Access Required\n\nPlease allow microphone permissions in your browser to start a Voice Call.");
+  const isMediaCall = mode === "audio" || mode === "video";
+
+  // Pre-flight permission verification:
+  // User MUST grant microphone (and camera for video) permission BEFORE sending the invite!
+  // Prevents one-sided calls where inviter has no audio transmission.
+  if (isMediaCall && !forceBypass && !window.__E2E_BYPASS_COOLDOWN__) {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+      showMediaPermissionModal(mode, "unsupported");
       return;
     }
-  } else if (mode === "video") {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-    } catch (err) {
-      console.warn("Camera/Mic permission denied for video invite:", err);
-      alert("📹 Camera & Microphone Access Required\n\nPlease allow camera and microphone permissions in your browser to start a Video Call.");
-      return;
+
+    const hasLiveAudio = localStream && localStream.getAudioTracks().some(t => t.readyState === "live");
+    const hasLiveVideo = localStream && localStream.getVideoTracks().some(t => t.readyState === "live");
+    const isStreamReady = (mode === "audio" && hasLiveAudio) || (mode === "video" && hasLiveAudio && hasLiveVideo);
+
+    if (!isStreamReady) {
+      v2ShowToast(`🎙️ Checking ${mode === "video" ? "camera & mic" : "microphone"} permission...`);
+      const hasPerm = await initLocalMedia(mode);
+      if (!hasPerm) {
+        pendingPermissionContext = { action: "request_invite", mode, forceBypass };
+        showMediaPermissionModal(mode, "denied");
+        return;
+      }
     }
   }
 
   currentChatMode = mode;
-  socket.emit("post_call_invite", { mode, nickname: currentNickname, testBypass: forceBypass || Boolean(window.__E2E_BYPASS_COOLDOWN__) });
-  // Note: Cooldown is officially started and toast shown when server confirms via 'new_call_invite'.
+  socket.emit("post_call_invite", { 
+    mode, 
+    nickname: currentNickname, 
+    testBypass: forceBypass || Boolean(window.__E2E_BYPASS_COOLDOWN__) 
+  });
+  v2ShowToast(`🚀 Sent ${mode.toUpperCase()} Call invite to lounge!`);
 }
 
 async function acceptCallInvite(inviteId, mode) {
@@ -5834,26 +5952,32 @@ async function acceptCallInvite(inviteId, mode) {
     return;
   }
 
-  // Pre-flight permission verification for joiner
-  if (mode === "audio") {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-    } catch (err) {
-      alert("🎙️ Microphone Access Required\n\nPlease allow microphone permissions in your browser to join this Voice Call.");
+  const isMediaCall = mode === "audio" || mode === "video";
+
+  // Pre-flight permission verification:
+  // Accepting party MUST grant microphone (and camera for video) permission BEFORE joining!
+  if (isMediaCall && !window.__E2E_BYPASS_COOLDOWN__) {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+      showMediaPermissionModal(mode, "unsupported");
       return;
     }
-  } else if (mode === "video") {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-    } catch (err) {
-      alert("📹 Camera & Microphone Access Required\n\nPlease allow camera and microphone permissions in your browser to join this Video Call.");
-      return;
+
+    const hasLiveAudio = localStream && localStream.getAudioTracks().some(t => t.readyState === "live");
+    const hasLiveVideo = localStream && localStream.getVideoTracks().some(t => t.readyState === "live");
+    const isStreamReady = (mode === "audio" && hasLiveAudio) || (mode === "video" && hasLiveAudio && hasLiveVideo);
+
+    if (!isStreamReady) {
+      v2ShowToast(`🎙️ Checking ${mode === "video" ? "camera & mic" : "microphone"} permission...`);
+      const hasPerm = await initLocalMedia(mode);
+      if (!hasPerm) {
+        pendingPermissionContext = { action: "accept_invite", inviteId, mode };
+        showMediaPermissionModal(mode, "denied");
+        return;
+      }
     }
   }
 
-  currentChatMode = mode;
+  if (mode) currentChatMode = mode;
   socket.emit("accept_call_invite", { inviteId });
 }
 
@@ -5863,22 +5987,23 @@ async function requestInCallModeUpgrade(mode) {
     return;
   }
 
-  // Pre-flight permission verification
-  if (mode === "audio") {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-    } catch (err) {
-      alert("🎙️ Microphone Access Required\n\nPlease allow microphone permissions in your browser to start a Voice Call.");
+  const isMediaCall = mode === "audio" || mode === "video";
+  if (isMediaCall) {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+      showMediaPermissionModal(mode, "unsupported");
       return;
     }
-  } else if (mode === "video") {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-    } catch (err) {
-      alert("📹 Camera & Microphone Access Required\n\nPlease allow camera and microphone permissions in your browser to start a Video Call.");
-      return;
+
+    const hasLiveAudio = localStream && localStream.getAudioTracks().some(t => t.readyState === "live");
+    const hasLiveVideo = localStream && localStream.getVideoTracks().some(t => t.readyState === "live");
+    const isStreamReady = (mode === "audio" && hasLiveAudio) || (mode === "video" && hasLiveAudio && hasLiveVideo);
+
+    if (!isStreamReady) {
+      const hasPerm = await initLocalMedia(mode);
+      if (!hasPerm) {
+        showMediaPermissionModal(mode, "denied");
+        return;
+      }
     }
   }
 
@@ -5917,21 +6042,23 @@ async function respondInCallModeUpgrade(mode, accepted, btnEl) {
   }
 
   // If accepted, check pre-flight permission
-  if (mode === "audio") {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-    } catch (err) {
-      alert("🎙️ Microphone Access Required\n\nPlease allow microphone permissions in your browser to join this Voice Call.");
+  const isMediaCall = mode === "audio" || mode === "video";
+  if (isMediaCall) {
+    if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
+      showMediaPermissionModal(mode, "unsupported");
       return;
     }
-  } else if (mode === "video") {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      stream.getTracks().forEach((t) => t.stop());
-    } catch (err) {
-      alert("📹 Camera & Microphone Access Required\n\nPlease allow camera and microphone permissions in your browser to join this Video Call.");
-      return;
+
+    const hasLiveAudio = localStream && localStream.getAudioTracks().some(t => t.readyState === "live");
+    const hasLiveVideo = localStream && localStream.getVideoTracks().some(t => t.readyState === "live");
+    const isStreamReady = (mode === "audio" && hasLiveAudio) || (mode === "video" && hasLiveAudio && hasLiveVideo);
+
+    if (!isStreamReady) {
+      const hasPerm = await initLocalMedia(mode);
+      if (!hasPerm) {
+        showMediaPermissionModal(mode, "denied");
+        return;
+      }
     }
   }
 

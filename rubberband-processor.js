@@ -14,8 +14,8 @@ class RubberBandProcessor extends AudioWorkletProcessor {
     this.arrayPtr = 0;
     this.blockSize = 128;
     this.pullMax = 1024;
-    this.pitchScale = 1.33;
-    this.formantScale = 1.10;
+    this.pitchScale = 1.48;
+    this.formantScale = 1.18;
     this.isReady = false;
     this.activePreset = "girl";
 
@@ -52,8 +52,8 @@ class RubberBandProcessor extends AudioWorkletProcessor {
           this.holdSamples = Math.floor(0.350 * this.sampleRate);
           this.attackCoeff = Math.exp(-1.0 / (0.002 * this.sampleRate));
           this.releaseCoeff = Math.exp(-1.0 / (0.200 * this.sampleRate));
-          this.pitchScale = data.pitchScale || 1.33;
-          this.formantScale = data.formantScale !== undefined ? data.formantScale : 1.10;
+          this.pitchScale = data.pitchScale || 1.48;
+          this.formantScale = data.formantScale !== undefined ? data.formantScale : 1.18;
           this.activePreset = data.preset || "girl";
 
           const opt = globalThis.rubberband.RubberBandOption.RubberBandOptionProcessRealTime |
