@@ -1,10 +1,13 @@
-const CACHE_NAME = 'hashgang-v285';
+const CACHE_NAME = 'hashgang-v298';
 
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
+  '/rubberband-processor.js',
+  '/rubberband.wasm',
+  '/soundtouch-processor.js',
   '/socket.io.min.js',
   '/ads.js',
   '/ad_mediation_config.js',

@@ -65,7 +65,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=285" />
+  <link rel="stylesheet" href="style.css?v=298" />
 
   <!-- Schema.org JSON-LD Structured Data for Google Search Ranking -->
   <script type="application/ld+json">
@@ -601,6 +601,29 @@
           </button>
         </div>
 
+        <!-- Floating Voice Persona Bar (Privacy / Anonymous Voice) -->
+        <div class="v2-voice-selector-bar hidden" id="v2-voice-selector-bar" role="region" aria-label="Voice Masking">
+          <div class="v2-voice-pill-group">
+            <button type="button" class="v2-voice-chip active" id="v2-voice-chip-normal" onclick="setVoicePersona('normal')" title="Original Voice">
+              <span class="v2-voice-chip-icon">🎙️</span>
+              <span class="v2-voice-chip-label">Normal</span>
+            </button>
+            <button type="button" class="v2-voice-chip" id="v2-voice-chip-girl" onclick="setVoicePersona('girl')" title="Girl Voice">
+              <span class="v2-voice-chip-icon">👩</span>
+              <span class="v2-voice-chip-label">Girl</span>
+            </button>
+            <button type="button" class="v2-voice-chip" id="v2-voice-chip-boy" onclick="setVoicePersona('boy')" title="Boy Voice">
+              <span class="v2-voice-chip-icon">👨</span>
+              <span class="v2-voice-chip-label">Boy</span>
+            </button>
+          </div>
+          <div class="v2-voice-divider"></div>
+          <button type="button" class="v2-voice-test-btn" id="v2-voice-test-btn" onclick="triggerVoiceSelfTest()" title="Test My Voice (Say Hello)">
+            <i class="fa-solid fa-headphones" id="v2-voice-test-icon"></i>
+            <span class="v2-voice-test-label" id="v2-voice-test-label">Test</span>
+          </button>
+        </div>
+
         <!-- Floating Call Control Toolbar (Hidden on Mode Selection Screen) -->
         <div class="v2-control-toolbar hidden" id="v2-control-toolbar">
           <button class="v2-ctrl-btn" id="v2-btn-audio-attach" title="Share Photo or Video"
@@ -842,10 +865,10 @@
     </div>
 
     <!-- Scripts Injection -->
-    <script src="ads.js?v=285" defer></script>
-    <script src="ad_mediation_config.js?v=285" defer></script>
-    <script src="socket.io.min.js?v=285"></script>
-    <script src="app.js?v=285" defer></script>
+    <script src="ads.js?v=298" defer></script>
+    <script src="ad_mediation_config.js?v=298" defer></script>
+    <script src="socket.io.min.js?v=298"></script>
+    <script src="app.js?v=298" defer></script>
 </body>
 
 </html>

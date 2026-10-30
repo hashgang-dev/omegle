@@ -67,6 +67,7 @@ let inCall = false;
 window.inCall = inCall;
 let lastReportablePeerId = null;
 let lastReportableTraceCode = null;
+let activeVoicePreset = localStorage.getItem("omg_voice_preset") || "normal";
 
 // Group Chat State Variables (Multiplayer Fallback & 1v1 Hub)
 let currentNickname = localStorage.getItem("hg_user_nickname") || "";
@@ -337,6 +338,7 @@ window.initScreenWakeLock = initScreenWakeLock;
 // Initialize Application Engine on Page Load
 function initV2App() {
   initDOMElements();
+  initVoiceUI();
   console.log("🚀 [HashGANG] Application Engine Initializing...");
   registerV2ServiceWorker();
   checkV2UrlInviteParameters();
@@ -1672,10 +1674,13 @@ function updateToolbarForMode(stageState) {
   const btnEnd = document.getElementById("v2-btn-end");
   const btnChatNext = document.getElementById("v2-btn-chat-next");
 
+  const voiceBar = document.getElementById("v2-voice-selector-bar");
+
   if (stageState === "idle" || stageState === "searching" || currentChatMode === "text") {
     // In Text Mode, idle, or searching stages, hide the floating bottom toolbar completely!
     // Text Mode uses integrated inline action buttons inside the chat input bar.
     el.toolbar.classList.add("hidden");
+    if (voiceBar) voiceBar.classList.add("hidden");
 
     if (currentChatMode === "text" && (stageState === "active" || stageState === "connected")) {
       if (btnChatNext) btnChatNext.classList.remove("hidden");
@@ -1687,6 +1692,14 @@ function updateToolbarForMode(stageState) {
 
   // Audio / Video Modes: Show floating toolbar with Mic/Cam controls
   el.toolbar.classList.remove("hidden");
+  if (voiceBar) {
+    // Voice Persona bar is ONLY for Audio Mode (anonymous 1v1 audio calls). Never show on Video Call screen!
+    if (currentChatMode === "audio") {
+      voiceBar.classList.remove("hidden");
+    } else {
+      voiceBar.classList.add("hidden");
+    }
+  }
   if (btnChatNext) btnChatNext.classList.add("hidden");
 
   if (currentChatMode === "audio") {
@@ -2299,10 +2312,9 @@ function v2StopCall() {
   v2HideEngagedOverlay();
   cleanupPeerConnection();
   clearChatHistory();
-  if (localStream) {
-    localStream.getTracks().forEach(track => track.stop());
-    localStream = null;
-  }
+  stopLocalMedia();
+  const voiceBar = document.getElementById("v2-voice-selector-bar");
+  if (voiceBar) voiceBar.classList.add("hidden");
   if (el.searchStage) el.searchStage.classList.add("hidden");
   const groupStage = document.getElementById("v2-group-chat-stage");
   if (groupStage) groupStage.classList.remove("hidden");
@@ -2345,12 +2357,26 @@ async function createWebRTCPeerConnection(targetId, isInitiator) {
   currentPeerConnection = new RTCPeerConnection(iceServers);
 
   if (localStream) {
-    localStream.getTracks().forEach(track => currentPeerConnection.addTrack(track, localStream));
+    localStream.getTracks().forEach(track => {
+      console.log(`🎙️ [WebRTC Track Add]: ${track.kind}, readyState: ${track.readyState}, enabled: ${track.enabled}`);
+      currentPeerConnection.addTrack(track, localStream);
+    });
   }
 
   currentPeerConnection.ontrack = (event) => {
-    if (el.remoteVideo && event.streams[0]) {
-      el.remoteVideo.srcObject = event.streams[0];
+    console.log(`🎧 [WebRTC Remote Track Received]: ${event.track.kind}, id: ${event.track.id}`);
+    if (el.remoteVideo) {
+      if (event.streams && event.streams[0]) {
+        el.remoteVideo.srcObject = event.streams[0];
+      } else {
+        let inboundStream = el.remoteVideo.srcObject;
+        if (!inboundStream) {
+          inboundStream = new MediaStream();
+          el.remoteVideo.srcObject = inboundStream;
+        }
+        inboundStream.addTrack(event.track);
+      }
+      el.remoteVideo.play().catch(e => console.warn("Remote video play notice:", e));
     }
   };
 
@@ -2418,10 +2444,694 @@ function cleanupPeerConnection(isStrangerSkip = false) {
   currentMatchTargetId = null;
   window.currentMatchTargetId = null;
   if (el.remoteVideo) el.remoteVideo.srcObject = null;
+  stopLocalMedia();
+}
+
+/* ==========================================================================
+   Voice Persona Masking & Audio DSP Engine (Zero Server Cost)
+   ========================================================================== */
+let voiceAudioCtx = null;
+let voiceSourceNode = null;
+let voiceDestinationNode = null;
+let voiceRubberBandNode = null;
+let voiceSoundTouchNode = null;
+let voicePitchShifter = null;
+let voiceBypassGain = null;
+let voiceFxGain = null;
+let voiceGirlHighpass = null;
+let voiceGirlWarmth = null;
+let voiceGirlDeMumble = null;
+let voiceGirlFormant = null;
+let voiceGirlAir = null;
+let voiceGirlDeMetallic = null;
+let voiceCompressor = null;
+let voiceBoyLowshelf = null;
+let voiceBoyLowpass = null;
+let rawLocalStream = null;
+let isVoiceTesting = false;
+let voiceTestRecorder = null;
+let voiceTestAudio = null;
+
+function createFadeBuffer(context, activeTime, fadeTime) {
+  const length1 = Math.floor(activeTime * context.sampleRate);
+  const length2 = Math.floor((activeTime - 2 * fadeTime) * context.sampleRate);
+  const length = length1 + length2;
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const p = buffer.getChannelData(0);
+  const fadeLength = Math.floor(fadeTime * context.sampleRate);
+  const fadeIndex1 = fadeLength;
+  const fadeIndex2 = length1 - fadeLength;
+
+  // Raised-Cosine (Hann) Crossfade Window: Guarantees constant linear power
+  // sum = 1.0 everywhere, eliminating amplitude flutter, tremolo, and flanger twist
+  for (let i = 0; i < length1; ++i) {
+    let value;
+    if (i < fadeIndex1) {
+      value = 0.5 * (1 - Math.cos((Math.PI * i) / fadeLength));
+    } else if (i >= fadeIndex2) {
+      value = 0.5 * (1 + Math.cos((Math.PI * (i - fadeIndex2)) / fadeLength));
+    } else {
+      value = 1;
+    }
+    p[i] = value;
+  }
+  for (let i = length1; i < length; ++i) {
+    p[i] = 0;
+  }
+  return buffer;
+}
+
+function createDelayTimeBuffer(context, activeTime, fadeTime, shiftUp) {
+  const length1 = Math.floor(activeTime * context.sampleRate);
+  const length2 = Math.floor((activeTime - 2 * fadeTime) * context.sampleRate);
+  const length = length1 + length2;
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const p = buffer.getChannelData(0);
+
+  for (let i = 0; i < length1; ++i) {
+    if (shiftUp) {
+      p[i] = (length1 - i) / length;
+    } else {
+      p[i] = i / length1;
+    }
+  }
+  for (let i = length1; i < length; ++i) {
+    p[i] = 0;
+  }
+  return buffer;
+}
+
+function createJunglePitchShifter(context) {
+  // Voicemod / Clownfish speech grain duration: 100ms buffer, 50ms crossfade, 75ms delay
+  // Eliminates metallic delay flutter, comb-filtering twist, and 25Hz motorboat buzzing
+  const bufferTime = 0.100;
+  const fadeTime = 0.050;
+  const delayTime = 0.075;
+
+  const input = context.createGain();
+  const output = context.createGain();
+
+  const shiftDownBuffer = createDelayTimeBuffer(context, bufferTime, fadeTime, false);
+  const shiftUpBuffer = createDelayTimeBuffer(context, bufferTime, fadeTime, true);
+
+  const mod1 = context.createBufferSource();
+  const mod2 = context.createBufferSource();
+  const mod3 = context.createBufferSource();
+  const mod4 = context.createBufferSource();
+
+  mod1.buffer = shiftDownBuffer;
+  mod2.buffer = shiftDownBuffer;
+  mod3.buffer = shiftUpBuffer;
+  mod4.buffer = shiftUpBuffer;
+
+  mod1.loop = true;
+  mod2.loop = true;
+  mod3.loop = true;
+  mod4.loop = true;
+
+  const mod1Gain = context.createGain();
+  const mod2Gain = context.createGain();
+  const mod3Gain = context.createGain();
+  const mod4Gain = context.createGain();
+
+  mod3Gain.gain.value = 0;
+  mod4Gain.gain.value = 0;
+
+  mod1.connect(mod1Gain);
+  mod2.connect(mod2Gain);
+  mod3.connect(mod3Gain);
+  mod4.connect(mod4Gain);
+
+  const modGain1 = context.createGain();
+  const modGain2 = context.createGain();
+
+  const delay1 = context.createDelay();
+  const delay2 = context.createDelay();
+
+  mod1Gain.connect(modGain1);
+  mod2Gain.connect(modGain2);
+  mod3Gain.connect(modGain1);
+  mod4Gain.connect(modGain2);
+
+  modGain1.connect(delay1.delayTime);
+  modGain2.connect(delay2.delayTime);
+
+  const fade1 = context.createBufferSource();
+  const fade2 = context.createBufferSource();
+  const fadeBuffer = createFadeBuffer(context, bufferTime, fadeTime);
+
+  fade1.buffer = fadeBuffer;
+  fade2.buffer = fadeBuffer;
+  fade1.loop = true;
+  fade2.loop = true;
+
+  const mix1 = context.createGain();
+  const mix2 = context.createGain();
+  mix1.gain.value = 0;
+  mix2.gain.value = 0;
+
+  fade1.connect(mix1.gain);
+  fade2.connect(mix2.gain);
+
+  input.connect(delay1);
+  input.connect(delay2);
+
+  delay1.connect(mix1);
+  delay2.connect(mix2);
+
+  mix1.connect(output);
+  mix2.connect(output);
+
+  const t = context.currentTime + 0.050;
+  const t2 = t + bufferTime - fadeTime;
+  mod1.start(t);
+  mod2.start(t2);
+  mod3.start(t);
+  mod4.start(t2);
+  fade1.start(t);
+  fade2.start(t2);
+
+  function setPitchOffset(mult) {
+    if (mult > 0) {
+      mod1Gain.gain.value = 0;
+      mod2Gain.gain.value = 0;
+      mod3Gain.gain.value = 1;
+      mod4Gain.gain.value = 1;
+    } else {
+      mod1Gain.gain.value = 1;
+      mod2Gain.gain.value = 1;
+      mod3Gain.gain.value = 0;
+      mod4Gain.gain.value = 0;
+    }
+    const d = delayTime * Math.abs(mult);
+    modGain1.gain.setTargetAtTime(0.5 * d, context.currentTime, 0.010);
+    modGain2.gain.setTargetAtTime(0.5 * d, context.currentTime, 0.010);
+  }
+
+  return {
+    input,
+    output,
+    setPitchOffset
+  };
+}
+
+function getPitchMultiplier(semitones) {
+  // Symmetrical linear pitch multiplier for Jungle fallback:
+  // For Girl (+2.2 semitones): mult = +0.183 -> natural adult female pitch (~160-170 Hz)
+  // For Boy (-4.0 semitones): mult = -0.3333 -> 100% UNTOUCHED, preserves praised depth
+  return semitones / 12;
+}
+
+async function initVoiceEngine(stream) {
+  try {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) {
+      console.warn("Web Audio API not supported on this device.");
+      return stream.getAudioTracks()[0] || null;
+    }
+
+    if (!voiceAudioCtx) {
+      voiceAudioCtx = new AudioContextClass({ latencyHint: "interactive" });
+    }
+    if (voiceAudioCtx.state === "suspended") {
+      await voiceAudioCtx.resume().catch(() => {});
+    }
+
+    if (voiceSourceNode) {
+      try { voiceSourceNode.disconnect(); } catch (e) {}
+      voiceSourceNode = null;
+    }
+
+    const audioTrack = stream.getAudioTracks()[0];
+    if (!audioTrack) {
+      return null;
+    }
+
+    voiceSourceNode = voiceAudioCtx.createMediaStreamSource(stream);
+
+    const destTrack = voiceDestinationNode ? voiceDestinationNode.stream.getAudioTracks()[0] : null;
+    const isDestDead = !voiceDestinationNode || !destTrack || destTrack.readyState === "ended";
+
+    if (isDestDead) {
+      voiceDestinationNode = voiceAudioCtx.createMediaStreamDestination();
+      if (voiceBypassGain) {
+        try { voiceBypassGain.disconnect(); } catch (e) {}
+        voiceBypassGain.connect(voiceDestinationNode);
+      }
+      if (voiceFxGain) {
+        try { voiceFxGain.disconnect(); } catch (e) {}
+        voiceFxGain.connect(voiceDestinationNode);
+      }
+    }
+
+    if (!voiceBypassGain) {
+      // Direct bypass path (for Normal voice)
+      voiceBypassGain = voiceAudioCtx.createGain();
+      voiceBypassGain.gain.value = activeVoicePreset === "normal" ? 1.0 : 0.0;
+      voiceBypassGain.connect(voiceDestinationNode);
+
+      // FX path (for Girl and Boy voice)
+      voiceFxGain = voiceAudioCtx.createGain();
+      voiceFxGain.gain.value = activeVoicePreset === "girl" ? 1.18 : (activeVoicePreset === "normal" ? 0.0 : 1.0);
+
+      // RubberBand Real-Time Formant Preservation AudioWorklet:
+      // Shifts pitch to natural female register (195-205 Hz) while locking
+      // vocal tract length to 1.00 - eliminating the cartoon chipmunk effect!
+      let useWorklet = false;
+      if (voiceAudioCtx.audioWorklet && typeof voiceAudioCtx.audioWorklet.addModule === "function") {
+        try {
+          const wasmRes = await fetch("/rubberband.wasm?v=298");
+          const wasmBuf = await wasmRes.arrayBuffer();
+          await voiceAudioCtx.audioWorklet.addModule("/rubberband-processor.js?v=298");
+          voiceRubberBandNode = new AudioWorkletNode(voiceAudioCtx, "rubberband-processor", {
+            numberOfInputs: 1,
+            numberOfOutputs: 1,
+            outputChannelCount: [2]
+          });
+          voiceRubberBandNode.port.postMessage({
+            type: "init",
+            wasmBytes: wasmBuf,
+            sampleRate: voiceAudioCtx.sampleRate,
+            pitchScale: activeVoicePreset === "boy" ? 0.7937 : 1.33,
+            formantScale: activeVoicePreset === "boy" ? 1.00 : 1.10,
+            preset: activeVoicePreset
+          }, [wasmBuf]);
+          useWorklet = true;
+        } catch (e) {
+          console.warn("RubberBand worklet fallback to SoundTouch/Jungle:", e);
+          voiceRubberBandNode = null;
+        }
+      }
+
+      if (!useWorklet && voiceAudioCtx.audioWorklet && typeof voiceAudioCtx.audioWorklet.addModule === "function") {
+        try {
+          await voiceAudioCtx.audioWorklet.addModule("/soundtouch-processor.js?v=298");
+          voiceSoundTouchNode = new AudioWorkletNode(voiceAudioCtx, "soundtouch-processor", {
+            numberOfInputs: 1,
+            numberOfOutputs: 1,
+            outputChannelCount: [2],
+            processorOptions: { sampleBufferType: "circular" }
+          });
+          useWorklet = true;
+        } catch (e) {
+          console.warn("SoundTouch worklet fallback to Jungle:", e);
+          voiceSoundTouchNode = null;
+        }
+      }
+
+      if (!useWorklet) {
+        voicePitchShifter = createJunglePitchShifter(voiceAudioCtx);
+      }
+
+      // 1. Sub-Bass Highpass (95Hz cuts 50/60Hz mains hum and fan rumble cleanly)
+      voiceGirlHighpass = voiceAudioCtx.createBiquadFilter();
+      voiceGirlHighpass.type = "highpass";
+      voiceGirlHighpass.frequency.value = activeVoicePreset === "girl" ? 95 : 20;
+      voiceGirlHighpass.Q.value = 0.6;
+
+      // 2. Transparent warmth (flat 0dB - RubberBand naturally preserves formants)
+      voiceGirlWarmth = voiceAudioCtx.createBiquadFilter();
+      voiceGirlWarmth.type = "peaking";
+      voiceGirlWarmth.frequency.value = 230;
+      voiceGirlWarmth.gain.value = 0;
+      voiceGirlWarmth.Q.value = 1.0;
+
+      // 3. Transparent mid (flat 0dB)
+      voiceGirlDeMumble = voiceAudioCtx.createBiquadFilter();
+      voiceGirlDeMumble.type = "peaking";
+      voiceGirlDeMumble.frequency.value = 850;
+      voiceGirlDeMumble.gain.value = 0;
+      voiceGirlDeMumble.Q.value = 1.0;
+
+      // 4. Transparent articulation (flat 0dB)
+      voiceGirlFormant = voiceAudioCtx.createBiquadFilter();
+      voiceGirlFormant.type = "peaking";
+      voiceGirlFormant.frequency.value = 2300;
+      voiceGirlFormant.gain.value = 0;
+      voiceGirlFormant.Q.value = 1.0;
+
+      // 5. Transparent air (flat 0dB)
+      voiceGirlAir = voiceAudioCtx.createBiquadFilter();
+      voiceGirlAir.type = "highshelf";
+      voiceGirlAir.frequency.value = 6500;
+      voiceGirlAir.gain.value = 0;
+
+      // 6. Clean high frequencies (8kHz studio lowpass cuts fan hiss and mic preamp noise cleanly)
+      voiceGirlDeMetallic = voiceAudioCtx.createBiquadFilter();
+      voiceGirlDeMetallic.type = "lowpass";
+      voiceGirlDeMetallic.frequency.value = activeVoicePreset === "girl" ? 8000 : 20000;
+      voiceGirlDeMetallic.Q.value = 0.707;
+
+      // 7. Lowshelf (Boy baritone resonance - UNTOUCHED, user confirmed depth is great)
+      voiceBoyLowshelf = voiceAudioCtx.createBiquadFilter();
+      voiceBoyLowshelf.type = "lowshelf";
+      voiceBoyLowshelf.frequency.value = 140;
+      voiceBoyLowshelf.gain.value = activeVoicePreset === "boy" ? 4.5 : 0;
+
+      // 8. Lowpass (Boy high harmonic filter - UNTOUCHED)
+      voiceBoyLowpass = voiceAudioCtx.createBiquadFilter();
+      voiceBoyLowpass.type = "lowpass";
+      voiceBoyLowpass.frequency.value = activeVoicePreset === "boy" ? 5200 : 20000;
+      voiceBoyLowpass.Q.value = 0.7;
+
+      // 9. Dynamics Compressor (Transparent studio vocal presence - NO volume drop!)
+      voiceCompressor = voiceAudioCtx.createDynamicsCompressor();
+      voiceCompressor.threshold.value = activeVoicePreset === "girl" ? -12 : 0;
+      voiceCompressor.knee.value = 18;
+      voiceCompressor.ratio.value = 1.6;
+      voiceCompressor.attack.value = 0.020;
+      voiceCompressor.release.value = 0.180;
+
+      // Connect FX chain:
+      // (voiceRubberBandNode || voiceSoundTouchNode || voicePitchShifter.output) -> Highpass -> Warmth -> DeMumble -> Formant -> Air -> DeMetallic -> BoyLowshelf -> BoyLowpass -> Compressor -> FxGain -> Destination
+      const pitchOut = voiceRubberBandNode || voiceSoundTouchNode || voicePitchShifter.output;
+      pitchOut.connect(voiceGirlHighpass);
+      voiceGirlHighpass.connect(voiceGirlWarmth);
+      voiceGirlWarmth.connect(voiceGirlDeMumble);
+      voiceGirlDeMumble.connect(voiceGirlFormant);
+      voiceGirlFormant.connect(voiceGirlAir);
+      voiceGirlAir.connect(voiceGirlDeMetallic);
+      voiceGirlDeMetallic.connect(voiceBoyLowshelf);
+      voiceBoyLowshelf.connect(voiceBoyLowpass);
+      voiceBoyLowpass.connect(voiceCompressor);
+      voiceCompressor.connect(voiceFxGain);
+      voiceFxGain.connect(voiceDestinationNode);
+    }
+
+    voiceSourceNode.connect(voiceBypassGain);
+    if (voiceRubberBandNode) {
+      voiceSourceNode.connect(voiceRubberBandNode);
+    } else if (voiceSoundTouchNode) {
+      voiceSourceNode.connect(voiceSoundTouchNode);
+    } else if (voicePitchShifter) {
+      voiceSourceNode.connect(voicePitchShifter.input);
+    }
+
+    applyVoicePresetToEngine(activeVoicePreset);
+
+    return voiceDestinationNode.stream.getAudioTracks()[0] || null;
+  } catch (err) {
+    console.warn("Failed to init voice engine, falling back to raw mic:", err);
+    return stream.getAudioTracks()[0] || null;
+  }
+}
+
+function applyVoicePresetToEngine(preset) {
+  if (!voiceAudioCtx || !voiceBypassGain || !voiceFxGain) return;
+
+  if (voiceAudioCtx.state === "suspended") {
+    voiceAudioCtx.resume().catch(() => {});
+  }
+
+  const now = voiceAudioCtx.currentTime;
+
+  if (preset === "girl") {
+    // 🌸 Natural Mature Adult Female Voice with Formant Preservation:
+    // pitchScale: 1.33 (+4.4 semitones -> ~170-185 Hz natural conversational adult female)
+    // formantScale: 1.10 (Anatomical male-to-female vocal tract scaling ~17cm -> ~15.4cm)
+    // Zero artificial static peaking EQ boosts - perfectly flat studio transparency!
+    if (voiceRubberBandNode) {
+      voiceRubberBandNode.port.postMessage({
+        type: "setPitch",
+        pitchScale: 1.33,
+        formantScale: 1.10,
+        preset: "girl"
+      });
+    } else if (voiceSoundTouchNode) {
+      const p = voiceSoundTouchNode.parameters.get("pitchSemitones");
+      if (p) p.setValueAtTime(4.4, now);
+    } else if (voicePitchShifter) {
+      voicePitchShifter.setPitchOffset(getPitchMultiplier(4.4));
+    }
+
+    if (voiceGirlHighpass) {
+      voiceGirlHighpass.frequency.setTargetAtTime(95, now, 0.01);
+      voiceGirlHighpass.Q.setTargetAtTime(0.6, now, 0.01);
+    }
+    if (voiceGirlWarmth) {
+      voiceGirlWarmth.frequency.setTargetAtTime(230, now, 0.01);
+      voiceGirlWarmth.gain.setTargetAtTime(0, now, 0.01);
+      voiceGirlWarmth.Q.setTargetAtTime(1.0, now, 0.01);
+    }
+    if (voiceGirlDeMumble) {
+      voiceGirlDeMumble.frequency.setTargetAtTime(850, now, 0.01);
+      voiceGirlDeMumble.gain.setTargetAtTime(0, now, 0.01);
+      voiceGirlDeMumble.Q.setTargetAtTime(1.0, now, 0.01);
+    }
+    if (voiceGirlFormant) {
+      voiceGirlFormant.frequency.setTargetAtTime(2300, now, 0.01);
+      voiceGirlFormant.gain.setTargetAtTime(0, now, 0.01);
+      voiceGirlFormant.Q.setTargetAtTime(1.0, now, 0.01);
+    }
+    if (voiceGirlAir) {
+      voiceGirlAir.frequency.setTargetAtTime(6500, now, 0.01);
+      voiceGirlAir.gain.setTargetAtTime(0, now, 0.01);
+    }
+    if (voiceGirlDeMetallic) {
+      voiceGirlDeMetallic.frequency.setTargetAtTime(8000, now, 0.01);
+      voiceGirlDeMetallic.Q.setTargetAtTime(0.707, now, 0.01);
+    }
+    if (voiceCompressor) {
+      voiceCompressor.threshold.setTargetAtTime(-12, now, 0.01);
+      voiceCompressor.knee.setTargetAtTime(18, now, 0.01);
+      voiceCompressor.ratio.setTargetAtTime(1.6, now, 0.01);
+      voiceCompressor.attack.setTargetAtTime(0.020, now, 0.01);
+      voiceCompressor.release.setTargetAtTime(0.180, now, 0.01);
+    }
+
+    // Reset Boy filters
+    if (voiceBoyLowshelf) {
+      voiceBoyLowshelf.gain.setTargetAtTime(0, now, 0.01);
+    }
+    if (voiceBoyLowpass) {
+      voiceBoyLowpass.frequency.setTargetAtTime(20000, now, 0.01);
+    }
+
+    voiceBypassGain.gain.setTargetAtTime(0, now, 0.02);
+    // 🌸 +1.4 dB Studio Makeup Gain: natural conversational volume without amplifying room noise
+    voiceFxGain.gain.setTargetAtTime(1.18, now, 0.02);
+
+  } else if (preset === "boy") {
+    // 👨 Deep Man Voice (Preserved 100% untouched)
+    if (voiceRubberBandNode) {
+      voiceRubberBandNode.port.postMessage({
+        type: "setPitch",
+        pitchScale: 0.7937,
+        formantScale: 1.00,
+        preset: "boy"
+      });
+    } else if (voiceSoundTouchNode) {
+      const p = voiceSoundTouchNode.parameters.get("pitchSemitones");
+      if (p) p.setValueAtTime(-4.0, now);
+    } else if (voicePitchShifter) {
+      voicePitchShifter.setPitchOffset(getPitchMultiplier(-4.0));
+    }
+
+    if (voiceBoyLowshelf) {
+      voiceBoyLowshelf.frequency.setTargetAtTime(140, now, 0.01);
+      voiceBoyLowshelf.gain.setTargetAtTime(4.5, now, 0.01);
+    }
+    if (voiceBoyLowpass) {
+      voiceBoyLowpass.frequency.setTargetAtTime(5200, now, 0.01);
+      voiceBoyLowpass.Q.setTargetAtTime(0.7, now, 0.01);
+    }
+
+    // Reset Girl filters, de-metallic, and compressor
+    if (voiceGirlHighpass) voiceGirlHighpass.frequency.setTargetAtTime(20, now, 0.01);
+    if (voiceGirlWarmth) voiceGirlWarmth.gain.setTargetAtTime(0, now, 0.01);
+    if (voiceGirlDeMumble) voiceGirlDeMumble.gain.setTargetAtTime(0, now, 0.01);
+    if (voiceGirlFormant) voiceGirlFormant.gain.setTargetAtTime(0, now, 0.01);
+    if (voiceGirlAir) voiceGirlAir.gain.setTargetAtTime(0, now, 0.01);
+    if (voiceGirlDeMetallic) voiceGirlDeMetallic.frequency.setTargetAtTime(20000, now, 0.01);
+    if (voiceCompressor) voiceCompressor.threshold.setTargetAtTime(0, now, 0.01);
+
+    voiceBypassGain.gain.setTargetAtTime(0, now, 0.02);
+    voiceFxGain.gain.setTargetAtTime(1, now, 0.02);
+
+  } else {
+    // 🎙️ Normal / Bypass (100% natural mic pass-through)
+    voiceBypassGain.gain.setTargetAtTime(1, now, 0.02);
+    voiceFxGain.gain.setTargetAtTime(0, now, 0.02);
+
+    if (voiceGirlHighpass) voiceGirlHighpass.frequency.setTargetAtTime(20, now, 0.01);
+    if (voiceGirlWarmth) voiceGirlWarmth.gain.setTargetAtTime(0, now, 0.01);
+    if (voiceGirlDeMumble) voiceGirlDeMumble.gain.setTargetAtTime(0, now, 0.01);
+    if (voiceGirlFormant) voiceGirlFormant.gain.setTargetAtTime(0, now, 0.01);
+    if (voiceGirlAir) voiceGirlAir.gain.setTargetAtTime(0, now, 0.01);
+    if (voiceGirlDeMetallic) voiceGirlDeMetallic.frequency.setTargetAtTime(20000, now, 0.01);
+    if (voiceBoyLowshelf) voiceBoyLowshelf.gain.setTargetAtTime(0, now, 0.01);
+    if (voiceBoyLowpass) voiceBoyLowpass.frequency.setTargetAtTime(20000, now, 0.01);
+    if (voiceCompressor) voiceCompressor.threshold.setTargetAtTime(0, now, 0.01);
+  }
+}
+
+function updateVoiceUI(preset) {
+  activeVoicePreset = preset;
+  const chips = ["normal", "girl", "boy"];
+  chips.forEach(c => {
+    const btn = document.getElementById(`v2-voice-chip-${c}`);
+    if (btn) {
+      if (c === preset) {
+        btn.classList.add("active");
+        btn.setAttribute("aria-pressed", "true");
+      } else {
+        btn.classList.remove("active");
+        btn.setAttribute("aria-pressed", "false");
+      }
+    }
+  });
+}
+
+function setVoicePersona(preset) {
+  activeVoicePreset = preset;
+  try {
+    localStorage.setItem("omg_voice_preset", preset);
+  } catch (e) {}
+  updateVoiceUI(preset);
+  applyVoicePresetToEngine(preset);
+  if (typeof v2ShowToast === "function") {
+    const names = { normal: "🎙️ Normal Voice Active", girl: "🌸 Girl Voice Active", boy: "👨 Boy Voice Active" };
+    v2ShowToast(names[preset] || "Voice Mask Updated");
+  }
+}
+window.setVoicePersona = setVoicePersona;
+
+function initVoiceUI() {
+  const saved = localStorage.getItem("omg_voice_preset") || "normal";
+  updateVoiceUI(saved);
+}
+
+async function triggerVoiceSelfTest() {
+  if (isVoiceTesting) {
+    // If currently recording, clicking again stops immediately to listen
+    if (voiceTestRecorder && voiceTestRecorder.state === "recording") {
+      voiceTestRecorder.stop();
+      return;
+    }
+    return;
+  }
+
+  const testBtn = document.getElementById("v2-voice-test-btn");
+  const testLabel = document.getElementById("v2-voice-test-label");
+  const testIcon = document.getElementById("v2-voice-test-icon");
+
+  let tempStream = null;
+  if (!rawLocalStream || !voiceDestinationNode) {
+    try {
+      tempStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        },
+        video: false
+      });
+      await initVoiceEngine(tempStream);
+    } catch (e) {
+      if (typeof v2ShowToast === "function") {
+        v2ShowToast("⚠️ Mic permission needed to test voice!");
+      }
+      return;
+    }
+  }
+
+  if (voiceAudioCtx && voiceAudioCtx.state === "suspended") {
+    await voiceAudioCtx.resume().catch(() => {});
+  }
+
+  if (voiceRubberBandNode && voiceRubberBandNode.port) {
+    voiceRubberBandNode.port.postMessage({ type: "reset" });
+  }
+
+  isVoiceTesting = true;
+  if (testBtn) testBtn.classList.add("testing-record");
+  if (testLabel) testLabel.textContent = "Speaking... (Click to stop)";
+  if (testIcon) testIcon.className = "fa-solid fa-microphone text-rose-400";
+
+  const chunks = [];
+  try {
+    voiceTestRecorder = new MediaRecorder(voiceDestinationNode.stream);
+    voiceTestRecorder.ondataavailable = e => {
+      if (e.data && e.data.size > 0) chunks.push(e.data);
+    };
+
+    voiceTestRecorder.onstop = () => {
+      if (!isVoiceTesting) return;
+      if (testBtn) {
+        testBtn.classList.remove("testing-record");
+        testBtn.classList.add("testing-play");
+      }
+      if (testLabel) testLabel.textContent = "Listening...";
+      if (testIcon) testIcon.className = "fa-solid fa-volume-high text-emerald-400";
+
+      const blob = new Blob(chunks, { type: "audio/webm" });
+      const audioUrl = URL.createObjectURL(blob);
+      if (voiceTestAudio) {
+        try { voiceTestAudio.pause(); } catch (e) {}
+      }
+      voiceTestAudio = new Audio(audioUrl);
+      voiceTestAudio.play().catch(e => console.warn("Self test playback:", e));
+
+      voiceTestAudio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        resetTestUI();
+      };
+      voiceTestAudio.onerror = () => {
+        resetTestUI();
+      };
+    };
+
+    voiceTestRecorder.start();
+    // 🌸 5.5 Seconds full window allows speaking complete sentences without cut-off
+    setTimeout(() => {
+      if (voiceTestRecorder && voiceTestRecorder.state === "recording") {
+        voiceTestRecorder.stop();
+      }
+    }, 5500);
+
+  } catch (err) {
+    console.warn("Self test record error:", err);
+    resetTestUI();
+    if (typeof v2ShowToast === "function") {
+      v2ShowToast("⚠️ Mic test unavailable");
+    }
+  }
+
+  function resetTestUI() {
+    isVoiceTesting = false;
+    if (tempStream) {
+      try { tempStream.getTracks().forEach(t => t.stop()); } catch (e) {}
+      tempStream = null;
+    }
+    if (testBtn) {
+      testBtn.classList.remove("testing-record", "testing-play");
+    }
+    if (testLabel) testLabel.textContent = "Test";
+    if (testIcon) testIcon.className = "fa-solid fa-headphones";
+  }
+}
+window.triggerVoiceSelfTest = triggerVoiceSelfTest;
+window._getVoiceState = () => ({
+  voiceRubberBandNode,
+  voiceSoundTouchNode,
+  activeVoicePreset,
+  isVoiceTesting
+});
+
+function stopLocalMedia() {
+  if (voiceSourceNode) {
+    try { voiceSourceNode.disconnect(); } catch (e) {}
+    voiceSourceNode = null;
+  }
+  if (rawLocalStream) {
+    try { rawLocalStream.getTracks().forEach(track => track.stop()); } catch (e) {}
+    rawLocalStream = null;
+  }
   if (localStream) {
-    localStream.getTracks().forEach(track => track.stop());
+    try { localStream.getTracks().forEach(track => track.stop()); } catch (e) {}
     localStream = null;
   }
+  voiceDestinationNode = null;
 }
 
 /**
@@ -2459,10 +3169,23 @@ async function initLocalMedia(mode) {
       return false;
     }
 
-    if (localStream) {
-      try { localStream.getTracks().forEach(track => track.stop()); } catch (e) {}
+    stopLocalMedia();
+    rawLocalStream = acquiredStream;
+
+    // Route audio based on call mode:
+    // 📹 Video Call: ALWAYS use raw local stream (direct hardware mic + camera)
+    // 100% crystal-clear native mic fidelity, 0ms Web Audio latency, zero dropouts!
+    if (mode === "audio") {
+      const processedAudioTrack = await initVoiceEngine(rawLocalStream);
+      if (processedAudioTrack && processedAudioTrack.readyState === "live") {
+        localStream = new MediaStream([processedAudioTrack]);
+      } else {
+        localStream = rawLocalStream;
+      }
+    } else {
+      localStream = rawLocalStream;
     }
-    localStream = acquiredStream;
+
     if (el.localVideo && mode === "video") {
       el.localVideo.muted = true;
       el.localVideo.srcObject = localStream;
@@ -3417,6 +4140,10 @@ function toggleAudio() {
 
   audioTrack.enabled = !audioTrack.enabled;
   const isMuted = !audioTrack.enabled;
+  if (rawLocalStream) {
+    const rawTrack = rawLocalStream.getAudioTracks()[0];
+    if (rawTrack) rawTrack.enabled = audioTrack.enabled;
+  }
 
   const btnMute = document.getElementById("v2-btn-mute");
   if (btnMute) {
