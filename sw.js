@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-v301';
+const CACHE_NAME = 'hashgang-v307';
 
 const ASSETS_TO_CACHE = [
   '/',
@@ -143,3 +143,72 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
+
+// Web Push Notification & Click Handlers
+function resolveNotificationUrl(relativeOrAbsolute) {
+  if (!relativeOrAbsolute) return undefined;
+  try {
+    return new URL(relativeOrAbsolute, self.location.origin).href;
+  } catch (e) {
+    return relativeOrAbsolute;
+  }
+}
+
+self.addEventListener('push', (event) => {
+  let data = {
+    title: '#GANG',
+    body: 'Active chat rooms are buzzing! Tap to connect with a stranger now.',
+    url: '/?source=push_notification',
+    icon: '/assets/icons/icon-192x192.png',
+    badge: '/favicon-48x48.png'
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      data = Object.assign(data, parsed);
+    } catch (e) {
+      data.body = event.data.text() || data.body;
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: resolveNotificationUrl(data.icon || '/assets/icons/icon-192x192.png'),
+    badge: resolveNotificationUrl(data.badge || '/favicon-48x48.png'),
+    vibrate: [200, 100, 200],
+    tag: 'hg-broadcast',
+    renotify: true,
+    data: { url: data.url || '/' }
+  };
+
+  // Rich Media Banner support (displays large picture on Android & Desktop)
+  if (data.image) {
+    options.image = resolveNotificationUrl(data.image);
+  }
+
+  event.waitUntil(self.registration.showNotification(data.title || '#GANG', options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const rawTargetUrl = (event.notification.data && event.notification.data.url) || '/';
+  const targetUrl = resolveNotificationUrl(rawTargetUrl) || '/';
+
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          if ('navigate' in client && targetUrl !== '/') {
+            client.navigate(targetUrl).catch(() => {});
+          }
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+

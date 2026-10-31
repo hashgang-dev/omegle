@@ -35,7 +35,7 @@
   <link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png?v=102" />
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png?v=102" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=102" />
-  <link rel="manifest" href="manifest.json?v=102" />
+  <link id="app-manifest-link" rel="manifest" href="manifest.json?v=307" />
 
   <!-- Open Graph / Facebook Meta Tags -->
   <meta property="og:site_name" content="HashGANG" />
@@ -65,7 +65,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=301" />
+  <link rel="stylesheet" href="style.css?v=307" />
 
   <!-- Schema.org JSON-LD Structured Data for Google Search Ranking -->
   <script type="application/ld+json">
@@ -255,15 +255,15 @@
       <span id="v2-group-online-count" style="display: none;" aria-hidden="true">1</span>
 
       <div class="v2-top-right">
-        <!-- Report & Block Stranger Flag Button -->
+        <!-- Report & Block Stranger Flag Button (Visible only during private call) -->
         <button class="v2-icon-btn v2-top-flag-btn hidden" id="v2-btn-flag-report" title="Report & Block Stranger"
           onclick="v2ReportAndBlockStranger()">
           <i class="fa-solid fa-flag text-rose-500"></i>
         </button>
 
-        <!-- PWA Install Button -->
-        <button class="v2-icon-btn" id="v2-btn-pwa-install" title="Install App" onclick="handlePwaInstallPrompt(event)">
-          <i class="fa-solid fa-download"></i>
+        <!-- Settings & Privacy Button (Swapped with Flag during private call) -->
+        <button class="v2-icon-btn" id="v2-btn-settings-toggle" title="Settings & Privacy" onclick="openV2SettingsModal()">
+          <i class="fa-solid fa-gear"></i>
         </button>
 
         <!-- Top Hamburger Menu -->
@@ -274,9 +274,13 @@
 
       <!-- Top Dropdown Popover Menu -->
       <div class="v2-popover-menu hidden" id="v2-popover-menu">
+        <a href="#" id="v2-menu-settings" onclick="openV2SettingsModal(event)"
+          style="color: #c084fc; font-weight: 700">
+          <i class="fa-solid fa-gear"></i> Settings & Privacy
+        </a>
         <a href="#" id="v2-menu-pwa-install" onclick="handlePwaInstallPrompt(event)"
           style="color: #38bdf8; font-weight: 700">
-          <i class="fa-solid fa-download"></i> Install App
+          <i class="fa-solid fa-download"></i> Install #GANG App
         </a>
         <a href="website.html"><i class="fa-solid fa-house"></i> Home</a>
         <a href="blog/index.html"><i class="fa-solid fa-newspaper"></i> Blog</a>
@@ -834,7 +838,7 @@
         </div>
         <button class="v2-btn-confirm-age" id="v2-btn-age-confirm" onclick="confirmAgeAndEnter()">
           <i class="fa-solid fa-check" style="font-size: 0.95rem; color: #4ade80;"></i>
-          <span>I am 18+ — Start Chat</span>
+          <span>I am 18+ • Start Chat</span>
           <i class="fa-solid fa-arrow-right"></i>
         </button>
         <span class="v2-age-legal">By entering, you agree to <a href="terms-of-service.html" target="_blank">Terms</a> & <a href="privacy-policy.html" target="_blank">Privacy</a>.</span>
@@ -889,11 +893,177 @@
       </div>
     </div>
 
+    <!-- Comprehensive Settings & Privacy Center Fullscreen Page / View -->
+    <div class="v2-settings-fullscreen-overlay hidden" id="v2-settings-modal">
+      <div class="v2-settings-fullscreen-container">
+        <!-- App-Style Navigation Header with Back and Done buttons -->
+        <header class="v2-settings-top-nav">
+          <button type="button" class="v2-settings-back-btn" onclick="closeV2SettingsModal()" title="Back to Chat">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span>Back</span>
+          </button>
+          <div class="v2-settings-nav-title">
+            <h2>Settings</h2>
+          </div>
+          <div style="width: 44px;"></div>
+        </header>
+
+        <div class="v2-settings-scroll-body">
+          <!-- Card 1: Account Name -->
+          <div class="v2-settings-group">
+            <div class="v2-settings-group-title">
+              <i class="fa-solid fa-user text-purple-400"></i> Account Name
+            </div>
+            <p class="v2-settings-desc">Your chat name shown to strangers:</p>
+            <div class="v2-settings-row">
+              <input type="text" id="v2-settings-nick-input" class="v2-settings-input" maxlength="20" placeholder="e.g. Stranger" />
+              <button type="button" class="v2-btn-save-nick" onclick="saveSettingsNickname()" style="white-space: nowrap; padding: 7px 16px; font-size: 0.88rem;">Save</button>
+            </div>
+            <div class="v2-settings-hint" id="v2-settings-nick-hint">
+              <i class="fa-solid fa-clock"></i> You can change your name once every 1 hour
+            </div>
+          </div>
+
+          <!-- Card 2: Call Voice -->
+          <div class="v2-settings-group">
+            <div class="v2-settings-group-title">
+              <i class="fa-solid fa-microphone-lines text-pink-400"></i> Call Voice
+            </div>
+            <p class="v2-settings-desc">Choose how your voice sounds in calls:</p>
+            <div class="v2-voice-selector-cards" id="v2-settings-voice-options">
+              <button type="button" class="v2-voice-select-card active" id="v2-set-voice-normal" onclick="applyDefaultVoicePersona('normal')">
+                <span class="v2-voice-card-ico">🎙️</span>
+                <div class="v2-voice-card-meta">
+                  <strong>Normal Voice</strong>
+                  <span>Your original real voice</span>
+                </div>
+                <span class="v2-voice-check-badge"><i class="fa-solid fa-check"></i></span>
+              </button>
+              <button type="button" class="v2-voice-select-card" id="v2-set-voice-girl" onclick="applyDefaultVoicePersona('girl')">
+                <span class="v2-voice-card-ico">👩</span>
+                <div class="v2-voice-card-meta">
+                  <strong>Girl Voice</strong>
+                  <span>High pitch filter</span>
+                </div>
+                <span class="v2-voice-check-badge"><i class="fa-solid fa-check"></i></span>
+              </button>
+              <button type="button" class="v2-voice-select-card" id="v2-set-voice-boy" onclick="applyDefaultVoicePersona('boy')">
+                <span class="v2-voice-card-ico">👨</span>
+                <div class="v2-voice-card-meta">
+                  <strong>Boy Voice</strong>
+                  <span>Deep pitch filter</span>
+                </div>
+                <span class="v2-voice-check-badge"><i class="fa-solid fa-check"></i></span>
+              </button>
+            </div>
+            <div class="v2-set-voice-test-wrap">
+              <button type="button" class="v2-set-voice-test-btn" id="v2-set-voice-test-btn" onclick="triggerVoiceSelfTest()">
+                <i class="fa-solid fa-headphones" id="v2-set-voice-test-icon"></i>
+                <span id="v2-set-voice-test-label">Test Voice</span>
+              </button>
+              <span class="v2-set-voice-test-hint">Speak a few words to hear how you sound with this voice</span>
+            </div>
+          </div>
+
+          <!-- Card 3: Chat Sounds -->
+          <div class="v2-settings-group">
+            <div class="v2-settings-switch-row">
+              <div class="v2-switch-meta">
+                <span class="v2-switch-label"><i class="fa-solid fa-volume-high text-indigo-400"></i> Chat Sounds</span>
+                <span class="v2-switch-sub">Play audio tone when messages or matches arrive</span>
+              </div>
+              <label class="v2-toggle-switch">
+                <input type="checkbox" id="v2-toggle-sound-chimes" checked onchange="toggleSoundMute(this)" />
+                <span class="v2-toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Card 4: Camera Permission -->
+          <div class="v2-settings-group">
+            <div class="v2-perm-card-header">
+              <div class="v2-perm-meta">
+                <span class="v2-switch-label"><i class="fa-solid fa-video text-cyan-400"></i> Camera</span>
+                <span class="v2-switch-sub">Required for video chat with strangers</span>
+              </div>
+              <div class="v2-perm-right">
+                <span class="v2-perm-badge" id="v2-perm-status-cam"><span class="v2-perm-state">Checking...</span></span>
+                <button type="button" class="v2-perm-action-btn" id="v2-btn-req-cam" onclick="requestCamPermission()">Allow Camera</button>
+              </div>
+            </div>
+            <div class="v2-perm-help-box hidden" id="v2-cam-unblock-help">
+              <i class="fa-solid fa-circle-exclamation text-amber-400"></i>
+              <span><strong>Camera is blocked:</strong> Tap the Lock (🔒) icon in your browser URL bar &gt; Site settings &gt; Set Camera to "Allow".</span>
+            </div>
+          </div>
+
+          <!-- Card 5: Microphone Permission -->
+          <div class="v2-settings-group">
+            <div class="v2-perm-card-header">
+              <div class="v2-perm-meta">
+                <span class="v2-switch-label"><i class="fa-solid fa-microphone text-emerald-400"></i> Microphone</span>
+                <span class="v2-switch-sub">Required for talking in voice & video calls</span>
+              </div>
+              <div class="v2-perm-right">
+                <span class="v2-perm-badge" id="v2-perm-status-mic"><span class="v2-perm-state">Checking...</span></span>
+                <button type="button" class="v2-perm-action-btn" id="v2-btn-req-mic" onclick="requestMicPermission()">Allow Mic</button>
+              </div>
+            </div>
+            <div class="v2-perm-help-box hidden" id="v2-mic-unblock-help">
+              <i class="fa-solid fa-circle-exclamation text-amber-400"></i>
+              <span><strong>Microphone is blocked:</strong> Tap the Lock (🔒) icon in your browser URL bar &gt; Site settings &gt; Set Microphone to "Allow".</span>
+            </div>
+          </div>
+
+          <!-- Card 6: Notifications -->
+          <div class="v2-settings-group">
+            <div class="v2-settings-switch-row">
+              <div class="v2-switch-meta">
+                <span class="v2-switch-label"><i class="fa-solid fa-bell text-yellow-400"></i> Notifications</span>
+                <span class="v2-switch-sub" id="v2-push-status-desc">Alert me when someone connects or sends a message</span>
+              </div>
+              <label class="v2-toggle-switch">
+                <input type="checkbox" id="v2-toggle-push-notif" onchange="togglePushNotifications(this)" />
+                <span class="v2-toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Card 7: Install #GANG App -->
+          <div class="v2-settings-group">
+            <div class="v2-action-card-row">
+              <div class="v2-switch-meta">
+                <span class="v2-switch-label"><i class="fa-solid fa-mobile-screen-button text-sky-400"></i> Install #GANG App</span>
+                <span class="v2-switch-sub">Add #GANG to your phone home screen for 1-tap fast access</span>
+              </div>
+              <button type="button" class="v2-settings-action-btn primary" id="v2-settings-btn-install" onclick="handlePwaInstallPrompt(event)">
+                <i class="fa-solid fa-download"></i> <span id="v2-settings-install-text">Install</span>
+              </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Smart Push Notification Banner -->
+    <div class="v2-peak-notif-banner hidden" id="v2-peak-notif-banner">
+      <div class="v2-peak-banner-content">
+        <div class="v2-peak-banner-icon">🔔</div>
+        <div class="v2-peak-banner-text">
+          <strong>Enable Notifications</strong>
+          <span>Get notified when someone matches or sends you a message.</span>
+        </div>
+      </div>
+      <div class="v2-peak-banner-actions">
+        <button type="button" class="v2-peak-btn-later" onclick="dismissPeakNotificationPrompt()">Not Now</button>
+        <button type="button" class="v2-peak-btn-grant" onclick="acceptPeakNotificationPrompt()">Turn On</button>
+      </div>
+    </div>
+
     <!-- Scripts Injection -->
     <script src="ads.js?v=301" defer></script>
     <script src="ad_mediation_config.js?v=301" defer></script>
     <script src="socket.io.min.js?v=301"></script>
-    <script src="app.js?v=301" defer></script>
+    <script src="app.js?v=307" defer></script>
 </body>
 
 </html>

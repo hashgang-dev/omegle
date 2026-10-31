@@ -134,7 +134,22 @@ function initDOMElements() {
     el.chatInput.value = "Hi 👋";
   }
   ensureInputFieldsVisibility();
+  updateTopHeaderRightIcons(false);
 }
+
+function updateTopHeaderRightIcons(inPrivateCall = false) {
+  const flagBtn = document.getElementById("v2-btn-flag-report");
+  const settingsBtn = document.getElementById("v2-btn-settings-toggle");
+
+  if (inPrivateCall) {
+    if (flagBtn) flagBtn.classList.remove("hidden");
+    if (settingsBtn) settingsBtn.classList.add("hidden");
+  } else {
+    if (flagBtn) flagBtn.classList.add("hidden");
+    if (settingsBtn) settingsBtn.classList.remove("hidden");
+  }
+}
+window.updateTopHeaderRightIcons = updateTopHeaderRightIcons;
 
 let toastTimer = null;
 function v2ShowToast(msg) {
@@ -383,7 +398,7 @@ function reloadAppShellSafely(reason) {
 function registerV2ServiceWorker() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      const swPath = "./sw.js";
+      const swPath = "./sw.js?v=306";
       navigator.serviceWorker
         .register(swPath, { updateViaCache: "none" })
         .then((reg) => {
@@ -487,6 +502,7 @@ function unlockAudioContextOnGesture() {
 
 function playAudioChime(type) {
   try {
+    if (typeof localStorage !== "undefined" && localStorage.getItem("hg_sound_muted") === "true") return;
     const ctx = getSharedAudioContext();
     if (!ctx) return;
     if (ctx.state === "suspended") {
@@ -716,9 +732,7 @@ function handleStrangerDisconnected(force = false) {
   }
   v2ShowToast("🔴 Stranger Disconnected");
   // KEEP Report Button VISIBLE: User must still be able to report an abusive stranger even after they disconnect!
-  if (el.btnFlagReport) el.btnFlagReport.classList.remove("hidden");
-  const pwaBtn = document.getElementById("v2-btn-pwa-install");
-  if (pwaBtn) pwaBtn.classList.add("hidden");
+  updateTopHeaderRightIcons(true);
   if (el.chatInput) el.chatInput.blur();
 }
 
@@ -741,24 +755,73 @@ let deferredPwaPromptV2 = null;
 window.addEventListener("beforeinstallprompt", (e) => {
   e.preventDefault();
   deferredPwaPromptV2 = e;
-  const pwaBtn = document.getElementById("v2-btn-pwa-install");
   const pwaMenu = document.getElementById("v2-menu-pwa-install");
-  if (pwaBtn && !currentMatchTargetId) pwaBtn.classList.remove("hidden");
   if (pwaMenu) pwaMenu.classList.remove("hidden");
+  updatePwaInstallStateUI();
 });
+
+window.addEventListener("appinstalled", () => {
+  try {
+    localStorage.setItem("hg_is_pwa_installed", "true");
+    if (typeof trackV2Event === "function") {
+      trackV2Event("pwa_installed", { source: "browser_appinstalled" });
+    }
+  } catch (err) {}
+  v2ShowToast("🎉 #GANG installed successfully to your device!");
+  updatePwaInstallStateUI();
+});
+
+function isPwaInstalled() {
+  try {
+    if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) return true;
+    if (window.navigator && window.navigator.standalone) return true;
+    if (localStorage.getItem("hg_is_pwa_installed") === "true") return true;
+  } catch (e) {}
+  return false;
+}
+
+function updatePwaInstallStateUI() {
+  const installText = document.getElementById("v2-settings-install-text");
+  const installBtn = document.getElementById("v2-settings-btn-install");
+  if (isPwaInstalled()) {
+    if (installText) installText.textContent = "Installed";
+    if (installBtn) {
+      installBtn.classList.remove("primary");
+      installBtn.style.opacity = "0.75";
+    }
+  } else {
+    if (installText) installText.textContent = "Install";
+  }
+}
 
 function handlePwaInstallPrompt(e) {
   if (e && e.preventDefault) e.preventDefault();
+  if (isPwaInstalled()) {
+    v2ShowToast("✅ #GANG is already installed on your device!");
+    return;
+  }
   if (deferredPwaPromptV2) {
     deferredPwaPromptV2.prompt();
     deferredPwaPromptV2.userChoice.then((choiceResult) => {
       if (choiceResult && choiceResult.outcome === "accepted") {
+        try {
+          localStorage.setItem("hg_is_pwa_installed", "true");
+          if (typeof trackV2Event === "function") {
+            trackV2Event("pwa_installed", { source: "in_app_prompt_accepted" });
+          }
+        } catch (e) {}
         v2ShowToast("🎉 Thank you for installing #GANG!");
+        updatePwaInstallStateUI();
       }
       deferredPwaPromptV2 = null;
     });
   } else {
-    v2ShowToast("📲 Tap browser menu (⋮ / Share) -> 'Add to Home Screen' to install!");
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+      v2ShowToast("📲 On iPhone Safari: Tap Share (📤) > 'Add to Home Screen'");
+    } else {
+      v2ShowToast("📲 Tap browser menu (⋮) > 'Install' or 'Add to Home screen'");
+    }
   }
 }
 
@@ -1059,9 +1122,7 @@ function initSocketConnection() {
             showMediaPermissionModal(currentChatMode, "denied");
           }
         }
-        if (el.btnFlagReport) el.btnFlagReport.classList.remove("hidden");
-        const pwaBtn = document.getElementById("v2-btn-pwa-install");
-        if (pwaBtn) pwaBtn.classList.add("hidden");
+        updateTopHeaderRightIcons(true);
 
         const peerDot = document.getElementById("v2-chat-peer-dot");
         const peerStatus = document.getElementById("v2-chat-peer-status-text");
@@ -2194,6 +2255,7 @@ async function v2HandleStartOrNext() {
   clearChatHistory();
   clearSearchTimeout();
   v2HideEngagedOverlay();
+  updateTopHeaderRightIcons(false);
   startSearchingTicker();
   
   // Record searching start timestamp for 4.2s Adsterra impression gate
@@ -2320,9 +2382,7 @@ function v2StopCall() {
   const groupStage = document.getElementById("v2-group-chat-stage");
   if (groupStage) groupStage.classList.remove("hidden");
   if (el.chatDrawer) el.chatDrawer.classList.add("closed");
-  if (el.btnFlagReport) el.btnFlagReport.classList.add("hidden");
-  const pwaBtn = document.getElementById("v2-btn-pwa-install");
-  if (pwaBtn) pwaBtn.classList.remove("hidden");
+  updateTopHeaderRightIcons(false);
   if (el.localPip) el.localPip.classList.add("hidden");
   if (el.audioVisualizer) el.audioVisualizer.classList.add("hidden");
   if (el.videoTraceWatermark) el.videoTraceWatermark.classList.add("hidden");
@@ -3016,6 +3076,10 @@ async function triggerVoiceSelfTest() {
   const testLabel = document.getElementById("v2-voice-test-label");
   const testIcon = document.getElementById("v2-voice-test-icon");
 
+  const setTestBtn = document.getElementById("v2-set-voice-test-btn");
+  const setTestLabel = document.getElementById("v2-set-voice-test-label");
+  const setTestIcon = document.getElementById("v2-set-voice-test-icon");
+
   let tempStream = null;
   if (!rawLocalStream || !voiceDestinationNode) {
     try {
@@ -3040,6 +3104,12 @@ async function triggerVoiceSelfTest() {
     await voiceAudioCtx.resume().catch(() => {});
   }
 
+  // Ensure currently selected voice preset is applied to the engine
+  const currentPreset = activeVoicePreset || localStorage.getItem("omg_voice_preset") || "normal";
+  if (typeof applyVoicePresetToEngine === "function") {
+    applyVoicePresetToEngine(currentPreset);
+  }
+
   if (voiceRubberBandNode && voiceRubberBandNode.port) {
     voiceRubberBandNode.port.postMessage({ type: "reset" });
   }
@@ -3048,6 +3118,10 @@ async function triggerVoiceSelfTest() {
   if (testBtn) testBtn.classList.add("testing-record");
   if (testLabel) testLabel.textContent = "Speaking... (Click to stop)";
   if (testIcon) testIcon.className = "fa-solid fa-microphone text-rose-400";
+
+  if (setTestBtn) setTestBtn.classList.add("testing-record");
+  if (setTestLabel) setTestLabel.textContent = "Speaking... (Tap to stop)";
+  if (setTestIcon) setTestIcon.className = "fa-solid fa-microphone text-rose-400";
 
   const chunks = [];
   try {
@@ -3064,6 +3138,13 @@ async function triggerVoiceSelfTest() {
       }
       if (testLabel) testLabel.textContent = "Listening...";
       if (testIcon) testIcon.className = "fa-solid fa-volume-high text-emerald-400";
+
+      if (setTestBtn) {
+        setTestBtn.classList.remove("testing-record");
+        setTestBtn.classList.add("testing-play");
+      }
+      if (setTestLabel) setTestLabel.textContent = "Listening...";
+      if (setTestIcon) setTestIcon.className = "fa-solid fa-volume-high text-emerald-400";
 
       const blob = new Blob(chunks, { type: "audio/webm" });
       const audioUrl = URL.createObjectURL(blob);
@@ -3109,6 +3190,12 @@ async function triggerVoiceSelfTest() {
     }
     if (testLabel) testLabel.textContent = "Test";
     if (testIcon) testIcon.className = "fa-solid fa-headphones";
+
+    if (setTestBtn) {
+      setTestBtn.classList.remove("testing-record", "testing-play");
+    }
+    if (setTestLabel) setTestLabel.textContent = "Test Voice";
+    if (setTestIcon) setTestIcon.className = "fa-solid fa-headphones";
   }
 }
 window.triggerVoiceSelfTest = triggerVoiceSelfTest;
@@ -6214,7 +6301,7 @@ function v2ReturnToGroupChat(autoInvite = false) {
   if (el.chatDrawer) el.chatDrawer.classList.add("closed");
   if (el.localPip) el.localPip.classList.add("hidden");
   if (el.audioVisualizer) el.audioVisualizer.classList.add("hidden");
-  if (el.btnFlagReport) el.btnFlagReport.classList.add("hidden");
+  updateTopHeaderRightIcons(false);
 
   const chatInputRow = document.getElementById("v2-chat-input-row");
   const discBar = document.getElementById("v2-chat-disconnected-bar");
@@ -8579,4 +8666,497 @@ window.finish1v1BalloonGame = finish1v1BalloonGame;
 window.v21v1BalloonGame = v21v1BalloonGame;
 window.v2RpsState = v2RpsState;
 window.v2GamePromptState = v2GamePromptState;
+
+/* ==========================================================================
+   Comprehensive Settings & Privacy Center Controller
+   ========================================================================== */
+
+function openV2SettingsModal(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  const popover = document.getElementById("v2-popover-menu");
+  if (popover) popover.classList.add("hidden");
+
+  const modal = document.getElementById("v2-settings-modal");
+  if (!modal) return;
+
+  // 1. Sync Handle / Nickname
+  const nickInput = document.getElementById("v2-settings-nick-input");
+  if (nickInput) {
+    nickInput.value = currentNickname || "Stranger";
+  }
+  const nickHint = document.getElementById("v2-settings-nick-hint");
+  if (nickHint && typeof getNicknameCooldownRemainingMs === "function") {
+    const cd = getNicknameCooldownRemainingMs();
+    if (cd > 0) {
+      nickHint.innerHTML = `<i class="fa-solid fa-clock"></i> Cooldown active: Change available in ${formatNicknameCooldown(cd)}`;
+      nickHint.style.color = "#f59e0b";
+    } else {
+      nickHint.innerHTML = `<i class="fa-solid fa-clock"></i> Can be changed once every 1 hour`;
+      nickHint.style.color = "#a855f7";
+    }
+  }
+
+  // 2. Sync Default Voice Persona
+  const savedVoice = localStorage.getItem("omg_voice_preset") || "normal";
+  ["normal", "girl", "boy"].forEach((v) => {
+    const chip = document.getElementById(`v2-set-voice-${v}`);
+    if (chip) {
+      chip.classList.toggle("active", v === savedVoice);
+    }
+  });
+
+  // 3. Sync Chat Sounds
+  const soundToggle = document.getElementById("v2-toggle-sound-chimes");
+  if (soundToggle) {
+    soundToggle.checked = localStorage.getItem("hg_sound_muted") !== "true";
+  }
+
+  // 4. Sync Hardware Media Permissions
+  checkHardwarePermissions();
+
+  // 5. Sync Push Notifications
+  syncPushSettingsUI();
+
+  // 6. Sync PWA install state
+  if (typeof updatePwaInstallStateUI === "function") {
+    updatePwaInstallStateUI();
+  }
+
+  modal.classList.remove("hidden");
+  if (window.location.hash !== "#settings") {
+    try {
+      history.pushState({ view: "settings" }, "", "#settings");
+    } catch (e) {}
+  }
+}
+
+function closeV2SettingsModal(e) {
+  const modal = document.getElementById("v2-settings-modal");
+  if (modal) modal.classList.add("hidden");
+  if (window.location.hash === "#settings") {
+    try {
+      history.replaceState(null, "", window.location.pathname + window.location.search);
+    } catch (e) {}
+  }
+}
+
+// Native Hardware Back Button & Hash Routing Support
+window.addEventListener("popstate", () => {
+  const modal = document.getElementById("v2-settings-modal");
+  if (modal) {
+    if (window.location.hash === "#settings") {
+      openV2SettingsModal();
+    } else {
+      modal.classList.add("hidden");
+    }
+  }
+  if (window.location.hash === "#banner" || window.location.hash === "#notifications") {
+    showPeakNotificationPrompt();
+  }
+});
+
+function saveSettingsNickname() {
+  const input = document.getElementById("v2-settings-nick-input");
+  if (!input) return;
+
+  if (typeof getNicknameCooldownRemainingMs === "function") {
+    const remainingMs = getNicknameCooldownRemainingMs();
+    if (remainingMs > 0 && !window.__E2E_BYPASS_NICK_COOLDOWN__) {
+      const timeFormatted = formatNicknameCooldown(remainingMs);
+      v2ShowToast(`⏳ Name change is on cooldown. Please wait ${timeFormatted}!`);
+      return;
+    }
+  }
+
+  const clean = input.value.trim().slice(0, 20);
+  if (clean && clean !== currentNickname) {
+    currentNickname = clean;
+    localStorage.setItem("hg_user_nickname", currentNickname);
+    localStorage.setItem("hg_nick_last_changed", Date.now().toString());
+    if (typeof updateNicknameDisplay === "function") updateNicknameDisplay(currentNickname);
+    if (socket && socket.connected) {
+      socket.emit("update_nickname", { nickname: currentNickname });
+    }
+    v2ShowToast(`✨ Account Name saved as: ${currentNickname}`);
+    closeV2SettingsModal();
+  } else if (!clean) {
+    v2ShowToast("⚠️ Account Name cannot be empty!");
+  } else {
+    v2ShowToast("✅ Account Name unchanged.");
+    closeV2SettingsModal();
+  }
+}
+
+function applyDefaultVoicePersona(preset) {
+  activeVoicePreset = preset;
+  if (typeof setVoicePersona === "function") {
+    setVoicePersona(preset);
+  } else {
+    try {
+      localStorage.setItem("omg_voice_preset", preset);
+    } catch (e) {}
+  }
+  ["normal", "girl", "boy"].forEach((v) => {
+    const card = document.getElementById(`v2-set-voice-${v}`);
+    if (card) card.classList.toggle("active", v === preset);
+  });
+}
+
+function toggleSoundMute(checkbox) {
+  if (!checkbox.checked) {
+    localStorage.setItem("hg_sound_muted", "true");
+    v2ShowToast("🔇 Chat sounds muted");
+  } else {
+    localStorage.removeItem("hg_sound_muted");
+    v2ShowToast("🔊 Chat sounds active");
+    if (typeof playAudioChime === "function") playAudioChime("pop");
+  }
+}
+
+// Dedicated Hardware Permissions Manager with Unblock Guidance
+async function checkHardwarePermissions() {
+  const micBadge = document.getElementById("v2-perm-status-mic");
+  const camBadge = document.getElementById("v2-perm-status-cam");
+  if (!micBadge || !camBadge) return;
+
+  if (navigator.permissions && navigator.permissions.query) {
+    try {
+      const micStatus = await navigator.permissions.query({ name: "microphone" });
+      updatePermStateDisplay("mic", micStatus.state);
+      micStatus.onchange = () => updatePermStateDisplay("mic", micStatus.state);
+    } catch (e) {
+      updatePermStateDisplay("mic", localStream ? "granted" : "prompt");
+    }
+
+    try {
+      const camStatus = await navigator.permissions.query({ name: "camera" });
+      updatePermStateDisplay("cam", camStatus.state);
+      camStatus.onchange = () => updatePermStateDisplay("cam", camStatus.state);
+    } catch (e) {
+      updatePermStateDisplay("cam", localStream ? "granted" : "prompt");
+    }
+  } else {
+    updatePermStateDisplay("mic", localStream ? "granted" : "prompt");
+    updatePermStateDisplay("cam", localStream ? "granted" : "prompt");
+  }
+}
+
+function updatePermStateDisplay(type, state) {
+  const badge = document.getElementById(`v2-perm-status-${type}`);
+  const btn = document.getElementById(`v2-btn-req-${type}`);
+  const help = document.getElementById(`v2-${type}-unblock-help`);
+
+  if (!badge) return;
+  const stateSpan = badge.querySelector(".v2-perm-state");
+  badge.classList.remove("allowed", "blocked");
+
+  if (state === "granted") {
+    badge.classList.add("allowed");
+    if (stateSpan) stateSpan.textContent = "Allowed ✅";
+    if (btn) {
+      btn.textContent = "Allowed";
+      btn.style.opacity = "0.6";
+      btn.disabled = true;
+    }
+    if (help) help.classList.add("hidden");
+  } else if (state === "denied") {
+    badge.classList.add("blocked");
+    if (stateSpan) stateSpan.textContent = "Blocked ❌";
+    if (btn) {
+      btn.textContent = "Fix Block";
+      btn.style.opacity = "1";
+      btn.disabled = false;
+    }
+    if (help) help.classList.remove("hidden");
+  } else {
+    if (stateSpan) stateSpan.textContent = "Not Allowed";
+    if (btn) {
+      btn.textContent = type === "mic" ? "Allow Mic" : "Allow Camera";
+      btn.style.opacity = "1";
+      btn.disabled = false;
+    }
+    if (help) help.classList.add("hidden");
+  }
+}
+
+async function requestMicPermission() {
+  const badge = document.getElementById("v2-perm-status-mic");
+  const help = document.getElementById("v2-mic-unblock-help");
+  if (badge && badge.classList.contains("blocked")) {
+    if (help) help.classList.remove("hidden");
+    v2ShowToast("⚠️ Microphone is blocked. Tap Lock (🔒) in URL bar > Site settings > Allow Microphone.");
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((t) => t.stop());
+    v2ShowToast("✅ Microphone allowed!");
+    checkHardwarePermissions();
+  } catch (err) {
+    if (help) help.classList.remove("hidden");
+    v2ShowToast("⚠️ Microphone blocked. Tap Lock (🔒) in URL bar to enable.");
+    checkHardwarePermissions();
+  }
+}
+
+async function requestCamPermission() {
+  const badge = document.getElementById("v2-perm-status-cam");
+  const help = document.getElementById("v2-cam-unblock-help");
+  if (badge && badge.classList.contains("blocked")) {
+    if (help) help.classList.remove("hidden");
+    v2ShowToast("⚠️ Camera is blocked. Tap Lock (🔒) in URL bar > Site settings > Allow Camera.");
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    stream.getTracks().forEach((t) => t.stop());
+    v2ShowToast("✅ Camera allowed!");
+    checkHardwarePermissions();
+  } catch (err) {
+    if (help) help.classList.remove("hidden");
+    v2ShowToast("⚠️ Camera blocked. Tap Lock (🔒) in URL bar to enable.");
+    checkHardwarePermissions();
+  }
+}
+
+// Push Notifications Controller
+function syncPushSettingsUI() {
+  const toggle = document.getElementById("v2-toggle-push-notif");
+  const desc = document.getElementById("v2-push-status-desc");
+  if (!toggle || !desc) return;
+
+  if (typeof Notification === "undefined") {
+    toggle.checked = false;
+    toggle.disabled = true;
+    desc.textContent = "Push notifications not supported on this browser";
+    return;
+  }
+
+  const isEnabled = localStorage.getItem("hg_push_enabled") === "true";
+  if (Notification.permission === "granted") {
+    toggle.checked = isEnabled;
+    desc.textContent = isEnabled ? "Active: Get notified when someone connects or messages" : "Allowed in browser, notifications turned off";
+  } else if (Notification.permission === "denied") {
+    toggle.checked = false;
+    desc.textContent = "⚠️ Blocked in browser settings. Please allow notifications in URL lock icon.";
+  } else {
+    toggle.checked = false;
+    desc.textContent = "Alert me when someone connects or sends a message";
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+function detectPushDeviceType() {
+  const ua = (navigator && navigator.userAgent) || "";
+  if (/iPad|tablet/i.test(ua)) return "tablet";
+  if (/Mobile|Android|iPhone/i.test(ua)) return "mobile";
+  return "desktop";
+}
+
+async function registerWebPushSubscription() {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (!reg || !reg.pushManager) return;
+
+    const hostOrigin = getBackendOrigin();
+    const res = await fetch(`${hostOrigin}/api/v1/strangerchat/push-key`);
+    const data = await res.json();
+    if (!data || !data.vapidPublicKey) return;
+
+    const applicationServerKey = urlBase64ToUint8Array(data.vapidPublicKey);
+    let subscription = await reg.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: applicationServerKey
+      });
+    }
+
+    if (subscription) {
+      await fetch(`${hostOrigin}/api/v1/strangerchat/push-subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subscription: subscription.toJSON ? subscription.toJSON() : subscription,
+          device: detectPushDeviceType()
+        })
+      });
+    }
+  } catch (err) {
+    console.debug("[WebPush] Registration notice:", err);
+  }
+}
+
+async function unregisterWebPushSubscription() {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    if (!reg || !reg.pushManager) return;
+    const subscription = await reg.pushManager.getSubscription();
+    if (subscription) {
+      const hostOrigin = getBackendOrigin();
+      await fetch(`${hostOrigin}/api/v1/strangerchat/push-unsubscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: subscription.endpoint })
+      }).catch(() => {});
+      await subscription.unsubscribe().catch(() => {});
+    }
+  } catch (err) {
+    console.debug("[WebPush] Unsubscribe notice:", err);
+  }
+}
+
+async function togglePushNotifications(checkbox) {
+  if (typeof Notification === "undefined") {
+    v2ShowToast("⚠️ Notifications not supported on this browser.");
+    checkbox.checked = false;
+    return;
+  }
+
+  if (checkbox.checked) {
+    if (Notification.permission === "granted") {
+      localStorage.setItem("hg_push_enabled", "true");
+      v2ShowToast("🔔 Notifications enabled!");
+      syncPushSettingsUI();
+      testSendLocalNotification();
+      registerWebPushSubscription();
+    } else if (Notification.permission === "denied") {
+      v2ShowToast("⚠️ Notifications blocked in browser. Tap URL lock icon to allow.");
+      checkbox.checked = false;
+      syncPushSettingsUI();
+    } else {
+      try {
+        const permission = await Notification.requestPermission();
+        if (permission === "granted") {
+          localStorage.setItem("hg_push_enabled", "true");
+          v2ShowToast("🔔 Notifications enabled!");
+          syncPushSettingsUI();
+          testSendLocalNotification();
+          registerWebPushSubscription();
+          if (typeof trackV2Event === "function") {
+            trackV2Event("push_permission_granted", { source: "settings_toggle" });
+          }
+        } else {
+          v2ShowToast("⚠️ Notification permission not granted.");
+          checkbox.checked = false;
+          syncPushSettingsUI();
+        }
+      } catch (err) {
+        checkbox.checked = false;
+      }
+    }
+  } else {
+    localStorage.setItem("hg_push_enabled", "false");
+    v2ShowToast("🔕 Notifications turned off.");
+    syncPushSettingsUI();
+    unregisterWebPushSubscription();
+  }
+}
+
+function testSendLocalNotification() {
+  if (typeof navigator !== "undefined" && "serviceWorker" in navigator && navigator.serviceWorker.ready) {
+    navigator.serviceWorker.ready.then((reg) => {
+      reg.showNotification("#GANG Notifications", {
+        body: "Notifications enabled! You'll be alerted on incoming chats and messages.",
+        icon: "/assets/icons/icon-192x192.png",
+        badge: "/favicon-48x48.png",
+        vibrate: [150, 80, 150]
+      });
+    }).catch(() => {});
+  }
+}
+
+
+
+// Smart Peak Hours Re-Engagement Banner
+function checkPeakNotificationReEngagement() {
+  try {
+    if (typeof Notification === "undefined") return;
+    if (Notification.permission !== "default") return;
+    if (sessionStorage.getItem("hg_peak_dismissed")) return;
+
+    const banner = document.getElementById("v2-peak-notif-banner");
+    if (banner) {
+      banner.classList.remove("hidden");
+      if (typeof trackV2Event === "function") {
+        trackV2Event("peak_prompt_shown", { source: "re_engagement" });
+      }
+    }
+  } catch (e) {}
+}
+
+async function acceptPeakNotificationPrompt() {
+  const banner = document.getElementById("v2-peak-notif-banner");
+  if (banner) banner.classList.add("hidden");
+
+  if (typeof Notification !== "undefined") {
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm === "granted") {
+        localStorage.setItem("hg_push_enabled", "true");
+        v2ShowToast("🔔 Notifications enabled!");
+        testSendLocalNotification();
+        registerWebPushSubscription();
+        if (typeof trackV2Event === "function") {
+          trackV2Event("peak_prompt_accepted", { source: "re_engagement" });
+        }
+      }
+    } catch (e) {}
+  }
+}
+
+function dismissPeakNotificationPrompt() {
+  const banner = document.getElementById("v2-peak-notif-banner");
+  if (banner) banner.classList.add("hidden");
+  sessionStorage.setItem("hg_peak_dismissed", "true");
+}
+
+function showPeakNotificationPrompt() {
+  const banner = document.getElementById("v2-peak-notif-banner");
+  if (banner) banner.classList.remove("hidden");
+}
+
+// Initialize on App Load
+if (typeof window !== "undefined") {
+  window.addEventListener("DOMContentLoaded", () => {
+    updatePwaInstallStateUI();
+
+    if (window.location.hash === "#banner" || window.location.hash === "#notifications") {
+      showPeakNotificationPrompt();
+    }
+
+    // Trigger Re-engagement prompt after 100s of active browsing
+    setTimeout(() => {
+      checkPeakNotificationReEngagement();
+    }, 100000);
+  });
+}
+
+// Global Window Exports
+window.openV2SettingsModal = openV2SettingsModal;
+window.closeV2SettingsModal = closeV2SettingsModal;
+window.saveSettingsNickname = saveSettingsNickname;
+window.applyDefaultVoicePersona = applyDefaultVoicePersona;
+window.toggleSoundMute = toggleSoundMute;
+window.checkHardwarePermissions = checkHardwarePermissions;
+window.requestMicPermission = requestMicPermission;
+window.requestCamPermission = requestCamPermission;
+window.togglePushNotifications = togglePushNotifications;
+window.acceptPeakNotificationPrompt = acceptPeakNotificationPrompt;
+window.dismissPeakNotificationPrompt = dismissPeakNotificationPrompt;
+window.showPeakNotificationPrompt = showPeakNotificationPrompt;
+
+
 
