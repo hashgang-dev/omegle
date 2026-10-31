@@ -1169,11 +1169,11 @@ async function runMasterE2ESuite() {
     const fs = require("fs");
     const swFile = fs.readFileSync("/home/hashgang/Workspace/omegle/sw.js", "utf-8");
     const indexFile = fs.readFileSync("/home/hashgang/Workspace/omegle/index.html", "utf-8");
-    logResult("Cache-Busting Asset Version Synchronization (v300)",
-      swFile.includes("hashgang-v300") &&
-      indexFile.includes("style.css?v=300") &&
-      indexFile.includes("ads.js?v=300") &&
-      indexFile.includes("app.js?v=300")
+    logResult("Cache-Busting Asset Version Synchronization (v301)",
+      swFile.includes("hashgang-v301") &&
+      indexFile.includes("style.css?v=301") &&
+      indexFile.includes("ads.js?v=301") &&
+      indexFile.includes("app.js?v=301")
     );
 
     // 6.6 Voice Masking DSP & UI Bar Verification

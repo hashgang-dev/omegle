@@ -3680,7 +3680,12 @@ function appendChatMessage(sender, text, type, replyTo = null, msgId = null) {
 
   let replyHtml = "";
   if (replyTo) {
-    replyHtml = `<div class="v2-quoted-bubble"><span class="v2-quoted-author">${escapeHtml(replyTo.sender)}</span><span class="v2-quoted-text">${escapeHtml(replyTo.snippet)}</span></div>`;
+    let quotedAuthor = replyTo.sender;
+    if (type === "stranger") {
+      if (replyTo.sender === "You") quotedAuthor = "Stranger";
+      else if (replyTo.sender === "Stranger") quotedAuthor = "You";
+    }
+    replyHtml = `<div class="v2-quoted-bubble"><span class="v2-quoted-author">${escapeHtml(quotedAuthor)}</span><span class="v2-quoted-text">${escapeHtml(replyTo.snippet)}</span></div>`;
   }
 
   let textHtml = "";
@@ -3739,7 +3744,12 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
 
   let replyHtml = "";
   if (replyTo) {
-    replyHtml = `<div class="v2-quoted-bubble"><span class="v2-quoted-author">${escapeHtml(replyTo.sender)}</span><span class="v2-quoted-text">${escapeHtml(replyTo.snippet)}</span></div>`;
+    let quotedAuthor = replyTo.sender;
+    if (type === "stranger") {
+      if (replyTo.sender === "You") quotedAuthor = "Stranger";
+      else if (replyTo.sender === "Stranger") quotedAuthor = "You";
+    }
+    replyHtml = `<div class="v2-quoted-bubble"><span class="v2-quoted-author">${escapeHtml(quotedAuthor)}</span><span class="v2-quoted-text">${escapeHtml(replyTo.snippet)}</span></div>`;
   }
 
   let mediaHtml = "";
@@ -4675,7 +4685,13 @@ function renderGroupMessageRow(msg) {
 
   let replyHtml = "";
   if (msg.replyTo) {
-    const safeReplyNick = escapeHtml(msg.replyTo.nickname || "Stranger");
+    let displayReplyNick = msg.replyTo.nickname || "Stranger";
+    if (msg.replyTo.nickname === "You") {
+      displayReplyNick = isSelf ? "You" : (msg.nickname || "Stranger");
+    } else if (msg.replyTo.nickname === currentNickname) {
+      displayReplyNick = "You";
+    }
+    const safeReplyNick = escapeHtml(displayReplyNick);
     const safeReplyText = escapeHtml(maskSocialKeywords(maskPhoneNumbers(msg.replyTo.text || "")));
     replyHtml = `
       <div class="v2-bubble-reply-quote">
@@ -4703,7 +4719,7 @@ function renderGroupMessageRow(msg) {
     actionsHtml = `
       <div class="v2-msg-external-actions">
         <button class="v2-ext-act-btn hidden" id="group-react-btn-${msg.id}" title="Reaction" style="pointer-events: none; cursor: default;">😊</button>
-        <button class="v2-ext-act-btn" title="Reply" onclick="startReplyToMessage('${msg.id}', 'You', '${cleanText.slice(0, 50)}')">↩️</button>
+        <button class="v2-ext-act-btn" title="Reply" onclick="startReplyToMessage('${msg.id}', '${senderNick}', '${cleanText.slice(0, 50)}')">↩️</button>
       </div>
     `;
   } else {
@@ -5775,12 +5791,13 @@ function toggleGroupReactionPicker(msgId, event) {
 }
 
 function startReplyToMessage(id, nickname, text) {
-  activeGroupReplyTo = { id, nickname, text: text.slice(0, 60) };
+  const actualNick = (nickname === "You" || !nickname) ? currentNickname : nickname;
+  activeGroupReplyTo = { id, nickname: actualNick, text: text.slice(0, 60) };
   const replyBar = document.getElementById("v2-group-reply-bar");
   const targetName = document.getElementById("v2-reply-target-name");
   const targetSnippet = document.getElementById("v2-reply-target-snippet");
   if (replyBar && targetName && targetSnippet) {
-    targetName.textContent = nickname;
+    targetName.textContent = (actualNick === currentNickname) ? "You" : actualNick;
     targetSnippet.textContent = text.slice(0, 60) + (text.length > 60 ? "..." : "");
     replyBar.classList.remove("hidden");
   }
