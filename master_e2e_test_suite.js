@@ -142,14 +142,26 @@ async function runMasterE2ESuite() {
     sAudio1.disconnect();
     sAudio2.disconnect();
 
-    // 1.7 Admin Audit Lookup by Trace Code
-    const traceLookupRes = await axios.get(`${API_URL}?code=${activeTraceCode}`);
+    // 1.7 Admin Audit Security Gate (403 Forbidden without secret)
+    let unauthorizedBlocked = false;
+    try {
+      await axios.get(`${API_URL}?code=${activeTraceCode}`);
+    } catch (authErr) {
+      if (authErr.response && authErr.response.status === 403) {
+        unauthorizedBlocked = true;
+      }
+    }
+    logResult("Admin Audit Security Gate (HTTP 403 on Missing Password)", unauthorizedBlocked === true);
+
+    // 1.8 Admin Audit Lookup by Trace Code (Authorized)
+    const adminHeaders = { "x-admin-secret": process.env.PUSH_ADMIN_SECRET || "GANG_PUSH_SECRET_2026" };
+    const traceLookupRes = await axios.get(`${API_URL}?code=${activeTraceCode}`, { headers: adminHeaders });
     logResult("Admin Audit API HTTP 200", traceLookupRes.status === 200);
     logResult("Trace Code Archive Retrieval", traceLookupRes.data.source === "MONGODB_1YEAR_ARCHIVE");
     logResult("Document Timestamp Validity", traceLookupRes.data.data?.createdAt !== undefined);
 
-    // 1.8 Admin Audit Lookup by IP Address & Date
-    const ipLookupRes = await axios.get(`${API_URL}?ip=127.0.0.1`);
+    // 1.9 Admin Audit Lookup by IP Address & Date (Authorized)
+    const ipLookupRes = await axios.get(`${API_URL}?ip=127.0.0.1`, { headers: adminHeaders });
     logResult("IP Address Audit Lookup API HTTP 200", ipLookupRes.status === 200);
     logResult("IP Search Multi-Session List", Array.isArray(ipLookupRes.data.allResults) && ipLookupRes.data.allResults.length > 0);
 
