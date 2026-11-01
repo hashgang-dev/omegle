@@ -312,14 +312,25 @@
     @media print {
       @page {
         size: A4 portrait;
-        margin: 15mm;
+        margin: 12mm 15mm;
       }
       body {
         background: #ffffff !important;
         color: #000000 !important;
         font-size: 11pt;
       }
-      header, .search-box, .print-btn, .admin-badge, .page-header, #ipSessionsContainer, #statusMessage {
+      .no-print,
+      .search-card,
+      .card.search-card,
+      header,
+      .page-header,
+      .lookup-form,
+      #traceLookupForm,
+      .search-box,
+      .print-btn,
+      .admin-badge,
+      #ipSessionsContainer,
+      #statusMessage {
         display: none !important;
       }
       main {
@@ -332,6 +343,7 @@
         border: none !important;
         box-shadow: none !important;
         padding: 0 !important;
+        margin: 0 !important;
       }
       .print-only-header {
         display: block !important;
@@ -354,21 +366,152 @@
         background: #ffffff !important;
         border: none !important;
         padding: 0 !important;
-        margin-top: 20px;
+        margin-top: 0 !important;
+        page-break-before: always !important;
+        break-before: page !important;
+      }
+      .affidavit-header {
+        margin-bottom: 6px !important;
+        margin-top: 0 !important;
+      }
+      .affidavit-header h3 {
+        font-size: 0.95rem !important;
+        margin: 0 0 6px 0 !important;
+        color: #000000 !important;
       }
       .affidavit-body {
         background: #f8fafc !important;
         color: #000000 !important;
         border: 1px solid #000000 !important;
-        font-size: 9.5pt !important;
-        padding: 14px !important;
+        font-size: 8.8pt !important;
+        line-height: 1.35 !important;
+        padding: 10px 12px !important;
       }
       .print-only-footer {
         display: block !important;
-        margin-top: 30px;
-        padding-top: 15px;
-        border-top: 1.5px solid #000;
+        margin-top: 12px !important;
+        padding-top: 8px !important;
+        border-top: 1.5px solid #000 !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
+    }
+
+    /* Clean Unified Lookup Form */
+    .lookup-form {
+      margin-top: 20px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 720px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+    }
+
+    .form-field {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-label {
+      font-size: 0.86rem;
+      font-weight: 700;
+      color: #e9d5ff;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      border-radius: 12px;
+      padding: 14px 16px;
+      color: #ffffff;
+      font-size: 0.98rem;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+      box-sizing: border-box;
+    }
+
+    .form-input.mono {
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .form-input:focus {
+      border-color: #c084fc;
+      background: rgba(0, 0, 0, 0.7);
+      box-shadow: 0 0 14px rgba(192, 132, 252, 0.35);
+    }
+
+    .password-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
+    .password-wrapper .form-input {
+      padding-right: 46px;
+    }
+
+    .eye-toggle-btn {
+      position: absolute;
+      right: 12px;
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 1.05rem;
+      padding: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color 0.15s;
+    }
+
+    .eye-toggle-btn:hover {
+      color: #f1f5f9;
+    }
+
+    .form-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .search-btn {
+      background: linear-gradient(135deg, var(--primary-purple), #7c3aed);
+      border: none;
+      color: #fff;
+      font-weight: 700;
+      padding: 14px 32px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: transform 0.15s, opacity 0.15s, box-shadow 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .search-btn:hover {
+      background: linear-gradient(135deg, #a855f7, #6d28d9);
+      box-shadow: 0 0 18px rgba(168, 85, 247, 0.5);
+      transform: translateY(-1px);
     }
   </style>
 </head>
@@ -382,19 +525,44 @@
   </header>
 
   <main>
-    <div class="card">
+    <div class="card search-card no-print">
       <div class="page-header">
         <h1><i class="fa-solid fa-shield-halved"></i> Law Enforcement Session Trace Lookup</h1>
         <p>Extract server network connection audit logs for police inquiries (Sec 91 CrPC & IT Act 2000) by <strong>Session Trace Code</strong> OR <strong>Client IP Address & Date</strong>.</p>
       </div>
 
-      <div class="search-box">
-        <input type="text" id="traceInput" class="search-input" placeholder="Enter Trace Code (e.g. HG8A3F1X) or IP Address (e.g. 103.15.22.14)" maxlength="45" autofocus />
-        <button id="searchBtn" class="search-btn" onclick="executeTraceLookup()">
-          <i class="fa-solid fa-magnifying-glass"></i> Lookup Session
-        </button>
-      </div>
-      <div style="margin-top: 8px; font-size: 0.8rem; color: var(--text-dim);">
+      <!-- Unified Form: Trace Code/IP + Admin Password + Submit Button -->
+      <form id="traceLookupForm" onsubmit="event.preventDefault(); executeTraceLookup();" class="lookup-form" novalidate>
+        <div class="form-grid">
+          <!-- Field 1: Trace Code or IP Address -->
+          <div class="form-field">
+            <label for="traceInput" class="form-label">
+              <i class="fa-solid fa-hashtag" style="color: #c084fc;"></i> Session Trace Code or Client IP *
+            </label>
+            <input type="text" id="traceInput" class="form-input mono" placeholder="e.g. HG8A3F1X or 103.15.22.14" maxlength="45" autofocus required autocomplete="off" />
+          </div>
+
+          <!-- Field 2: Admin Password -->
+          <div class="form-field">
+            <label for="adminSecretInput" class="form-label">
+              <i class="fa-solid fa-lock" style="color: #c084fc;"></i> Admin Password *
+            </label>
+            <div class="password-wrapper">
+              <input type="password" id="adminSecretInput" class="form-input" placeholder="Enter Admin Password" required autocomplete="current-password" />
+              <button type="button" class="eye-toggle-btn" onclick="toggleAdminSecretVisibility()" title="Show/Hide Password" tabindex="-1">
+                <i class="fa-solid fa-eye" id="toggleSecretIcon"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" id="searchBtn" class="search-btn">
+            <i class="fa-solid fa-magnifying-glass"></i> Lookup Session
+          </button>
+        </div>
+      </form>
+      <div class="no-print" style="margin-top: 8px; font-size: 0.8rem; color: var(--text-dim);">
         <i class="fa-solid fa-circle-info"></i> <strong>Search Modes:</strong> Enter 8-character Trace Code OR Client Network IP Address to query 1-Year MongoDB Audit Log.
       </div>
       <div id="statusMessage" style="margin-top: 12px; font-size: 0.88rem; display: none;"></div>
@@ -418,13 +586,13 @@
           <table>
             <tr>
               <td style="vertical-align: middle;">
-                <h1 style="font-size: 1.4rem; font-weight: 800; margin-bottom: 2px;">HashGANG Software Solutions</h1>
-                <p style="font-size: 0.85rem; color: #333; margin: 0;">Registered Entity • Vijayawada, Andhra Pradesh - 520003, India</p>
-                <p style="font-size: 0.82rem; color: #555; margin: 0;">Service Web Application: HashGANG Chat (https://chat.hashgang.com)</p>
+                <h1 style="font-size: 1.12rem; font-weight: 800; margin-bottom: 2px; white-space: nowrap; letter-spacing: 0.3px;">HASHGANG SOLUTIONS PRIVATE LIMITED</h1>
+                <p style="font-size: 0.82rem; color: #333; margin: 0;">Registered Entity • Vijayawada, Andhra Pradesh - 520003, India</p>
+                <p style="font-size: 0.8rem; color: #555; margin: 0;">Service Web Application: HashGANG Chat (https://chat.hashgang.com)</p>
               </td>
-              <td style="text-align: right; vertical-align: middle;">
+              <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
                 <p style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase;">Official Law Enforcement Audit</p>
-                <p style="font-size: 0.8rem; color: #444;">Ref: Sec 91 CrPC / IT Act 2000</p>
+                <p style="font-size: 0.78rem; color: #444;">Ref: Sec 91 CrPC / IT Act 2000</p>
               </td>
             </tr>
           </table>
@@ -535,7 +703,30 @@ Loading affidavit template...
       ? "http://localhost:5000/api/v1/strangerchat"
       : "https://api.hashgang.com/api/v1/strangerchat";
 
+    function toggleAdminSecretVisibility() {
+      const input = document.getElementById("adminSecretInput");
+      const icon = document.getElementById("toggleSecretIcon");
+      if (input.type === "password") {
+        input.type = "text";
+        icon.className = "fa-solid fa-eye-slash";
+      } else {
+        input.type = "password";
+        icon.className = "fa-solid fa-eye";
+      }
+    }
+
+    // Load saved secret from sessionStorage if previously entered in this session
+    document.addEventListener("DOMContentLoaded", () => {
+      const savedSecret = sessionStorage.getItem("hg_admin_trace_secret");
+      if (savedSecret) {
+        const input = document.getElementById("adminSecretInput");
+        if (input) input.value = savedSecret;
+      }
+    });
+
     async function executeTraceLookup() {
+      const secretInput = document.getElementById("adminSecretInput");
+      const secret = secretInput ? secretInput.value.trim() : "";
       const input = document.getElementById("traceInput");
       const statusEl = document.getElementById("statusMessage");
       const resultsEl = document.getElementById("resultsSection");
@@ -544,7 +735,16 @@ Loading affidavit template...
       if (!queryVal) {
         statusEl.style.display = "block";
         statusEl.style.color = "#f87171";
-        statusEl.textContent = "⚠️ Please enter a Session Trace Code (e.g. HG8A3F1X) or IP Address (e.g. 103.15.22.14).";
+        statusEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <strong>Trace Code / IP Required:</strong> Please enter a Session Trace Code (e.g. HG8A3F1X) or IP Address (e.g. 103.15.22.14).`;
+        if (input) input.focus();
+        return;
+      }
+
+      if (!secret) {
+        statusEl.style.display = "block";
+        statusEl.style.color = "#f87171";
+        statusEl.innerHTML = `<i class="fa-solid fa-lock"></i> <strong>Admin Password Required:</strong> Please enter the Admin Password.`;
+        if (secretInput) secretInput.focus();
         return;
       }
 
@@ -554,12 +754,30 @@ Loading affidavit template...
 
       statusEl.style.display = "block";
       statusEl.style.color = "#60a5fa";
-      statusEl.textContent = `⏳ Querying database & signaling logs for ${isIpSearch ? "IP Address" : "Trace Code"} [${cleanVal}]...`;
+      statusEl.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Querying database & signaling logs for ${isIpSearch ? "IP Address" : "Trace Code"} [<strong>${cleanVal}</strong>]...`;
       resultsEl.style.display = "none";
 
       try {
-        const response = await fetch(`${API_BASE}/admin/trace-lookup?${paramName}=${encodeURIComponent(cleanVal)}`);
+        const response = await fetch(`${API_BASE}/admin/trace-lookup?${paramName}=${encodeURIComponent(cleanVal)}&adminSecretKey=${encodeURIComponent(secret)}`, {
+          headers: {
+            "x-admin-secret": secret
+          }
+        });
         const result = await response.json();
+
+        if (response.status === 403) {
+          statusEl.style.display = "block";
+          statusEl.style.color = "#ef4444";
+          statusEl.innerHTML = `<i class="fa-solid fa-ban"></i> <strong>Access Denied:</strong> Incorrect Admin Password. Please check and try again.`;
+          if (secretInput) {
+            secretInput.focus();
+            secretInput.select();
+          }
+          return;
+        }
+
+        // Remember valid password in sessionStorage for this session
+        sessionStorage.setItem("hg_admin_trace_secret", secret);
 
         const ipContainer = document.getElementById("ipSessionsContainer");
         const ipList = document.getElementById("ipSessionList");
@@ -686,15 +904,20 @@ PEER B (STRANGER PARTICIPANT):
 - Device Telemetry  : ${telB.device || "Desktop"} | ${telB.os || "OS"} | ${telB.browser || "Browser"}
 - Raw User-Agent    : ${peerB.userAgent || "Unknown"}
 
-STATEMENT OF ARCHITECTURAL COMPLIANCE:
+STATEMENT OF ARCHITECTURAL & STATUTORY COMPLIANCE:
 ------------------------------------------------------------------------
-1. HashGANG Chat operates on a 100% decentralized Peer-to-Peer (P2P) WebRTC 
-   architecture. Audio/video media streams and text messages pass directly 
-   encrypted between peer devices and are NEVER recorded, intercepted, or 
-   stored on central servers.
-2. The network connection telemetry above represents the exact signaling 
-   match log captured in volatile server memory at the time of session 
-   establishment under Information Technology Act, 2000 and IT Rules 2021.
+1. Decentralized Peer-to-Peer (P2P) WebRTC Architecture:
+   HashGANG Chat operates on a 100% decentralized Peer-to-Peer WebRTC framework.
+   Audio/video streams and real-time chat messages pass directly encrypted
+   between user endpoints and are NEVER recorded, intercepted, or archived on
+   central servers.
+2. Server Signaling Audit Trail (Volatile Memory Logging):
+   The connection telemetry logged above represents volatile server signaling
+   memory captured at the time of session establishment under Section 91 CrPC,
+   Information Technology Act, 2000, and Information Technology Rules, 2021.
+3. 1-Year Retention Verification:
+   This network connection audit log is retained for 365 days in an immutable
+   MongoDB database archive in accordance with statutory compliance guidelines.
 ========================================================================
 Generated on: ${new Date().toLocaleString()} (IST)`;
 
@@ -702,12 +925,7 @@ Generated on: ${new Date().toLocaleString()} (IST)`;
       document.getElementById("resultsSection").style.display = "block";
     }
 
-    // Trigger search on Enter key press
-    document.getElementById("traceInput").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        executeTraceLookup();
-      }
-    });
+    // Enter key submission is handled automatically by the #traceLookupForm onsubmit handler
   </script>
 </body>
 </html>

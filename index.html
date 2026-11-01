@@ -35,7 +35,7 @@
   <link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png?v=102" />
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png?v=102" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=102" />
-  <link id="app-manifest-link" rel="manifest" href="manifest.json?v=307" />
+  <link id="app-manifest-link" rel="manifest" href="manifest.json?v=308" />
 
   <!-- Open Graph / Facebook Meta Tags -->
   <meta property="og:site_name" content="HashGANG" />
@@ -65,7 +65,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=307" />
+  <link rel="stylesheet" href="style.css?v=308" />
 
   <!-- Schema.org JSON-LD Structured Data for Google Search Ranking -->
   <script type="application/ld+json">
@@ -261,8 +261,8 @@
           <i class="fa-solid fa-flag text-rose-500"></i>
         </button>
 
-        <!-- Settings & Privacy Button (Swapped with Flag during private call) -->
-        <button class="v2-icon-btn" id="v2-btn-settings-toggle" title="Settings & Privacy" onclick="openV2SettingsModal()">
+        <!-- Settings Button (Swapped with Flag during private call) -->
+        <button class="v2-icon-btn" id="v2-btn-settings-toggle" title="Settings" onclick="openV2SettingsModal()">
           <i class="fa-solid fa-gear"></i>
         </button>
 
@@ -276,11 +276,11 @@
       <div class="v2-popover-menu hidden" id="v2-popover-menu">
         <a href="#" id="v2-menu-settings" onclick="openV2SettingsModal(event)"
           style="color: #c084fc; font-weight: 700">
-          <i class="fa-solid fa-gear"></i> Settings & Privacy
+          <i class="fa-solid fa-gear"></i> Settings
         </a>
         <a href="#" id="v2-menu-pwa-install" onclick="handlePwaInstallPrompt(event)"
           style="color: #38bdf8; font-weight: 700">
-          <i class="fa-solid fa-download"></i> Install #GANG App
+          <i class="fa-solid fa-download"></i> Install #GANG
         </a>
         <a href="website.html"><i class="fa-solid fa-house"></i> Home</a>
         <a href="blog/index.html"><i class="fa-solid fa-newspaper"></i> Blog</a>
@@ -1029,11 +1029,11 @@
             </div>
           </div>
 
-          <!-- Card 7: Install #GANG App -->
+          <!-- Card 7: Install #GANG -->
           <div class="v2-settings-group">
             <div class="v2-action-card-row">
               <div class="v2-switch-meta">
-                <span class="v2-switch-label"><i class="fa-solid fa-mobile-screen-button text-sky-400"></i> Install #GANG App</span>
+                <span class="v2-switch-label"><i class="fa-solid fa-mobile-screen-button text-sky-400"></i> Install #GANG</span>
                 <span class="v2-switch-sub">Add #GANG to your phone home screen for 1-tap fast access</span>
               </div>
               <button type="button" class="v2-settings-action-btn primary" id="v2-settings-btn-install" onclick="handlePwaInstallPrompt(event)">
@@ -1063,7 +1063,7 @@
     <script src="ads.js?v=301" defer></script>
     <script src="ad_mediation_config.js?v=301" defer></script>
     <script src="socket.io.min.js?v=301"></script>
-    <script src="app.js?v=307" defer></script>
+    <script src="app.js?v=308" defer></script>
 </body>
 
 </html>

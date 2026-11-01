@@ -77,8 +77,15 @@ let activeGroupRoomNumber = 1;
 let activeGroupReplyTo = null; // { id, nickname, text }
 let liveGroupMsgCounter = 0;
 var inviteCooldownTimerId = null;
-const INVITE_COOLDOWN_SECONDS = 20;
-const INVITE_COOLDOWN_MS = INVITE_COOLDOWN_SECONDS * 1000;
+const INVITE_MODE_CONFIG = {
+  text:  { durationSec: 20, durationMs: 20000 },
+  audio: { durationSec: 40, durationMs: 40000 },
+  video: { durationSec: 60, durationMs: 60000 }
+};
+const DEFAULT_INVITE_COOLDOWN_SECONDS = 20;
+const DEFAULT_INVITE_COOLDOWN_MS = DEFAULT_INVITE_COOLDOWN_SECONDS * 1000;
+const INVITE_COOLDOWN_SECONDS = DEFAULT_INVITE_COOLDOWN_SECONDS;
+const INVITE_COOLDOWN_MS = DEFAULT_INVITE_COOLDOWN_MS;
 const NICKNAME_CHANGE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour cooldown between nickname changes
 
 // DOM Elements Registry
@@ -398,7 +405,7 @@ function reloadAppShellSafely(reason) {
 function registerV2ServiceWorker() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      const swPath = "./sw.js?v=306";
+      const swPath = "./sw.js?v=308";
       navigator.serviceWorker
         .register(swPath, { updateViaCache: "none" })
         .then((reg) => {
@@ -1549,7 +1556,7 @@ function initSocketConnection() {
           try { sessionStorage.setItem("hg_my_recent_invite", invite.inviteId); } catch (e) {}
         }
         if (typeof startActiveInviteCooldown === "function") {
-          startActiveInviteCooldown(invite.inviteId, invite.createdAt || Date.now());
+          startActiveInviteCooldown(invite.inviteId, invite.createdAt || Date.now(), invite.mode);
         }
         v2ShowToast(`🚀 Private ${invite.mode.toUpperCase()} Invite live in group!`);
       }
@@ -1582,8 +1589,11 @@ function initSocketConnection() {
         }
       }
       if (typeof isMyRecentInviteId === "function" && isMyRecentInviteId(data.inviteId)) {
-        // Anti-collusion fix: Do NOT clear inviter's cooldown on accept.
-        // Full 20s cooldown continues running to prevent rapid re-invite spam.
+        // Clear lingering mode/duration so 40s audio or 60s video does not carry over to return cooldown
+        try {
+          sessionStorage.removeItem("hg_active_invite_mode");
+          sessionStorage.removeItem("hg_active_invite_duration_ms");
+        } catch (e) {}
       }
     });
 
@@ -1612,13 +1622,19 @@ function initSocketConnection() {
           if (btn) {
             btn.outerHTML = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); cursor: default;"><i class="fa-solid fa-clock-rotate-left"></i> Invite Expired</div>`;
           }
+          // Retain for 10s for the sender, then smoothly fade out & remove from DOM
+          if (!card.hasAttribute("data-removal-scheduled")) {
+            card.setAttribute("data-removal-scheduled", "true");
+            setTimeout(() => {
+              card.classList.add("fade-out");
+              setTimeout(() => { if (card.parentNode) card.remove(); }, 400);
+            }, 10000);
+          }
         } else {
-          // Social illusion: for other users in the lobby, show as connected!
-          card.className = "v2-feed-call-card taken";
-          const taker = data.simulatedTakerName ? escapeHtml(data.simulatedTakerName) : "Member";
-          if (statusEl) statusEl.textContent = `🔒 Joined by ${taker}`;
-          if (btn) {
-            btn.outerHTML = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); cursor: default;"><i class="fa-solid fa-check"></i> Connected in Private Call</div>`;
+          // Other lobby members: Remove the expired card immediately with smooth fade-out (No fake connection)
+          if (!card.classList.contains("taken")) {
+            card.classList.add("fade-out");
+            setTimeout(() => { if (card.parentNode) card.remove(); }, 400);
           }
         }
       }
@@ -4894,41 +4910,74 @@ function isMyRecentInviteId(inviteId) {
 }
 
 // -----------------------------------------------------------------------------
-// 20-Second Single Active Invite Cooldown & Anti-Spam Engine
+// Mode-Differentiated Active Invite Cooldown & Anti-Spam Engine (Text: 20s, Audio: 40s, Video: 60s)
 // -----------------------------------------------------------------------------
+function getActiveInviteCooldownDurationMs() {
+  try {
+    const mode = sessionStorage.getItem("hg_active_invite_mode");
+    if (mode && INVITE_MODE_CONFIG[mode]) {
+      return INVITE_MODE_CONFIG[mode].durationMs;
+    }
+    const customMsStr = sessionStorage.getItem("hg_active_invite_duration_ms");
+    if (customMsStr) {
+      const parsed = parseInt(customMsStr, 10);
+      if (parsed > 0) return parsed;
+    }
+  } catch (e) {}
+  return DEFAULT_INVITE_COOLDOWN_MS;
+}
+
 function getActiveInviteCooldownRemaining() {
   try {
     const tsStr = sessionStorage.getItem("hg_active_invite_ts");
     if (!tsStr) return 0;
     const ts = parseInt(tsStr, 10);
     if (!ts || isNaN(ts)) return 0;
+    const totalMs = getActiveInviteCooldownDurationMs();
     const elapsed = Date.now() - ts;
-    const remaining = Math.ceil((INVITE_COOLDOWN_MS - elapsed) / 1000);
+    const remaining = Math.ceil((totalMs - elapsed) / 1000);
     return remaining > 0 ? remaining : 0;
   } catch (e) {
     return 0;
   }
 }
 
-function startActiveInviteCooldown(inviteId, timestamp) {
+function startActiveInviteCooldown(inviteId, timestamp, mode) {
   try {
     const ts = timestamp ? parseInt(timestamp, 10) : Date.now();
     sessionStorage.setItem("hg_active_invite_ts", ts.toString());
     if (inviteId) {
       sessionStorage.setItem("hg_active_invite_id", inviteId);
     }
+    if (mode && INVITE_MODE_CONFIG[mode]) {
+      sessionStorage.setItem("hg_active_invite_mode", mode);
+      sessionStorage.setItem("hg_active_invite_duration_ms", INVITE_MODE_CONFIG[mode].durationMs.toString());
+    } else {
+      sessionStorage.setItem("hg_active_invite_mode", "text");
+      sessionStorage.setItem("hg_active_invite_duration_ms", DEFAULT_INVITE_COOLDOWN_MS.toString());
+    }
   } catch (e) {}
   syncInviteButtonsCooldown();
 }
 
-function syncClientCooldownRemaining(remainingSec) {
+function syncClientCooldownRemaining(remainingSec, mode) {
   if (typeof remainingSec !== "number" || remainingSec <= 0) {
     clearActiveInviteCooldown();
     return;
   }
-  const simulatedTs = Date.now() - (INVITE_COOLDOWN_MS - (remainingSec * 1000));
+  let durationMs = DEFAULT_INVITE_COOLDOWN_MS;
+  if (mode && INVITE_MODE_CONFIG[mode]) {
+    durationMs = INVITE_MODE_CONFIG[mode].durationMs;
+  } else {
+    durationMs = getActiveInviteCooldownDurationMs();
+  }
+  const simulatedTs = Date.now() - (durationMs - (remainingSec * 1000));
   try {
     sessionStorage.setItem("hg_active_invite_ts", simulatedTs.toString());
+    if (mode) {
+      sessionStorage.setItem("hg_active_invite_mode", mode);
+      sessionStorage.setItem("hg_active_invite_duration_ms", durationMs.toString());
+    }
   } catch (e) {}
   syncInviteButtonsCooldown();
 }
@@ -4937,6 +4986,8 @@ function clearActiveInviteCooldown() {
   try {
     sessionStorage.removeItem("hg_active_invite_ts");
     sessionStorage.removeItem("hg_active_invite_id");
+    sessionStorage.removeItem("hg_active_invite_mode");
+    sessionStorage.removeItem("hg_active_invite_duration_ms");
   } catch (e) {}
   if (inviteCooldownTimerId) {
     clearInterval(inviteCooldownTimerId);
@@ -5013,6 +5064,13 @@ function renderCallInviteCard(invite) {
     isSelf = true;
   }
 
+  const modeDurationMs = (invite.mode && INVITE_MODE_CONFIG[invite.mode]) 
+    ? INVITE_MODE_CONFIG[invite.mode].durationMs 
+    : DEFAULT_INVITE_COOLDOWN_MS;
+  const modeDurationSec = (invite.mode && INVITE_MODE_CONFIG[invite.mode]) 
+    ? INVITE_MODE_CONFIG[invite.mode].durationSec 
+    : DEFAULT_INVITE_COOLDOWN_SECONDS;
+
   const card = document.createElement("div");
   const modeIcon = invite.mode === "video" ? "video" : (invite.mode === "audio" ? "microphone" : "comment-dots");
 
@@ -5024,7 +5082,7 @@ function renderCallInviteCard(invite) {
     statusClass = "open";
     statusText = "🟢 Active Now";
     if (isSelf) {
-      const initialRemaining = Math.max(1, Math.min(INVITE_COOLDOWN_SECONDS, Math.ceil((INVITE_COOLDOWN_MS - (Date.now() - (invite.createdAt || Date.now()))) / 1000)));
+      const initialRemaining = Math.max(1, Math.min(modeDurationSec, Math.ceil((modeDurationMs - (Date.now() - (invite.createdAt || Date.now()))) / 1000)));
       actionBtnHtml = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.1); cursor: default;">
         <i class="fa-solid fa-satellite-dish"></i> Your Open Invite (Waiting... <span id="v2-timer-${invite.inviteId}">${initialRemaining}s</span>)
       </div>`;
@@ -5048,14 +5106,15 @@ function renderCallInviteCard(invite) {
       actionBtnHtml = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); cursor: default;">
         <i class="fa-solid fa-clock-rotate-left"></i> Invite Expired
       </div>`;
+      // Sender: retain for 10s then fade out and remove
+      setTimeout(() => {
+        card.classList.add("fade-out");
+        setTimeout(() => { if (card.parentNode) card.remove(); }, 400);
+      }, 10000);
     } else {
-      // Social illusion for other lobby members: show as successfully connected!
-      statusClass = "taken";
-      const taker = invite.simulatedTakerName || invite.takerName || "Member";
-      statusText = `🔒 Joined by ${escapeHtml(taker)}`;
-      actionBtnHtml = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); cursor: default;">
-        <i class="fa-solid fa-check"></i> Connected in Private Call
-      </div>`;
+      // For other lobby members: Expired cards from history are not rendered
+      card.style.display = "none";
+      setTimeout(() => { if (card.parentNode) card.remove(); }, 0);
     }
   }
 
@@ -5077,16 +5136,16 @@ function renderCallInviteCard(invite) {
     ${actionBtnHtml}
   `;
 
-  // Client-side visual auto-expiry guard (20s lifetime from invite creation)
+  // Client-side visual auto-expiry guard (mode-based lifetime from invite creation)
   if (invite.status === "open") {
     const elapsed = Date.now() - (invite.createdAt || Date.now());
-    const remainingMs = Math.max(0, INVITE_COOLDOWN_MS - elapsed);
+    const remainingMs = Math.max(0, modeDurationMs - elapsed);
 
     if (isSelf) {
       const cardTimerInterval = setInterval(() => {
         const timerSpan = document.getElementById(`v2-timer-${invite.inviteId}`);
         const curElapsed = Date.now() - (invite.createdAt || Date.now());
-        const curRemaining = Math.max(0, Math.ceil((INVITE_COOLDOWN_MS - curElapsed) / 1000));
+        const curRemaining = Math.max(0, Math.ceil((modeDurationMs - curElapsed) / 1000));
         if (timerSpan) {
           timerSpan.textContent = `${curRemaining}s`;
         }
@@ -5108,13 +5167,18 @@ function renderCallInviteCard(invite) {
           if (btn) {
             btn.outerHTML = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.4); cursor: default;"><i class="fa-solid fa-clock-rotate-left"></i> Invite Expired</div>`;
           }
-        } else {
-          cardEl.className = "v2-feed-call-card taken";
-          const taker = invite.simulatedTakerName || "Member";
-          if (statusEl) statusEl.textContent = `🔒 Joined by ${escapeHtml(taker)}`;
-          if (btn) {
-            btn.outerHTML = `<div class="v2-btn-join-call-action" style="background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5); cursor: default;"><i class="fa-solid fa-check"></i> Connected in Private Call</div>`;
+          // Sender: retain for 10s then fade out and remove
+          if (!cardEl.hasAttribute("data-removal-scheduled")) {
+            cardEl.setAttribute("data-removal-scheduled", "true");
+            setTimeout(() => {
+              cardEl.classList.add("fade-out");
+              setTimeout(() => { if (cardEl.parentNode) cardEl.remove(); }, 400);
+            }, 10000);
           }
+        } else {
+          // Other lobby members: Smooth fade-out and remove immediately (No fake connection!)
+          cardEl.classList.add("fade-out");
+          setTimeout(() => { if (cardEl.parentNode) cardEl.remove(); }, 400);
         }
       }
     }, remainingMs);
@@ -6233,16 +6297,31 @@ function v2ReturnToGroupChat(autoInvite = false) {
   cleanupPeerConnection(false);
   clearChatHistory();
 
-  // Anti-Abuse: Users returning from a 1v1 call (both inviter and taker) must observe the invite cooldown before posting a new group invite.
-  // Fresh group joiners are unaffected since v2ReturnToGroupChat is only called upon exiting a 1v1 call.
+  // Anti-Abuse: Users returning from a 1v1 call (both inviter and taker) must observe the exact same 20s exit cooldown
   if (!window.__E2E_BYPASS_COOLDOWN__) {
-    const remaining = typeof getActiveInviteCooldownRemaining === "function" ? getActiveInviteCooldownRemaining() : 0;
-    if (remaining <= 0) {
+    const rem = typeof getActiveInviteCooldownRemaining === "function" ? getActiveInviteCooldownRemaining() : 0;
+    const currentMode = sessionStorage.getItem("hg_active_invite_mode");
+    if (rem <= 0) {
+      if (typeof clearActiveInviteCooldown === "function") {
+        clearActiveInviteCooldown();
+      }
       if (typeof startActiveInviteCooldown === "function") {
-        startActiveInviteCooldown();
+        startActiveInviteCooldown(null, Date.now(), "text");
+      }
+    } else if (rem > 20) {
+      // If returning from an audio (40s) or video (60s) call with >20s remaining, cap down to 20s so both peers are symmetric
+      if (typeof clearActiveInviteCooldown === "function") {
+        clearActiveInviteCooldown();
+      }
+      if (typeof startActiveInviteCooldown === "function") {
+        startActiveInviteCooldown(null, Date.now(), "text");
       }
     } else {
-      syncInviteButtonsCooldown();
+      // remaining is already <= 20s, preserve existing countdown and ensure mode is text
+      try {
+        sessionStorage.setItem("hg_active_invite_mode", "text");
+        sessionStorage.setItem("hg_active_invite_duration_ms", (20000).toString());
+      } catch (e) {}
     }
   }
 
@@ -6392,6 +6471,9 @@ window.clearActiveInviteCooldown = clearActiveInviteCooldown;
 window.startActiveInviteCooldown = startActiveInviteCooldown;
 window.syncClientCooldownRemaining = syncClientCooldownRemaining;
 window.syncInviteButtonsCooldown = syncInviteButtonsCooldown;
+window.saveMyRecentInviteId = saveMyRecentInviteId;
+window.isMyRecentInviteId = isMyRecentInviteId;
+window.renderCallInviteCard = renderCallInviteCard;
 window.acceptCallInvite = acceptCallInvite;
 window.sendGroupMessage = sendGroupMessage;
 window.quickSendEmoji = quickSendEmoji;
