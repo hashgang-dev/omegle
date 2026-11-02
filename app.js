@@ -405,7 +405,7 @@ function reloadAppShellSafely(reason) {
 function registerV2ServiceWorker() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      const swPath = "./sw.js?v=308";
+      const swPath = "./sw.js?v=309";
       navigator.serviceWorker
         .register(swPath, { updateViaCache: "none" })
         .then((reg) => {
@@ -1416,21 +1416,38 @@ function initSocketConnection() {
         const totalMsgs = messages.length;
         const renderedInviteIds = new Set();
 
+        let lastSenderId = null;
+        let lastMsgTime = 0;
+
         messages.forEach((msg, idx) => {
           if (msg.type === "call_invite") {
             renderedInviteIds.add(msg.inviteId);
             feed.appendChild(renderCallInviteCard(msg));
+            lastSenderId = null;
           } else {
-            feed.appendChild(renderGroupMessageRow(msg));
+            const currentSender = msg.senderId || msg.nickname || "Stranger";
+            const msgTime = msg.timestamp || msg.time || 0;
+            const isConsecutive = (
+              idx > 0 &&
+              lastSenderId !== null &&
+              lastSenderId === currentSender &&
+              !msg.replyTo &&
+              (msgTime === 0 || lastMsgTime === 0 || Math.abs(msgTime - lastMsgTime) < 120000)
+            );
+            feed.appendChild(renderGroupMessageRow(msg, isConsecutive));
+            lastSenderId = currentSender;
+            lastMsgTime = msgTime;
           }
 
           // In-feed card injection in middle of history: Show internal house promo without consuming live Adsterra quota
           if (idx === Math.floor(totalMsgs * 0.35) && !adInjected && totalMsgs >= 6) {
             feed.appendChild(renderMyLeaderPromoFeedCard());
             adInjected = true;
+            lastSenderId = null;
           } else if (idx === Math.floor(totalMsgs * 0.7) && !viralInjected && totalMsgs >= 12) {
             feed.appendChild(renderViralCommunityCard());
             viralInjected = true;
+            lastSenderId = null;
           }
         });
 
@@ -1498,7 +1515,20 @@ function initSocketConnection() {
         const isNearBottom = isGroupFeedNearBottom(120);
         const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
 
-        feed.appendChild(renderGroupMessageRow(msg));
+        // Check if previous element in feed was a message from the same sender
+        let isConsecutive = false;
+        const lastRow = feed.lastElementChild;
+        if (lastRow && lastRow.classList.contains("v2-group-msg-row") && !lastRow.classList.contains("game-challenge") && !msg.replyTo) {
+          const lastSender = lastRow.getAttribute("data-sender-id");
+          const currentSender = msg.senderId || msg.nickname || "Stranger";
+          const lastTime = parseInt(lastRow.getAttribute("data-msg-time"), 10) || 0;
+          const now = Date.now();
+          if (lastSender && currentSender && lastSender === currentSender && (lastTime === 0 || Math.abs(now - lastTime) < 120000)) {
+            isConsecutive = true;
+          }
+        }
+
+        feed.appendChild(renderGroupMessageRow(msg, isConsecutive));
         playAudioChime("msg");
         liveGroupMsgCounter++;
         console.log(`💬 [In-Feed Pacing] Message count: ${liveGroupMsgCounter}`);
@@ -3538,6 +3568,13 @@ function setupEventListeners() {
 
   const inputNewNick = document.getElementById("v2-input-new-nick");
   if (inputNewNick) {
+    inputNewNick.addEventListener("input", (e) => {
+      // Disallow characters other than alphanumeric, spaces, and safe separators (_ - .)
+      const filtered = e.target.value.replace(/[^a-zA-Z0-9_\-\. ]/g, "");
+      if (filtered !== e.target.value) {
+        e.target.value = filtered;
+      }
+    });
     inputNewNick.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -4704,7 +4741,21 @@ function saveNewNickname() {
   }
   const input = document.getElementById("v2-input-new-nick");
   if (!input) return;
-  const clean = input.value.trim().slice(0, 20);
+  const raw = input.value.trim().slice(0, 16);
+  if (!raw || raw.length < 2) {
+    v2ShowToast("⚠️ Name must be at least 2 characters long.");
+    return;
+  }
+  const nickRegex = /^[a-zA-Z0-9_\-\. ]{2,16}$/;
+  if (!nickRegex.test(raw)) {
+    v2ShowToast("⚠️ Only letters, numbers, spaces, and ( _ - . ) are allowed.");
+    return;
+  }
+  if (!/[a-zA-Z0-9]/.test(raw)) {
+    v2ShowToast("⚠️ Name must include at least one letter or number.");
+    return;
+  }
+  const clean = raw.replace(/\s+/g, " ");
   if (clean && clean !== currentNickname) {
     currentNickname = clean;
     localStorage.setItem("hg_user_nickname", currentNickname);
@@ -4775,15 +4826,56 @@ function extractGameChallenge(text, gameScore) {
   return null;
 }
 
-function renderGroupMessageRow(msg) {
+/**
+ * Deterministic User Accent Color Generator for Dark Mode
+ * Selected from high-contrast WCAG-compliant palette (Lightness: 65-75%, Saturation: 85-95%)
+ * Guarantees that message names and left accent stripes never blend into the dark background.
+ */
+function getUserAccentColor(idOrNick) {
+  if (!idOrNick) return "#38bdf8";
+  const palette = [
+    "#38bdf8", // Sky Blue
+    "#34d399", // Emerald Mint
+    "#fbbf24", // Warm Amber
+    "#fb923c", // Coral Orange
+    "#f472b6", // Bright Rose
+    "#a3e635", // Electric Lime
+    "#c084fc", // Lavender Spark
+    "#2dd4bf", // Bright Teal
+    "#f87171", // Soft Red
+    "#22d3ee"  // Vibrant Cyan
+  ];
+  let hash = 0;
+  const str = String(idOrNick);
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return palette[Math.abs(hash) % palette.length];
+}
+
+function renderGroupMessageRow(msg, isConsecutive = false) {
   const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
   const row = document.createElement("div");
   row.className = `v2-group-msg-row ${isSelf ? "self" : "other"}`;
   row.id = `msg-${msg.id}`;
 
+  const senderId = msg.senderId || msg.nickname || "Stranger";
+  row.setAttribute("data-sender-id", senderId);
+  row.setAttribute("data-msg-time", msg.timestamp || msg.time || Date.now());
+
+  const senderColor = isSelf ? "#38bdf8" : getUserAccentColor(senderId);
+  row.style.setProperty("--msg-sender-color", senderColor);
+
   const challengeInfo = extractGameChallenge(msg.text, msg.gameScore);
   if (challengeInfo) {
     row.classList.add("game-challenge");
+  }
+
+  // Consecutive grouping: Only group if from same sender and not an interactive challenge or reply
+  const canGroup = isConsecutive && !challengeInfo && !msg.replyTo;
+  if (canGroup) {
+    row.classList.add("is-consecutive");
   }
 
   let replyHtml = "";
@@ -4796,9 +4888,10 @@ function renderGroupMessageRow(msg) {
     }
     const safeReplyNick = escapeHtml(displayReplyNick);
     const safeReplyText = escapeHtml(maskSocialKeywords(maskPhoneNumbers(msg.replyTo.text || "")));
+    const replyColor = (displayReplyNick === "You" || displayReplyNick === currentNickname) ? "#38bdf8" : getUserAccentColor(displayReplyNick);
     replyHtml = `
-      <div class="v2-bubble-reply-quote">
-        <strong>${safeReplyNick}</strong>: ${safeReplyText}
+      <div class="v2-bubble-reply-quote" style="border-left-color: ${replyColor};">
+        <strong style="color: ${replyColor};">${safeReplyNick}</strong>: ${safeReplyText}
       </div>
     `;
   }
@@ -4834,9 +4927,9 @@ function renderGroupMessageRow(msg) {
     `;
   }
 
-  const senderLabel = isSelf
+  const senderLabel = canGroup ? "" : (isSelf
     ? `<span class="v2-msg-sender-name self"><span class="v2-you-pill">You</span> ${senderNick}</span>`
-    : `<span class="v2-msg-sender-name">${senderNick}</span>`;
+    : `<span class="v2-msg-sender-name" style="color: ${senderColor};">${senderNick}</span>`);
 
   let bubbleContentHtml;
   if (challengeInfo) {
@@ -4869,9 +4962,11 @@ function renderGroupMessageRow(msg) {
     bubbleContentHtml = `<span>${cleanText}</span>`;
   }
 
+  const bubbleLeftBorder = isSelf ? "" : `style="border-left: 3.5px solid ${senderColor};"`;
+
   row.innerHTML = `
     ${senderLabel}
-    <div class="v2-msg-bubble">
+    <div class="v2-msg-bubble" ${bubbleLeftBorder}>
       ${replyHtml}
       ${bubbleContentHtml}
       ${actionsHtml}

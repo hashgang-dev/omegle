@@ -3101,17 +3101,34 @@ html, body {
   align-self: flex-start;
 }
 
+.v2-group-msg-row.is-consecutive {
+  margin-top: -6px;
+  margin-bottom: 4px;
+}
+
+.v2-group-msg-row.is-consecutive.other .v2-msg-bubble {
+  border-top-left-radius: 4px;
+}
+
+.v2-group-msg-row.is-consecutive.self .v2-msg-bubble {
+  border-top-right-radius: 4px;
+}
+
 .v2-msg-sender-name {
   font-size: 0.74rem;
   font-weight: 700;
-  color: #c084fc;
+  color: var(--msg-sender-color, #c084fc);
   padding-left: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .v2-group-msg-row.self .v2-msg-sender-name {
   color: #38bdf8;
   text-align: right;
   padding-right: 6px;
+  justify-content: flex-end;
 }
 
 .v2-you-pill {
@@ -3147,6 +3164,7 @@ html, body {
 .v2-group-msg-row.other .v2-msg-bubble {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.1);
+  border-left: 3.5px solid var(--msg-sender-color, #c084fc);
   color: #f1f5f9;
   border-bottom-left-radius: 4px;
 }

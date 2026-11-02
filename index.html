@@ -35,7 +35,7 @@
   <link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png?v=102" />
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png?v=102" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=102" />
-  <link id="app-manifest-link" rel="manifest" href="manifest.json?v=308" />
+  <link id="app-manifest-link" rel="manifest" href="manifest.json?v=309" />
 
   <!-- Open Graph / Facebook Meta Tags -->
   <meta property="og:site_name" content="HashGANG" />
@@ -65,7 +65,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=308" />
+  <link rel="stylesheet" href="style.css?v=309" />
 
   <!-- Schema.org JSON-LD Structured Data for Google Search Ranking -->
   <script type="application/ld+json">
@@ -853,9 +853,9 @@
           <button class="v2-close-btn" onclick="closeNicknameModal()">&times;</button>
         </div>
         <div class="v2-modal-body">
-          <p class="v2-nick-help">Choose your anonymous handle for Group Chat (Max 20 characters):</p>
+          <p class="v2-nick-help">Choose your anonymous handle (Letters, numbers, spaces, _ - . max 16 chars):</p>
           <div class="v2-nick-input-wrap">
-            <input type="text" id="v2-input-new-nick" maxlength="20" placeholder="e.g. NeonFalcon" autocomplete="off" />
+            <input type="text" id="v2-input-new-nick" maxlength="16" placeholder="e.g. Neon_Falcon" autocomplete="off" />
           </div>
           <p class="v2-nick-cooldown-hint">
             <i class="fa-solid fa-clock"></i> Can only be changed once every 1 hour
@@ -1063,7 +1063,7 @@
     <script src="ads.js?v=301" defer></script>
     <script src="ad_mediation_config.js?v=301" defer></script>
     <script src="socket.io.min.js?v=301"></script>
-    <script src="app.js?v=308" defer></script>
+    <script src="app.js?v=309" defer></script>
 </body>
 
 </html>
