@@ -27,14 +27,19 @@ If servers are down, start them:
 
 ### A. Unified Master E2E Verification Suite
 - **Script Location**: `/home/hashgang/Workspace/omegle/master_e2e_test_suite.js`
-- **Scope**: 50 automated tests spanning 5 phases:
+- **Scope**: 89 automated tests spanning 10 unified phases:
   - Phase 1: Socket signaling, trace codes (`HGXXXXXX`), MongoDB audit retrieval, report disconnects, 24h block enforcement.
-  - Phase 2: Group chat protocol, nickname customization, timeless rolling message buffer (<=30), quoted replies, emoji reactions, 25-cap dynamic room sharding, dual-track invite matching, double-accept race locks, zombie card cleanups.
+  - Phase 2: Group chat protocol, nickname customization, 50-message rolling capacity, quoted replies, emoji reactions, 25-cap dynamic room sharding, dual-track invite matching, double-accept race locks, zombie card cleanups.
   - Phase 3 & 4: Playwright browser UI permutations (18+ gate, group chat onboarding, brand name animation, call drawer transitions, search radar shortcut).
   - Phase 5: Deep edge cases (repeat calls, anti-spam external link blocks, offline inviter fallback).
+  - Phase 6: Social media keywords & phone number masking, 1-hour nickname cooldown persistence, asset cache-busting version sync, voice persona switcher.
+  - Phase 7: Private chat report redirection to group lounge, post-disconnect reporting, and 1v1 in-chat heartbeat.
+  - Phase 8: Anti-collusion duo loophole prevention, 20s return-to-group cooldown, server sync tolerance, and mutual invite card sync.
+  - Phase 9: Security audit, admin trace lookup & push broadcast 403 access control, XSS payload neutralization, and frontend `escapeHtml` sanitization.
+  - Phase 10: WebPush admin broadcast endpoints, VAPID key retrieval, MongoDB subscription lifecycle, and admin console form validation engine.
 - **Execution Command**:
   ```bash
-  cd /home/hashgang/Workspace/omegle && node master_e2e_test_suite.js
+  cd /home/hashgang/Workspace/omegle && NODE_PATH=/home/hashgang/Workspace/myleader/backend/node_modules node master_e2e_test_suite.js
   ```
 
 ### B. Mobile & Desktop Playwright UI Suite
