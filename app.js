@@ -386,18 +386,66 @@ function initV2App() {
   }, 30000);
 }
 
+const APP_CLIENT_VERSION = "v320";
+let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
+window.isAppShellReloading = false;
+window.pendingAppShellReload = false;
+window.clientSessionDeployId = null;
+
+function handleAppVersionSync(data) {
+  if (!data) return;
+  const serverDeployId = data.deployId;
+  const serverVersion = data.currentVersion || data.version;
+
+  // On initial socket connect for this tab: anchor the session deployId
+  if (!clientSessionDeployId) {
+    clientSessionDeployId = serverDeployId || serverVersion || APP_CLIENT_VERSION;
+    window.clientSessionDeployId = clientSessionDeployId;
+    return;
+  }
+
+  // Detect whether server restarted with a new deployment or bumped version
+  const hasDeployIdChanged = serverDeployId && serverDeployId !== clientSessionDeployId;
+  const hasVersionChanged = serverVersion && serverVersion !== APP_CLIENT_VERSION;
+
+  if (hasDeployIdChanged || hasVersionChanged) {
+    console.log(`🚀 [HashGANG Auto-Deploy Sync] Server deployment changed! (Server: ${serverDeployId || serverVersion}, Local: ${clientSessionDeployId})`);
+
+    // Check if user is in an active 1v1 private call
+    const activePeer = (typeof currentMatchTargetId !== "undefined" && currentMatchTargetId) || window.currentMatchTargetId;
+    const isDisc = (typeof isDisconnectedHandled !== "undefined" ? isDisconnectedHandled : false) || window.isDisconnectedHandled;
+    const inActiveCall = !!(activePeer && !isDisc);
+    if (inActiveCall) {
+      console.log(`⏳ [HashGANG Auto-Deploy Sync] User in active 1v1 call. Reload safely deferred until return to lounge.`);
+      pendingAppShellReload = true;
+      window.pendingAppShellReload = true;
+      return;
+    }
+
+    if (typeof v2ShowToast === "function") {
+      v2ShowToast("🚀 New HashGANG update deployed! Refreshing with latest features...", 2200);
+    }
+    setTimeout(() => {
+      reloadAppShellSafely(`automatic deploy sync (${clientSessionDeployId} -> ${serverDeployId || serverVersion})`);
+    }, 500);
+  }
+}
+
 function reloadAppShellSafely(reason) {
   if (isAppShellReloading) return;
-  const inActiveCall = (typeof currentMatchTargetId !== "undefined" && currentMatchTargetId) &&
-                       (typeof isDisconnectedHandled !== "undefined" && !isDisconnectedHandled);
+  const activePeer = (typeof currentMatchTargetId !== "undefined" && currentMatchTargetId) || window.currentMatchTargetId;
+  const isDisc = (typeof isDisconnectedHandled !== "undefined" ? isDisconnectedHandled : false) || window.isDisconnectedHandled;
+  const inActiveCall = !!(activePeer && !isDisc);
   if (inActiveCall) {
     console.log(`⚡ [HashGANG v2] App shell update detected (${reason}), but user is in active 1v1 chat. Deferring reload until lobby...`);
     pendingAppShellReload = true;
+    window.pendingAppShellReload = true;
     return;
   }
   isAppShellReloading = true;
+  window.isAppShellReloading = true;
   console.log(`⚡ [HashGANG v2] App shell update detected (${reason})! Refreshing app shell...`);
   window.location.reload();
 }
@@ -405,7 +453,7 @@ function reloadAppShellSafely(reason) {
 function registerV2ServiceWorker() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      const swPath = "./sw.js?v=309";
+      const swPath = "./sw.js?v=320";
       navigator.serviceWorker
         .register(swPath, { updateViaCache: "none" })
         .then((reg) => {
@@ -438,6 +486,23 @@ function registerV2ServiceWorker() {
           return;
         }
         reloadAppShellSafely("controller changed");
+      });
+
+      // Mobile & Desktop Tab Wake-Up Check:
+      // When the user unlocks their phone or switches back to this tab, immediately check for updates!
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          try {
+            if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
+              navigator.serviceWorker.getRegistration().then((reg) => {
+                if (reg) reg.update();
+              });
+            }
+          } catch (e) {}
+          if (window.socket && window.socket.connected) {
+            window.socket.emit("check_app_version");
+          }
+        }
       });
     });
   }
@@ -1032,6 +1097,15 @@ function initSocketConnection() {
       }
     });
 
+    // Real-Time Version Handshake & Broadcast Sync Listeners
+    socket.on("app_version_sync", (data) => {
+      handleAppVersionSync(data);
+    });
+
+    socket.on("app_version_update", (data) => {
+      handleAppVersionSync(data);
+    });
+
     socket.on("matched", async (data) => {
       console.log("⚡ [Socket.io v2] Match Found with Stranger:", data);
 
@@ -1246,7 +1320,11 @@ function initSocketConnection() {
 
       // Handle Text Chat Signals
       if (data.signal.type === "chat") {
-        appendChatMessage("Stranger", data.signal.text, "stranger", data.signal.replyTo, data.signal.msgId);
+        if (data.signal.gif && data.signal.gif.url) {
+          appendMediaMessage("Stranger", data.signal.gif.type || "gif", data.signal.gif.url, "stranger", data.signal.replyTo, data.signal.msgId);
+        } else {
+          appendChatMessage("Stranger", data.signal.text, "stranger", data.signal.replyTo, data.signal.msgId);
+        }
         if (el.chatDrawer) el.chatDrawer.classList.remove("closed");
         return;
       }
@@ -1396,6 +1474,7 @@ function initSocketConnection() {
       const feed = document.getElementById("v2-group-messages-feed");
       if (feed) {
         feed.innerHTML = "";
+        resetRoomColorMap();
 
         const welcomeSlot = document.getElementById("v2-group-welcome-slot");
         if (welcomeSlot) {
@@ -1425,7 +1504,7 @@ function initSocketConnection() {
             feed.appendChild(renderCallInviteCard(msg));
             lastSenderId = null;
           } else {
-            const currentSender = msg.senderId || msg.nickname || "Stranger";
+            const currentSender = msg.nickname || "Stranger";
             const msgTime = msg.timestamp || msg.time || 0;
             const isConsecutive = (
               idx > 0 &&
@@ -1509,6 +1588,12 @@ function initSocketConnection() {
       }
     });
 
+    socket.on("nickname_error", (data) => {
+      if (data && data.message) {
+        v2ShowToast(data.message);
+      }
+    });
+
     socket.on("new_group_msg", (msg) => {
       const feed = document.getElementById("v2-group-messages-feed");
       if (feed) {
@@ -1520,7 +1605,7 @@ function initSocketConnection() {
         const lastRow = feed.lastElementChild;
         if (lastRow && lastRow.classList.contains("v2-group-msg-row") && !lastRow.classList.contains("game-challenge") && !msg.replyTo) {
           const lastSender = lastRow.getAttribute("data-sender-id");
-          const currentSender = msg.senderId || msg.nickname || "Stranger";
+          const currentSender = msg.nickname || "Stranger";
           const lastTime = parseInt(lastRow.getAttribute("data-msg-time"), 10) || 0;
           const now = Date.now();
           if (lastSender && currentSender && lastSender === currentSender && (lastTime === 0 || Math.abs(now - lastTime) < 120000)) {
@@ -3370,6 +3455,10 @@ function initiateV2ChatReply(msgId, sender) {
   const textContent = msgElem.querySelector(".v2-msg-text-content");
   if (textContent) {
     snippet = textContent.dataset.fullText || textContent.innerText;
+  } else if (msgElem.querySelector(".v2-msg-gif-container.is-sticker") || msgElem.classList.contains("is-sticker-msg")) {
+    snippet = "🏷️ [Sticker]";
+  } else if (msgElem.querySelector(".v2-chat-gif-img")) {
+    snippet = "🎬 [GIF]";
   } else if (msgElem.querySelector(".v2-chat-media-img")) {
     snippet = "📷 Photo";
   } else if (msgElem.querySelector(".v2-chat-media-video")) {
@@ -3570,10 +3659,22 @@ function setupEventListeners() {
   if (inputNewNick) {
     inputNewNick.addEventListener("input", (e) => {
       // Disallow characters other than alphanumeric, spaces, and safe separators (_ - .)
-      const filtered = e.target.value.replace(/[^a-zA-Z0-9_\-\. ]/g, "");
+      const filtered = e.target.value.replace(/[^a-zA-Z0-9_\-\. ]/g, "").slice(0, 20);
       if (filtered !== e.target.value) {
         e.target.value = filtered;
       }
+    });
+    inputNewNick.addEventListener("paste", (e) => {
+      e.preventDefault();
+      const pasted = (e.clipboardData || window.clipboardData)?.getData("text") || "";
+      const filtered = pasted.replace(/[^a-zA-Z0-9_\-\. ]/g, "");
+      const start = inputNewNick.selectionStart || 0;
+      const end = inputNewNick.selectionEnd || 0;
+      const current = inputNewNick.value || "";
+      const updated = (current.slice(0, start) + filtered + current.slice(end)).slice(0, 20);
+      inputNewNick.value = updated;
+      const newCursorPos = Math.min(start + filtered.length, updated.length);
+      inputNewNick.setSelectionRange(newCursorPos, newCursorPos);
     });
     inputNewNick.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -3825,7 +3926,10 @@ function appendChatMessage(sender, text, type, replyTo = null, msgId = null) {
       if (replyTo.sender === "You") quotedAuthor = "Stranger";
       else if (replyTo.sender === "Stranger") quotedAuthor = "You";
     }
-    replyHtml = `<div class="v2-quoted-bubble"><span class="v2-quoted-author">${escapeHtml(quotedAuthor)}</span><span class="v2-quoted-text">${escapeHtml(replyTo.snippet)}</span></div>`;
+    const safeAuthor = escapeHtml(quotedAuthor);
+    const safeSnippet = escapeHtml(replyTo.snippet || "");
+    const safeMsgId = escapeHtml(String(replyTo.msgId || ""));
+    replyHtml = `<div class="v2-quoted-bubble" onclick="handleQuotedReplyClick(this)" data-target-id="${safeMsgId}" data-reply-nick="${safeAuthor}" data-reply-snippet="${safeSnippet}" title="Click to view original message"><span class="v2-quoted-author">${safeAuthor}</span><span class="v2-quoted-text">${safeSnippet}</span></div>`;
   }
 
   let textHtml = "";
@@ -3880,7 +3984,8 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
 
   const msgDiv = document.createElement("div");
   msgDiv.id = msgId;
-  msgDiv.className = `v2-chat-msg ${type}`;
+  const isSticker = mediaType === "sticker";
+  msgDiv.className = `v2-chat-msg ${type}${isSticker ? " is-sticker-msg" : ""}`;
 
   let replyHtml = "";
   if (replyTo) {
@@ -3889,11 +3994,21 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
       if (replyTo.sender === "You") quotedAuthor = "Stranger";
       else if (replyTo.sender === "Stranger") quotedAuthor = "You";
     }
-    replyHtml = `<div class="v2-quoted-bubble"><span class="v2-quoted-author">${escapeHtml(quotedAuthor)}</span><span class="v2-quoted-text">${escapeHtml(replyTo.snippet)}</span></div>`;
+    const safeAuthor = escapeHtml(quotedAuthor);
+    const safeSnippet = escapeHtml(replyTo.snippet || "");
+    const safeMsgId = escapeHtml(String(replyTo.msgId || ""));
+    replyHtml = `<div class="v2-quoted-bubble" onclick="handleQuotedReplyClick(this)" data-target-id="${safeMsgId}" data-reply-nick="${safeAuthor}" data-reply-snippet="${safeSnippet}" title="Click to view original message"><span class="v2-quoted-author">${safeAuthor}</span><span class="v2-quoted-text">${safeSnippet}</span></div>`;
   }
 
   let mediaHtml = "";
-  if (mediaType === "image") {
+  if (mediaType === "gif" || mediaType === "sticker") {
+    const isSticker = mediaType === "sticker";
+    mediaHtml = `
+      <div class="v2-msg-gif-container ${isSticker ? 'is-sticker' : ''}">
+        <img src="${escapeHtml(dataUrl)}" class="v2-chat-gif-img" alt="${isSticker ? 'Sticker' : 'GIF'}" loading="lazy" />
+      </div>
+    `;
+  } else if (mediaType === "image") {
     mediaHtml = `<img src="${dataUrl}" class="v2-chat-media-img" alt="Shared Photo" onclick="openV2Lightbox('image', '${dataUrl}')" />`;
   } else {
     mediaHtml = `<video src="${dataUrl}" class="v2-chat-media-video" controls playsinline onclick="openV2Lightbox('video', '${dataUrl}')"></video>`;
@@ -4731,6 +4846,42 @@ function closeNicknameModal() {
   if (modal) modal.classList.add("hidden");
 }
 
+function isRestrictedNickname(name) {
+  if (!name || typeof name !== "string") return true;
+  const clean = name.trim().toLowerCase();
+  const normalized = clean.replace(/[_\-\. ]/g, "");
+
+  // Phone number / excessive digit protection:
+  // 1. Max 4 consecutive digits (allows 4-digit birth years, blocks 5+ digits)
+  if (/\d{5,}/.test(clean)) return true;
+  // 2. Max 6 total digits across the nickname
+  const digitCount = (clean.match(/\d/g) || []).length;
+  if (digitCount > 6) return true;
+
+  // Exact reserved UI tokens (Stranger itself is reserved, but Stranger99 is allowed)
+  if (/^(you|stranger|anonymous|null|undefined)$/i.test(clean)) return true;
+
+  // Normalized exact impersonation / platform tokens (Mod allowed, Moderator restricted)
+  if (/^(admin|administrator|moderator|system|support|staff|official|owner|hashgang)$/i.test(normalized)) return true;
+
+  // Impersonation patterns (admin, moderator, system, support, staff, official, owner)
+  const impersonation = /(?:^|[_\-\. ])(admin|administrator|moderator|system|support|staff|official|owner)(?:[_\-\. ]|[0-9]|$)/i;
+  if (impersonation.test(clean)) return true;
+
+  // Platform identity
+  if (/hashgang/i.test(clean) || /hashgang/i.test(normalized)) return true;
+
+  // Social media handle promotions
+  const social = /(?:^|[_\-\. ])(instagram|insta|telegram|snapchat|whatsapp|facebook)(?:[_\-\. ]|[0-9]|$)/i;
+  if (social.test(clean)) return true;
+
+  // Abusive / Vulgar keywords
+  const vulgar = /(?:^|[_\-\. ])(nude|sex|porn|horny|boobs|pussy|dick|bitch|slut|asshole|whore|fucker|fuck|bastard|madarchod|bhenchod|lodu|chutiya)(?:[_\-\. ]|[0-9]|$)/i;
+  if (vulgar.test(clean)) return true;
+
+  return false;
+}
+
 function saveNewNickname() {
   const remainingMs = getNicknameCooldownRemainingMs();
   if (remainingMs > 0 && !window.__E2E_BYPASS_NICK_COOLDOWN__) {
@@ -4741,12 +4892,12 @@ function saveNewNickname() {
   }
   const input = document.getElementById("v2-input-new-nick");
   if (!input) return;
-  const raw = input.value.trim().slice(0, 16);
+  const raw = input.value.trim().slice(0, 20);
   if (!raw || raw.length < 2) {
     v2ShowToast("⚠️ Name must be at least 2 characters long.");
     return;
   }
-  const nickRegex = /^[a-zA-Z0-9_\-\. ]{2,16}$/;
+  const nickRegex = /^[a-zA-Z0-9_\-\. ]{2,20}$/;
   if (!nickRegex.test(raw)) {
     v2ShowToast("⚠️ Only letters, numbers, spaces, and ( _ - . ) are allowed.");
     return;
@@ -4756,6 +4907,19 @@ function saveNewNickname() {
     return;
   }
   const clean = raw.replace(/\s+/g, " ");
+  if (/\d{5,}/.test(clean)) {
+    v2ShowToast("⚠️ Names cannot contain 5 or more consecutive numbers.");
+    return;
+  }
+  const digitCount = (clean.match(/\d/g) || []).length;
+  if (digitCount > 6) {
+    v2ShowToast("⚠️ Names cannot contain more than 6 digits (No phone numbers).");
+    return;
+  }
+  if (isRestrictedNickname(clean)) {
+    v2ShowToast("⚠️ That nickname is reserved or restricted. Please choose another!");
+    return;
+  }
   if (clean && clean !== currentNickname) {
     currentNickname = clean;
     localStorage.setItem("hg_user_nickname", currentNickname);
@@ -4827,44 +4991,111 @@ function extractGameChallenge(text, gameScore) {
 }
 
 /**
- * Deterministic User Accent Color Generator for Dark Mode
- * Selected from high-contrast WCAG-compliant palette (Lightness: 65-75%, Saturation: 85-95%)
- * Guarantees that message names and left accent stripes never blend into the dark background.
+ * Curated 30-Color High-Contrast Palette for Dark Mode (#0b0f19)
+ * Evenly distributed across all color hues with L: 65-75%, S: 85-95%
+ * Maximum visual separation, zero blending into dark backgrounds.
  */
-function getUserAccentColor(idOrNick) {
-  if (!idOrNick) return "#38bdf8";
-  const palette = [
-    "#38bdf8", // Sky Blue
-    "#34d399", // Emerald Mint
-    "#fbbf24", // Warm Amber
-    "#fb923c", // Coral Orange
-    "#f472b6", // Bright Rose
-    "#a3e635", // Electric Lime
-    "#c084fc", // Lavender Spark
-    "#2dd4bf", // Bright Teal
-    "#f87171", // Soft Red
-    "#22d3ee"  // Vibrant Cyan
-  ];
+const V2_ACCENT_PALETTE = [
+  "#fb7185", // 0. Coral Rose
+  "#f87171", // 1. Soft Crimson
+  "#fb923c", // 2. Sunset Orange
+  "#fbbf24", // 3. Warm Amber
+  "#facc15", // 4. Canary Gold
+  "#a3e635", // 5. Electric Lime
+  "#4ade80", // 6. Fresh Emerald
+  "#34d399", // 7. Mint Leaf
+  "#2dd4bf", // 8. Bright Teal
+  "#22d3ee", // 9. Vibrant Cyan
+  "#38bdf8", // 10. Sky Blue
+  "#60a5fa", // 11. Dodger Blue
+  "#818cf8", // 12. Periwinkle
+  "#a78bfa", // 13. Bright Violet
+  "#c084fc", // 14. Lavender Spark
+  "#e879f9", // 15. Fuchsia Neon
+  "#f472b6", // 16. Flamingo Pink
+  "#fca5a5", // 17. Peach Glow
+  "#fdba74", // 18. Apricot
+  "#fde047", // 19. Pastel Sand
+  "#bef264", // 20. Light Chartreuse
+  "#86efac", // 21. Pistachio
+  "#6ee7b7", // 22. Seafoam Mint
+  "#5eead4", // 23. Aquamarine
+  "#67e8f9", // 24. Ice Blue
+  "#7dd3fc", // 25. Light Sky
+  "#93c5fd", // 26. Cornflower
+  "#a5b4fc", // 27. Soft Iris
+  "#c4b5fd", // 28. Lilac
+  "#f9a8d4"  // 29. Bubblegum
+];
+
+const roomUserColorMap = new Map();
+const roomUsedColors = new Set();
+
+/**
+ * Reset room color mapping when switching rooms or clearing chat
+ */
+function resetRoomColorMap() {
+  roomUserColorMap.clear();
+  roomUsedColors.clear();
+}
+
+/**
+ * Deterministic Collision-Free User Accent Color Resolver (Pure Frontend)
+ * - Consistency: A user (by nickname) ALWAYS receives the exact same color throughout the session.
+ * - Uniqueness: Probes through the 30-color palette to guarantee DIFFERENT users receive DIFFERENT colors.
+ * - Zero Backend Dependency: Handled 100% locally on the client UI.
+ */
+function getUserAccentColor(nickname) {
+  const raw = String(nickname || "Stranger").trim();
+  const key = raw.toLowerCase();
+
+  // If this user already has an assigned color, return it immediately (100% consistency)
+  if (roomUserColorMap.has(key)) {
+    return roomUserColorMap.get(key);
+  }
+
+  // Calculate preferred starting index based on nickname hash
   let hash = 0;
-  const str = String(idOrNick);
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+  for (let i = 0; i < key.length; i++) {
+    hash = ((hash << 5) - hash) + key.charCodeAt(i);
     hash |= 0;
   }
-  return palette[Math.abs(hash) % palette.length];
+  const preferredIndex = Math.abs(hash) % V2_ACCENT_PALETTE.length;
+
+  // Collision-Free Linear Probing: Find the first available color in the palette not used by another user in this room
+  let chosenColor = null;
+  for (let step = 0; step < V2_ACCENT_PALETTE.length; step++) {
+    const candidate = V2_ACCENT_PALETTE[(preferredIndex + step) % V2_ACCENT_PALETTE.length];
+    if (!roomUsedColors.has(candidate)) {
+      chosenColor = candidate;
+      break;
+    }
+  }
+
+  // Fallback if all 30 colors are exhausted in an unusually large room
+  if (!chosenColor) {
+    chosenColor = V2_ACCENT_PALETTE[preferredIndex];
+  }
+
+  roomUsedColors.add(chosenColor);
+  roomUserColorMap.set(key, chosenColor);
+  return chosenColor;
 }
 
 function renderGroupMessageRow(msg, isConsecutive = false) {
   const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
+  const isGif = !!(msg.gif && msg.gif.url);
+  const isSticker = isGif && msg.gif.type === "sticker";
+
   const row = document.createElement("div");
-  row.className = `v2-group-msg-row ${isSelf ? "self" : "other"}`;
+  row.className = `v2-group-msg-row ${isSelf ? "self" : "other"}${isSticker ? " is-sticker-msg" : ""}`;
   row.id = `msg-${msg.id}`;
 
-  const senderId = msg.senderId || msg.nickname || "Stranger";
-  row.setAttribute("data-sender-id", senderId);
+  const senderNickRaw = msg.nickname || "Stranger";
+  row.setAttribute("data-sender-id", senderNickRaw);
   row.setAttribute("data-msg-time", msg.timestamp || msg.time || Date.now());
 
-  const senderColor = isSelf ? "#38bdf8" : getUserAccentColor(senderId);
+  const senderColor = isSelf ? "#38bdf8" : getUserAccentColor(senderNickRaw);
   row.style.setProperty("--msg-sender-color", senderColor);
 
   const challengeInfo = extractGameChallenge(msg.text, msg.gameScore);
@@ -4872,8 +5103,8 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
     row.classList.add("game-challenge");
   }
 
-  // Consecutive grouping: Only group if from same sender and not an interactive challenge or reply
-  const canGroup = isConsecutive && !challengeInfo && !msg.replyTo;
+  // Consecutive grouping: Only group if from same sender and not an interactive challenge, sticker or reply
+  const canGroup = isConsecutive && !challengeInfo && !msg.replyTo && !isSticker;
   if (canGroup) {
     row.classList.add("is-consecutive");
   }
@@ -4889,8 +5120,9 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
     const safeReplyNick = escapeHtml(displayReplyNick);
     const safeReplyText = escapeHtml(maskSocialKeywords(maskPhoneNumbers(msg.replyTo.text || "")));
     const replyColor = (displayReplyNick === "You" || displayReplyNick === currentNickname) ? "#38bdf8" : getUserAccentColor(displayReplyNick);
+    const safeParentId = escapeHtml(String(msg.replyTo.id || ""));
     replyHtml = `
-      <div class="v2-bubble-reply-quote" style="border-left-color: ${replyColor};">
+      <div class="v2-bubble-reply-quote" style="border-left-color: ${replyColor};" onclick="handleQuotedReplyClick(this)" data-target-id="${safeParentId}" data-reply-nick="${safeReplyNick}" data-reply-snippet="${safeReplyText}" title="Click to view original message">
         <strong style="color: ${replyColor};">${safeReplyNick}</strong>: ${safeReplyText}
       </div>
     `;
@@ -4909,19 +5141,20 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
 
   const senderNick = escapeHtml(msg.nickname || "Stranger");
   const cleanText = escapeHtml(maskSocialKeywords(maskPhoneNumbers(msg.text || "")));
+  const replySnippet = isSticker ? "🏷️ [Sticker]" : (isGif ? "🎬 [GIF]" : cleanText.slice(0, 50));
 
   let actionsHtml = "";
   if (isSelf) {
     actionsHtml = `
       <div class="v2-msg-external-actions">
         <button class="v2-ext-act-btn hidden" id="group-react-btn-${msg.id}" title="Reaction" style="pointer-events: none; cursor: default;">😊</button>
-        <button class="v2-ext-act-btn" title="Reply" onclick="startReplyToMessage('${msg.id}', '${senderNick}', '${cleanText.slice(0, 50)}')">↩️</button>
+        <button class="v2-ext-act-btn" title="Reply" onclick="startReplyToMessage('${msg.id}', '${senderNick}', '${escapeHtml(replySnippet).replace(/'/g, "\\'")}')">↩️</button>
       </div>
     `;
   } else {
     actionsHtml = `
       <div class="v2-msg-external-actions">
-        <button class="v2-ext-act-btn" title="Reply" onclick="startReplyToMessage('${msg.id}', '${senderNick}', '${cleanText.slice(0, 50)}')">↩️</button>
+        <button class="v2-ext-act-btn" title="Reply" onclick="startReplyToMessage('${msg.id}', '${senderNick}', '${escapeHtml(replySnippet).replace(/'/g, "\\'")}')">↩️</button>
         <button class="v2-ext-act-btn" id="group-react-btn-${msg.id}" title="React" onclick="toggleGroupReactionPicker('${msg.id}', event)">😊</button>
       </div>
     `;
@@ -4958,11 +5191,18 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
         </button>
       </div>
     `;
+  } else if (msg.gif && msg.gif.url) {
+    const safeGifUrl = escapeHtml(msg.gif.url);
+    bubbleContentHtml = `
+      <div class="v2-msg-gif-container ${isSticker ? 'is-sticker' : ''}">
+        <img src="${safeGifUrl}" class="v2-chat-gif-img" alt="${isSticker ? 'Sticker' : 'GIF'}" loading="lazy" />
+      </div>
+    `;
   } else {
     bubbleContentHtml = `<span>${cleanText}</span>`;
   }
 
-  const bubbleLeftBorder = isSelf ? "" : `style="border-left: 3.5px solid ${senderColor};"`;
+  const bubbleLeftBorder = isSelf ? "" : (isSticker ? "" : `style="border-left: 3.5px solid ${senderColor};"`);
 
   row.innerHTML = `
     ${senderLabel}
@@ -6001,18 +6241,7 @@ function toggleGroupReactionPicker(msgId, event) {
   picker.className = "v2-reaction-picker";
   picker.dataset.forMsgId = msgId;
 
-  const pickerWidth = 240;
-  let leftPos = rect.left - 40;
-  if (leftPos < 8) leftPos = 8;
-  if (leftPos + pickerWidth > window.innerWidth - 8) {
-    leftPos = window.innerWidth - pickerWidth - 8;
-  }
-  let topPos = rect.top - 46;
-  if (topPos < 10) topPos = rect.bottom + 8;
-
-  picker.style.cssText = `position: fixed !important; top: ${topPos}px !important; left: ${leftPos}px !important; z-index: 9999 !important;`;
-
-  const emojis = ["❤️", "🔥", "😂", "👏", "👍", "🎉"];
+  const emojis = ["👍", "❤️", "🔥", "😂", "😮", "😭", "🙏", "👏"];
   emojis.forEach((emoji) => {
     const item = document.createElement("span");
     item.className = "v2-reaction-emoji-item";
@@ -6025,7 +6254,22 @@ function toggleGroupReactionPicker(msgId, event) {
     picker.appendChild(item);
   });
 
+  // Render hidden first to calculate exact pixel dimensions on this client device
+  picker.style.cssText = "position: fixed !important; visibility: hidden !important; top: -9999px !important; left: -9999px !important; z-index: 9999 !important;";
   document.body.appendChild(picker);
+
+  const actualWidth = picker.offsetWidth || 260;
+  let leftPos = rect.left - 30;
+  if (leftPos < 8) leftPos = 8;
+  if (leftPos + actualWidth > window.innerWidth - 8) {
+    leftPos = Math.max(8, window.innerWidth - actualWidth - 8);
+  }
+  let topPos = rect.top - 46;
+  if (topPos < 10) topPos = rect.bottom + 8;
+
+  picker.style.top = `${topPos}px`;
+  picker.style.left = `${leftPos}px`;
+  picker.style.visibility = "visible";
 
   const closeHandler = (e) => {
     if (!picker.contains(e.target)) {
@@ -8945,7 +9189,35 @@ function saveSettingsNickname() {
     }
   }
 
-  const clean = input.value.trim().slice(0, 20);
+  const raw = input.value.trim().slice(0, 20);
+  if (!raw || raw.length < 2) {
+    v2ShowToast("⚠️ Name must be at least 2 characters long.");
+    return;
+  }
+  const nickRegex = /^[a-zA-Z0-9_\-\. ]{2,20}$/;
+  if (!nickRegex.test(raw)) {
+    v2ShowToast("⚠️ Only letters, numbers, spaces, and ( _ - . ) are allowed.");
+    return;
+  }
+  if (!/[a-zA-Z0-9]/.test(raw)) {
+    v2ShowToast("⚠️ Name must include at least one letter or number.");
+    return;
+  }
+  const clean = raw.replace(/\s+/g, " ");
+  if (/\d{5,}/.test(clean)) {
+    v2ShowToast("⚠️ Names cannot contain 5 or more consecutive numbers.");
+    return;
+  }
+  const digitCount = (clean.match(/\d/g) || []).length;
+  if (digitCount > 6) {
+    v2ShowToast("⚠️ Names cannot contain more than 6 digits (No phone numbers).");
+    return;
+  }
+  if (isRestrictedNickname(clean)) {
+    v2ShowToast("⚠️ That nickname is reserved or restricted. Please choose another!");
+    return;
+  }
+
   if (clean && clean !== currentNickname) {
     currentNickname = clean;
     localStorage.setItem("hg_user_nickname", currentNickname);
@@ -8956,8 +9228,6 @@ function saveSettingsNickname() {
     }
     v2ShowToast(`✨ Account Name saved as: ${currentNickname}`);
     closeV2SettingsModal();
-  } else if (!clean) {
-    v2ShowToast("⚠️ Account Name cannot be empty!");
   } else {
     v2ShowToast("✅ Account Name unchanged.");
     closeV2SettingsModal();
@@ -9321,6 +9591,252 @@ if (typeof window !== "undefined") {
   });
 }
 
+// ============================================================================
+// GIF & Sticker In-App Drawer Controller (GIPHY API - Rating: G)
+// ============================================================================
+let currentGifTab = "gif"; // 'gif' | 'sticker'
+let currentGifCategory = "trending";
+let currentGifContext = "group"; // 'group' | 'private'
+let gifSearchDebounceTimer = null;
+const GIPHY_API_KEY = "GlVGYHkr3WSBnllca54iNt0yFbjz7L65";
+
+function openV2GifDrawer(mode = "gif", context = null) {
+  if (context) {
+    currentGifContext = context;
+  } else if (inCall && currentMatchTargetId && currentChatMode) {
+    currentGifContext = "private";
+  } else {
+    currentGifContext = "group";
+  }
+
+  // Close parent attachment / call drawers if open
+  const attachModal = document.getElementById("v2-attachment-modal");
+  if (attachModal) attachModal.classList.add("hidden");
+
+  const callDrawer = document.getElementById("v2-call-drawer-backdrop");
+  if (callDrawer) callDrawer.classList.add("hidden");
+
+  const drawer = document.getElementById("v2-gif-drawer-modal");
+  if (drawer) {
+    drawer.classList.remove("hidden");
+    switchGifTab(mode);
+  }
+}
+
+function closeV2GifDrawer(event) {
+  if (event && event.target && event.currentTarget && event.target !== event.currentTarget) {
+    return;
+  }
+  const drawer = document.getElementById("v2-gif-drawer-modal");
+  if (drawer) drawer.classList.add("hidden");
+}
+
+function switchGifTab(tab) {
+  currentGifTab = tab === "sticker" ? "sticker" : "gif";
+  const btnGifs = document.getElementById("v2-tab-gifs");
+  const btnStickers = document.getElementById("v2-tab-stickers");
+  const searchInput = document.getElementById("v2-gif-search-input");
+
+  if (btnGifs) btnGifs.classList.toggle("active", currentGifTab === "gif");
+  if (btnStickers) btnStickers.classList.toggle("active", currentGifTab === "sticker");
+
+  if (searchInput) {
+    searchInput.placeholder = currentGifTab === "gif" ? "Search GIFs on GIPHY..." : "Search Stickers on GIPHY...";
+    const query = searchInput.value.trim();
+    if (query) {
+      fetchGiphyMedia(query, "");
+    } else {
+      fetchGiphyMedia("", currentGifCategory);
+    }
+  }
+}
+
+function selectGifCategory(category) {
+  currentGifCategory = category;
+  const searchInput = document.getElementById("v2-gif-search-input");
+  const clearBtn = document.getElementById("v2-gif-search-clear");
+  if (searchInput) searchInput.value = "";
+  if (clearBtn) clearBtn.classList.add("hidden");
+
+  const chips = document.querySelectorAll("#v2-gif-chips .v2-gif-chip");
+  chips.forEach((c) => {
+    c.classList.toggle("active", c.textContent.toLowerCase().includes(category));
+  });
+
+  fetchGiphyMedia("", category);
+}
+
+function debounceGifSearch() {
+  clearTimeout(gifSearchDebounceTimer);
+  const searchInput = document.getElementById("v2-gif-search-input");
+  const clearBtn = document.getElementById("v2-gif-search-clear");
+  if (!searchInput) return;
+
+  const query = searchInput.value.trim();
+  if (clearBtn) {
+    clearBtn.classList.toggle("hidden", query.length === 0);
+  }
+
+  // Deactivate category chips when searching custom query
+  if (query.length > 0) {
+    document.querySelectorAll("#v2-gif-chips .v2-gif-chip").forEach((c) => c.classList.remove("active"));
+  }
+
+  gifSearchDebounceTimer = setTimeout(() => {
+    if (query.length > 0) {
+      fetchGiphyMedia(query, "");
+    } else {
+      selectGifCategory("trending");
+    }
+  }, 320);
+}
+
+function clearGifSearch() {
+  const searchInput = document.getElementById("v2-gif-search-input");
+  const clearBtn = document.getElementById("v2-gif-search-clear");
+  if (searchInput) {
+    searchInput.value = "";
+    searchInput.focus();
+  }
+  if (clearBtn) clearBtn.classList.add("hidden");
+  selectGifCategory("trending");
+}
+
+async function fetchGiphyMedia(query = "", category = "trending") {
+  const grid = document.getElementById("v2-gif-grid");
+  const loader = document.getElementById("v2-gif-loader");
+  const empty = document.getElementById("v2-gif-empty");
+  if (!grid) return;
+
+  if (loader) loader.classList.remove("hidden");
+  if (empty) empty.classList.add("hidden");
+  grid.innerHTML = "";
+
+  const endpointType = currentGifTab === "sticker" ? "stickers" : "gifs";
+  let url = "";
+
+  if (query) {
+    url = `https://api.giphy.com/v1/${endpointType}/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=24&rating=g`;
+  } else if (category === "trending") {
+    url = `https://api.giphy.com/v1/${endpointType}/trending?api_key=${GIPHY_API_KEY}&limit=24&rating=g`;
+  } else {
+    url = `https://api.giphy.com/v1/${endpointType}/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(category)}&limit=24&rating=g`;
+  }
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Giphy network error");
+    const json = await res.json();
+    const items = json.data || [];
+
+    if (loader) loader.classList.add("hidden");
+
+    if (items.length === 0) {
+      if (empty) empty.classList.remove("hidden");
+      return;
+    }
+
+    renderGiphyGrid(items);
+  } catch (err) {
+    console.error("GIPHY fetch error:", err);
+    if (loader) loader.classList.add("hidden");
+    if (empty) empty.classList.remove("hidden");
+  }
+}
+
+function renderGiphyGrid(items) {
+  const grid = document.getElementById("v2-gif-grid");
+  if (!grid) return;
+  grid.innerHTML = "";
+
+  const isSticker = currentGifTab === "sticker";
+
+  items.forEach((item) => {
+    const thumbUrl = item.images?.fixed_height_small?.url || item.images?.preview_gif?.url || item.images?.fixed_height?.url;
+    const fullUrl = item.images?.fixed_height?.url || item.images?.downsized_medium?.url || item.images?.original?.url;
+    if (!thumbUrl || !fullUrl) return;
+
+    const div = document.createElement("div");
+    div.className = `v2-gif-item ${isSticker ? "sticker-item" : ""}`;
+    div.title = item.title || (isSticker ? "Sticker" : "GIF");
+
+    const img = document.createElement("img");
+    img.className = "v2-gif-thumb";
+    img.src = thumbUrl;
+    img.alt = item.title || "GIF";
+    img.loading = "lazy";
+
+    div.appendChild(img);
+
+    div.onclick = () => {
+      onSelectGifOrSticker(fullUrl, currentGifTab);
+    };
+
+    grid.appendChild(div);
+  });
+}
+
+function onSelectGifOrSticker(gifUrl, gifType) {
+  closeV2GifDrawer();
+  if (currentGifContext === "private" && inCall && currentMatchTargetId) {
+    sendPrivateGif(gifUrl, gifType);
+  } else {
+    sendGroupGif(gifUrl, gifType);
+  }
+}
+
+function sendGroupGif(gifUrl, gifType = "gif") {
+  if (!socket || !socket.connected) {
+    v2ShowToast("⚠️ Connecting to group chat...");
+    return;
+  }
+  const now = Date.now();
+  if (window.__lastGroupGifSendTime && (now - window.__lastGroupGifSendTime < 2500)) {
+    v2ShowToast("⏳ Please wait a moment before sending another GIF!");
+    return;
+  }
+  window.__lastGroupGifSendTime = now;
+
+  const replyData = activeGroupReplyTo ? {
+    id: activeGroupReplyTo.id,
+    nickname: activeGroupReplyTo.nickname,
+    text: activeGroupReplyTo.text
+  } : null;
+
+  socket.emit("send_group_msg", {
+    text: gifType === "sticker" ? "🏷️ [Sticker]" : "🎬 [GIF]",
+    gif: { url: gifUrl, type: gifType },
+    replyTo: replyData
+  });
+
+  cancelGroupReply();
+}
+
+function sendPrivateGif(gifUrl, gifType = "gif") {
+  if (!socket || !currentMatchTargetId) {
+    v2ShowToast("⚠️ Connect with a stranger first to send GIFs!");
+    return;
+  }
+  const msgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+  const replyData = currentV2ReplyTarget ? { ...currentV2ReplyTarget } : null;
+
+  appendMediaMessage("You", gifType, gifUrl, "user", replyData, msgId);
+
+  socket.emit("signal", {
+    targetId: currentMatchTargetId,
+    signal: {
+      type: "chat",
+      text: gifType === "sticker" ? "🏷️ [Sticker]" : "🎬 [GIF]",
+      gif: { url: gifUrl, type: gifType },
+      msgId: msgId,
+      replyTo: replyData
+    },
+    clientVersion: "v2"
+  });
+
+  cancelV2ChatReply();
+}
+
 // Global Window Exports
 window.openV2SettingsModal = openV2SettingsModal;
 window.closeV2SettingsModal = closeV2SettingsModal;
@@ -9334,6 +9850,75 @@ window.togglePushNotifications = togglePushNotifications;
 window.acceptPeakNotificationPrompt = acceptPeakNotificationPrompt;
 window.dismissPeakNotificationPrompt = dismissPeakNotificationPrompt;
 window.showPeakNotificationPrompt = showPeakNotificationPrompt;
+window.isRestrictedNickname = isRestrictedNickname;
+window.openV2GifDrawer = openV2GifDrawer;
+window.closeV2GifDrawer = closeV2GifDrawer;
+window.switchGifTab = switchGifTab;
+window.selectGifCategory = selectGifCategory;
+window.debounceGifSearch = debounceGifSearch;
+window.clearGifSearch = clearGifSearch;
+window.onSelectGifOrSticker = onSelectGifOrSticker;
+window.sendGroupGif = sendGroupGif;
+window.sendPrivateGif = sendPrivateGif;
+
+// Quoted Reply Smooth Scroll & Context Peek Sheet (Approach 2)
+function handleQuotedReplyClick(targetOrEl, authorNick, snippetText) {
+  let targetMsgId = targetOrEl;
+  if (targetOrEl && typeof targetOrEl === "object" && targetOrEl.getAttribute) {
+    targetMsgId = targetOrEl.getAttribute("data-target-id") || "";
+    authorNick = targetOrEl.getAttribute("data-reply-nick") || authorNick;
+    snippetText = targetOrEl.getAttribute("data-reply-snippet") || snippetText;
+  }
+  if (!targetMsgId && !snippetText) return;
+
+  let targetElem = null;
+  if (targetMsgId) {
+    targetElem = document.getElementById("msg-" + targetMsgId) || document.getElementById(targetMsgId);
+  }
+
+  // Case 1: Target message is currently in the DOM -> Smooth scroll & pulse highlight
+  if (targetElem) {
+    targetElem.scrollIntoView({ behavior: "smooth", block: "center" });
+    targetElem.classList.remove("v2-msg-highlight-pulse");
+    void targetElem.offsetWidth; // trigger reflow
+    targetElem.classList.add("v2-msg-highlight-pulse");
+    setTimeout(() => {
+      if (targetElem) targetElem.classList.remove("v2-msg-highlight-pulse");
+    }, 1800);
+    return;
+  }
+
+  // Case 2: Target message was auto-deleted / rolled off the feed -> Open Context Peek Card (Approach 2)
+  openV2ContextPeek(authorNick, snippetText);
+}
+
+function openV2ContextPeek(authorNick, snippetText) {
+  const modal = document.getElementById("v2-context-peek-modal");
+  const nameElem = document.getElementById("v2-peek-author-name");
+  const textElem = document.getElementById("v2-peek-snippet-text");
+
+  if (nameElem) nameElem.textContent = authorNick || "Stranger";
+  if (textElem) textElem.textContent = snippetText || "(Message content)";
+
+  if (modal) {
+    modal.classList.remove("hidden");
+  }
+}
+
+function closeV2ContextPeek(event) {
+  if (event && event.target && event.currentTarget && event.target !== event.currentTarget) {
+    return;
+  }
+  const modal = document.getElementById("v2-context-peek-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+window.handleQuotedReplyClick = handleQuotedReplyClick;
+window.openV2ContextPeek = openV2ContextPeek;
+window.closeV2ContextPeek = closeV2ContextPeek;
+window.APP_CLIENT_VERSION = APP_CLIENT_VERSION;
+window.handleAppVersionSync = handleAppVersionSync;
+
 
 
 
