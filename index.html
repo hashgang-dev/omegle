@@ -35,7 +35,7 @@
   <link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png?v=102" />
   <link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png?v=102" />
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=102" />
-  <link id="app-manifest-link" rel="manifest" href="manifest.json?v=309" />
+  <link id="app-manifest-link" rel="manifest" href="manifest.json?v=318" />
 
   <!-- Open Graph / Facebook Meta Tags -->
   <meta property="og:site_name" content="HashGANG" />
@@ -65,7 +65,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=309" />
+  <link rel="stylesheet" href="style.css?v=320" />
 
   <!-- Schema.org JSON-LD Structured Data for Google Search Ranking -->
   <script type="application/ld+json">
@@ -429,12 +429,30 @@
               <div class="v2-drawer-handle"></div>
               <div class="v2-drawer-header">
                 <div class="v2-drawer-title-box">
-                  <span class="v2-drawer-icon"><i class="fa-solid fa-bolt"></i></span>
+                  <span class="v2-drawer-icon"><i class="fa-solid fa-paperclip"></i></span>
                   <div>
-                    <h4>Start Private Chat</h4>
+                    <h4>Attachments & Private Chat</h4>
                   </div>
                 </div>
                 <button class="v2-drawer-close-btn" onclick="closeV2CallDrawer()" title="Close">&times;</button>
+              </div>
+
+              <!-- Section 0: Express in Group Chat -->
+              <div class="v2-drawer-section">
+                <div class="v2-drawer-section-title">
+                  <i class="fa-solid fa-sparkles text-pink-400"></i>
+                  <span>Express in chat</span>
+                </div>
+                <div class="v2-attach-top-row">
+                  <button class="v2-attach-quick-btn gif-btn" onclick="openV2GifDrawer('gif', 'group')" type="button" title="Send a GIF">
+                    <span class="v2-quick-btn-icon"><i class="fa-solid fa-film"></i></span>
+                    <span class="v2-quick-btn-label">GIFs</span>
+                  </button>
+                  <button class="v2-attach-quick-btn sticker-btn" onclick="openV2GifDrawer('sticker', 'group')" type="button" title="Send a Sticker">
+                    <span class="v2-quick-btn-icon"><i class="fa-solid fa-note-sticky"></i></span>
+                    <span class="v2-quick-btn-label">Stickers</span>
+                  </button>
+                </div>
               </div>
 
               <!-- Section 1: With this group members -->
@@ -776,6 +794,16 @@
           <span class="v2-timeout-badge"><i class="fa-solid fa-sparkles text-purple-400"></i> Share & Play</span>
           <button class="v2-close-btn" onclick="closeV2AttachmentMenu()">&times;</button>
         </div>
+        <div class="v2-attach-top-row">
+          <button class="v2-attach-quick-btn gif-btn" onclick="openV2GifDrawer('gif', 'private')" type="button" title="Send a GIF">
+            <span class="v2-quick-btn-icon"><i class="fa-solid fa-film"></i></span>
+            <span class="v2-quick-btn-label">GIFs</span>
+          </button>
+          <button class="v2-attach-quick-btn sticker-btn" onclick="openV2GifDrawer('sticker', 'private')" type="button" title="Send a Sticker">
+            <span class="v2-quick-btn-icon"><i class="fa-solid fa-note-sticky"></i></span>
+            <span class="v2-quick-btn-label">Stickers</span>
+          </button>
+        </div>
         <div class="v2-attach-menu-grid">
           <button class="v2-attach-tile media-tile" onclick="triggerAttachmentMediaUpload()">
             <div class="v2-attach-tile-icon"><i class="fa-solid fa-camera-retro"></i></div>
@@ -802,6 +830,91 @@
       </div>
     </div>
 
+    <!-- Unified In-App GIF & Sticker Drawer Modal -->
+    <div class="v2-modal-overlay hidden" id="v2-gif-drawer-modal" onclick="closeV2GifDrawer(event)">
+      <div class="v2-modal-card v2-gif-drawer-card" onclick="event.stopPropagation()">
+        <div class="v2-gif-drawer-header">
+          <div class="v2-gif-tabs">
+            <button class="v2-gif-tab-btn active" id="v2-tab-gifs" onclick="switchGifTab('gif')" type="button">
+              <i class="fa-solid fa-film"></i> GIFs
+            </button>
+            <button class="v2-gif-tab-btn" id="v2-tab-stickers" onclick="switchGifTab('sticker')" type="button">
+              <i class="fa-solid fa-note-sticky"></i> Stickers
+            </button>
+          </div>
+          <button class="v2-close-btn" onclick="closeV2GifDrawer()" title="Close">&times;</button>
+        </div>
+
+        <div class="v2-gif-search-bar">
+          <i class="fa-solid fa-magnifying-glass v2-gif-search-icon"></i>
+          <input type="text" id="v2-gif-search-input" placeholder="Search GIFs on GIPHY..." autocomplete="off" oninput="debounceGifSearch()" />
+          <button class="v2-gif-search-clear hidden" id="v2-gif-search-clear" onclick="clearGifSearch()" type="button">&times;</button>
+        </div>
+
+        <div class="v2-gif-chips-scroll" id="v2-gif-chips">
+          <button class="v2-gif-chip active" onclick="selectGifCategory('trending')" type="button">🔥 Trending</button>
+          <button class="v2-gif-chip" onclick="selectGifCategory('funny')" type="button">😂 Funny</button>
+          <button class="v2-gif-chip" onclick="selectGifCategory('love')" type="button">❤️ Love</button>
+          <button class="v2-gif-chip" onclick="selectGifCategory('dance')" type="button">💃 Dance</button>
+          <button class="v2-gif-chip" onclick="selectGifCategory('shocked')" type="button">😮 Shocked</button>
+          <button class="v2-gif-chip" onclick="selectGifCategory('sad')" type="button">😢 Sad</button>
+          <button class="v2-gif-chip" onclick="selectGifCategory('clap')" type="button">👏 Clap</button>
+          <button class="v2-gif-chip" onclick="selectGifCategory('fire')" type="button">🔥 Fire</button>
+        </div>
+
+        <div class="v2-gif-grid" id="v2-gif-grid"></div>
+
+        <div class="v2-gif-loader hidden" id="v2-gif-loader">
+          <div class="v2-gif-spinner"></div>
+          <span>Loading media...</span>
+        </div>
+
+        <div class="v2-gif-empty hidden" id="v2-gif-empty">
+          <i class="fa-solid fa-face-meh"></i>
+          <p>No results found. Try another search!</p>
+        </div>
+
+        <div class="v2-gif-attribution">
+          <span>Powered by <strong>GIPHY</strong></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Context Peek Card Modal (Approach 2: Telegram/Discord Style) -->
+    <div class="v2-modal-overlay hidden" id="v2-context-peek-modal" onclick="closeV2ContextPeek(event)">
+      <div class="v2-modal-card v2-context-peek-card" onclick="event.stopPropagation()">
+        <div class="v2-peek-header">
+          <div class="v2-peek-title-group">
+            <span class="v2-peek-icon"><i class="fa-solid fa-quote-left"></i></span>
+            <span class="v2-peek-title">Original Message Context</span>
+          </div>
+          <button class="v2-close-btn" onclick="closeV2ContextPeek()" title="Close">&times;</button>
+        </div>
+
+        <div class="v2-peek-badge-row">
+          <span class="v2-peek-status-badge">
+            <i class="fa-solid fa-clock-rotate-left"></i> Auto-cleared from recent feed (50+ msgs ago)
+          </span>
+        </div>
+
+        <div class="v2-peek-body">
+          <div class="v2-peek-author-row">
+            <span class="v2-peek-avatar"><i class="fa-solid fa-user"></i></span>
+            <strong class="v2-peek-author-name" id="v2-peek-author-name">Stranger</strong>
+          </div>
+          <div class="v2-peek-quote-box">
+            <p class="v2-peek-snippet-text" id="v2-peek-snippet-text">Original text here</p>
+          </div>
+        </div>
+
+        <div class="v2-peek-footer">
+          <span class="v2-peek-helper-tip">
+            <i class="fa-solid fa-shield-halved"></i> Memory-optimized: older messages roll off the live feed, but quote context is preserved.
+          </span>
+          <button class="v2-btn-peek-dismiss" type="button" onclick="closeV2ContextPeek()">Got it</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Toast Feedback Notification -->
     <div class="v2-toast hidden" id="v2-toast">
@@ -853,9 +966,9 @@
           <button class="v2-close-btn" onclick="closeNicknameModal()">&times;</button>
         </div>
         <div class="v2-modal-body">
-          <p class="v2-nick-help">Choose your anonymous handle (Letters, numbers, spaces, _ - . max 16 chars):</p>
+          <p class="v2-nick-help">Choose your anonymous handle (Letters, numbers, spaces, _ - . max 20 chars):</p>
           <div class="v2-nick-input-wrap">
-            <input type="text" id="v2-input-new-nick" maxlength="16" placeholder="e.g. Neon_Falcon" autocomplete="off" />
+            <input type="text" id="v2-input-new-nick" maxlength="20" placeholder="e.g. Neon_Falcon" autocomplete="off" />
           </div>
           <p class="v2-nick-cooldown-hint">
             <i class="fa-solid fa-clock"></i> Can only be changed once every 1 hour
@@ -1063,7 +1176,7 @@
     <script src="ads.js?v=301" defer></script>
     <script src="ad_mediation_config.js?v=301" defer></script>
     <script src="socket.io.min.js?v=301"></script>
-    <script src="app.js?v=309" defer></script>
+    <script src="app.js?v=320" defer></script>
 </body>
 
 </html>
