@@ -386,7 +386,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v329";
+const APP_CLIENT_VERSION = "v332";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -441,43 +441,68 @@ function formatGroupMentions(escapedText, myNick) {
   });
 }
 
+function parseNumericVersion(v) {
+  if (!v || typeof v !== "string") return 0;
+  const match = v.match(/\d+/);
+  return match ? parseInt(match[0], 10) : 0;
+}
+
+// ============================================================================
+// Zero-Cost Static Root Version Sync Engine (/version.json)
+// 100% Decoupled from Node.js Backend — Zero API Hits, Zero Cloud VM Costs!
+// ============================================================================
+let isCheckingVersion = false;
+async function checkFrontendVersion() {
+  if (isCheckingVersion) return;
+  isCheckingVersion = true;
+  try {
+    const res = await fetch(`./version.json?t=${Date.now()}`, {
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache"
+      }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || !data.version) return;
+
+    const remoteVerNum = parseNumericVersion(data.version);
+    const localVerNum = parseNumericVersion(APP_CLIENT_VERSION);
+
+    if (remoteVerNum > localVerNum) {
+      console.log(`🚀 [Static Version Sync] New frontend update deployed! (${APP_CLIENT_VERSION} -> ${data.version})`);
+
+      // Check if user is in an active 1v1 private call
+      const activePeer = (typeof currentMatchTargetId !== "undefined" && currentMatchTargetId) || window.currentMatchTargetId;
+      const isDisc = (typeof isDisconnectedHandled !== "undefined" ? isDisconnectedHandled : false) || window.isDisconnectedHandled;
+      const inActiveCall = !!(activePeer && !isDisc);
+      if (inActiveCall) {
+        console.log(`⏳ [Static Version Sync] User in active 1v1 call. Reload deferred until return to lounge.`);
+        pendingAppShellReload = true;
+        window.pendingAppShellReload = true;
+        return;
+      }
+
+      if (typeof v2ShowToast === "function") {
+        v2ShowToast("🚀 New HashGANG update deployed! Refreshing with latest features...", 2200);
+      }
+      setTimeout(() => {
+        reloadAppShellSafely(`version.json update (${APP_CLIENT_VERSION} -> ${data.version})`);
+      }, 500);
+    }
+  } catch (e) {
+    // Fail silently on offline or temporary network hiccups
+  } finally {
+    isCheckingVersion = false;
+  }
+}
+window.checkFrontendVersion = checkFrontendVersion;
+
 function handleAppVersionSync(data) {
-  if (!data) return;
-  const serverDeployId = data.deployId;
-  const serverVersion = data.currentVersion || data.version;
-
-  // On initial socket connect for this tab: anchor the session deployId
-  if (!clientSessionDeployId) {
-    clientSessionDeployId = serverDeployId || serverVersion || APP_CLIENT_VERSION;
-    window.clientSessionDeployId = clientSessionDeployId;
-    return;
-  }
-
-  // Detect whether server restarted with a new deployment or bumped version
-  const hasDeployIdChanged = serverDeployId && serverDeployId !== clientSessionDeployId;
-  const hasVersionChanged = serverVersion && serverVersion !== APP_CLIENT_VERSION;
-
-  if (hasDeployIdChanged || hasVersionChanged) {
-    console.log(`🚀 [HashGANG Auto-Deploy Sync] Server deployment changed! (Server: ${serverDeployId || serverVersion}, Local: ${clientSessionDeployId})`);
-
-    // Check if user is in an active 1v1 private call
-    const activePeer = (typeof currentMatchTargetId !== "undefined" && currentMatchTargetId) || window.currentMatchTargetId;
-    const isDisc = (typeof isDisconnectedHandled !== "undefined" ? isDisconnectedHandled : false) || window.isDisconnectedHandled;
-    const inActiveCall = !!(activePeer && !isDisc);
-    if (inActiveCall) {
-      console.log(`⏳ [HashGANG Auto-Deploy Sync] User in active 1v1 call. Reload safely deferred until return to lounge.`);
-      pendingAppShellReload = true;
-      window.pendingAppShellReload = true;
-      return;
-    }
-
-    if (typeof v2ShowToast === "function") {
-      v2ShowToast("🚀 New HashGANG update deployed! Refreshing with latest features...", 2200);
-    }
-    setTimeout(() => {
-      reloadAppShellSafely(`automatic deploy sync (${clientSessionDeployId} -> ${serverDeployId || serverVersion})`);
-    }, 500);
-  }
+  // Legacy stub: Versioning is now 100% static via /version.json.
+  // Node.js backend is completely decoupled to prevent unnecessary server deploys & costs.
+  checkFrontendVersion();
 }
 
 function reloadAppShellSafely(reason) {
@@ -500,7 +525,7 @@ function reloadAppShellSafely(reason) {
 function registerV2ServiceWorker() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      const swPath = "./sw.js?v=320";
+      const swPath = "./sw.js?v=332";
       navigator.serviceWorker
         .register(swPath, { updateViaCache: "none" })
         .then((reg) => {
@@ -536,7 +561,7 @@ function registerV2ServiceWorker() {
       });
 
       // Mobile & Desktop Tab Wake-Up Check:
-      // When the user unlocks their phone or switches back to this tab, immediately check for updates!
+      // When the user unlocks their phone or switches back to this tab, check for static updates!
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") {
           try {
@@ -546,11 +571,13 @@ function registerV2ServiceWorker() {
               });
             }
           } catch (e) {}
-          if (window.socket && window.socket.connected) {
-            window.socket.emit("check_app_version");
-          }
+          checkFrontendVersion();
         }
       });
+
+      // Background Static Version Checks (initial check + periodic heartbeat every 5 mins)
+      setTimeout(checkFrontendVersion, 6000);
+      setInterval(checkFrontendVersion, 300000);
     });
   }
 }
@@ -1144,14 +1171,7 @@ function initSocketConnection() {
       }
     });
 
-    // Real-Time Version Handshake & Broadcast Sync Listeners
-    socket.on("app_version_sync", (data) => {
-      handleAppVersionSync(data);
-    });
-
-    socket.on("app_version_update", (data) => {
-      handleAppVersionSync(data);
-    });
+    // Version synchronization is now 100% static via /version.json (zero-cost static sync)
 
     socket.on("matched", async (data) => {
       console.log("⚡ [Socket.io v2] Match Found with Stranger:", data);

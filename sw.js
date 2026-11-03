@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-v329';
+const CACHE_NAME = 'hashgang-v332';
 
 const ASSETS_TO_CACHE = [
   '/',
@@ -103,6 +103,13 @@ self.addEventListener('fetch', (event) => {
   }
 
   const url = new URL(event.request.url);
+
+  // Always bypass ServiceWorker cache for version.json (direct fetch from static server root/CDN)
+  if (url.pathname.endsWith('/version.json')) {
+    event.respondWith(fetch(event.request, { cache: 'no-store' }));
+    return;
+  }
+
   const isImageOrFont = url.pathname.match(/\.(webp|png|jpg|jpeg|ico|svg|woff2?|ttf|eot)$/i);
 
   if (isImageOrFont) {
