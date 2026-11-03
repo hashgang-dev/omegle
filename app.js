@@ -189,7 +189,7 @@ window.trackV2Event = trackV2Event;
 // Auto-Scroll Helpers & Unread Indicator to Guarantee Seamless Reading Experience
 let unreadGroupMsgCount = 0;
 
-function isGroupFeedNearBottom(threshold = 120) {
+function isGroupFeedNearBottom(threshold = 180) {
   const feed = document.getElementById("v2-group-messages-feed");
   if (!feed) return true;
   const distanceFromBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight;
@@ -246,7 +246,7 @@ window.initGroupFeedScrollListener = initGroupFeedScrollListener;
 function scrollGroupFeedToBottom(smooth = false, force = false) {
   const feed = document.getElementById("v2-group-messages-feed");
   if (!feed) return;
-  if (!force && !isGroupFeedNearBottom(120)) {
+  if (!force && !isGroupFeedNearBottom(180)) {
     return;
   }
   if (smooth) {
@@ -386,7 +386,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v327";
+const APP_CLIENT_VERSION = "v329";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -410,7 +410,7 @@ const GREETING_STICKERS_POOL = [
   "https://media2.giphy.com/media/gdAjJVguYwM0NL0BZN/200.webp", // Smiling Cat Wave 😺
   "https://media2.giphy.com/media/Q7LHmoFwVP6Yc1swZs/200.webp", // Pop Style Hello Yellow Hand 👋
   "https://media2.giphy.com/media/pr1dbVONbGeVvSiECh/200.webp", // Friendly Hello Hand Wave 👋
-  "https://media1.giphy.com/media/qnVfpQQqQbXTZqTdKf/200.webp", // Stop Motion Hand Wave 👋
+  "https://media.giphy.com/media/jUQnMvjMiKdgVblLrX/200.webp", // Yeamoji Animated Emoji Hand Wave 👋 (100% Gender-Neutral)
   "https://media4.giphy.com/media/F9tGaJZqP4Dsw34rHb/200.webp", // Friendly Waving Hand 👋
   "https://media1.giphy.com/media/INWvHtY18ElyvtEdS2/200.webp", // Happy Fun Kennymays (Neutral Doodle)
   "https://media1.giphy.com/media/Bl8HBenE3yTfl8bGuz/200.webp"  // Happy Dance Neil Sanders (Neutral Doodle)
@@ -1644,7 +1644,7 @@ function initSocketConnection() {
     socket.on("new_group_msg", (msg) => {
       const feed = document.getElementById("v2-group-messages-feed");
       if (feed) {
-        const isNearBottom = isGroupFeedNearBottom(120);
+        const isNearBottom = isGroupFeedNearBottom(180);
         const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
 
         // Check if previous element in feed was a message from the same sender
@@ -1660,7 +1660,8 @@ function initSocketConnection() {
           }
         }
 
-        feed.appendChild(renderGroupMessageRow(msg, isConsecutive));
+        const row = renderGroupMessageRow(msg, isConsecutive);
+        feed.appendChild(row);
         playAudioChime("msg");
         liveGroupMsgCounter++;
         console.log(`💬 [In-Feed Pacing] Message count: ${liveGroupMsgCounter}`);
@@ -1668,11 +1669,34 @@ function initSocketConnection() {
           handleInFeedPacingInjection(feed, liveGroupMsgCounter);
         }
 
-        if (isSelf || isNearBottom) {
-          feed.scrollTop = feed.scrollHeight;
-          hideGroupScrollBottomBtn();
-        } else {
-          showGroupScrollBottomBtn();
+        const scrollToLatest = (smooth = false) => {
+          if (isSelf || isNearBottom) {
+            if (smooth) {
+              feed.scrollTo({ top: feed.scrollHeight, behavior: "smooth" });
+            } else {
+              feed.scrollTop = feed.scrollHeight;
+            }
+            hideGroupScrollBottomBtn();
+          } else {
+            showGroupScrollBottomBtn();
+          }
+        };
+
+        // Immediate scroll to bottom
+        scrollToLatest(true);
+        requestAnimationFrame(() => scrollToLatest(false));
+        setTimeout(() => scrollToLatest(true), 60);
+        setTimeout(() => scrollToLatest(false), 200);
+
+        // For stickers/images, also ensure exact bottom scroll when loaded
+        const mediaImg = row.querySelector("img");
+        if (mediaImg) {
+          mediaImg.addEventListener("load", () => {
+            if (isSelf || isNearBottom) {
+              feed.scrollTop = feed.scrollHeight;
+              hideGroupScrollBottomBtn();
+            }
+          }, { once: true });
         }
       }
     });
@@ -4084,9 +4108,10 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
   let mediaHtml = "";
   if (mediaType === "gif" || mediaType === "sticker") {
     const isSticker = mediaType === "sticker";
+    const stickerAttrs = isSticker ? 'width="120" height="120" loading="eager"' : 'loading="lazy"';
     mediaHtml = `
       <div class="v2-msg-gif-container ${isSticker ? 'is-sticker' : ''}">
-        <img src="${escapeHtml(dataUrl)}" class="v2-chat-gif-img" alt="${isSticker ? 'Sticker' : 'GIF'}" loading="lazy" />
+        <img src="${escapeHtml(dataUrl)}" class="v2-chat-gif-img" alt="${isSticker ? 'Sticker' : 'GIF'}" ${stickerAttrs} />
       </div>
     `;
   } else if (mediaType === "image") {
@@ -4121,11 +4146,25 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
     handlePrivateChatPacing();
   }
 
-  setTimeout(() => {
+  const doPrivateScroll = (smooth = true) => {
     if (el.chatMessages && (type === "user" || isNearBottom)) {
-      el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+      if (smooth) {
+        el.chatMessages.scrollTo({ top: el.chatMessages.scrollHeight, behavior: "smooth" });
+      } else {
+        el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+      }
     }
-  }, 30);
+  };
+
+  doPrivateScroll(true);
+  requestAnimationFrame(() => doPrivateScroll(false));
+  setTimeout(() => doPrivateScroll(true), 60);
+  setTimeout(() => doPrivateScroll(false), 200);
+
+  const mediaImg = msgDiv.querySelector("img, video");
+  if (mediaImg) {
+    mediaImg.addEventListener("load", () => doPrivateScroll(false), { once: true });
+  }
 }
 
 function updateStatus(state, text) {
@@ -5312,9 +5351,10 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
         </div>
       `;
     }
+    const stickerAttrs = isSticker ? 'width="120" height="120" loading="eager"' : 'loading="lazy"';
     bubbleContentHtml = `
       <div class="v2-msg-gif-container ${isSticker ? 'is-sticker' : ''}">
-        <img src="${safeGifUrl}" class="v2-chat-gif-img" alt="${isSticker ? 'Sticker' : 'GIF'}" loading="lazy" />
+        <img src="${safeGifUrl}" class="v2-chat-gif-img" alt="${isSticker ? 'Sticker' : 'GIF'}" ${stickerAttrs} />
       </div>
       ${waveBackHtml}
     `;

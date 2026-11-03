@@ -7707,11 +7707,19 @@ html, body {
 .v2-msg-gif-container.is-sticker {
   background: transparent !important;
   box-shadow: none !important;
-  max-width: 140px;
-  max-height: 140px;
+  width: 120px !important;
+  height: 120px !important;
+  min-height: 120px !important;
+  max-width: 120px !important;
+  max-height: 120px !important;
+  aspect-ratio: 1 / 1 !important;
 }
 
 .v2-msg-gif-container.is-sticker .v2-chat-gif-img {
+  width: 120px !important;
+  height: 120px !important;
+  min-height: 120px !important;
+  aspect-ratio: 1 / 1 !important;
   object-fit: contain;
   background: transparent;
   filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
@@ -7736,8 +7744,12 @@ html, body {
   border: none !important;
   margin: 0 !important;
   padding: 0 !important;
-  max-width: 140px;
-  max-height: 140px;
+  width: 120px !important;
+  height: 120px !important;
+  min-height: 120px !important;
+  max-width: 120px !important;
+  max-height: 120px !important;
+  aspect-ratio: 1 / 1 !important;
   display: block;
 }
 
@@ -7745,10 +7757,12 @@ html, body {
 .v2-group-msg-row.is-sticker-msg .v2-chat-gif-img {
   background: transparent !important;
   filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
-  max-width: 140px;
-  max-height: 140px;
-  width: auto;
-  height: auto;
+  width: 120px !important;
+  height: 120px !important;
+  min-height: 120px !important;
+  aspect-ratio: 1 / 1 !important;
+  max-width: 120px !important;
+  max-height: 120px !important;
   object-fit: contain;
   display: block;
 }
