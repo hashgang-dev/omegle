@@ -386,7 +386,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v322";
+const APP_CLIENT_VERSION = "v327";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -395,25 +395,25 @@ window.pendingAppShellReload = false;
 window.clientSessionDeployId = null;
 
 // ============================================================================
-// Auto Greeting WebP Stickers & Helpers
+// Auto Greeting WebP Stickers & Helpers (100% Gender-Neutral, Hello Only, HD Quality)
 // ============================================================================
 const GREETING_REGEX = /^(hi+|hello+|hai+|hey+)\s*(!*|\.*)$/i;
 
 const GREETING_STICKERS_POOL = [
-  "https://media3.giphy.com/media/FQxpCWS4ZyvNFCTKHJ/200.webp", // Stitch Waving Hello
-  "https://media4.giphy.com/media/qylEpU6DdBJ90tmAJm/200.webp", // Waving Brown Bear
-  "https://media2.giphy.com/media/yAivTEw2nVOw9R5G0Z/200.webp", // Cute Cat Hello
-  "https://media2.giphy.com/media/ujrj9aoOdNvXO/200.webp",       // Digg Rabbit Wave
-  "https://media1.giphy.com/media/jlko6pt7VFyr3Vv9gI/200.webp", // Cute Anime Girl Wave
-  "https://media4.giphy.com/media/UivD8bWmSe2JX7y0Qa/200.webp", // Pink Bear Hello
-  "https://media2.giphy.com/media/Q7LHmoFwVP6Yc1swZs/200.webp", // Pop Style Hello Wave
-  "https://media3.giphy.com/media/rZv3xYPM5H25k1Vw4I/200.webp", // Friendly Girl Wave
-  "https://media2.giphy.com/media/gdAjJVguYwM0NL0BZN/200.webp", // Smiling Cat Wave
-  "https://media2.giphy.com/media/pr1dbVONbGeVvSiECh/200.webp", // Friendly Hello Hand
-  "https://media1.giphy.com/media/qnVfpQQqQbXTZqTdKf/200.webp", // Stop Motion Hand Wave
-  "https://media1.giphy.com/media/INWvHtY18ElyvtEdS2/200.webp", // Happy Fun Kennymays
-  "https://media1.giphy.com/media/Bl8HBenE3yTfl8bGuz/200.webp", // Happy Dance Neil Sanders
-  "https://media2.giphy.com/media/MchviUMiRHpjrUF3HA/200.webp"  // Good Morning Hello
+  "https://media1.giphy.com/media/w1OBpBd7kJqHrJnJ13/200.webp", // Official 3D Emoji Waving Hand 👋
+  "https://media.giphy.com/media/KGMzZvWa5su2O5LCVR/200.webp",  // Animated Emoji Hand Wave 👋 (100% Gender-Neutral)
+  "https://media3.giphy.com/media/FQxpCWS4ZyvNFCTKHJ/200.webp", // Stitch Waving Hello (Disney Mascot)
+  "https://media4.giphy.com/media/mDLek2Pl1Q9PwH0dXd/200.webp", // Smileyworld Happy Face Waving Hello 😊👋
+  "https://media2.giphy.com/media/yAivTEw2nVOw9R5G0Z/200.webp", // Cute White Kitten Hello 🐱
+  "https://media4.giphy.com/media/hDSGolpaNZTK9OQJqk/200.webp", // Fun Yellow Cartoon Hand Wave 👋
+  "https://media2.giphy.com/media/ujrj9aoOdNvXO/200.webp",       // Digg Cute Rabbit Waving 🐰
+  "https://media2.giphy.com/media/gdAjJVguYwM0NL0BZN/200.webp", // Smiling Cat Wave 😺
+  "https://media2.giphy.com/media/Q7LHmoFwVP6Yc1swZs/200.webp", // Pop Style Hello Yellow Hand 👋
+  "https://media2.giphy.com/media/pr1dbVONbGeVvSiECh/200.webp", // Friendly Hello Hand Wave 👋
+  "https://media1.giphy.com/media/qnVfpQQqQbXTZqTdKf/200.webp", // Stop Motion Hand Wave 👋
+  "https://media4.giphy.com/media/F9tGaJZqP4Dsw34rHb/200.webp", // Friendly Waving Hand 👋
+  "https://media1.giphy.com/media/INWvHtY18ElyvtEdS2/200.webp", // Happy Fun Kennymays (Neutral Doodle)
+  "https://media1.giphy.com/media/Bl8HBenE3yTfl8bGuz/200.webp"  // Happy Dance Neil Sanders (Neutral Doodle)
 ];
 
 let lastGreetingStickerIdx = -1;
@@ -5270,7 +5270,7 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
 
   const senderLabel = canGroup ? "" : (isSelf
     ? `<span class="v2-msg-sender-name self"><span class="v2-you-pill">You</span> ${senderNick}</span>`
-    : `<span class="v2-msg-sender-name clickable-tag" style="color: ${senderColor};" onclick="tagUserInGroupInput('${encodeURIComponent(senderNickRaw)}')" title="Click to mention @${senderNick}">@${senderNick}</span>`);
+    : `<span class="v2-msg-sender-name clickable-tag" style="color: ${senderColor};" onclick="tagUserInGroupInput('${encodeURIComponent(senderNickRaw)}')" title="Click to mention @${senderNick}">${senderNick}</span>`);
 
   let bubbleContentHtml;
   if (challengeInfo) {
