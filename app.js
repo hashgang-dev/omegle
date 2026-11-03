@@ -386,13 +386,60 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v320";
+const APP_CLIENT_VERSION = "v322";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
 window.isAppShellReloading = false;
 window.pendingAppShellReload = false;
 window.clientSessionDeployId = null;
+
+// ============================================================================
+// Auto Greeting WebP Stickers & Helpers
+// ============================================================================
+const GREETING_REGEX = /^(hi+|hello+|hai+|hey+)\s*(!*|\.*)$/i;
+
+const GREETING_STICKERS_POOL = [
+  "https://media3.giphy.com/media/FQxpCWS4ZyvNFCTKHJ/200.webp", // Stitch Waving Hello
+  "https://media4.giphy.com/media/qylEpU6DdBJ90tmAJm/200.webp", // Waving Brown Bear
+  "https://media2.giphy.com/media/yAivTEw2nVOw9R5G0Z/200.webp", // Cute Cat Hello
+  "https://media2.giphy.com/media/ujrj9aoOdNvXO/200.webp",       // Digg Rabbit Wave
+  "https://media1.giphy.com/media/jlko6pt7VFyr3Vv9gI/200.webp", // Cute Anime Girl Wave
+  "https://media4.giphy.com/media/UivD8bWmSe2JX7y0Qa/200.webp", // Pink Bear Hello
+  "https://media2.giphy.com/media/Q7LHmoFwVP6Yc1swZs/200.webp", // Pop Style Hello Wave
+  "https://media3.giphy.com/media/rZv3xYPM5H25k1Vw4I/200.webp", // Friendly Girl Wave
+  "https://media2.giphy.com/media/gdAjJVguYwM0NL0BZN/200.webp", // Smiling Cat Wave
+  "https://media2.giphy.com/media/pr1dbVONbGeVvSiECh/200.webp", // Friendly Hello Hand
+  "https://media1.giphy.com/media/qnVfpQQqQbXTZqTdKf/200.webp", // Stop Motion Hand Wave
+  "https://media1.giphy.com/media/INWvHtY18ElyvtEdS2/200.webp", // Happy Fun Kennymays
+  "https://media1.giphy.com/media/Bl8HBenE3yTfl8bGuz/200.webp", // Happy Dance Neil Sanders
+  "https://media2.giphy.com/media/MchviUMiRHpjrUF3HA/200.webp"  // Good Morning Hello
+];
+
+let lastGreetingStickerIdx = -1;
+function getNextGreetingSticker() {
+  let nextIdx;
+  do {
+    nextIdx = Math.floor(Math.random() * GREETING_STICKERS_POOL.length);
+  } while (GREETING_STICKERS_POOL.length > 1 && nextIdx === lastGreetingStickerIdx);
+  lastGreetingStickerIdx = nextIdx;
+  return GREETING_STICKERS_POOL[nextIdx];
+}
+
+function decodeHtmlEntities(str) {
+  if (!str || typeof str !== "string") return "";
+  const txt = document.createElement("textarea");
+  txt.innerHTML = str;
+  return txt.value;
+}
+
+function formatGroupMentions(escapedText, myNick) {
+  if (!escapedText) return "";
+  return escapedText.replace(/@([a-zA-Z0-9_\u0900-\u0D7F]+)/g, (match, nick) => {
+    const isMe = myNick && (nick.toLowerCase() === myNick.toLowerCase());
+    return `<span class="v2-mention-tag${isMe ? ' is-me' : ''}">@${escapeHtml(nick)}</span>`;
+  });
+}
 
 function handleAppVersionSync(data) {
   if (!data) return;
@@ -3771,6 +3818,34 @@ function sendChatMessage() {
   const text = el.chatInput.value.trim();
   if (!text || !socket || !currentMatchTargetId) return;
 
+  // Single-word Greeting ("Hi", "Hello", "Hey", "Hai") -> Auto Animated WebP Sticker
+  if (GREETING_REGEX.test(text)) {
+    const greetingStickerUrl = getNextGreetingSticker();
+    const msgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const replyData = currentV2ReplyTarget ? { ...currentV2ReplyTarget } : null;
+
+    appendMediaMessage("You", "sticker", greetingStickerUrl, "user", replyData, msgId);
+
+    socket.emit("signal", {
+      targetId: currentMatchTargetId,
+      signal: {
+        type: "chat",
+        text: text,
+        gif: { url: greetingStickerUrl, type: "sticker", isGreeting: true },
+        mediaType: "sticker",
+        dataUrl: greetingStickerUrl,
+        msgId: msgId,
+        replyTo: replyData
+      },
+      clientVersion: "v2"
+    });
+
+    el.chatInput.value = "";
+    autoGrowChatInput();
+    cancelV2ChatReply();
+    return;
+  }
+
   // Link / URL blocking: Prevent external links, phishing, IP loggers, and spam in 1v1 private chat
   const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-zA-Z0-9-]+\.(com|org|net|xyz|online|site|app|io|co|link|live|fun|store|club|ai|gg|ru|cn|cc|to|is)\b)|(\b[a-zA-Z0-9-]+\.(in|me|ly)\/[^\s]+)|(t\.me\/[^\s]+)|(wa\.me\/[^\s]+)|(iplogger\.[^\s]+)|(grabify\.[^\s]+)|(bit\.ly\/[^\s]+)|(tinyurl\.com\/[^\s]+)/i;
   if (urlRegex.test(text)) {
@@ -3915,9 +3990,10 @@ function appendChatMessage(sender, text, type, replyTo = null, msgId = null) {
 
   if (!msgId) msgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
+  const isReplyToMe = Boolean(replyTo && replyTo.sender === "You" && type === "stranger");
   const msgDiv = document.createElement("div");
   msgDiv.id = msgId;
-  msgDiv.className = `v2-chat-msg ${type}`;
+  msgDiv.className = `v2-chat-msg ${type}${isReplyToMe ? " is-reply-to-me" : ""}`;
 
   let replyHtml = "";
   if (replyTo) {
@@ -3927,9 +4003,11 @@ function appendChatMessage(sender, text, type, replyTo = null, msgId = null) {
       else if (replyTo.sender === "Stranger") quotedAuthor = "You";
     }
     const safeAuthor = escapeHtml(quotedAuthor);
-    const safeSnippet = escapeHtml(replyTo.snippet || "");
+    const cleanSnippet = decodeHtmlEntities(replyTo.snippet || "");
+    const safeSnippet = escapeHtml(cleanSnippet);
     const safeMsgId = escapeHtml(String(replyTo.msgId || ""));
-    replyHtml = `<div class="v2-quoted-bubble" onclick="handleQuotedReplyClick(this)" data-target-id="${safeMsgId}" data-reply-nick="${safeAuthor}" data-reply-snippet="${safeSnippet}" title="Click to view original message"><span class="v2-quoted-author">${safeAuthor}</span><span class="v2-quoted-text">${safeSnippet}</span></div>`;
+    const replyBadgeHtml = isReplyToMe ? `<div class="v2-reply-to-me-badge"><i class="fa-solid fa-reply"></i> Replied to You</div>` : "";
+    replyHtml = `${replyBadgeHtml}<div class="v2-quoted-bubble" onclick="handleQuotedReplyClick(this)" data-target-id="${safeMsgId}" data-reply-nick="${safeAuthor}" data-reply-snippet="${safeSnippet}" title="Click to view original message"><span class="v2-quoted-author">${safeAuthor}</span><span class="v2-quoted-text">${safeSnippet}</span></div>`;
   }
 
   let textHtml = "";
@@ -3982,10 +4060,11 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
 
   if (!msgId) msgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
+  const isReplyToMe = Boolean(replyTo && replyTo.sender === "You" && type === "stranger");
   const msgDiv = document.createElement("div");
   msgDiv.id = msgId;
   const isSticker = mediaType === "sticker";
-  msgDiv.className = `v2-chat-msg ${type}${isSticker ? " is-sticker-msg" : ""}`;
+  msgDiv.className = `v2-chat-msg ${type}${isSticker ? " is-sticker-msg" : ""}${isReplyToMe ? " is-reply-to-me" : ""}`;
 
   let replyHtml = "";
   if (replyTo) {
@@ -3995,9 +4074,11 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
       else if (replyTo.sender === "Stranger") quotedAuthor = "You";
     }
     const safeAuthor = escapeHtml(quotedAuthor);
-    const safeSnippet = escapeHtml(replyTo.snippet || "");
+    const cleanSnippet = decodeHtmlEntities(replyTo.snippet || "");
+    const safeSnippet = escapeHtml(cleanSnippet);
     const safeMsgId = escapeHtml(String(replyTo.msgId || ""));
-    replyHtml = `<div class="v2-quoted-bubble" onclick="handleQuotedReplyClick(this)" data-target-id="${safeMsgId}" data-reply-nick="${safeAuthor}" data-reply-snippet="${safeSnippet}" title="Click to view original message"><span class="v2-quoted-author">${safeAuthor}</span><span class="v2-quoted-text">${safeSnippet}</span></div>`;
+    const replyBadgeHtml = isReplyToMe ? `<div class="v2-reply-to-me-badge"><i class="fa-solid fa-reply"></i> Replied to You</div>` : "";
+    replyHtml = `${replyBadgeHtml}<div class="v2-quoted-bubble" onclick="handleQuotedReplyClick(this)" data-target-id="${safeMsgId}" data-reply-nick="${safeAuthor}" data-reply-snippet="${safeSnippet}" title="Click to view original message"><span class="v2-quoted-author">${safeAuthor}</span><span class="v2-quoted-text">${safeSnippet}</span></div>`;
   }
 
   let mediaHtml = "";
@@ -4014,6 +4095,17 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
     mediaHtml = `<video src="${dataUrl}" class="v2-chat-media-video" controls playsinline onclick="openV2Lightbox('video', '${dataUrl}')"></video>`;
   }
 
+  let waveBackHtml = "";
+  if (isSticker && type === "stranger") {
+    waveBackHtml = `
+      <div class="v2-wave-back-wrap">
+        <button type="button" class="v2-wave-back-btn" onclick="handlePrivateWaveBack('${msgId}')">
+          <span class="v2-wave-hand">👋</span> Wave Back
+        </button>
+      </div>
+    `;
+  }
+
   let actionsHtml = "";
   if (type === "user") {
     actionsHtml = `<div class="v2-msg-external-actions"><button class="v2-ext-act-btn hidden" id="react-btn-${msgId}" title="Reaction" style="pointer-events: none; cursor: default;">😊</button><button class="v2-ext-act-btn" title="Reply" onclick="initiateV2ChatReply('${msgId}', 'You')">↩️</button></div>`;
@@ -4021,7 +4113,7 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
     actionsHtml = `<div class="v2-msg-external-actions"><button class="v2-ext-act-btn" title="Reply" onclick="initiateV2ChatReply('${msgId}', 'Stranger')">↩️</button><button class="v2-ext-act-btn" id="react-btn-${msgId}" title="React" onclick="toggleV2ReactionPicker('${msgId}', event)">😊</button></div>`;
   }
 
-  msgDiv.innerHTML = `${replyHtml}${mediaHtml}${actionsHtml}`;
+  msgDiv.innerHTML = `${replyHtml}${mediaHtml}${waveBackHtml}${actionsHtml}`;
   el.chatMessages.appendChild(msgDiv);
 
   privateChatMsgCounter++;
@@ -5087,8 +5179,21 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
   const isGif = !!(msg.gif && msg.gif.url);
   const isSticker = isGif && msg.gif.type === "sticker";
 
+  const isReplyToMe = Boolean(
+    msg.replyTo &&
+    (msg.replyTo.nickname === currentNickname || msg.replyTo.nickname === "You") &&
+    !isSelf
+  );
+
+  let isMentioned = false;
+  if (currentNickname && !isSelf && msg.text) {
+    const escapedNick = currentNickname.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const mentionRegex = new RegExp(`(^|\\s)@${escapedNick}(\\b|\\s|$)`, "i");
+    isMentioned = mentionRegex.test(msg.text);
+  }
+
   const row = document.createElement("div");
-  row.className = `v2-group-msg-row ${isSelf ? "self" : "other"}${isSticker ? " is-sticker-msg" : ""}`;
+  row.className = `v2-group-msg-row ${isSelf ? "self" : "other"}${isSticker ? " is-sticker-msg" : ""}${isReplyToMe ? " is-reply-to-me" : ""}${isMentioned ? " is-user-mentioned" : ""}`;
   row.id = `msg-${msg.id}`;
 
   const senderNickRaw = msg.nickname || "Stranger";
@@ -5118,10 +5223,13 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
       displayReplyNick = "You";
     }
     const safeReplyNick = escapeHtml(displayReplyNick);
-    const safeReplyText = escapeHtml(maskSocialKeywords(maskPhoneNumbers(msg.replyTo.text || "")));
+    const cleanReplyRaw = decodeHtmlEntities(msg.replyTo.text || "");
+    const safeReplyText = escapeHtml(maskSocialKeywords(maskPhoneNumbers(cleanReplyRaw)));
     const replyColor = (displayReplyNick === "You" || displayReplyNick === currentNickname) ? "#38bdf8" : getUserAccentColor(displayReplyNick);
     const safeParentId = escapeHtml(String(msg.replyTo.id || ""));
+    const replyBadgeHtml = isReplyToMe ? `<div class="v2-reply-to-me-badge"><i class="fa-solid fa-reply"></i> Replied to You</div>` : "";
     replyHtml = `
+      ${replyBadgeHtml}
       <div class="v2-bubble-reply-quote" style="border-left-color: ${replyColor};" onclick="handleQuotedReplyClick(this)" data-target-id="${safeParentId}" data-reply-nick="${safeReplyNick}" data-reply-snippet="${safeReplyText}" title="Click to view original message">
         <strong style="color: ${replyColor};">${safeReplyNick}</strong>: ${safeReplyText}
       </div>
@@ -5139,22 +5247,22 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
     reactionsHtml += `</div>`;
   }
 
-  const senderNick = escapeHtml(msg.nickname || "Stranger");
+  const senderNick = escapeHtml(senderNickRaw);
   const cleanText = escapeHtml(maskSocialKeywords(maskPhoneNumbers(msg.text || "")));
-  const replySnippet = isSticker ? "🏷️ [Sticker]" : (isGif ? "🎬 [GIF]" : cleanText.slice(0, 50));
+  const rawSnippet = isSticker ? "🏷️ [Sticker]" : (isGif ? "🎬 [GIF]" : (msg.text || "").slice(0, 60));
 
   let actionsHtml = "";
   if (isSelf) {
     actionsHtml = `
       <div class="v2-msg-external-actions">
         <button class="v2-ext-act-btn hidden" id="group-react-btn-${msg.id}" title="Reaction" style="pointer-events: none; cursor: default;">😊</button>
-        <button class="v2-ext-act-btn" title="Reply" onclick="startReplyToMessage('${msg.id}', '${senderNick}', '${escapeHtml(replySnippet).replace(/'/g, "\\'")}')">↩️</button>
+        <button class="v2-ext-act-btn" title="Reply" data-reply-id="${msg.id}" data-reply-nick="${encodeURIComponent(senderNickRaw)}" data-reply-snippet="${encodeURIComponent(rawSnippet)}" onclick="handleGroupReplyBtn(this)">↩️</button>
       </div>
     `;
   } else {
     actionsHtml = `
       <div class="v2-msg-external-actions">
-        <button class="v2-ext-act-btn" title="Reply" onclick="startReplyToMessage('${msg.id}', '${senderNick}', '${escapeHtml(replySnippet).replace(/'/g, "\\'")}')">↩️</button>
+        <button class="v2-ext-act-btn" title="Reply" data-reply-id="${msg.id}" data-reply-nick="${encodeURIComponent(senderNickRaw)}" data-reply-snippet="${encodeURIComponent(rawSnippet)}" onclick="handleGroupReplyBtn(this)">↩️</button>
         <button class="v2-ext-act-btn" id="group-react-btn-${msg.id}" title="React" onclick="toggleGroupReactionPicker('${msg.id}', event)">😊</button>
       </div>
     `;
@@ -5162,7 +5270,7 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
 
   const senderLabel = canGroup ? "" : (isSelf
     ? `<span class="v2-msg-sender-name self"><span class="v2-you-pill">You</span> ${senderNick}</span>`
-    : `<span class="v2-msg-sender-name" style="color: ${senderColor};">${senderNick}</span>`);
+    : `<span class="v2-msg-sender-name clickable-tag" style="color: ${senderColor};" onclick="tagUserInGroupInput('${encodeURIComponent(senderNickRaw)}')" title="Click to mention @${senderNick}">@${senderNick}</span>`);
 
   let bubbleContentHtml;
   if (challengeInfo) {
@@ -5193,13 +5301,27 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
     `;
   } else if (msg.gif && msg.gif.url) {
     const safeGifUrl = escapeHtml(msg.gif.url);
+    const isGreetingSticker = Boolean(isSticker && (msg.gif?.isGreeting || GREETING_REGEX.test(msg.text || "")));
+    let waveBackHtml = "";
+    if (isGreetingSticker && !isSelf) {
+      waveBackHtml = `
+        <div class="v2-wave-back-wrap">
+          <button type="button" class="v2-wave-back-btn" onclick="handleQuickWaveBack('${msg.id}', '${encodeURIComponent(senderNickRaw)}', '${encodeURIComponent(msg.text || "Hi")}')">
+            <span class="v2-wave-hand">👋</span> Wave Back
+          </button>
+        </div>
+      `;
+    }
     bubbleContentHtml = `
       <div class="v2-msg-gif-container ${isSticker ? 'is-sticker' : ''}">
         <img src="${safeGifUrl}" class="v2-chat-gif-img" alt="${isSticker ? 'Sticker' : 'GIF'}" loading="lazy" />
       </div>
+      ${waveBackHtml}
     `;
   } else {
-    bubbleContentHtml = `<span>${cleanText}</span>`;
+    const formattedText = formatGroupMentions(cleanText, currentNickname);
+    const mentionBadgeHtml = isMentioned ? `<div class="v2-mention-badge"><i class="fa-solid fa-at"></i> Mentioned You</div>` : "";
+    bubbleContentHtml = `${mentionBadgeHtml}<span>${formattedText}</span>`;
   }
 
   const bubbleLeftBorder = isSelf ? "" : (isSticker ? "" : `style="border-left: 3.5px solid ${senderColor};"`);
@@ -6187,6 +6309,31 @@ function sendGroupMessage() {
     v2ShowToast("🛡️ Social media handles/words masked with * to protect personal privacy.");
   }
 
+  // Single-word Greeting ("Hi", "Hello", "Hey", "Hai") -> Auto Animated WebP Sticker
+  if (GREETING_REGEX.test(rawText)) {
+    if (socket && socket.connected) {
+      const greetingStickerUrl = getNextGreetingSticker();
+      const replyData = activeGroupReplyTo ? {
+        id: activeGroupReplyTo.id,
+        nickname: activeGroupReplyTo.nickname,
+        text: activeGroupReplyTo.text
+      } : null;
+      socket.emit("send_group_msg", {
+        text: rawText,
+        gif: { url: greetingStickerUrl, type: "sticker", isGreeting: true },
+        replyTo: replyData,
+        nickname: currentNickname
+      });
+      input.value = "";
+      input.style.height = "36px";
+      cancelGroupReply();
+      scrollGroupFeedToBottom(false, true);
+    } else {
+      v2ShowToast("⚠️ Connecting to chat server...");
+    }
+    return;
+  }
+
   const now = Date.now();
   if (now - lastGroupMsgTime < 1000) {
     v2ShowToast("⏳ Slow down! 1 message per second.");
@@ -6300,6 +6447,75 @@ function cancelGroupReply() {
   const replyBar = document.getElementById("v2-group-reply-bar");
   if (replyBar) replyBar.classList.add("hidden");
 }
+
+function handleGroupReplyBtn(btn) {
+  if (!btn) return;
+  const id = btn.getAttribute("data-reply-id");
+  const nickname = decodeURIComponent(btn.getAttribute("data-reply-nick") || "Stranger");
+  const snippet = decodeURIComponent(btn.getAttribute("data-reply-snippet") || "");
+  startReplyToMessage(id, nickname, snippet);
+}
+
+function tagUserInGroupInput(encodedNick) {
+  const nick = decodeURIComponent(encodedNick || "");
+  if (!nick) return;
+  const input = document.getElementById("v2-group-input-field");
+  if (!input) return;
+  const tag = `@${nick} `;
+  if (!input.value.trim()) {
+    input.value = tag;
+  } else {
+    const current = input.value;
+    input.value = current.endsWith(" ") ? current + tag : current + " " + tag;
+  }
+  input.focus();
+  input.selectionStart = input.selectionEnd = input.value.length;
+}
+
+function handleQuickWaveBack(msgId, encodedNick, encodedText) {
+  const nick = decodeURIComponent(encodedNick || "Stranger");
+  const text = decodeURIComponent(encodedText || "Hi");
+  if (!socket || !socket.connected) {
+    v2ShowToast("⚠️ Connecting to group chat...");
+    return;
+  }
+  socket.emit("send_group_msg", {
+    text: "Hi! 👋",
+    replyTo: {
+      id: msgId,
+      nickname: nick,
+      text: `🏷️ [Sticker] ${text}`
+    },
+    nickname: currentNickname
+  });
+  v2ShowToast(`👋 Replied to ${nick}!`);
+}
+
+function handlePrivateWaveBack(msgId) {
+  if (!socket || !currentMatchTargetId) {
+    v2ShowToast("⚠️ Connect with a stranger first!");
+    return;
+  }
+  const replyData = { msgId, sender: "Stranger", snippet: "🏷️ [Sticker] Hi 👋" };
+  const waveMsgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+  appendChatMessage("You", "Hi! 👋", "user", replyData, waveMsgId);
+  socket.emit("signal", {
+    targetId: currentMatchTargetId,
+    signal: {
+      type: "chat",
+      text: "Hi! 👋",
+      msgId: waveMsgId,
+      replyTo: replyData
+    },
+    clientVersion: "v2"
+  });
+  v2ShowToast("👋 Replied to Stranger!");
+}
+
+window.handleGroupReplyBtn = handleGroupReplyBtn;
+window.tagUserInGroupInput = tagUserInGroupInput;
+window.handleQuickWaveBack = handleQuickWaveBack;
+window.handlePrivateWaveBack = handlePrivateWaveBack;
 
 function isPwaStandalone() {
   return window.matchMedia("(display-mode: standalone)").matches ||

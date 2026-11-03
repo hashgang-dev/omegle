@@ -7765,6 +7765,132 @@ html, body {
   font-size: 0.76rem;
 }
 
+/* 1-Click Wave Back Chip Button */
+.v2-wave-back-wrap {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+}
+
+.v2-wave-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.28), rgba(236, 72, 153, 0.28));
+  border: 1px solid rgba(236, 72, 153, 0.45);
+  color: #fdf2f8;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.v2-wave-back-btn:hover {
+  background: linear-gradient(135deg, #a855f7, #ec4899);
+  color: #ffffff;
+  border-color: #f472b6;
+  transform: translateY(-1px) scale(1.04);
+  box-shadow: 0 6px 18px rgba(236, 72, 153, 0.45);
+}
+
+.v2-wave-back-btn:active {
+  transform: scale(0.97);
+}
+
+.v2-wave-back-btn .v2-wave-hand {
+  font-size: 0.95rem;
+  display: inline-block;
+  animation: v2WaveHandAnim 1.6s ease-in-out infinite alternate;
+  transform-origin: 70% 70%;
+}
+
+@keyframes v2WaveHandAnim {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(14deg); }
+  50% { transform: rotate(-8deg); }
+  75% { transform: rotate(14deg); }
+  100% { transform: rotate(0deg); }
+}
+
+/* Clickable Nickname Tag in Chat */
+.v2-msg-sender-name.clickable-tag {
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s, text-decoration 0.15s, transform 0.15s;
+}
+
+.v2-msg-sender-name.clickable-tag:hover {
+  text-decoration: underline;
+  opacity: 0.88;
+}
+
+/* User Tagging / Mentions Highlight & Badges */
+.v2-group-msg-row.is-user-mentioned .v2-msg-bubble {
+  border: 1px solid rgba(245, 158, 11, 0.65) !important;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.14), rgba(15, 23, 42, 0.92)) !important;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.25) !important;
+}
+
+.v2-mention-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  color: #1e1b4b;
+  font-size: 0.66rem;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-bottom: 5px;
+  letter-spacing: 0.2px;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.v2-mention-tag {
+  display: inline-block;
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin: 0 1px;
+}
+
+.v2-mention-tag.is-me {
+  background: rgba(245, 158, 11, 0.25);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+}
+
+/* Noticeable Quoted Reply for the Original Author (Replied to You) */
+.v2-group-msg-row.is-reply-to-me .v2-msg-bubble,
+.v2-chat-msg.is-reply-to-me {
+  border: 1px solid rgba(56, 189, 248, 0.65) !important;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(15, 23, 42, 0.94)) !important;
+  box-shadow: 0 0 18px rgba(56, 189, 248, 0.25) !important;
+}
+
+.v2-reply-to-me-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #0284c7, #38bdf8);
+  color: #ffffff;
+  font-size: 0.66rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-bottom: 5px;
+  letter-spacing: 0.3px;
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.35);
+}
+
 /* ==========================================================================
    Context Peek Card Modal (Approach 2: Telegram/Discord Style)
    ========================================================================== */
