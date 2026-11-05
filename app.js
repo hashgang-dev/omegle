@@ -386,7 +386,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v337";
+const APP_CLIENT_VERSION = "v338";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -1901,12 +1901,61 @@ function initSocketConnection() {
     socket.on("group_rate_limited", (data) => {
       v2ShowToast(`⏳ ${data.message || "Slow down!"}`);
     });
+
+    socket.on("group_muted", (data) => {
+      const sec = data?.remainingSec || 120;
+      window.__groupMutedUntil = Date.now() + (sec * 1000);
+      v2ShowToast(data?.message || `🔇 You have been muted for ${sec}s due to spamming.`, 4500);
+      startGroupMuteCountdown(sec);
+    });
   } catch (err) {
     console.error("Socket.io initialization error:", err);
     if (typeof window.logAppError === "function") {
       window.logAppError(err.message || String(err), "socket_init_error", 0);
     }
   }
+}
+
+let groupMuteTimer = null;
+function startGroupMuteCountdown(initialSec) {
+  if (groupMuteTimer) clearInterval(groupMuteTimer);
+  const input = document.getElementById("v2-group-input-field");
+  const sendBtn = document.getElementById("v2-btn-group-send");
+  const defaultPlaceholder = "Say something nice to everyone...";
+
+  let remaining = initialSec;
+  if (input) {
+    input.disabled = true;
+    input.placeholder = `🔇 Muted for spamming (${remaining}s)...`;
+  }
+  if (sendBtn) {
+    sendBtn.disabled = true;
+    sendBtn.style.opacity = "0.5";
+    sendBtn.style.cursor = "not-allowed";
+  }
+
+  groupMuteTimer = setInterval(() => {
+    remaining--;
+    if (remaining <= 0) {
+      clearInterval(groupMuteTimer);
+      groupMuteTimer = null;
+      window.__groupMutedUntil = 0;
+      if (input) {
+        input.disabled = false;
+        input.placeholder = defaultPlaceholder;
+      }
+      if (sendBtn) {
+        sendBtn.disabled = false;
+        sendBtn.style.opacity = "";
+        sendBtn.style.cursor = "";
+      }
+      v2ShowToast("🔊 You are unmuted. Please chat politely!");
+    } else {
+      if (input) {
+        input.placeholder = `🔇 Muted for spamming (${remaining}s)...`;
+      }
+    }
+  }, 1000);
 }
 
 function removeElementById(id) {
@@ -6501,6 +6550,19 @@ function sendGroupMessage() {
   const rawText = input.value.trim();
   if (!rawText) return;
 
+  const now = Date.now();
+  if (window.__groupMutedUntil && now < window.__groupMutedUntil) {
+    const rem = Math.max(1, Math.ceil((window.__groupMutedUntil - now) / 1000));
+    v2ShowToast(`🔇 You are muted for spamming. Please wait ${rem}s.`);
+    return;
+  }
+
+  if (now - lastGroupMsgTime < 1000) {
+    v2ShowToast("⏳ Slow down! 1 message per second.");
+    return;
+  }
+  lastGroupMsgTime = now;
+
   let text = rawText.slice(0, 180);
 
   // Link / URL blocking: Prevent external links, promos, and spam
@@ -6548,13 +6610,6 @@ function sendGroupMessage() {
     }
     return;
   }
-
-  const now = Date.now();
-  if (now - lastGroupMsgTime < 1000) {
-    v2ShowToast("⏳ Slow down! 1 message per second.");
-    return;
-  }
-  lastGroupMsgTime = now;
 
   if (socket && socket.connected) {
     socket.emit("send_group_msg", {
