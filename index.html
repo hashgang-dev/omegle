@@ -65,7 +65,14 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=332" />
+  <link rel="stylesheet" href="style.css?v=335" />
+
+  <!-- Google AdSense Library (Ready for approval) -->
+  <script
+    async
+    src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6927010746708408"
+    crossorigin="anonymous"
+  ></script>
 
   <!-- Schema.org JSON-LD Structured Data for Google Search Ranking -->
   <script type="application/ld+json">
@@ -274,19 +281,25 @@
 
       <!-- Top Dropdown Popover Menu -->
       <div class="v2-popover-menu hidden" id="v2-popover-menu">
+        <a href="#" id="v2-menu-share-app" onclick="handleMenuShareClick(event)"
+          style="color: #34d399; font-weight: 700">
+          <i class="fa-solid fa-user-plus"></i> Invite Friends
+        </a>
         <a href="#" id="v2-menu-settings" onclick="openV2SettingsModal(event)"
           style="color: #c084fc; font-weight: 700">
           <i class="fa-solid fa-gear"></i> Settings
         </a>
         <a href="#" id="v2-menu-pwa-install" onclick="handlePwaInstallPrompt(event)"
           style="color: #38bdf8; font-weight: 700">
-          <i class="fa-solid fa-download"></i> Install #GANG
+          <i class="fa-solid fa-download"></i> Install App
         </a>
+        <div class="v2-menu-divider"></div>
         <a href="website.html"><i class="fa-solid fa-house"></i> Home</a>
         <a href="blog/index.html"><i class="fa-solid fa-newspaper"></i> Blog</a>
         <a href="press.html"><i class="fa-solid fa-bullhorn"></i> Press</a>
-        <a href="terms-of-service.html" target="_blank"><i class="fa-solid fa-file-contract"></i> Terms of Service</a>
+        <div class="v2-menu-divider"></div>
         <a href="privacy-policy.html" target="_blank"><i class="fa-solid fa-user-shield"></i> Privacy Policy</a>
+        <a href="terms-of-service.html" target="_blank"><i class="fa-solid fa-file-contract"></i> Terms of Service</a>
         <a href="https://hashgang.com/?utm_source=chat_subdomain&utm_medium=header&utm_campaign=internal_referral"
           target="_blank" rel="noopener" style="color: #f066ff; font-weight: 700">
           <i class="fa-solid fa-globe"></i> HashGANG
@@ -1152,8 +1165,39 @@
               <button type="button" class="v2-settings-action-btn primary" id="v2-settings-btn-install" onclick="handlePwaInstallPrompt(event)">
                 <i class="fa-solid fa-download"></i> <span id="v2-settings-install-text">Install</span>
               </button>
+            </div>
           </div>
-        </div>
+
+          <!-- Card 8: Share & Invite Friends -->
+          <div class="v2-settings-group" id="v2-settings-share-section">
+            <div class="v2-settings-group-title">
+              <i class="fa-solid fa-share-nodes text-emerald-400"></i> Share & Invite Friends
+            </div>
+            <p class="v2-settings-desc">Invite friends to HashGANG or start a secret private chat:</p>
+            <div class="v2-settings-share-strip">
+              <button type="button" class="v2-settings-share-pill wa" onclick="triggerDirectPlatformShare('whatsapp')" title="Share to WhatsApp">
+                <i class="fa-brands fa-whatsapp"></i> WhatsApp
+              </button>
+              <button type="button" class="v2-settings-share-pill tg" onclick="triggerDirectPlatformShare('telegram')" title="Share to Telegram">
+                <i class="fa-brands fa-telegram"></i> Telegram
+              </button>
+              <button type="button" class="v2-settings-share-pill ig" onclick="triggerDirectPlatformShare('instagram')" title="Share to Instagram">
+                <i class="fa-brands fa-instagram"></i> Instagram
+              </button>
+              <button type="button" class="v2-settings-share-pill sc" onclick="triggerDirectPlatformShare('snapchat')" title="Share to Snapchat">
+                <i class="fa-brands fa-snapchat"></i> Snapchat
+              </button>
+              <button type="button" class="v2-settings-share-pill tw" onclick="triggerDirectPlatformShare('twitter')" title="Share to X (Twitter)">
+                <i class="fa-brands fa-x-twitter"></i> X
+              </button>
+              <button type="button" class="v2-settings-share-pill copy" id="v2-settings-btn-copylink" onclick="copySettingsShareLink(this)" title="Copy Share Link">
+                <i class="fa-solid fa-copy"></i> <span>Copy Link</span>
+              </button>
+              <button type="button" class="v2-settings-share-pill secret" onclick="handleSettingsPrivateInvite()" title="Generate Secret Private Invite">
+                <i class="fa-solid fa-lock"></i> <span>Secret private invite</span>
+              </button>
+            </div>
+          </div>
       </div>
     </div>
 
@@ -1173,10 +1217,10 @@
     </div>
 
     <!-- Scripts Injection -->
-    <script src="ads.js?v=301" defer></script>
-    <script src="ad_mediation_config.js?v=301" defer></script>
+    <script src="ads.js?v=335" defer></script>
+    <script src="ad_mediation_config.js?v=335" defer></script>
     <script src="socket.io.min.js?v=301"></script>
-    <script src="app.js?v=332" defer></script>
+    <script src="app.js?v=335" defer></script>
 </body>
 
 </html>
