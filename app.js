@@ -386,7 +386,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v335";
+const APP_CLIENT_VERSION = "v337";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -1097,14 +1097,14 @@ function initSocketConnection() {
         if (peerStatus) peerStatus.textContent = "🟡 Reconnecting...";
 
         clearTimeout(clientGraceDisconnectTimeout);
-        // If client fails to reconnect within 9 seconds (matching server 8s grace + 1s tolerance):
+        // If client fails to reconnect within 22 seconds (matching server 20s grace + 2s tolerance):
         clientGraceDisconnectTimeout = setTimeout(() => {
           if (inCall && (!socket || !socket.connected)) {
             console.warn("❌ [v2 Recovery] Reconnect grace expired. Finalizing disconnect.");
             handleStrangerDisconnected(true);
             v2ShowToast("🔴 Connection lost. Stranger disconnected", 4000);
           }
-        }, 9000);
+        }, 22000);
       } else {
         updateStatus("idle", "Connecting...");
       }
@@ -1623,6 +1623,49 @@ function initSocketConnection() {
       }
     });
 
+    socket.on("group_resumed", (data) => {
+      console.log("💬 [Group Chat] Resumed group broadcast channel:", data.roomId);
+      activeGroupRoomId = data.roomId;
+      activeGroupRoomNumber = data.roomNumber || 1;
+      window.activeGroupRoomId = activeGroupRoomId;
+      window.activeGroupRoomNumber = activeGroupRoomNumber;
+
+      const badge = document.getElementById("v2-group-room-badge");
+      if (badge) badge.innerHTML = `<i class="fa-solid fa-comments"></i> Group #${data.roomNumber || 1}`;
+
+      const counter = document.getElementById("v2-group-online-count");
+      if (counter && data.memberCount) counter.textContent = data.memberCount;
+
+      const feed = document.getElementById("v2-group-messages-feed");
+      if (feed && Array.isArray(data.messages)) {
+        feed.innerHTML = "";
+        resetRoomColorMap();
+
+        const renderedInviteIds = new Set();
+        data.messages.forEach((msg) => {
+          if (msg.type === "call_invite") {
+            renderedInviteIds.add(msg.inviteId);
+            feed.appendChild(renderCallInviteCard(msg));
+          } else {
+            const row = renderGroupMessageRow(msg, false);
+            feed.appendChild(row);
+          }
+        });
+
+        if (Array.isArray(data.activeInvites)) {
+          data.activeInvites.forEach((inv) => {
+            if (!renderedInviteIds.has(inv.inviteId)) {
+              feed.appendChild(renderCallInviteCard(inv));
+            }
+          });
+        }
+
+        feed.appendChild(renderWelcomeKnowledgeCard(activeGroupRoomNumber));
+        feed.scrollTop = feed.scrollHeight;
+        hideGroupScrollBottomBtn();
+      }
+    });
+
     socket.on("group_member_count", (data) => {
       const counter = document.getElementById("v2-group-online-count");
       if (counter && data && data.memberCount) {
@@ -1631,6 +1674,7 @@ function initSocketConnection() {
     });
 
     socket.on("user_joined_group", (data) => {
+      if (inCall) return;
       if (!data || !data.nickname) return;
       triggerUserJoinNotification(data.nickname);
     });
@@ -1650,6 +1694,7 @@ function initSocketConnection() {
     });
 
     socket.on("new_group_msg", (msg) => {
+      if (inCall) return;
       const feed = document.getElementById("v2-group-messages-feed");
       if (feed) {
         const isNearBottom = isGroupFeedNearBottom(180);
@@ -1670,7 +1715,7 @@ function initSocketConnection() {
 
         const row = renderGroupMessageRow(msg, isConsecutive);
         feed.appendChild(row);
-        playAudioChime("msg");
+        if (!inCall) playAudioChime("msg");
         liveGroupMsgCounter++;
         console.log(`💬 [In-Feed Pacing] Message count: ${liveGroupMsgCounter}`);
         if (liveGroupMsgCounter % 15 === 0) {
@@ -1710,6 +1755,7 @@ function initSocketConnection() {
     });
 
     socket.on("new_group_reaction", (data) => {
+      if (inCall) return;
       const msgRow = document.getElementById(`msg-${data.messageId}`);
       if (msgRow) {
         let reactionsRow = msgRow.querySelector(".v2-msg-reactions-row");
@@ -1739,6 +1785,7 @@ function initSocketConnection() {
     });
 
     socket.on("new_call_invite", (invite) => {
+      if (inCall) return;
       let isSelf = (socket && socket.id && invite.inviterSocketId === socket.id);
       if (typeof isMyRecentInviteId === "function" && isMyRecentInviteId(invite.inviteId)) {
         isSelf = true;
@@ -1759,7 +1806,7 @@ function initSocketConnection() {
         if (!document.getElementById(`card-${invite.inviteId}`)) {
           const isNearBottom = isGroupFeedNearBottom(120);
           feed.appendChild(renderCallInviteCard(invite));
-          playAudioChime("msg");
+          if (!inCall) playAudioChime("msg");
           if (isNearBottom) {
             feed.scrollTop = feed.scrollHeight;
             hideGroupScrollBottomBtn();
@@ -2667,7 +2714,7 @@ async function createWebRTCPeerConnection(targetId, isInitiator) {
           updateStatus("disconnected", "🔴 Stranger Disconnected");
           v2ShowToast("🔴 Stranger Disconnected");
         }
-      }, 3500);
+      }, 10000);
     } else if (state === "connected" || state === "completed") {
       clearTimeout(iceReconnectTimeoutV2);
     } else if (state === "failed" || state === "closed") {
@@ -3255,13 +3302,32 @@ function updateVoiceUI(preset) {
   });
 }
 
-function setVoicePersona(preset) {
+async function setVoicePersona(preset) {
   activeVoicePreset = preset;
   try {
     localStorage.setItem("omg_voice_preset", preset);
   } catch (e) {}
   updateVoiceUI(preset);
-  applyVoicePresetToEngine(preset);
+
+  if (currentChatMode === "audio" && currentPeerConnection && rawLocalStream) {
+    let targetTrack = null;
+    if (preset === "girl" || preset === "boy") {
+      targetTrack = await initVoiceEngine(rawLocalStream);
+      applyVoicePresetToEngine(preset);
+    } else {
+      targetTrack = rawLocalStream.getAudioTracks()[0];
+    }
+    if (targetTrack) {
+      const senders = currentPeerConnection.getSenders ? currentPeerConnection.getSenders() : [];
+      const audioSender = senders.find(s => s.track && s.track.kind === "audio");
+      if (audioSender && typeof audioSender.replaceTrack === "function") {
+        audioSender.replaceTrack(targetTrack).catch(e => console.warn("replaceTrack notice:", e));
+      }
+    }
+  } else {
+    applyVoicePresetToEngine(preset);
+  }
+
   if (typeof v2ShowToast === "function") {
     const names = { normal: "🎙️ Normal Voice Active", girl: "🌸 Girl Voice Active", boy: "👨 Boy Voice Active" };
     v2ShowToast(names[preset] || "Voice Mask Updated");
@@ -3478,10 +3544,10 @@ async function initLocalMedia(mode) {
     stopLocalMedia();
     rawLocalStream = acquiredStream;
 
-    // Route audio based on call mode:
-    // 📹 Video Call: ALWAYS use raw local stream (direct hardware mic + camera)
-    // 100% crystal-clear native mic fidelity, 0ms Web Audio latency, zero dropouts!
-    if (mode === "audio") {
+    // Route audio based on call mode & active voice persona:
+    // When preset is "normal" (default real voice), ALWAYS use rawLocalStream directly.
+    // 100% native mic fidelity, 0ms Web Audio latency, zero dropouts or voice cuts!
+    if (mode === "audio" && (activeVoicePreset === "girl" || activeVoicePreset === "boy")) {
       const processedAudioTrack = await initVoiceEngine(rawLocalStream);
       if (processedAudioTrack && processedAudioTrack.readyState === "live") {
         localStream = new MediaStream([processedAudioTrack]);
@@ -3683,13 +3749,25 @@ function openV2Lightbox(mediaType, dataUrl) {
     container.innerHTML = `<video src="${dataUrl}" class="v2-lightbox-media-video" controls autoplay playsinline></video>`;
   }
   modal.classList.remove("hidden");
+
+  // Push history state so Android / mobile hardware back button closes lightbox instead of dropping the call!
+  try {
+    history.pushState({ modal: "lightbox" }, "", window.location.href);
+  } catch (e) {}
 }
 
-function closeV2Lightbox() {
+function closeV2Lightbox(fromPopstate = false) {
   const modal = document.getElementById("v2-lightbox-modal");
   const container = document.getElementById("v2-lightbox-content");
   if (modal) modal.classList.add("hidden");
   if (container) container.innerHTML = "";
+
+  // If closed via UI click (not popstate), pop the history entry cleanly
+  if (!fromPopstate && window.history.state && window.history.state.modal === "lightbox") {
+    try {
+      history.back();
+    } catch (e) {}
+  }
 }
 
 window.initiateV2ChatReply = initiateV2ChatReply;
@@ -7094,7 +7172,7 @@ function v2ReturnToGroupChat(autoInvite = false) {
   updateToolbarForMode("idle");
 
   if (socket && socket.connected) {
-    // Explicitly unpair from 1v1 private call on server cleanly (no cooldown)
+    // Explicitly unpair from 1v1 private call on server cleanly (no cooldown) and resume group broadcast
     socket.emit("leave_1v1_call");
 
     if (autoInvite && prevMode) {
@@ -7102,11 +7180,6 @@ function v2ReturnToGroupChat(autoInvite = false) {
     } else {
       window.pendingAutoInviteMode = null;
     }
-    activeGroupRoomNumber = null;
-    activeGroupRoomId = null;
-
-    // Fresh journey into group: rejoin Group #1 cleanly
-    socket.emit("join_group_chat", { nickname: currentNickname, requestedRoomNumber: 1 });
   }
 }
 
@@ -9517,6 +9590,21 @@ function closeV2SettingsModal(e) {
 
 // Native Hardware Back Button & Hash Routing Support
 window.addEventListener("popstate", () => {
+  // 1. If Fullscreen Image/Media Lightbox is open, Back button MUST just close lightbox!
+  const lightboxModal = document.getElementById("v2-lightbox-modal");
+  if (lightboxModal && !lightboxModal.classList.contains("hidden")) {
+    closeV2Lightbox(true);
+    return;
+  }
+
+  // 2. If Share / Private Invite modal is open, Back button closes it
+  const shareModal = document.getElementById("v2-share-modal");
+  if (shareModal && !shareModal.classList.contains("hidden")) {
+    closeV2ShareModal();
+    return;
+  }
+
+  // 3. Settings modal back routing
   const modal = document.getElementById("v2-settings-modal");
   if (modal) {
     if (window.location.hash === "#settings") {
