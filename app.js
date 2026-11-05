@@ -386,7 +386,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v332";
+const APP_CLIENT_VERSION = "v335";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -1550,15 +1550,7 @@ function initSocketConnection() {
 
         const messages = Array.isArray(data.messages) ? data.messages : [];
 
-        const isStandalone = (typeof window !== "undefined" && ((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator && window.navigator.standalone)));
-
-        // 1. PWA App Card before the first message (at top of chat history)
-        if (!isStandalone) {
-          feed.appendChild(renderPWAInstallFeedCard("App"));
-        }
-
         let adInjected = false;
-        let viralInjected = false;
         const totalMsgs = messages.length;
         const renderedInviteIds = new Set();
 
@@ -1585,14 +1577,10 @@ function initSocketConnection() {
             lastMsgTime = msgTime;
           }
 
-          // In-feed card injection in middle of history: Show internal house promo without consuming live Adsterra quota
-          if (idx === Math.floor(totalMsgs * 0.35) && !adInjected && totalMsgs >= 6) {
-            feed.appendChild(renderMyLeaderPromoFeedCard());
+          // In-feed card injection in middle of backlog history if sufficiently long (>= 15 msgs)
+          if (idx === Math.floor(totalMsgs * 0.5) && !adInjected && totalMsgs >= 15) {
+            feed.appendChild(renderHousePromoFeedCard());
             adInjected = true;
-            lastSenderId = null;
-          } else if (idx === Math.floor(totalMsgs * 0.7) && !viralInjected && totalMsgs >= 12) {
-            feed.appendChild(renderViralCommunityCard());
-            viralInjected = true;
             lastSenderId = null;
           }
         });
@@ -1685,7 +1673,7 @@ function initSocketConnection() {
         playAudioChime("msg");
         liveGroupMsgCounter++;
         console.log(`💬 [In-Feed Pacing] Message count: ${liveGroupMsgCounter}`);
-        if (liveGroupMsgCounter % 12 === 0) {
+        if (liveGroupMsgCounter % 15 === 0) {
           handleInFeedPacingInjection(feed, liveGroupMsgCounter);
         }
 
@@ -1886,6 +1874,7 @@ let privateChatPromoInjected = false;
 let currentStrangerPartnerName = "Stranger";
 let is1v1CallInitiator = false;
 let v2GamesPrompted = { rps: false, balloon: false };
+let last15CardInjectedAtMsg = -1;
 let last12CardInjectedAtMsg = -1;
 let v2RpsDeclined = false;
 let v2RpsMatchCompleted = false;
@@ -1931,6 +1920,7 @@ function clearChatHistory() {
   privateChatPwaInjected = false;
   privateChatAdInjected = false;
   privateChatPromoInjected = false;
+  last15CardInjectedAtMsg = -1;
   last12CardInjectedAtMsg = -1;
   v2RpsDeclined = false;
   v2RpsMatchCompleted = false;
@@ -4222,6 +4212,53 @@ function generateV2InviteCode() {
 let activeModalOrigin = "hero";
 let currentShare1v1Mode = "video";
 
+function handleMenuShareClick(event) {
+  if (event) {
+    try { event.preventDefault(); event.stopPropagation(); } catch (e) {}
+  }
+  if (el.popoverMenu) el.popoverMenu.classList.add("hidden");
+  openV2ShareModal("direct_1v1", "text");
+}
+window.handleMenuShareClick = handleMenuShareClick;
+
+function copySettingsShareLink(btn) {
+  const shareUrl = "https://chat.hashgang.com";
+  const doFeedback = () => {
+    if (btn) {
+      const origHtml = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-check" style="color: #4ade80;"></i> <span>Copied!</span>';
+      setTimeout(() => {
+        btn.innerHTML = origHtml;
+      }, 2500);
+    }
+    v2ShowToast("📋 HashGANG Chat link copied to clipboard!");
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(shareUrl).then(doFeedback).catch(() => {
+      doFeedback();
+    });
+  } else {
+    doFeedback();
+  }
+}
+window.copySettingsShareLink = copySettingsShareLink;
+
+function handleSettingsPrivateInvite() {
+  closeV2SettingsModal();
+  openV2ShareModal("direct_1v1", "text");
+}
+window.handleSettingsPrivateInvite = handleSettingsPrivateInvite;
+
+function handleShareApp(event) {
+  if (event) {
+    try { event.preventDefault(); event.stopPropagation(); } catch (e) {}
+  }
+  if (el.popoverMenu) el.popoverMenu.classList.add("hidden");
+  openV2ShareModal("direct_1v1", "text");
+}
+window.handleShareApp = handleShareApp;
+
 function openV2ShareModal(context = "invite", selectedMode = null) {
   const mode = selectedMode || (context === "direct_1v1" ? "video" : currentChatMode || "text");
   currentShare1v1Mode = mode;
@@ -5984,88 +6021,148 @@ function renderPWAInstallFeedCard(badgeText = "Promoted") {
   return card;
 }
 
-function renderMyLeaderPromoFeedCard() {
+let houseAdRotationIndex = 0;
+const ROTATIONAL_HOUSE_ADS = [
+  {
+    title: "MyLeader AI Platform",
+    desc: "Automate team management, attendance, payroll & policies with AI.",
+    linkUrl: "https://hashgang.com/myleader.html",
+    tagText: "Business Tools",
+    iconClass: "fa-solid fa-users-gear",
+    typeClass: "myleader",
+    ctaText: "Explore MyLeader Platform"
+  },
+  {
+    title: "HashGANG Software Studio",
+    desc: "Custom web development, mobile apps & business automation software.",
+    linkUrl: "https://hashgang.com",
+    tagText: "Tech Solutions",
+    iconClass: "fa-solid fa-laptop-code",
+    typeClass: "hashgang",
+    ctaText: "Build With HashGANG"
+  }
+];
+
+function getNextHouseAd() {
+  const ad = ROTATIONAL_HOUSE_ADS[houseAdRotationIndex % ROTATIONAL_HOUSE_ADS.length];
+  houseAdRotationIndex++;
+  return ad;
+}
+
+function renderHousePromoFeedCard() {
+  const ad = getNextHouseAd();
   const card = document.createElement("div");
-  card.className = "v2-feed-house-card myleader";
+  card.className = `v2-feed-house-card ${ad.typeClass}`;
   card.innerHTML = `
     <div class="v2-house-card-header">
-      <span class="v2-house-tag business"><i class="fa-solid fa-rocket"></i> Business Tools</span>
+      <span class="v2-house-tag business"><i class="${ad.iconClass}"></i> ${ad.tagText}</span>
       <span class="v2-house-ad-badge">Ad</span>
     </div>
     <div class="v2-house-card-body">
-      <div class="v2-house-icon-wrap myleader">
-        <i class="fa-solid fa-users-gear"></i>
+      <div class="v2-house-icon-wrap ${ad.typeClass}">
+        <i class="${ad.iconClass}"></i>
       </div>
       <div class="v2-house-card-text">
-        <h5>MyLeader AI Workspace</h5>
-        <p>Automate team management, attendance, payroll & leave policies with AI.</p>
+        <h5>${escapeHtml(ad.title)}</h5>
+        <p>${escapeHtml(ad.desc)}</p>
       </div>
     </div>
-    <a href="https://hashgang.com" target="_blank" rel="noopener noreferrer" class="v2-btn-house-action myleader">
-      <span>Explore MyLeader Platform</span> <i class="fa-solid fa-arrow-up-right-from-square"></i>
+    <a href="${ad.linkUrl}" target="_blank" rel="noopener noreferrer" class="v2-btn-house-action ${ad.typeClass}">
+      <span>${escapeHtml(ad.ctaText)}</span> <i class="fa-solid fa-arrow-up-right-from-square"></i>
     </a>
   `;
   return card;
 }
 
+function renderMyLeaderPromoFeedCard() {
+  return renderHousePromoFeedCard();
+}
+
+function injectAdSenseBanner(container, context = "group") {
+  inFeedAdSequence++;
+  const slotId = `v2-adsense-slot-${inFeedAdSequence}`;
+  const wrapperClass = context === "private" ? "v2-chat-inline-card ad" : "v2-infeed-ad-wrapper";
+
+  const adBox = document.createElement("div");
+  adBox.className = wrapperClass;
+  adBox.innerHTML = `
+    <span class="v2-micro-ad-badge">Advertisement</span>
+    <div id="${slotId}" class="v2-infeed-ad-slot loaded" style="display:flex;justify-content:center;align-items:center;">
+      <ins class="adsbygoogle"
+           style="display:inline-block;width:300px;height:250px"
+           data-ad-client="ca-pub-6927010746708408"
+           data-ad-slot="6484121987"></ins>
+    </div>
+  `;
+  container.appendChild(adBox);
+  try {
+    (window.adsbygoogle = window.adsbygoogle || []).push({});
+  } catch (e) {
+    console.warn("⚠️ [AdSense Injection] notice:", e);
+  }
+}
+
+function injectWaterfallAdBanner(container, context = "group") {
+  if (!container) return;
+
+  const isLocalhost = typeof window !== "undefined" && (
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname === ""
+  );
+  const mediationConfig = window.AD_MEDIATION_CONFIG || {};
+  const skipLocal = mediationConfig.settings && mediationConfig.settings.skipOnLocalhost;
+
+  // On localhost dev mode with skipOnLocalhost: true, skip third-party ad networks
+  // and directly serve rotational House Ads so developers can visually verify pacing!
+  if (isLocalhost && skipLocal) {
+    if (context === "private") {
+      container.appendChild(renderPrivateChatHouseInlineCard());
+    } else {
+      container.appendChild(renderHousePromoFeedCard());
+    }
+    console.log(`💼 [Ad Waterfall] Localhost dev mode: Served Rotational House Ad in ${context}`);
+    return;
+  }
+
+  // 1. Google AdSense (High-CPM Primary - Active when approved)
+  const isAdsenseEnabled = mediationConfig.adsenseEnabled === true;
+  if (isAdsenseEnabled) {
+    injectAdSenseBanner(container, context);
+    console.log(`🎯 [Ad Waterfall] Served Google AdSense in ${context}`);
+    return;
+  }
+
+  // 2. Adsterra (Capped at 4 impressions/hour)
+  const status = getGroupHourlyAdsterraStatus();
+  if (status.canShow) {
+    if (context === "private") {
+      injectPrivateChatAdsterraBanner(container);
+    } else {
+      injectInFeedAdsterraBanner(container);
+    }
+    incrementGroupHourlyAdsterraCount();
+    console.log(`🎯 [Ad Waterfall] Served Adsterra (${status.count + 1}/${MAX_GROUP_ADSTERRA_PER_HOUR}) in ${context}`);
+    return;
+  }
+
+  // 3. Rotational House Ads (Zero Wasted Space Fallback)
+  if (context === "private") {
+    container.appendChild(renderPrivateChatHouseInlineCard());
+  } else {
+    container.appendChild(renderHousePromoFeedCard());
+  }
+  console.log(`💼 [Ad Waterfall] 4/hr Adsterra cap reached. Served Rotational House Ad in ${context}`);
+}
+
 function handleInFeedPacingInjection(feed, currentCount) {
   if (!feed) return;
   const count = typeof currentCount === "number" ? currentCount : liveGroupMsgCounter;
-  const cycleIndex = Math.floor(count / 12);
 
-  if (cycleIndex % 2 === 1) {
-    // ==========================================
-    // ODD SLOTS (12, 36, 60, 84, 108, 132...): REVENUE FIRST!
-    // ==========================================
-    const status = getGroupHourlyAdsterraStatus();
-    if (status.canShow) {
-      injectInFeedAdsterraBanner(feed);
-      incrementGroupHourlyAdsterraCount();
-      console.log(`🎯 [In-Feed Monetization] Injected Adsterra Ad (${status.count + 1}/${MAX_GROUP_ADSTERRA_PER_HOUR})`);
-    } else {
-      feed.appendChild(renderMyLeaderPromoFeedCard());
-      console.log(`💼 [In-Feed Monetization] 4/hr Adsterra quota reached (${status.count}/${MAX_GROUP_ADSTERRA_PER_HOUR}). Injected MyLeader AI House Promo.`);
-    }
-  } else {
-    // ==========================================
-    // EVEN SLOTS (24, 48, 72, 96, 120...): 4-CARD FEATURE ROTATION
-    // ==========================================
-    const evenStep = Math.floor(cycleIndex / 2); // 1, 2, 3, 4, 5...
-    const rotationIndex = (evenStep - 1) % 4;    // 0, 1, 2, 3
-
-    switch (rotationIndex) {
-      case 0:
-        // Msg 24, 120...: Card 3 - Direct 1-on-1 Discovery within Group
-        feed.appendChild(render1v1DiscoveryFeedCard());
-        console.log("⚡ [In-Feed Discovery] Injected 1-on-1 Discovery Card (Inside Group).");
-        break;
-
-      case 1:
-        // Msg 48, 144...: Card 1 - Social Share (Group Chat Invite)
-        feed.appendChild(renderViralCommunityCard());
-        console.log("🔗 [In-Feed Community] Injected Group Chat Social Share Card.");
-        break;
-
-      case 2:
-        // Msg 72, 168...: Card 2 - Social Share (Direct 1-on-1 Outside Invite)
-        feed.appendChild(renderDirect1v1SocialInviteFeedCard());
-        console.log("🔒 [In-Feed 1v1 Share] Injected Direct 1-on-1 Outside Social Share Card.");
-        break;
-
-      case 3:
-      default: {
-        // Msg 96, 192...: Card 4 - PWA Install Card
-        const isStandalone = (typeof window !== "undefined" && ((window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator && window.navigator.standalone)));
-        if (!isStandalone) {
-          feed.appendChild(renderPWAInstallFeedCard("App"));
-          console.log("📱 [In-Feed PWA] Injected PWA Install Card.");
-        } else {
-          feed.appendChild(render1v1DiscoveryFeedCard());
-          console.log("⚡ [In-Feed PWA Fallback] App is standalone. Injected 1-on-1 Discovery Card.");
-        }
-        break;
-      }
-    }
+  // Clean, uniform 15-message pacing: Inject waterfall ad banner at 15, 30, 45, 60, 75...
+  if (count > 0 && count % 15 === 0) {
+    injectWaterfallAdBanner(feed, "group");
+    console.log(`🎯 [Group Feed Pacing] Injected Waterfall Ad at message ${count}`);
   }
 }
 
@@ -6166,9 +6263,9 @@ function handlePrivateChatPacing() {
     (
       (v2RpsMatchCompleted && v2RpsCompletedAtMsg > 0 && privateChatMsgCounter >= v2RpsCompletedAtMsg + 3) ||
       (v2RpsDeclined && privateChatMsgCounter >= 9) ||
-      (privateChatMsgCounter >= 15)
+      (privateChatMsgCounter >= 7 && privateChatMsgCounter < 15)
     ) &&
-    (privateChatMsgCounter % 12 !== 0) // Avoid injecting on the same message as 12-message card
+    (privateChatMsgCounter % 15 !== 0) // Avoid injecting on the same message as 15-message ad
   );
 
   if (shouldPromptBalloon) {
@@ -6180,35 +6277,14 @@ function handlePrivateChatPacing() {
   }
 
   // =========================================================================
-  // 2. 12-MESSAGE RECURRING FREQUENCY CARDS (EVERY 12 MESSAGES)
+  // 2. 15-MESSAGE RECURRING FREQUENCY CARDS (EVERY 15 MESSAGES: 15, 30, 45, 60...)
   // =========================================================================
-  // Strictly fires ONLY on exact multiples of 12 (12, 24, 36, 48, 60...), never at 13 or other numbers!
-  if (privateChatMsgCounter > 0 && privateChatMsgCounter % 12 === 0 && last12CardInjectedAtMsg !== privateChatMsgCounter) {
+  // Strictly fires ONLY on exact multiples of 15, never at 12 or arbitrary numbers!
+  if (privateChatMsgCounter > 0 && privateChatMsgCounter % 15 === 0 && last15CardInjectedAtMsg !== privateChatMsgCounter) {
+    last15CardInjectedAtMsg = privateChatMsgCounter;
     last12CardInjectedAtMsg = privateChatMsgCounter;
-
-    // At 12 messages: PWA Card (if not installed) or MyLeader house promo
-    if (privateChatMsgCounter === 12) {
-      if (!isStandalone) {
-        el.chatMessages.appendChild(renderPrivateChatPWAInlineCard());
-        console.log("📱 [1v1 Pacing] Injected compact PWA prompt at message 12.");
-      } else {
-        el.chatMessages.appendChild(renderPrivateChatHouseInlineCard());
-        console.log("💼 [1v1 Pacing] Injected compact MyLeader promo at message 12.");
-      }
-    }
-    // At 24, 36, 48, 60, 72... (all subsequent 12-message intervals):
-    // Monetize with Adsterra banner if quota allows, else House promo
-    else {
-      const status = getGroupHourlyAdsterraStatus();
-      if (status.canShow) {
-        injectPrivateChatAdsterraBanner(el.chatMessages);
-        incrementGroupHourlyAdsterraCount();
-        console.log(`🎯 [1v1 Pacing] Injected Adsterra banner at message ${privateChatMsgCounter} (${status.count + 1}/${MAX_GROUP_ADSTERRA_PER_HOUR}).`);
-      } else {
-        el.chatMessages.appendChild(renderPrivateChatHouseInlineCard());
-        console.log(`💼 [1v1 Pacing] Injected MyLeader promo at message ${privateChatMsgCounter}.`);
-      }
-    }
+    injectWaterfallAdBanner(el.chatMessages, "private");
+    console.log(`🎯 [1v1 Pacing] Injected Waterfall Ad at message ${privateChatMsgCounter}.`);
 
     setTimeout(() => {
       if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
@@ -6238,21 +6314,22 @@ function renderPrivateChatPWAInlineCard() {
 }
 
 function renderPrivateChatHouseInlineCard() {
+  const ad = getNextHouseAd();
   const card = document.createElement("div");
-  card.className = "v2-chat-inline-card myleader";
+  card.className = `v2-chat-inline-card ${ad.typeClass}`;
   card.innerHTML = `
     <div class="v2-inline-card-content">
-      <div class="v2-inline-card-icon myleader">
-        <i class="fa-solid fa-rocket"></i>
+      <div class="v2-inline-card-icon ${ad.typeClass}">
+        <i class="${ad.iconClass}"></i>
       </div>
       <div class="v2-inline-card-body">
         <div class="v2-inline-card-title">
-          <span>MyLeader AI Workspace</span>
+          <span>${escapeHtml(ad.title)}</span>
           <span class="v2-inline-card-tag business">Ad</span>
         </div>
-        <p class="v2-inline-card-desc">Automate team payroll, attendance & leave policies with AI.</p>
+        <p class="v2-inline-card-desc">${escapeHtml(ad.desc)}</p>
       </div>
-      <a href="https://hashgang.com" target="_blank" rel="noopener noreferrer" class="v2-inline-card-btn myleader">
+      <a href="${ad.linkUrl}" target="_blank" rel="noopener noreferrer" class="v2-inline-card-btn ${ad.typeClass}">
         <span>Explore</span> <i class="fa-solid fa-arrow-up-right-from-square"></i>
       </a>
     </div>
@@ -8200,6 +8277,7 @@ function reset1v1GamePacing() {
   v2RpsDeclined = false;
   v2RpsMatchCompleted = false;
   v2RpsCompletedAtMsg = -1;
+  last15CardInjectedAtMsg = -1;
   last12CardInjectedAtMsg = -1;
   v21v1BalloonResultPosted = false;
   dismiss1v1GamePrompt(true);

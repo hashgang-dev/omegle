@@ -229,6 +229,12 @@ html, body {
   color: var(--v2-primary-magenta);
 }
 
+.v2-popover-menu .v2-menu-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 4px 6px;
+}
+
 /* ==========================================================================
    Main Stage & Viewport Area
    ========================================================================== */
@@ -1964,7 +1970,7 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  z-index: 300;
+  z-index: 10000000;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(16, 185, 129, 0.25);
   animation: v2ToastFade 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   width: max-content;
@@ -3794,6 +3800,13 @@ html, body {
   border-color: rgba(236, 72, 153, 0.6);
 }
 
+.v2-feed-house-card.hashgang {
+  border-color: rgba(168, 85, 247, 0.35);
+}
+.v2-feed-house-card.hashgang:hover {
+  border-color: rgba(168, 85, 247, 0.65);
+}
+
 .v2-house-card-header {
   display: flex;
   align-items: center;
@@ -3852,6 +3865,12 @@ html, body {
   background: rgba(236, 72, 153, 0.15);
   border-color: rgba(236, 72, 153, 0.35);
   color: #f472b6;
+  font-size: 1.2rem;
+}
+.v2-house-icon-wrap.hashgang {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.35);
+  color: #c084fc;
   font-size: 1.2rem;
 }
 .v2-house-app-icon {
@@ -3914,6 +3933,16 @@ html, body {
 .v2-btn-house-action.myleader:hover {
   transform: translateY(-1px);
   box-shadow: 0 5px 16px rgba(217, 70, 239, 0.45);
+}
+
+.v2-btn-house-action.hashgang {
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: #fff;
+  box-shadow: 0 3px 12px rgba(168, 85, 247, 0.3);
+}
+.v2-btn-house-action.hashgang:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(168, 85, 247, 0.45);
 }
 
 /* Reply Floating Bar */
@@ -5187,6 +5216,11 @@ html, body {
   background: linear-gradient(135deg, rgba(236, 72, 153, 0.08) 0%, rgba(15, 23, 42, 0.85) 100%);
 }
 
+.v2-chat-inline-card.hashgang {
+  border-color: rgba(168, 85, 247, 0.3);
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.08) 0%, rgba(15, 23, 42, 0.85) 100%);
+}
+
 .v2-inline-card-content {
   display: flex;
   align-items: center;
@@ -5296,6 +5330,17 @@ html, body {
 }
 
 .v2-inline-card-btn.myleader:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.v2-inline-card-btn.hashgang {
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.3);
+}
+
+.v2-inline-card-btn.hashgang:hover {
   filter: brightness(1.1);
   transform: translateY(-1px);
 }
@@ -7179,6 +7224,78 @@ html, body {
 
 .v2-settings-action-btn.primary:hover {
   box-shadow: 0 4px 15px rgba(147, 51, 234, 0.4);
+}
+
+/* Settings Direct 1-Click Share Strip */
+.v2-settings-share-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.v2-settings-share-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.v2-settings-share-pill:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.15);
+}
+
+.v2-settings-share-pill.wa {
+  background: rgba(37, 211, 102, 0.18);
+  border-color: rgba(37, 211, 102, 0.45);
+  color: #4ade80;
+}
+
+.v2-settings-share-pill.tg {
+  background: rgba(0, 136, 204, 0.18);
+  border-color: rgba(0, 136, 204, 0.45);
+  color: #38bdf8;
+}
+
+.v2-settings-share-pill.ig {
+  background: rgba(225, 48, 108, 0.18);
+  border-color: rgba(225, 48, 108, 0.45);
+  color: #f472b6;
+}
+
+.v2-settings-share-pill.sc {
+  background: rgba(255, 252, 0, 0.16);
+  border-color: rgba(255, 252, 0, 0.45);
+  color: #fef08a;
+}
+
+.v2-settings-share-pill.tw {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+
+.v2-settings-share-pill.copy {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #e2e8f0;
+}
+
+.v2-settings-share-pill.secret {
+  background: rgba(192, 132, 252, 0.18);
+  border-color: rgba(192, 132, 252, 0.45);
+  color: #d8b4fe;
 }
 
 /* Danger Zone Wipe Trace Button */
