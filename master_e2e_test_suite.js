@@ -532,6 +532,7 @@ async function runMasterE2ESuite() {
       await pHost.waitForFunction(() => !!window.currentSessionTraceCode || !!window.currentMatchTargetId, { timeout: 10000 });
       await pF1.waitForFunction(() => !!window.currentSessionTraceCode || !!window.currentMatchTargetId, { timeout: 10000 });
 
+      await new Promise((r) => setTimeout(r, 400));
       await pF2.goto(inviteUrlGroup, { waitUntil: "load" });
       await pF2.waitForFunction(() => typeof window.v2SelectModeAndStart === "function" && window.socket?.connected);
       await pF2.evaluate(() => window.v2SelectModeAndStart("text"));
@@ -1636,7 +1637,7 @@ async function runMasterE2ESuite() {
         const socket = io(SOCKET_URL, {
           transports: ["websocket"],
           forceNew: true,
-          query: { clientVer: "v350" }
+          query: { clientVer: "v351" }
         });
         socket.on("connect", () => {
           socket.emit("join_group_chat", { nickname });
