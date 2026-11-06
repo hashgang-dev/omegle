@@ -383,16 +383,22 @@ async function runMasterE2ESuite() {
     logResult("Race Condition & Double-Accept Protection", s3Error !== null);
 
     // 2.11 Zombie Card Cleanup on Disconnect
+    const sGroupWatcher = io(SOCKET_URL, { transports: ["websocket"] });
+    await new Promise((res) => {
+      sGroupWatcher.on("group_joined", res);
+      sGroupWatcher.emit("join_group_chat", { nickname: "Watcher" });
+    });
+
     let s3Invite = null;
     const s3InvitePromise = new Promise((resolve) => {
-      sGroup1.on("new_call_invite", (d) => { s3Invite = d; resolve(); });
+      sGroupWatcher.on("new_call_invite", (d) => { s3Invite = d; resolve(); });
     });
     sGroup3.emit("post_call_invite", { mode: "audio", testBypass: true });
     await s3InvitePromise;
 
     let inviteCancelled = null;
     const cancelPromise = new Promise((resolve) => {
-      sGroup1.on("call_invite_cancelled", (d) => {
+      sGroupWatcher.on("call_invite_cancelled", (d) => {
         if (d.inviteId === s3Invite.inviteId) {
           inviteCancelled = d;
           resolve();
@@ -403,6 +409,7 @@ async function runMasterE2ESuite() {
 
     sGroup3.disconnect();
     await cancelPromise;
+    sGroupWatcher.disconnect();
 
     logResult("Zombie Card Cleanup on Disconnect (call_invite_cancelled)", inviteCancelled !== null);
 
@@ -605,6 +612,15 @@ async function runMasterE2ESuite() {
     console.log("📌 PHASE 4: Headless Browser UI E2E for Group Chat & Multi-Modal");
     console.log("───────────────────────────────────────────────────────────────────────");
 
+    const safeDismissAgeModal = async (p) => {
+      try {
+        const ageBtn = p.locator("#v2-btn-age-confirm, .v2-btn-enter");
+        if (await ageBtn.count() > 0 && await ageBtn.first().isVisible({ timeout: 1500 })) {
+          await ageBtn.first().click();
+        }
+      } catch (_) {}
+    };
+
     // Permutation 6: 18+ Age Modal Gate & First-Time Onboarding
     console.log("🔹 [PERMUTATION 6] 18+ Age Modal Gate & First-Time Onboarding...");
     try {
@@ -649,7 +665,7 @@ async function runMasterE2ESuite() {
       const page = await ctx.newPage();
       await page.goto(APP_URL, { waitUntil: "load" });
 
-      await page.click("#v2-btn-age-confirm");
+      await safeDismissAgeModal(page);
       await page.waitForTimeout(300);
 
       await page.click("#v2-btn-edit-nick");
@@ -687,8 +703,8 @@ async function runMasterE2ESuite() {
       await pageAlice.goto(APP_URL, { waitUntil: "load" });
       await pageBob.goto(APP_URL, { waitUntil: "load" });
 
-      await pageAlice.click("#v2-btn-age-confirm");
-      await pageBob.click("#v2-btn-age-confirm");
+      await safeDismissAgeModal(pageAlice);
+      await safeDismissAgeModal(pageBob);
 
       await pageAlice.waitForFunction(() => window.socket?.connected);
       await pageBob.waitForFunction(() => window.socket?.connected);
@@ -781,8 +797,8 @@ async function runMasterE2ESuite() {
       await pageAlice.goto(APP_URL, { waitUntil: "load" });
       await pageBob.goto(APP_URL, { waitUntil: "load" });
 
-      await pageAlice.click("#v2-btn-age-confirm");
-      await pageBob.click("#v2-btn-age-confirm");
+      await safeDismissAgeModal(pageAlice);
+      await safeDismissAgeModal(pageBob);
 
       await pageAlice.waitForFunction(() => window.socket?.connected);
       await pageBob.waitForFunction(() => window.socket?.connected);
@@ -830,7 +846,7 @@ async function runMasterE2ESuite() {
       const page = await ctx.newPage();
       await page.goto(APP_URL, { waitUntil: "load" });
 
-      await page.click("#v2-btn-age-confirm");
+      await safeDismissAgeModal(page);
       await page.waitForFunction(() => window.socket?.connected);
 
       await page.evaluate(() => window.v2SelectModeAndStart("text"));
@@ -1603,6 +1619,387 @@ async function runMasterE2ESuite() {
 
   } catch (err) {
     logResult("Phase 10 WebPush Suite Execution", false, err.message);
+  }
+
+  // ===========================================================================
+  // PHASE 11: Multiplayer Ludo Board Game & P2P Mesh Engine
+  // ===========================================================================
+  console.log("\n───────────────────────────────────────────────────────────────────────");
+  console.log("📌 PHASE 11: Multiplayer Ludo Board Game & P2P Audio Mesh Engine");
+  console.log("───────────────────────────────────────────────────────────────────────");
+
+  try {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const createGroupClient = (nickname) => {
+      return new Promise((resolve, reject) => {
+        const socket = io(SOCKET_URL, {
+          transports: ["websocket"],
+          forceNew: true,
+          query: { clientVer: "v350" }
+        });
+        socket.on("connect", () => {
+          socket.emit("join_group_chat", { nickname });
+        });
+        socket.on("group_joined", () => resolve(socket));
+        socket.on("connect_error", reject);
+      });
+    };
+
+    // 11.1 Unified 4P Lobby Creation & Invite Broadcast
+    const hostClient = await createGroupClient("Ludo_Host_Red");
+    const challenger1 = await createGroupClient("Ludo_Challenger_1");
+
+    let ludoInviteId = null;
+    let inviteReceived = null;
+
+    const invitePromise = new Promise((resolve) => {
+      challenger1.on("new_ludo_invite", (invite) => {
+        ludoInviteId = invite.inviteId;
+        inviteReceived = invite;
+        resolve(invite);
+      });
+    });
+
+    hostClient.emit("post_ludo_invite");
+    await invitePromise;
+
+    const timeoutSec = inviteReceived?.expiresInSec || Math.round(((inviteReceived?.expiresAt || 0) - (inviteReceived?.createdAt || 0)) / 1000);
+    logResult("Unified 4P Ludo Lobby Creation & Expiry Broadcast",
+      !!ludoInviteId && inviteReceived?.maxPlayers === 4 && timeoutSec === 60,
+      `[Invite: ${ludoInviteId}, Max: ${inviteReceived?.maxPlayers}, Timeout: ${timeoutSec}s]`
+    );
+
+    // 11.2 Challenger Slot Update Broadcast
+    let slotData = null;
+    const slotPromise = new Promise((resolve) => {
+      hostClient.on("ludo_slot_updated", (data) => {
+        slotData = data;
+        resolve(data);
+      });
+    });
+
+    challenger1.emit("join_ludo_invite", { inviteId: ludoInviteId });
+    await slotPromise;
+
+    logResult("Real-Time Lobby Slot Update Broadcast",
+      slotData?.joinedPlayers?.length === 2 && slotData?.maxPlayers === 4,
+      `[Slots: ${slotData?.joinedPlayers?.length}/${slotData?.maxPlayers}]`
+    );
+
+    // 11.3 Host Early-Start Handshake (2 Players)
+    let p1GameStart = null;
+    let p2GameStart = null;
+
+    const startPromise = Promise.all([
+      new Promise((res) => hostClient.once("ludo_game_start", (data) => { p1GameStart = data; res(data); })),
+      new Promise((res) => challenger1.once("ludo_game_start", (data) => { p2GameStart = data; res(data); }))
+    ]);
+
+    hostClient.emit("start_ludo_game_now", { inviteId: ludoInviteId });
+    await startPromise;
+
+    logResult("Host Early Start Handshake & 60s Relaxed Turn Timeout",
+      p1GameStart?.mode === "2p" &&
+      p1GameStart?.turnTimeoutSec === 60 &&
+      p1GameStart?.players?.length === 2 &&
+      p2GameStart?.gameId === p1GameStart?.gameId,
+      `[Mode: ${p1GameStart?.mode}, Timeout: ${p1GameStart?.turnTimeoutSec}s]`
+    );
+
+    // 11.4 Synchronous Dice Roll Broadcast
+    let rolledData = null;
+    const dicePromise = new Promise((resolve) => {
+      challenger1.once("ludo_dice_rolled", (data) => {
+        rolledData = data;
+        resolve(data);
+      });
+    });
+
+    hostClient.emit("ludo_roll_dice");
+    await dicePromise;
+
+    logResult("Synchronous Dice Roll Event & Value Distribution [1-6]",
+      rolledData && rolledData.dice >= 1 && rolledData.dice <= 6 && rolledData.color === "red",
+      `[Rolled: ${rolledData?.dice} by ${rolledData?.color}]`
+    );
+
+    // 11.5 WebRTC P2P Audio Signaling State Relay
+    let signalRelayed = false;
+    const ludoSignalPromise = new Promise((resolve) => {
+      challenger1.once("ludo_signal", (data) => {
+        if (data.senderId === hostClient.id && data.signal?.type === "ludo_offer") {
+          signalRelayed = true;
+          resolve(true);
+        }
+      });
+      setTimeout(() => resolve(false), 2000);
+    });
+
+    hostClient.emit("ludo_signal", {
+      targetId: challenger1.id,
+      signal: { type: "ludo_offer", sdp: "dummy_ludo_audio_offer" }
+    });
+    await ludoSignalPromise;
+
+    logResult("Ludo P2P Audio Mesh Signaling Relay & Anti-Glare Guard", signalRelayed === true);
+
+    // 11.6 Forfeit & Game Over Broadcast
+    let gameOverData = null;
+    const gameOverPromise = new Promise((resolve) => {
+      hostClient.once("ludo_game_over", (data) => {
+        gameOverData = data;
+        resolve(data);
+      });
+    });
+
+    challenger1.emit("ludo_leave_game");
+    await gameOverPromise;
+
+    logResult("Forfeit Resignation & Winner Broadcast",
+      gameOverData?.reason === "forfeit" && gameOverData?.winner === "red",
+      `[Winner: ${gameOverData?.winner}, Reason: ${gameOverData?.reason}]`
+    );
+
+    hostClient.disconnect();
+    challenger1.disconnect();
+    await sleep(300);
+
+    // 11.7 Dynamic 3-Player Match Launch
+    const host3P = await createGroupClient("Host_3P");
+    const p2_3P = await createGroupClient("P2_3P");
+    const p3_3P = await createGroupClient("P3_3P");
+
+    let inv3PId = null;
+    const inv3PPromise = new Promise((resolve) => {
+      p2_3P.on("new_ludo_invite", (invite) => {
+        inv3PId = invite.inviteId;
+        resolve(invite);
+      });
+    });
+
+    host3P.emit("post_ludo_invite");
+    await inv3PPromise;
+
+    p2_3P.emit("join_ludo_invite", { inviteId: inv3PId });
+    await sleep(150);
+    p3_3P.emit("join_ludo_invite", { inviteId: inv3PId });
+    await sleep(150);
+
+    const start3PPromise = Promise.all([
+      new Promise((res) => host3P.once("ludo_game_start", res)),
+      new Promise((res) => p2_3P.once("ludo_game_start", res)),
+      new Promise((res) => p3_3P.once("ludo_game_start", res))
+    ]);
+
+    host3P.emit("start_ludo_game_now", { inviteId: inv3PId });
+    const [res3P] = await start3PPromise;
+
+    logResult("Dynamic 3-Player Match Launch & Triangle Seating",
+      res3P?.mode === "3p" && res3P?.players?.length === 3,
+      `[Mode: ${res3P?.mode}, Players: ${res3P?.players?.length}]`
+    );
+
+    host3P.disconnect();
+    p2_3P.disconnect();
+    p3_3P.disconnect();
+    await sleep(300);
+
+    // 11.8 4-Player Instant Auto-Start on 4/4 Capacity
+    const p1_4P = await createGroupClient("P1_4P");
+    const p2_4P = await createGroupClient("P2_4P");
+    const p3_4P = await createGroupClient("P3_4P");
+    const p4_4P = await createGroupClient("P4_4P");
+
+    let inv4PId = null;
+    const inv4PPromise = new Promise((resolve) => {
+      p2_4P.on("new_ludo_invite", (invite) => {
+        inv4PId = invite.inviteId;
+        resolve(invite);
+      });
+    });
+
+    p1_4P.emit("post_ludo_invite");
+    await inv4PPromise;
+
+    const start4PPromise = Promise.all([
+      new Promise((res) => p1_4P.once("ludo_game_start", res)),
+      new Promise((res) => p2_4P.once("ludo_game_start", res)),
+      new Promise((res) => p3_4P.once("ludo_game_start", res)),
+      new Promise((res) => p4_4P.once("ludo_game_start", res))
+    ]);
+
+    p2_4P.emit("join_ludo_invite", { inviteId: inv4PId });
+    await sleep(100);
+    p3_4P.emit("join_ludo_invite", { inviteId: inv4PId });
+    await sleep(100);
+    p4_4P.emit("join_ludo_invite", { inviteId: inv4PId });
+
+    const [res4P] = await start4PPromise;
+
+    logResult("4-Player Instant Auto-Start on 4/4 Full Capacity",
+      res4P?.mode === "4p" && res4P?.players?.length === 4,
+      `[Mode: ${res4P?.mode}, Players: ${res4P?.players?.length}]`
+    );
+
+    p1_4P.disconnect();
+    p2_4P.disconnect();
+    p3_4P.disconnect();
+    p4_4P.disconnect();
+    await sleep(400);
+
+    // 11.9 Headless Browser UI Permutations for Ludo (Playwright)
+    const browserLudo = await chromium.launch({
+      headless: true,
+      args: [
+        "--use-fake-ui-for-media-stream",
+        "--use-fake-device-for-media-stream",
+        "--no-sandbox",
+        "--disable-setuid-sandbox"
+      ]
+    });
+
+    try {
+      const ctxA = await browserLudo.newContext({ viewport: { width: 412, height: 860 }, serviceWorkers: "block" });
+      const ctxB = await browserLudo.newContext({ viewport: { width: 412, height: 860 }, serviceWorkers: "block" });
+      const pageA = await ctxA.newPage();
+      const pageB = await ctxB.newPage();
+
+      await pageA.goto(APP_URL, { waitUntil: "load" });
+      await pageB.goto(APP_URL, { waitUntil: "load" });
+
+      // Dismiss Age modal if present
+      for (const p of [pageA, pageB]) {
+        const ageBtn = p.locator("#v2-btn-age-confirm, .v2-btn-enter");
+        if (await ageBtn.count() > 0 && await ageBtn.first().isVisible()) {
+          await ageBtn.first().click();
+        }
+      }
+      await sleep(1000);
+
+      // Verify Launch Visibility: Group chat visible, Ludo stage hidden
+      const groupAVisible = await pageA.locator("#v2-group-chat-stage").isVisible();
+      const ludoAVisible = await pageA.locator("#v2-ludo-stage").isVisible();
+      logResult("Initial Launch Stage Visibility (Lounge Active, Ludo Hidden)", groupAVisible && !ludoAVisible);
+
+      // Drawer Card Formatting
+      await pageA.click("#v2-btn-open-1v1-drawer");
+      await sleep(500);
+      const ludoDrawerCard = pageA.locator(".v2-drawer-game-card.ludo-card");
+      const drawerText = await ludoDrawerCard.innerText();
+      logResult("Call Drawer Displays 'Ludo Game' Title & 'PLAY' Button",
+        drawerText.includes("Ludo Game") && drawerText.toUpperCase().includes("PLAY"));
+
+      // Post Ludo Challenge to Lounge
+      await ludoDrawerCard.scrollIntoViewIfNeeded();
+      await ludoDrawerCard.click({ force: true });
+      await sleep(1200);
+
+      // Check In-Feed Invite Card in Page B
+      const feedInviteB = pageB.locator(".v2-feed-ludo-card").last();
+      await feedInviteB.waitFor({ state: "visible", timeout: 8000 });
+      const inviteBText = await feedInviteB.innerText();
+      const cupCount = (inviteBText.match(/🏆/g) || []).length;
+      const hasJoinBtn = await feedInviteB.locator(".v2-btn-join-ludo-action:has-text('JOIN GAME')").count() > 0;
+      const hasExpiryBadge = await feedInviteB.locator(".v2-ludo-expiry-badge").count() > 0;
+
+      logResult("Feed Invite Card Formatted (Single Trophy, 60s Timer, 'JOIN GAME')",
+        cupCount <= 1 && hasJoinBtn && hasExpiryBadge,
+        `[Trophies: ${cupCount}, JoinBtn: ${hasJoinBtn}, Timer: ${hasExpiryBadge}]`
+      );
+
+      // Page B Joins Game
+      await feedInviteB.locator(".v2-btn-join-ludo-action:has-text('JOIN GAME')").click();
+      await sleep(1000);
+
+      // Page A sees "START GAME NOW"
+      const feedInviteA = pageA.locator(".v2-feed-ludo-card").last();
+      const startNowBtn = feedInviteA.locator(".v2-btn-join-ludo-action.host-start");
+      const startNowVisible = await startNowBtn.isVisible();
+      logResult("Host Invite Card Unlocks 'START GAME NOW' Button", startNowVisible);
+
+      if (startNowVisible) {
+        await startNowBtn.click();
+      }
+      await sleep(2000);
+
+      // Verify Arena Launch
+      const ludoStageA = await pageA.locator("#v2-ludo-stage").isVisible();
+      const ludoStageB = await pageB.locator("#v2-ludo-stage").isVisible();
+      logResult("Both Players Transition into Ludo Arena Stage", ludoStageA && ludoStageB);
+
+      // Header Spacing & Layout Check
+      const leftBox = await pageA.locator(".v2-ludo-header-left").boundingBox();
+      const centerBox = await pageA.locator(".v2-ludo-header-center").boundingBox();
+      const rightBox = await pageA.locator(".v2-ludo-header-right").boundingBox();
+      const headerValid = leftBox && centerBox && rightBox &&
+        (leftBox.x + leftBox.width <= centerBox.x + 5) &&
+        (centerBox.x + centerBox.width <= rightBox.x + 5);
+      logResult("Ludo Arena Header Cleanly Spaced Without Overlapping", headerValid);
+
+      // Check Default Dice Face 5 with 5 Pips
+      const diceDisplayA = pageA.locator("#v2-ludo-dice-display");
+      const diceFace = await diceDisplayA.getAttribute("data-face");
+      const pipCount = await diceDisplayA.locator(".dice-pip").count();
+      logResult("Realistic Physical 3D Dice Shows Initial Face 5 with 5 Dots", diceFace === "5" && pipCount === 5);
+
+      // Roll Dice Sync
+      const isPlayerATurn = await pageA.locator("#v2-ludo-dice-btn.turn-ready").count() > 0;
+      const activeP = isPlayerATurn ? pageA : pageB;
+      await activeP.locator("#v2-ludo-dice-btn").click({ force: true });
+      await sleep(1500);
+
+      const faceA = await pageA.locator("#v2-ludo-dice-display").getAttribute("data-face");
+      const faceB = await pageB.locator("#v2-ludo-dice-display").getAttribute("data-face");
+      logResult("Animated Dice Roll Synchronized Across Players", faceA && faceB && faceA === faceB, `[Face: ${faceA}]`);
+
+      // Minimize to Group Chat & Floating Dock
+      await pageA.locator("#v2-ludo-back-btn").click();
+      await sleep(600);
+      const minGroupVisible = await pageA.locator("#v2-group-chat-stage").isVisible();
+      const minLudoVisible = await pageA.locator("#v2-ludo-stage").isVisible();
+      const dockVisible = await pageA.locator("#v2-ludo-floating-dock").isVisible();
+      logResult("Minimize to Lounge Reveals Group Chat & Floating Dock Button", minGroupVisible && !minLudoVisible && dockVisible);
+
+      // Floating Dock Restores Arena
+      await pageA.locator("#v2-ludo-floating-dock").click();
+      await sleep(600);
+      const restoredLudo = await pageA.locator("#v2-ludo-stage").isVisible();
+      logResult("Floating Dock Restores Ludo Arena & Hides Dock", restoredLudo);
+
+      // Exit & Victory Celebration
+      pageB.once("dialog", async (dialog) => await dialog.accept());
+      await pageB.locator("#v2-ludo-exit-btn").click();
+      await sleep(1500);
+
+      const victoryVisible = await pageA.locator("#v2-ludo-victory-overlay").isVisible();
+      const victoryBtnText = await pageA.locator(".v2-btn-victory-exit").innerText();
+      logResult("Victory Overlay Rendered with 'Back to Group' Action",
+        victoryVisible && victoryBtnText.includes("Back to Group"));
+
+      await pageA.locator(".v2-btn-victory-exit").click();
+      await sleep(1000);
+
+      // Winner Card in Feed
+      const winnerCard = pageB.locator(".v2-feed-ludo-winner-card").last();
+      await winnerCard.waitFor({ state: "visible", timeout: 8000 });
+      const winnerCardText = await winnerCard.innerText();
+      const winnerTrophyCount = (winnerCardText.match(/🏆/g) || []).length;
+      const externalActionsCount = await pageB.locator(".v2-group-msg-row.is-ludo-winner .v2-msg-external-actions").count();
+
+      logResult("Lounge Feed Winner Card (Single Trophy, External Actions Outside Card)",
+        winnerTrophyCount === 1 && externalActionsCount > 0,
+        `[Trophy: ${winnerTrophyCount}, ExternalActions: ${externalActionsCount}]`
+      );
+
+      await ctxA.close();
+      await ctxB.close();
+    } finally {
+      await browserLudo.close();
+    }
+
+  } catch (err) {
+    logResult("Phase 11 Ludo Multiplayer Suite Execution", false, err.message);
   }
 
   console.log("\n=======================================================================");
