@@ -386,7 +386,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v338";
+const APP_CLIENT_VERSION = "v350";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -1562,6 +1562,10 @@ function initSocketConnection() {
             renderedInviteIds.add(msg.inviteId);
             feed.appendChild(renderCallInviteCard(msg));
             lastSenderId = null;
+          } else if (msg.type === "ludo_invite") {
+            renderedInviteIds.add(msg.inviteId);
+            feed.appendChild(renderLudoInviteCard(msg));
+            lastSenderId = null;
           } else {
             const currentSender = msg.nickname || "Stranger";
             const msgTime = msg.timestamp || msg.time || 0;
@@ -1646,6 +1650,9 @@ function initSocketConnection() {
           if (msg.type === "call_invite") {
             renderedInviteIds.add(msg.inviteId);
             feed.appendChild(renderCallInviteCard(msg));
+          } else if (msg.type === "ludo_invite") {
+            renderedInviteIds.add(msg.inviteId);
+            feed.appendChild(renderLudoInviteCard(msg));
           } else {
             const row = renderGroupMessageRow(msg, false);
             feed.appendChild(row);
@@ -1878,6 +1885,72 @@ function initSocketConnection() {
             setTimeout(() => { if (card.parentNode) card.remove(); }, 400);
           }
         }
+      }
+    });
+
+    // Ludo Multiplayer Socket Listeners for Group Lobby
+    socket.on("new_ludo_invite", (invite) => {
+      if (!invite || !invite.inviteId) return;
+      const feed = document.getElementById("v2-group-messages-feed");
+      if (feed && !document.getElementById(`ludo-card-${invite.inviteId}`)) {
+        const isNearBottom = isGroupFeedNearBottom(120);
+        feed.appendChild(renderLudoInviteCard(invite));
+        if (!inCall) playAudioChime("msg");
+        if (isNearBottom) {
+          feed.scrollTop = feed.scrollHeight;
+          hideGroupScrollBottomBtn();
+        } else {
+          showGroupScrollBottomBtn();
+        }
+      }
+    });
+
+    socket.on("ludo_slot_updated", (data) => {
+      if (!data || !data.inviteId) return;
+      const card = document.getElementById(`ludo-card-${data.inviteId}`);
+      if (card) {
+        const invData = card.__ludoInviteData || {};
+        invData.joinedPlayers = data.joinedPlayers;
+        invData.maxPlayers = data.maxPlayers;
+        const newCard = renderLudoInviteCard(invData);
+        card.replaceWith(newCard);
+      }
+    });
+
+    socket.on("ludo_invite_filled", (data) => {
+      if (!data || !data.inviteId) return;
+      const card = document.getElementById(`ludo-card-${data.inviteId}`);
+      if (card) {
+        // Game started: fade out and hide from group feed ("hide avvaali")
+        card.classList.add("fade-out");
+        setTimeout(() => { if (card.parentNode) card.remove(); }, 350);
+      }
+    });
+
+    socket.on("ludo_invite_expired", (data) => {
+      if (!data || !data.inviteId) return;
+      const card = document.getElementById(`ludo-card-${data.inviteId}`);
+      if (card) {
+        card.classList.add("expired");
+        const actionArea = card.querySelector(".v2-ludo-card-action-area");
+        if (actionArea) {
+          actionArea.innerHTML = `<div class="v2-btn-join-ludo-action disabled"><i class="fa-solid fa-clock"></i> Expired: No players joined</div>`;
+        }
+      }
+    });
+
+    socket.on("ludo_turn_missed", (data) => {
+      if (typeof v2ShowToast === "function") {
+        v2ShowToast(`⚠️ ${data.nickname || data.color} missed their turn! (Strike ${data.missedTurns}/${data.maxMisses})`);
+      }
+    });
+
+    socket.on("ludo_invite_cancelled", (data) => {
+      if (!data || !data.inviteId) return;
+      const card = document.getElementById(`ludo-card-${data.inviteId}`);
+      if (card) {
+        card.classList.add("fade-out");
+        setTimeout(() => { if (card.parentNode) card.remove(); }, 400);
       }
     });
 
@@ -5398,6 +5471,10 @@ function getUserAccentColor(nickname) {
 }
 
 function renderGroupMessageRow(msg, isConsecutive = false) {
+  if (msg && (msg.type === "ludo_winner" || msg.isLudoWinner)) {
+    return renderLudoWinnerFeedCard(msg);
+  }
+
   const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
   const isGif = !!(msg.gif && msg.gif.url);
   const isSticker = isGif && msg.gif.type === "sticker";
@@ -5863,6 +5940,196 @@ function renderCallInviteCard(invite) {
         }
       }
     }, remainingMs);
+  }
+
+  return card;
+}
+
+function renderLudoWinnerFeedCard(msg) {
+  const row = document.createElement("div");
+  row.className = "v2-group-msg-row other is-ludo-winner";
+  row.id = `msg-${msg.id}`;
+
+  const winnerColor = msg.winner || "red";
+  const winnerName = escapeHtml(msg.winnerName || "Champion");
+  const modeTitle = escapeHtml(msg.modeName || "Ludo");
+  const reasonText = msg.reason === "forfeit"
+    ? "Victory by Opponent Forfeit!"
+    : "Conquered the Board & Reached All 4 Tokens Home!";
+
+  const senderNickRaw = msg.winnerName || "Champion";
+  const rawSnippet = `Won Ludo Match! (${msg.modeName || "Ludo"})`;
+
+  let reactionsHtml = "";
+  if (msg.reactions && Object.keys(msg.reactions).length > 0) {
+    reactionsHtml = `<div class="v2-msg-reactions-row">`;
+    for (const [emoji, count] of Object.entries(msg.reactions)) {
+      if (count > 0) {
+        reactionsHtml += `<span class="v2-reaction-chip" onclick="quickSendReaction('${msg.id}', '${emoji}')">${emoji} ${count}</span>`;
+      }
+    }
+    reactionsHtml += `</div>`;
+  }
+
+  const actionsHtml = `
+    <div class="v2-msg-external-actions">
+      <button class="v2-ext-act-btn" title="Reply" data-reply-id="${msg.id}" data-reply-nick="${encodeURIComponent(senderNickRaw)}" data-reply-snippet="${encodeURIComponent(rawSnippet)}" onclick="handleGroupReplyBtn(this)">↩️</button>
+      <button class="v2-ext-act-btn" id="group-react-btn-${msg.id}" title="React" onclick="toggleGroupReactionPicker('${msg.id}', event)">😊</button>
+    </div>
+  `;
+
+  row.innerHTML = `
+    <div class="v2-msg-bubble v2-ludo-winner-bubble">
+      <div class="v2-feed-ludo-winner-card">
+        <div class="v2-ludo-winner-content-row">
+          <div class="v2-ludo-winner-trophy-col">
+            <span class="v2-winner-trophy">🏆</span>
+          </div>
+          <div class="v2-ludo-winner-body">
+            <div class="v2-ludo-winner-badge-strip">
+              <span class="v2-ludo-win-tag">LUDO CHAMPION</span>
+              <span class="v2-ludo-win-mode">${modeTitle}</span>
+            </div>
+            <div class="v2-ludo-winner-headline">
+              <strong class="v2-winner-name-highlight ${winnerColor}">${winnerName}</strong> Won the Match!
+            </div>
+            <div class="v2-ludo-winner-sub">
+              ${reasonText}
+            </div>
+          </div>
+        </div>
+      </div>
+      ${actionsHtml}
+    </div>
+    ${reactionsHtml}
+  `;
+  return row;
+}
+
+function renderLudoInviteCard(invite) {
+  const card = document.createElement("div");
+  card.__ludoInviteData = { ...invite };
+  const maxPlayers = 4;
+  const joined = Array.isArray(invite.joinedPlayers) ? invite.joinedPlayers : [];
+  const joinedCount = joined.length;
+  const isHost = socket && socket.id && (invite.inviterSocketId === socket.id);
+  const isJoined = joined.some(p => socket && p.socketId === socket.id);
+
+  let statusClass = invite.status || "open";
+  card.className = `v2-feed-call-card v2-feed-ludo-card ${statusClass}`;
+  card.id = `ludo-card-${invite.inviteId}`;
+
+  // 4-Player Graphical Lineup (Slot 0: Red Host, Slot 1: Green, Slot 2: Yellow, Slot 3: Blue)
+  const colors = ["red", "green", "yellow", "blue"];
+  const pawnIcons = ["🔴", "🟢", "🟡", "🔵"];
+  const slotsHtml = `
+    <div class="v2-ludo-4p-grid">
+      ${colors.map((col, idx) => {
+        const p = joined[idx];
+        const isFilled = Boolean(p);
+        const isPlayerHost = idx === 0;
+        return `
+          <div class="v2-ludo-4p-slot ${col} ${isFilled ? 'filled' : 'open'}">
+            <span class="v2-4p-pawn">${pawnIcons[idx]}</span>
+            <span class="v2-4p-nick">${isFilled ? escapeHtml(p.nickname || "Player") : "Open"}</span>
+            <span class="v2-4p-status">${isFilled ? (isPlayerHost ? "HOST" : "READY") : "+ JOIN"}</span>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+
+  // Dynamic CTA Action Button with Host Early-Start capability:
+  let actionBtnHtml = "";
+  if (statusClass === "started" || statusClass === "taken") {
+    actionBtnHtml = `<div class="v2-btn-join-ludo-action disabled">
+      <i class="fa-solid fa-gamepad"></i> Match in Progress (${joinedCount} Players)
+    </div>`;
+  } else if (statusClass === "expired") {
+    actionBtnHtml = `<div class="v2-btn-join-ludo-action disabled">
+      <i class="fa-solid fa-clock"></i> Expired: No players joined
+    </div>`;
+  } else if (isHost) {
+    if (joinedCount >= 2) {
+      // Host has 2 or 3 players: can start match immediately or wait for 4
+      actionBtnHtml = `<button class="v2-btn-join-ludo-action active host-start" onclick="startLudoGameNow('${invite.inviteId}')">
+        <i class="fa-solid fa-play"></i> START GAME NOW (${joinedCount}/4) 🚀
+      </button>`;
+    } else {
+      actionBtnHtml = `<button class="v2-btn-join-ludo-action waiting" disabled>
+        <i class="fa-solid fa-hourglass-half"></i> Waiting for Players to Join (1/4)...
+      </button>`;
+    }
+  } else if (isJoined) {
+    actionBtnHtml = `<button class="v2-btn-join-ludo-action waiting" disabled>
+      <i class="fa-solid fa-circle-check"></i> Joined! Waiting for Host to Start (${joinedCount}/4)...
+    </button>`;
+  } else {
+    actionBtnHtml = `<button class="v2-btn-join-ludo-action active" onclick="joinLudoChallenge('${invite.inviteId}')">
+      <i class="fa-solid fa-bolt"></i> JOIN GAME (${joinedCount}/4) 🎲
+    </button>`;
+  }
+
+  // Calculate remaining seconds for 60s countdown
+  const expiresAt = invite.expiresAt || (invite.createdAt + 60000);
+  const now = Date.now();
+  const secondsLeft = Math.max(0, Math.ceil((expiresAt - now) / 1000));
+
+  card.innerHTML = `
+    <div class="v2-ludo-card-banner">
+      <div class="v2-ludo-card-art">
+        <div class="v2-ludo-mini-board-graphic">
+          <span class="ludo-quad red"></span>
+          <span class="ludo-quad green"></span>
+          <span class="ludo-quad blue"></span>
+          <span class="ludo-quad yellow"></span>
+          <span class="ludo-center-star">⭐</span>
+        </div>
+        <div class="v2-ludo-dice-badge">
+          <span class="v2-dice-icon-anim">🎲</span>
+        </div>
+      </div>
+      <div class="v2-ludo-card-headings">
+        <div class="v2-ludo-title-row">
+          <span class="v2-ludo-mode-badge unified">
+            <i class="fa-solid fa-dice"></i> 2 - 4 PLAYERS
+          </span>
+          <span class="v2-ludo-voice-pill">
+            <i class="fa-solid fa-microphone"></i> Live Voice
+          </span>
+          <span class="v2-ludo-expiry-badge ${secondsLeft > 0 ? '' : 'expired'}" id="ludo-timer-${invite.inviteId}">
+            <i class="fa-solid fa-stopwatch"></i> ${secondsLeft}s
+          </span>
+        </div>
+        <div class="v2-ludo-card-title">
+          Ludo Game
+        </div>
+      </div>
+    </div>
+
+    ${slotsHtml}
+
+    <div class="v2-ludo-card-action-area">
+      ${actionBtnHtml}
+    </div>
+  `;
+
+  // Start live countdown ticker if card is open
+  if (statusClass === "open" && secondsLeft > 0) {
+    if (card.__countdownTimer) clearInterval(card.__countdownTimer);
+    card.__countdownTimer = setInterval(() => {
+      const remainingSec = Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000));
+      const timerEl = card.querySelector(`#ludo-timer-${invite.inviteId}`);
+      if (timerEl) {
+        timerEl.innerHTML = `<i class="fa-solid fa-stopwatch"></i> ${remainingSec}s`;
+        if (remainingSec <= 10) {
+          timerEl.classList.add("expiring");
+        }
+      }
+      if (remainingSec <= 0) {
+        clearInterval(card.__countdownTimer);
+      }
+    }, 1000);
   }
 
   return card;
@@ -7294,6 +7561,17 @@ window.syncInviteButtonsCooldown = syncInviteButtonsCooldown;
 window.saveMyRecentInviteId = saveMyRecentInviteId;
 window.isMyRecentInviteId = isMyRecentInviteId;
 window.renderCallInviteCard = renderCallInviteCard;
+function startLudoGameNow(inviteId) {
+  if (!socket || !socket.connected) {
+    if (typeof v2ShowToast === "function") v2ShowToast("⚠️ Connecting to chat server...");
+    return;
+  }
+  socket.emit("start_ludo_game_now", { inviteId });
+}
+
+window.startLudoGameNow = startLudoGameNow;
+window.renderLudoInviteCard = renderLudoInviteCard;
+window.renderLudoWinnerFeedCard = renderLudoWinnerFeedCard;
 window.acceptCallInvite = acceptCallInvite;
 window.sendGroupMessage = sendGroupMessage;
 window.quickSendEmoji = quickSendEmoji;

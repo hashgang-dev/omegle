@@ -1,10 +1,12 @@
-const CACHE_NAME = 'hashgang-v338';
+const CACHE_NAME = 'hashgang-v350';
 
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
+  '/ludo_game.js',
+  '/assets/dice-roll.mp3',
   '/rubberband-processor.js',
   '/rubberband.wasm',
   '/soundtouch-processor.js',

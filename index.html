@@ -65,7 +65,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=338" />
+  <link rel="stylesheet" href="style.css?v=350" />
 
   <!-- Google AdSense Library (Ready for approval) -->
   <script
@@ -532,6 +532,21 @@
                     <i class="fa-solid fa-play"></i> PLAY
                   </button>
                 </div>
+
+                <!-- Unified Ludo Board Game Card (2 to 4 Players) -->
+                <div class="v2-drawer-game-card ludo-card" onclick="triggerLudoInvite()">
+                  <div class="v2-drawer-game-icon">🎲</div>
+                  <div class="v2-drawer-game-info">
+                    <div class="v2-drawer-game-title">
+                      <strong>Ludo Game</strong>
+                      <span class="v2-drawer-game-tag ludo-tag">2 - 4 PLAYERS</span>
+                    </div>
+                    <p class="v2-drawer-game-desc">Real-time multiplayer board game with live voice chat!</p>
+                  </div>
+                  <button class="v2-btn-play-tile ludo-btn" title="Invite Group to Ludo">
+                    <i class="fa-solid fa-play"></i> PLAY
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -579,6 +594,158 @@
               </div>
             </div>
           </footer>
+        </div>
+
+        <!-- STAGE 3: Multiplayer Ludo Arena (2P & 4P with P2P Live Audio Mesh) -->
+        <div class="v2-ludo-stage hidden" id="v2-ludo-stage">
+          <!-- Ludo Subheader (Slim & Spacious, Under Main App Header) -->
+          <div class="v2-ludo-header" id="v2-ludo-header">
+            <div class="v2-ludo-header-left">
+              <button class="v2-btn-chat-back-group" id="v2-ludo-back-btn" onclick="minimizeLudoGame()" title="Back to Group Chat">
+                <i class="fa-solid fa-chevron-left"></i> <span>Back to Group</span>
+              </button>
+            </div>
+
+            <div class="v2-ludo-header-center">
+              <span class="v2-live-pulse-dot" style="background: #eab308; box-shadow: 0 0 8px #eab308;"></span>
+              <span class="v2-ludo-title" id="v2-ludo-title">Ludo</span>
+            </div>
+
+            <div class="v2-ludo-header-right">
+              <button class="v2-ludo-btn-action" id="v2-ludo-mic-btn" onclick="toggleLudoMic()" title="Toggle Microphone">
+                <i class="fa-solid fa-microphone"></i>
+              </button>
+              <button class="v2-ludo-btn-action danger v2-ludo-btn-exit" id="v2-ludo-exit-btn" onclick="confirmLeaveLudoGame()" title="Exit Game">
+                <span>Exit</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Ludo Arena Body (Board + Player Avatars) -->
+          <div class="v2-ludo-arena-container">
+            <!-- Top Player Slots -->
+            <div class="v2-ludo-players-top">
+              <div class="v2-ludo-player-card red" id="v2-ludo-p-red">
+                <div class="v2-ludo-p-avatar">
+                  <span class="v2-ludo-p-color-dot red"></span>
+                  <i class="fa-solid fa-user-ninja"></i>
+                  <div class="v2-ludo-voice-ring"></div>
+                </div>
+                <div class="v2-ludo-p-meta">
+                  <span class="v2-ludo-p-name" id="v2-ludo-name-red">Red</span>
+                  <span class="v2-ludo-p-score" id="v2-ludo-score-red">0/4 Home</span>
+                </div>
+              </div>
+              <div class="v2-ludo-player-card green" id="v2-ludo-p-green">
+                <div class="v2-ludo-p-avatar">
+                  <span class="v2-ludo-p-color-dot green"></span>
+                  <i class="fa-solid fa-user-astronaut"></i>
+                  <div class="v2-ludo-voice-ring"></div>
+                </div>
+                <div class="v2-ludo-p-meta">
+                  <span class="v2-ludo-p-name" id="v2-ludo-name-green">Green</span>
+                  <span class="v2-ludo-p-score" id="v2-ludo-score-green">0/4 Home</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Central Canvas Board -->
+            <div class="v2-ludo-board-wrapper">
+              <canvas id="v2-ludo-canvas" width="480" height="480"></canvas>
+              <!-- 3D Center Dice Roll Popup Visual -->
+              <div class="v2-ludo-center-dice-popup hidden" id="v2-ludo-center-dice-popup"></div>
+              <!-- Lock / Need 6 Warning Graphic -->
+              <div class="v2-ludo-lock-notify hidden" id="v2-ludo-lock-notify"></div>
+              <!-- Floating Emoji Reactions Rain Layer -->
+              <div class="v2-ludo-emoji-layer" id="v2-ludo-emoji-layer"></div>
+            </div>
+
+            <!-- Bottom Player Slots -->
+            <div class="v2-ludo-players-bottom">
+              <div class="v2-ludo-player-card blue" id="v2-ludo-p-blue">
+                <div class="v2-ludo-p-avatar">
+                  <span class="v2-ludo-p-color-dot blue"></span>
+                  <i class="fa-solid fa-user-secret"></i>
+                  <div class="v2-ludo-voice-ring"></div>
+                </div>
+                <div class="v2-ludo-p-meta">
+                  <span class="v2-ludo-p-name" id="v2-ludo-name-blue">Blue</span>
+                  <span class="v2-ludo-p-score" id="v2-ludo-score-blue">0/4 Home</span>
+                </div>
+              </div>
+              <div class="v2-ludo-player-card yellow" id="v2-ludo-p-yellow">
+                <div class="v2-ludo-p-avatar">
+                  <span class="v2-ludo-p-color-dot yellow"></span>
+                  <i class="fa-solid fa-user-tie"></i>
+                  <div class="v2-ludo-voice-ring"></div>
+                </div>
+                <div class="v2-ludo-p-meta">
+                  <span class="v2-ludo-p-name" id="v2-ludo-name-yellow">Yellow</span>
+                  <span class="v2-ludo-p-score" id="v2-ludo-score-yellow">0/4 Home</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Turn Progress & Action Bar -->
+          <div class="v2-ludo-controls-bar">
+            <!-- Dice Result & Opponent Announcement Banner -->
+            <div class="v2-ludo-dice-announce hidden" id="v2-ludo-dice-announce"></div>
+
+            <!-- 60s Turn Progress Bar -->
+            <div class="v2-ludo-timer-bar-track">
+              <div class="v2-ludo-timer-bar-fill" id="v2-ludo-timer-fill"></div>
+            </div>
+
+            <div class="v2-ludo-actions-row">
+              <!-- Floating Quick Emotes -->
+              <div class="v2-ludo-emotes-palette">
+                <button type="button" onclick="sendLudoReaction('😂')">😂</button>
+                <button type="button" onclick="sendLudoReaction('🔥')">🔥</button>
+                <button type="button" onclick="sendLudoReaction('😭')">😭</button>
+                <button type="button" onclick="sendLudoReaction('👍')">👍</button>
+                <button type="button" onclick="sendLudoReaction('👏')">👏</button>
+              </div>
+
+              <!-- Main Interactive 3D Dice (Physical Dice: Tap to roll, flies to board center & back) -->
+              <div class="v2-ludo-dice-container" id="v2-ludo-dice-container">
+                <button class="v2-ludo-real-dice-btn" id="v2-ludo-dice-btn" onclick="rollLudoDice()" title="Roll Dice">
+                  <div class="v2-3d-dice-cube face-5" id="v2-ludo-dice-display" data-face="5">
+                    <div class="v2-real-dice-face face-5">
+                      <span class="dice-pip pip-tl"></span>
+                      <span class="dice-pip pip-tr"></span>
+                      <span class="dice-pip pip-center"></span>
+                      <span class="dice-pip pip-bl"></span>
+                      <span class="dice-pip pip-br"></span>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Victory / Celebration Modal Overlay -->
+          <div class="v2-ludo-victory-overlay hidden" id="v2-ludo-victory-overlay">
+            <div class="v2-ludo-victory-modal">
+              <div class="v2-victory-confetti-icon">🏆</div>
+              <h2 id="v2-ludo-winner-title">Victory!</h2>
+              <p id="v2-ludo-winner-subtitle">Player Red dominated the board!</p>
+              <div class="v2-ludo-victory-buttons">
+                <button class="v2-btn-victory-exit" onclick="exitLudoToLounge()">
+                  <i class="fa-solid fa-comments"></i> Back to Group
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Minimized Ludo Dock (When user minimizes to chat in lounge) -->
+        <div class="v2-ludo-floating-dock hidden" id="v2-ludo-floating-dock" onclick="expandLudoGame()">
+          <span class="v2-dock-dice-icon" id="v2-dock-dice">🎲</span>
+          <div class="v2-dock-meta">
+            <span class="v2-dock-title">Ludo Game</span>
+            <span class="v2-dock-status" id="v2-dock-status">Tap to open</span>
+          </div>
         </div>
 
         <!-- STAGE 2: Fast Matchmaking & Permission Handling Radar Overlay (Unboxed v1 Style) -->
@@ -1217,10 +1384,11 @@
     </div>
 
     <!-- Scripts Injection -->
-    <script src="ads.js?v=338" defer></script>
-    <script src="ad_mediation_config.js?v=338" defer></script>
+    <script src="ads.js?v=350" defer></script>
+    <script src="ad_mediation_config.js?v=350" defer></script>
     <script src="socket.io.min.js?v=301"></script>
-    <script src="app.js?v=338" defer></script>
+    <script src="ludo_game.js?v=350" defer></script>
+    <script src="app.js?v=350" defer></script>
 </body>
 
 </html>
