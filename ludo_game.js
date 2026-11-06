@@ -60,7 +60,7 @@
   let animFrameId = null;
   let pulseAngle = 0;
   let timerInterval = null;
-  let turnSecondsLeft = 15;
+  let turnSecondsLeft = 60;
 
   // WebRTC Mesh Voice State
   let localAudioStream = null;
@@ -1089,7 +1089,7 @@
 
       // Setup UI Player Cards
       updatePlayerCardsUI();
-      updateTurnStatusUI(data.activeColor, data.turnTimeoutSec || 15);
+      updateTurnStatusUI(data.activeColor, data.turnTimeoutSec || 60);
 
       // Initialize Canvas & Default Dice Display (5)
       initLudoCanvas();
@@ -1317,7 +1317,7 @@
       }
     }
 
-    // 15-second timer bar countdown
+    // 60-second timer bar countdown
     turnSecondsLeft = sec;
     const timerFill = document.getElementById("v2-ludo-timer-fill");
     if (timerInterval) clearInterval(timerInterval);

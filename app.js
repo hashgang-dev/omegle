@@ -386,7 +386,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v350";
+const APP_CLIENT_VERSION = "v351";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -525,7 +525,7 @@ function reloadAppShellSafely(reason) {
 function registerV2ServiceWorker() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      const swPath = "./sw.js?v=332";
+      const swPath = `./sw.js?v=${APP_CLIENT_VERSION}`;
       navigator.serviceWorker
         .register(swPath, { updateViaCache: "none" })
         .then((reg) => {
