@@ -3084,13 +3084,61 @@ html, body {
   max-width: fit-content;
   text-align: center;
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   animation: v2FadeInMsg 0.25s ease-out;
-  pointer-events: none;
+  pointer-events: auto;
   user-select: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .v2-group-join-pill strong {
   color: #ffffff;
   font-weight: 600;
+}
+.v2-join-greet-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(236, 72, 153, 0.35));
+  border: 1px solid rgba(236, 72, 153, 0.55);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  line-height: 1.4;
+  outline: none;
+}
+.v2-join-greet-btn:hover {
+  background: linear-gradient(135deg, #a855f7, #ec4899);
+  border-color: #f472b6;
+  color: #ffffff;
+  transform: translateY(-1px) scale(1.05);
+  box-shadow: 0 4px 14px rgba(236, 72, 153, 0.45);
+}
+.v2-join-greet-btn:active {
+  transform: scale(0.96);
+}
+.v2-join-greet-btn.greeted {
+  background: rgba(168, 85, 247, 0.16);
+  border-color: rgba(168, 85, 247, 0.3);
+  color: #c084fc;
+  cursor: default;
+  pointer-events: none;
+  transform: none;
+  box-shadow: none;
+}
+.v2-join-greet-btn .v2-wave-hand {
+  font-size: 0.85rem;
+  display: inline-block;
+  animation: v2WaveHandAnim 1.6s ease-in-out infinite alternate;
+  transform-origin: 70% 70%;
 }
 
 /* Message Rows (Timeless, Clean, Flex-Safe) */
