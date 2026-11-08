@@ -5,50 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' http: https: data: blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; connect-src 'self' http: https: wss: ws:;"
+      content="default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' http: https: data: blob: https://*.clarity.ms https://c.bing.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; connect-src 'self' http: https: wss: ws: https://www.google-analytics.com https://*.google-analytics.com https://www.clarity.ms;"
     />
-    <title>HashGANG – Free Stranger Chat (Omegle Alternative)</title>
+    <title>HashGANG – Free Stranger Chat & Multiplayer Ludo (Omegle Alternative)</title>
     <meta
       name="description"
-      content="Experience HashGANG - the premier free stranger chat featuring Text, Voice, and Video modes with AI Virtual Backgrounds, Gen-Z Neon Aura Glow, and 100% P2P privacy."
+      content="Experience HashGANG - the premier free stranger chat featuring Text, Voice, and Video modes with AI Virtual Backgrounds, Gen-Z Neon Aura Glow, Multiplayer Ludo, and 100% P2P privacy."
     />
     <meta
       name="keywords"
-      content="free stranger chat no login, hashgang, gang chat, omegle alternative, random voice chat, virtual background video chat, neon aura glow, beauty filter cam"
+      content="free stranger chat no login, hashgang, gang chat, omegle alternative, random voice chat, virtual background video chat, neon aura glow, beauty filter cam, multiplayer ludo chat"
     />
 
     <!-- OpenGraph SEO Tags -->
-    <meta
-      property="og:title"
-      content="HashGANG – Free Stranger Chat (Omegle Alternative)"
-    />
+    <meta property="og:title" content="HashGANG – Free Stranger Chat & Multiplayer Ludo" />
     <meta
       property="og:description"
-      content="Talk to random strangers online with Text, Voice & Video modes, AI Virtual Backgrounds, Gen-Z Neon Aura Glow, and 60 FPS HD P2P quality."
+      content="Talk to random strangers online with Text, Voice & Video modes, AI Virtual Backgrounds, Gen-Z Neon Aura Glow, Multiplayer Ludo, and 60 FPS HD P2P quality."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://chat.hashgang.com/website.html" />
-    <meta
-      property="og:image"
-      content="https://chat.hashgang.com/assets/website_virtual_bg_showcase.jpg"
-    />
+    <meta property="og:image" content="https://chat.hashgang.com/assets/website_virtual_bg_showcase.jpg" />
 
     <!-- Twitter Card SEO Tags -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta
-      name="twitter:title"
-      content="HashGANG – Free Stranger Chat (Omegle Alternative)"
-    />
+    <meta name="twitter:title" content="HashGANG – Free Stranger Chat & Multiplayer Ludo" />
     <meta
       name="twitter:description"
       content="Connect instantly with strangers worldwide via Text, Voice, and Video. 100% free, no login required."
     />
-    <meta
-      name="twitter:image"
-      content="https://chat.hashgang.com/assets/website_virtual_bg_showcase.jpg"
-    />
+    <meta name="twitter:image" content="https://chat.hashgang.com/assets/website_virtual_bg_showcase.jpg" />
 
     <!-- Google AdSense Verification Tag -->
+    <meta name="google-adsense-account" content="ca-pub-6927010746708408" />
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6927010746708408" crossorigin="anonymous"></script>
 
     <!-- Schema.org JSON-LD Structured Data -->
@@ -60,17 +49,13 @@
         "url": "https://chat.hashgang.com/",
         "operatingSystem": "All Web Browsers (WebRTC)",
         "applicationCategory": "CommunicationApplication",
-        "sameAs": [
-          "https://hashgang.com"
-        ],
+        "sameAs": ["https://hashgang.com"],
         "publisher": {
           "@type": "Organization",
-          "name": "HashGANG",
+          "name": "HashGANG Solutions Private Limited",
           "url": "https://hashgang.com",
-          "logo": "https://chat.hashgang.com/logo.png",
-          "sameAs": [
-            "https://hashgang.com"
-          ]
+          "logo": "https://chat.hashgang.com/logo-sm.webp",
+          "sameAs": ["https://hashgang.com"]
         },
         "offers": {
           "@type": "Offer",
@@ -88,16 +73,13 @@
     <meta name="theme-color" content="#0d0515" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
     <!-- FontAwesome 6 -->
@@ -105,70 +87,730 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
     />
-    <!-- Main Style CSS -->
-    <link rel="stylesheet" href="v1/style.css?v=100" />
+
     <!-- Favicon & PWA Icons -->
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=101" />
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=101" />
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=101" />
-  <link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png?v=101" />
-  <link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png?v=101" />
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=101" />
-  <link rel="manifest" href="manifest.json?v=101" />
-</head>
-  <body class="website-landing-page">
-    <!-- Navbar Header (Exact match with Privacy Policy page header) -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico?v=101" />
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=101" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=101" />
+    <link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png?v=101" />
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png?v=101" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=101" />
+    <link rel="manifest" href="manifest.json?v=101" />
+
+    <style>
+      :root {
+        --primary-purple: #9911ee;
+        --primary-purple-hover: #8000cc;
+        --primary-glow: rgba(153, 17, 238, 0.45);
+        --accent-magenta: #f066ff;
+        --accent-cyan: #06b6d4;
+        --accent-emerald: #10b981;
+        --accent-amber: #f59e0b;
+        --accent-rose: #f43f5e;
+        --bg-dark: #0d0515;
+        --bg-card: rgba(28, 14, 42, 0.92);
+        --border-glass: rgba(255, 255, 255, 0.14);
+        --text-main: #ffffff;
+        --text-muted: #cbd5e1;
+        --text-dim: #d8b4fe;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+        background-color: var(--bg-dark);
+        background-image: radial-gradient(circle at 50% 0%, rgba(153, 17, 238, 0.28), transparent 70%);
+        color: var(--text-main);
+        line-height: 1.6;
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
+
+      /* Container */
+      .website-container {
+        width: 100%;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      /* Sticky Header Navbar */
+      .website-header {
+        position: sticky;
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 1000;
+        background: rgba(13, 5, 21, 0.88);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border-bottom: 1px solid var(--border-glass);
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .brand-wrap {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: #ffffff;
+        font-weight: 800;
+        font-size: 1.25rem;
+        font-family: 'Outfit', sans-serif;
+      }
+
+      .brand-wrap img {
+        height: 38px;
+        width: 38px;
+        border-radius: 10px;
+        object-fit: contain;
+      }
+
+      /* Desktop Nav Links */
+      .desktop-nav {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+      }
+
+      .desktop-nav a {
+        color: var(--text-muted);
+        text-decoration: none;
+        font-size: 0.92rem;
+        font-weight: 600;
+        transition: color 0.2s ease;
+      }
+
+      .desktop-nav a:hover,
+      .desktop-nav a.active {
+        color: var(--accent-magenta);
+      }
+
+      .btn-nav-launch {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, var(--primary-purple), var(--accent-magenta));
+        color: #ffffff !important;
+        padding: 8px 20px;
+        border-radius: 24px;
+        font-size: 0.88rem;
+        font-weight: 700;
+        text-decoration: none;
+        box-shadow: 0 4px 18px rgba(153, 17, 238, 0.45);
+        transition: all 0.25s ease;
+      }
+
+      .btn-nav-launch:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 22px rgba(240, 102, 255, 0.6);
+      }
+
+      /* Mobile Hamburger */
+      .mobile-nav-toggle {
+        display: none;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border-glass);
+        color: #ffffff;
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.15rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .mobile-nav-toggle:hover {
+        background: rgba(153, 17, 238, 0.3);
+        border-color: var(--accent-magenta);
+      }
+
+      .mobile-nav-dropdown {
+        position: absolute;
+        top: 60px;
+        right: 20px;
+        width: 250px;
+        background: rgba(18, 7, 30, 0.98);
+        border: 1px solid var(--border-glass);
+        border-radius: 16px;
+        padding: 12px;
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        z-index: 2000;
+      }
+
+      .mobile-nav-dropdown.closed {
+        display: none !important;
+      }
+
+      .mobile-nav-dropdown a {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+      }
+
+      .mobile-nav-dropdown a i {
+        color: var(--accent-magenta);
+        width: 18px;
+        text-align: center;
+      }
+
+      .mobile-nav-dropdown a:hover {
+        background: rgba(153, 17, 238, 0.25);
+        color: #ffffff;
+        padding-left: 18px;
+      }
+
+      .menu-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 6px 0;
+      }
+
+      /* Hero Section */
+      .website-hero-section {
+        padding: 80px 0 60px;
+        text-align: center;
+        position: relative;
+        background: radial-gradient(circle at 50% 30%, rgba(153, 17, 238, 0.22), transparent 70%);
+      }
+
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 20px;
+        border-radius: 30px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: var(--accent-cyan);
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-bottom: 24px;
+      }
+
+      .hero-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 3.3rem;
+        font-weight: 900;
+        line-height: 1.18;
+        margin-bottom: 20px;
+        color: #ffffff;
+        max-width: 920px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .gradient-text {
+        background: linear-gradient(135deg, #06b6d4, #f066ff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+
+      .hero-description {
+        max-width: 740px;
+        margin: 0 auto 36px;
+        font-size: 1.12rem;
+        color: var(--text-muted);
+        line-height: 1.7;
+      }
+
+      .hero-cta-group {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 48px;
+        flex-wrap: wrap;
+      }
+
+      .btn-hero-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 15px 36px;
+        border-radius: 30px;
+        background: linear-gradient(135deg, var(--primary-purple), var(--accent-magenta));
+        color: #ffffff;
+        font-size: 1.05rem;
+        font-weight: 700;
+        text-decoration: none;
+        box-shadow: 0 8px 30px rgba(153, 17, 238, 0.5);
+        transition: all 0.25s ease;
+      }
+
+      .btn-hero-primary:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 12px 35px rgba(240, 102, 255, 0.65);
+      }
+
+      .btn-hero-secondary {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 15px 30px;
+        border-radius: 30px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        color: #ffffff;
+        font-size: 1rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.25s ease;
+      }
+
+      .btn-hero-secondary:hover {
+        background: rgba(255, 255, 255, 0.12);
+        transform: translateY(-2px);
+      }
+
+      /* Highlight Metrics Bar */
+      .hero-metrics-bar {
+        display: inline-flex;
+        align-items: center;
+        gap: 32px;
+        padding: 16px 40px;
+        border-radius: 50px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        backdrop-filter: blur(12px);
+      }
+
+      .metric-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .metric-val {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: var(--accent-cyan);
+      }
+
+      .metric-lbl {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        font-weight: 600;
+      }
+
+      .metric-divider {
+        width: 1px;
+        height: 28px;
+        background: rgba(255, 255, 255, 0.15);
+      }
+
+      /* Sections General */
+      .website-features-section {
+        padding: 70px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .section-header {
+        text-align: center;
+        max-width: 720px;
+        margin: 0 auto 46px;
+      }
+
+      .section-subtitle {
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        color: var(--accent-magenta);
+        text-transform: uppercase;
+      }
+
+      .section-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2.3rem;
+        font-weight: 800;
+        margin: 10px 0 14px;
+        color: #ffffff;
+      }
+
+      .section-desc {
+        font-size: 1.02rem;
+        color: var(--text-muted);
+        line-height: 1.6;
+      }
+
+      /* Showcase Grid (Balanced 2x2 or 4-col) */
+      .showcase-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 24px;
+        margin-bottom: 40px;
+      }
+
+      .showcase-card {
+        padding: 20px;
+        border-radius: 18px;
+        background: var(--bg-card);
+        border: 1px solid var(--border-glass);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        transition: all 0.25s ease;
+      }
+
+      .showcase-card:hover {
+        transform: translateY(-5px);
+        border-color: var(--accent-magenta);
+        box-shadow: 0 14px 35px rgba(153, 17, 238, 0.35);
+      }
+
+      .showcase-card img {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .tag-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        margin-bottom: 10px;
+      }
+
+      .card-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 8px;
+      }
+
+      .card-desc {
+        font-size: 0.92rem;
+        color: var(--text-muted);
+        line-height: 1.55;
+      }
+
+      /* Core Features Grid */
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 22px;
+      }
+
+      .feature-card {
+        padding: 28px;
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.25s ease;
+      }
+
+      .feature-card:hover {
+        transform: translateY(-5px);
+        background: rgba(255, 255, 255, 0.06);
+        border-color: var(--accent-magenta);
+      }
+
+      .feature-icon-box {
+        width: 50px;
+        height: 50px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.35rem;
+        color: #ffffff;
+        margin-bottom: 18px;
+      }
+
+      .bg-purple { background: linear-gradient(135deg, #8b5cf6, #d946ef); }
+      .bg-cyan { background: linear-gradient(135deg, #06b6d4, #3b82f6); }
+      .bg-pink { background: linear-gradient(135deg, #ec4899, #f43f5e); }
+      .bg-emerald { background: linear-gradient(135deg, #10b981, #059669); }
+      .bg-amber { background: linear-gradient(135deg, #f59e0b, #d97706); }
+      .bg-indigo { background: linear-gradient(135deg, #6366f1, #4f46e5); }
+
+      /* Blog Section */
+      .website-blog-section {
+        padding: 70px 0;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.2);
+      }
+
+      .blog-preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 22px;
+        margin-bottom: 36px;
+      }
+
+      .blog-card {
+        padding: 24px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        text-decoration: none;
+        color: #ffffff;
+        transition: all 0.25s ease;
+      }
+
+      .blog-card:hover {
+        transform: translateY(-4px);
+        border-color: var(--accent-cyan);
+        background: rgba(255, 255, 255, 0.06);
+      }
+
+      .blog-tag {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        background: rgba(6, 182, 212, 0.15);
+        color: var(--accent-cyan);
+        font-size: 0.74rem;
+        font-weight: 700;
+        margin-bottom: 12px;
+      }
+
+      .blog-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        margin-bottom: 8px;
+        line-height: 1.45;
+      }
+
+      .blog-snippet {
+        font-size: 0.88rem;
+        color: var(--text-muted);
+        line-height: 1.55;
+      }
+
+      /* CTA Banner */
+      .cta-banner {
+        text-align: center;
+        padding: 48px 24px;
+        background: linear-gradient(135deg, rgba(153, 17, 238, 0.2), rgba(240, 102, 255, 0.1));
+        border: 1px solid rgba(240, 102, 255, 0.35);
+        border-radius: 20px;
+        margin: 50px 0 20px;
+      }
+
+      .cta-banner h3 {
+        font-size: 1.8rem;
+        font-weight: 800;
+        margin-bottom: 12px;
+        color: #ffffff;
+      }
+
+      .cta-banner p {
+        color: var(--text-muted);
+        font-size: 1.05rem;
+        margin-bottom: 24px;
+      }
+
+      /* Footer */
+      .website-footer {
+        padding: 60px 0 30px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(10, 3, 18, 0.95);
+      }
+
+      .footer-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 40px;
+        flex-wrap: wrap;
+        margin-bottom: 40px;
+      }
+
+      .footer-brand-wrap {
+        max-width: 300px;
+      }
+
+      .footer-desc {
+        font-size: 0.9rem;
+        color: rgba(255, 255, 255, 0.6);
+        margin-top: 14px;
+        line-height: 1.6;
+      }
+
+      .footer-links-group {
+        display: flex;
+        gap: 48px;
+        flex-wrap: wrap;
+      }
+
+      .footer-col {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 140px;
+      }
+
+      .footer-col-title {
+        font-size: 0.88rem;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 6px;
+      }
+
+      .footer-col a {
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 0.88rem;
+        text-decoration: none;
+        transition: color 0.2s ease;
+      }
+
+      .footer-col a:hover {
+        color: var(--accent-magenta);
+      }
+
+      .footer-bottom {
+        padding-top: 24px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        text-align: center;
+        font-size: 0.84rem;
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      /* Back to Top */
+      .btn-back-to-top {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary-purple), var(--accent-magenta));
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        cursor: pointer;
+        box-shadow: 0 4px 18px rgba(153, 17, 238, 0.5);
+        z-index: 3000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease, transform 0.3s ease;
+      }
+
+      .btn-back-to-top.visible {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .btn-back-to-top:hover {
+        transform: translateY(-3px) scale(1.08);
+      }
+
+      /* Responsive Media Queries */
+      @media (max-width: 900px) {
+        .desktop-nav {
+          display: none;
+        }
+        .mobile-nav-toggle {
+          display: inline-flex;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .hero-title {
+          font-size: 2.2rem;
+        }
+        .hero-metrics-bar {
+          flex-direction: column;
+          gap: 16px;
+          border-radius: 24px;
+          padding: 20px 24px;
+          width: 100%;
+        }
+        .metric-divider {
+          width: 40px;
+          height: 1px;
+        }
+        .footer-links-group {
+          gap: 30px;
+        }
+        .footer-col {
+          min-width: 130px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sticky Header Navigation -->
     <header class="website-header">
-      <a href="website.html" class="brand-logo">
+      <a href="website.html" class="brand-wrap">
         <img src="logo-sm.webp" alt="HashGANG Logo" width="38" height="38" />
-        <span id="brand-title-text" style="transition: opacity 0.3s ease"
-          >HashGANG</span
-        >
+        <span id="brand-title-text" style="transition: opacity 0.3s ease">HashGANG</span>
       </a>
 
+      <!-- Desktop Navigation Menu -->
+      <nav class="desktop-nav" aria-label="Desktop Navigation">
+        <a href="website.html" class="active">Home</a>
+        <a href="#showcase">Showcase</a>
+        <a href="#features">Features</a>
+        <a href="about.html">About Us</a>
+        <a href="contact.html">Contact Us</a>
+        <a href="blog/index.html">Blog</a>
+        <a href="press.html">Press</a>
+        <a href="index.html" class="btn-nav-launch">
+          <i class="fa-solid fa-video"></i> Start Chat
+        </a>
+      </nav>
+
+      <!-- Mobile Hamburger Button -->
       <div style="position: relative">
         <button
-          class="nav-hamburger-btn"
+          class="mobile-nav-toggle"
           id="btn-mobile-nav-toggle"
           onclick="toggleMobileNavMenu(event)"
           aria-label="Toggle Navigation Menu"
         >
           <i class="fa-solid fa-bars"></i>
         </button>
-        <div class="nav-hamburger-dropdown closed" id="website-mobile-menu">
-          <a href="index.html" onclick="toggleMobileNavMenu()"
-            ><i class="fa-solid fa-video"></i> Start Chat</a
+
+        <div class="mobile-nav-dropdown closed" id="website-mobile-menu">
+          <a href="index.html"><i class="fa-solid fa-video"></i> Start Chat</a>
+          <a href="website.html"><i class="fa-solid fa-house"></i> Home</a>
+          <a href="#showcase" onclick="toggleMobileNavMenu()"><i class="fa-solid fa-images"></i> Feature Showcase</a>
+          <a href="#features" onclick="toggleMobileNavMenu()"><i class="fa-solid fa-bolt"></i> Features</a>
+          <a href="about.html"><i class="fa-solid fa-circle-info"></i> About Us</a>
+          <a href="contact.html"><i class="fa-solid fa-envelope"></i> Contact Us</a>
+          <a href="blog/index.html"><i class="fa-solid fa-newspaper"></i> Blog & Articles</a>
+          <a href="press.html"><i class="fa-solid fa-bullhorn"></i> Press & Coverage</a>
+          <div class="menu-divider"></div>
+          <a href="terms-of-service.html"><i class="fa-solid fa-file-contract"></i> Terms of Service</a>
+          <a href="privacy-policy.html"><i class="fa-solid fa-user-shield"></i> Privacy Policy</a>
+          <a
+            href="https://hashgang.com/?utm_source=chat_subdomain&utm_medium=header&utm_campaign=internal_referral"
+            target="_blank"
+            rel="noopener"
+            style="color: var(--accent-magenta); font-weight: 700"
           >
-          <a href="website.html" onclick="toggleMobileNavMenu()"
-            ><i class="fa-solid fa-house"></i> Home</a
-          >
-          <a href="#features" onclick="toggleMobileNavMenu()"
-            ><i class="fa-solid fa-bolt"></i> Features</a
-          >
-          <a href="#showcase" onclick="toggleMobileNavMenu()"
-            ><i class="fa-solid fa-images"></i> Feature Showcase</a
-          >
-          <a href="blog/index.html"
-            ><i class="fa-solid fa-newspaper"></i> Blog & Articles</a
-          >
-          <a href="press.html"
-            ><i class="fa-solid fa-bullhorn"></i> Press & Coverage</a
-          >
-          <a href="about.html"
-            ><i class="fa-solid fa-circle-info"></i> About Us</a
-          >
-          <a href="contact.html"
-            ><i class="fa-solid fa-envelope"></i> Contact Us</a
-          >
-          <a href="terms-of-service.html"
-            ><i class="fa-solid fa-file-contract"></i> Terms of Service</a
-          >
-          <a href="privacy-policy.html"
-            ><i class="fa-solid fa-user-shield"></i> Privacy Policy</a
-          >
-          <a href="https://hashgang.com/?utm_source=chat_subdomain&utm_medium=header&utm_campaign=internal_referral" target="_blank" rel="noopener" style="color: #f066ff; font-weight: 700;"
-            ><i class="fa-solid fa-globe"></i> HashGANG</a
-          >
+            <i class="fa-solid fa-globe"></i> HashGANG Hub
+          </a>
         </div>
       </div>
     </header>
@@ -176,194 +818,127 @@
     <!-- Hero Section -->
     <section class="website-hero-section" id="hero">
       <div class="website-container">
-        <div class="hero-content">
-          <div class="hero-badge">
-            <i class="fa-solid fa-sliders"></i> Text, Voice & Video Modes • AI Backgrounds • Studio Beauty Filters
-          </div>
-          <h1 class="hero-title">
-            Meet Strangers Worldwide in
-            <span class="gradient-text">Text, Voice & HD Video</span>
-          </h1>
-          <p class="hero-description">
-            Experience the internet's most attractive, privacy-first stranger
-            chat platform. Powered by WebRTC P2P encryption, client-side MediaPipe
-            segmentation, and seamless 3-way mode switching between Text, Voice, and Video.
-          </p>
+        <div class="hero-badge">
+          <i class="fa-solid fa-sliders"></i> Text, Voice & Video Modes • AI Backgrounds • Multiplayer Ludo
+        </div>
+        <h1 class="hero-title">
+          Meet Strangers Worldwide in
+          <span class="gradient-text">Text, Voice & HD Video</span>
+        </h1>
+        <p class="hero-description">
+          Experience the internet's most attractive, privacy-first stranger chat platform. Powered by WebRTC P2P
+          mesh encryption, real-time multiplayer Ludo, client-side WebAssembly voice pitch modulators, and zero server media storage.
+        </p>
 
-          <div class="hero-cta-group">
-            <a href="index.html" class="btn-hero-primary">
-              <i class="fa-solid fa-comments"></i>
-              <span>Start Free Chat Now</span>
-            </a>
-            <a href="#showcase" class="btn-hero-secondary">
-              <i class="fa-solid fa-images"></i>
-              <span>View Feature Showcase</span>
-            </a>
-          </div>
+        <div class="hero-cta-group">
+          <a href="index.html" class="btn-hero-primary">
+            <i class="fa-solid fa-comments"></i>
+            <span>Start Free Chat Now</span>
+          </a>
+          <a href="#showcase" class="btn-hero-secondary">
+            <i class="fa-solid fa-images"></i>
+            <span>View Feature Showcase</span>
+          </a>
+        </div>
 
-          <!-- Highlight Metrics Bar -->
-          <div class="hero-metrics-bar">
-            <div class="metric-item">
-              <span class="metric-val">100%</span>
-              <span class="metric-lbl">Free & Anonymous</span>
-            </div>
-            <div class="metric-divider"></div>
-            <div class="metric-item">
-              <span class="metric-val">0ms</span>
-              <span class="metric-lbl">Sign-Up Delay</span>
-            </div>
-            <div class="metric-divider"></div>
-            <div class="metric-item">
-              <span class="metric-val">60 FPS</span>
-              <span class="metric-lbl">Adaptive Video</span>
-            </div>
+        <!-- Highlight Metrics Bar -->
+        <div class="hero-metrics-bar">
+          <div class="metric-item">
+            <span class="metric-val">100%</span>
+            <span class="metric-lbl">Free & Anonymous</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric-item">
+            <span class="metric-val">0ms</span>
+            <span class="metric-lbl">Sign-Up Delay</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric-item">
+            <span class="metric-val">60 FPS</span>
+            <span class="metric-lbl">Adaptive Video</span>
+          </div>
+          <div class="metric-divider"></div>
+          <div class="metric-item">
+            <span class="metric-val">P2P Mesh</span>
+            <span class="metric-lbl">Zero Relay Storage</span>
           </div>
         </div>
       </div>
     </section>
 
     <!-- Visual Feature Showcase Gallery Section -->
-    <section
-      class="website-features-section"
-      id="showcase"
-      style="background: rgba(0, 0, 0, 0.25)"
-    >
+    <section class="website-features-section" id="showcase">
       <div class="website-container">
         <div class="section-header">
           <span class="section-subtitle">VISUAL SHOWCASE</span>
           <h2 class="section-title">Designed for Gen-Z & Modern Streamers</h2>
           <p class="section-desc">
-            Explore our state-of-the-art camera enhancement features operating
-            in real-time right inside your browser.
+            Explore our state-of-the-art camera enhancement, audio processing, and gaming features operating in real-time right inside your browser.
           </p>
         </div>
 
-        <div
-          style="
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 30px;
-            margin-bottom: 50px;
-          "
-        >
-          <!-- Image Card 1: Virtual Backgrounds -->
-          <div class="feature-card showcase-img-card" style="padding: 20px">
+        <div class="showcase-grid">
+          <!-- Card 1: Virtual Backgrounds -->
+          <div class="showcase-card">
             <img
               src="assets/website_virtual_bg_showcase.jpg"
               alt="AI Virtual Background Showcase in HashGANG Chat"
-              style="
-                width: 100%;
-                height: 210px;
-                object-fit: cover;
-                border-radius: 14px;
-                margin-bottom: 16px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-              "
               loading="lazy"
             />
-            <div
-              class="blog-tag"
-              style="background: rgba(139, 92, 246, 0.25); color: #c084fc"
-            >
+            <div class="tag-badge" style="background: rgba(139, 92, 246, 0.25); color: #c084fc">
               AI Background Replacement
             </div>
-            <h3 class="feature-title" style="margin-top: 8px">
-              6 Photo Presets & Custom Uploads
-            </h3>
-            <p class="feature-text">
-              Replace messy rooms with high-definition modern office, nature, or
-              neon city backgrounds featuring 2-pass soft edge feathering.
+            <h3 class="card-title">6 Photo Presets & Custom Uploads</h3>
+            <p class="card-desc">
+              Replace messy rooms with high-definition modern office, nature, or neon city backgrounds featuring 2-pass soft edge feathering.
             </p>
           </div>
 
-          <!-- Image Card 2: Gen-Z Neon Aura Glow -->
-          <div class="feature-card showcase-img-card" style="padding: 20px">
+          <!-- Card 2: Gen-Z Neon Aura Glow -->
+          <div class="showcase-card">
             <img
               src="assets/website_neon_aura_showcase.jpg"
               alt="Gen-Z Neon Silhouette Aura Glow Showcase"
-              style="
-                width: 100%;
-                height: 210px;
-                object-fit: cover;
-                border-radius: 14px;
-                margin-bottom: 16px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-              "
               loading="lazy"
             />
-            <div
-              class="blog-tag"
-              style="background: rgba(6, 182, 212, 0.25); color: #38bdf8"
-            >
+            <div class="tag-badge" style="background: rgba(6, 182, 212, 0.25); color: #38bdf8">
               Aesthetic Aura Lighting
             </div>
-            <h3 class="feature-title" style="margin-top: 8px">
-              Electric Neon Silhouette Aura Glow
-            </h3>
-            <p class="feature-text">
-              Transform your stream into a trendy RGB gaming setup with an
-              electric cyan and magenta halo outline surrounding your
-              silhouette.
+            <h3 class="card-title">Electric Neon Silhouette Aura Glow</h3>
+            <p class="card-desc">
+              Transform your stream into a trendy RGB gaming setup with an electric cyan and magenta halo outline surrounding your silhouette.
             </p>
           </div>
 
-          <!-- Image Card 3: AI Studio Beauty Filter -->
-          <div class="feature-card showcase-img-card" style="padding: 20px">
+          <!-- Card 3: AI Studio Beauty Filter -->
+          <div class="showcase-card">
             <img
               src="assets/website_beauty_filter_showcase.jpg"
               alt="AI Studio Beauty Filter & Virtual Ring Light"
-              style="
-                width: 100%;
-                height: 210px;
-                object-fit: cover;
-                border-radius: 14px;
-                margin-bottom: 16px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-              "
               loading="lazy"
             />
-            <div
-              class="blog-tag"
-              style="background: rgba(244, 63, 94, 0.25); color: #fb7185"
-            >
+            <div class="tag-badge" style="background: rgba(244, 63, 94, 0.25); color: #fb7185">
               Studio Camera Enhancement
             </div>
-            <h3 class="feature-title" style="margin-top: 8px">
-              Skin Smoothing & Virtual Ring Light
-            </h3>
-            <p class="feature-text">
-              Look flawless in dark rooms with instant real-time skin portrait
-              smoothing and adjustable virtual ring light illumination.
+            <h3 class="card-title">Skin Smoothing & Virtual Ring Light</h3>
+            <p class="card-desc">
+              Look flawless in dark rooms with instant real-time skin portrait smoothing and adjustable virtual ring light illumination.
             </p>
           </div>
 
-          <!-- Image Card 4: End-to-End P2P Privacy -->
-          <div class="feature-card showcase-img-card" style="padding: 20px">
+          <!-- Card 4: End-to-End P2P Privacy -->
+          <div class="showcase-card">
             <img
               src="assets/website_p2p_privacy_showcase.jpg"
               alt="P2P WebRTC Privacy & Global Matchmaking"
-              style="
-                width: 100%;
-                height: 210px;
-                object-fit: cover;
-                border-radius: 14px;
-                margin-bottom: 16px;
-                border: 1px solid rgba(255, 255, 255, 0.1);
-              "
               loading="lazy"
             />
-            <div
-              class="blog-tag"
-              style="background: rgba(16, 185, 129, 0.25); color: #34d399"
-            >
+            <div class="tag-badge" style="background: rgba(16, 185, 129, 0.25); color: #34d399">
               Zero Storage Privacy
             </div>
-            <h3 class="feature-title" style="margin-top: 8px">
-              Encrypted P2P WebRTC Matchmaking
-            </h3>
-            <p class="feature-text">
-              Direct peer-to-peer video streaming ensures no video streams or
-              messages are ever saved or recorded on central servers.
+            <h3 class="card-title">Encrypted P2P WebRTC Matchmaking</h3>
+            <p class="card-desc">
+              Direct peer-to-peer video streaming ensures no video streams or messages are ever saved or recorded on central servers.
             </p>
           </div>
         </div>
@@ -376,87 +951,97 @@
         <div class="section-header">
           <span class="section-subtitle">PLATFORM HIGHLIGHTS</span>
           <h2 class="section-title">Why Users Love HashGANG Chat</h2>
+          <p class="section-desc">Built with high-scale WebRTC technology, zero friction, and maximum fun.</p>
         </div>
 
         <div class="features-grid">
           <div class="feature-card">
-            <div class="feature-icon-box bg-gradient-purple">
-              <i class="fa-solid fa-bolt"></i>
+            <div class="feature-icon-box bg-purple">
+              <i class="fa-solid fa-dice"></i>
             </div>
-            <h3 class="feature-title">Zero Wait Instant Matchmaking</h3>
-            <p class="feature-text">
-              Jump into video conversations in under 1 second with our
-              intelligent regional WebRTC matchmaker.
+            <h3 class="card-title">Multiplayer Ludo Game</h3>
+            <p class="card-desc">
+              Play real-time 2-player, 3-player, and 4-player Ludo right inside stranger chat, synchronized over P2P data channels with integrated voice mesh.
             </p>
           </div>
 
           <div class="feature-card">
-            <div class="feature-icon-box bg-gradient-cyan">
-              <i class="fa-solid fa-keyboard"></i>
+            <div class="feature-icon-box bg-cyan">
+              <i class="fa-solid fa-waveform-lines"></i>
             </div>
-            <h3 class="feature-title">Keyboard Hotkey Controls</h3>
-            <p class="feature-text">
-              Press 'B' to toggle background ON/OFF instantly, or press
-              'Spacebar' to skip to the next stranger.
+            <h3 class="card-title">WebAssembly Voice Pitch Changer</h3>
+            <p class="card-desc">
+              Disguise your voice in real time with high-quality Chipmunk, Deep Pitch, or Robot filters running 100% client-side via RubberBand WASM.
             </p>
           </div>
 
           <div class="feature-card">
-            <div class="feature-icon-box bg-gradient-pink">
-              <i class="fa-solid fa-mobile-screen-button"></i>
+            <div class="feature-icon-box bg-pink">
+              <i class="fa-solid fa-users"></i>
             </div>
-            <h3 class="feature-title">Mobile PWA Optimized</h3>
-            <p class="feature-text">
-              Works seamlessly on iPhone, Android, iPads, and Desktops without
-              downloading any mobile app.
+            <h3 class="card-title">Public Lounge Sharding</h3>
+            <p class="card-desc">
+              Dynamic 25-user public lounge rooms with quoted replies, emoji reactions, and 1-on-1 private call invitations.
             </p>
           </div>
 
           <div class="feature-card">
-            <div class="feature-icon-box bg-gradient-emerald">
+            <div class="feature-icon-box bg-emerald">
               <i class="fa-solid fa-shield-virus"></i>
             </div>
-            <h3 class="feature-title">Privacy Shield Protection</h3>
-            <p class="feature-text">
-              Auto-blurs video feed whenever you switch browser tabs to protect
-              stranger privacy.
+            <h3 class="card-title">Privacy Shield Protection</h3>
+            <p class="card-desc">
+              Auto-blurs video feed whenever you switch browser tabs to protect your privacy and screen visibility.
             </p>
           </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-box bg-amber">
+              <i class="fa-solid fa-keyboard"></i>
+            </div>
+            <h3 class="card-title">Keyboard Hotkey Controls</h3>
+            <p class="card-desc">
+              Press 'B' to toggle background ON/OFF instantly, or press 'Spacebar' or 'Esc' to skip to the next stranger effortlessly.
+            </p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon-box bg-indigo">
+              <i class="fa-solid fa-mobile-screen-button"></i>
+            </div>
+            <h3 class="card-title">Mobile PWA Optimized</h3>
+            <p class="card-desc">
+              Works seamlessly on iPhone, Android, iPads, and Desktops without needing app store downloads.
+            </p>
+          </div>
+        </div>
+
+        <!-- In-Content CTA -->
+        <div class="cta-banner">
+          <h3>Ready to Meet Someone New?</h3>
+          <p>Join thousands of real people chatting and playing Ludo right now.</p>
+          <a href="index.html" class="btn-hero-primary">
+            <i class="fa-solid fa-play"></i> Start Chatting Now — It's Free
+          </a>
         </div>
       </div>
     </section>
 
-    <!-- Blog Preview Section -->
+    <!-- Blog Section Preview -->
     <section class="website-blog-section">
       <div class="website-container">
         <div class="section-header">
-          <span class="section-subtitle">KNOWLEDGE HUB</span>
-          <h2 class="section-title">Latest Blog Articles</h2>
+          <span class="section-subtitle">COMMUNITY & GUIDES</span>
+          <h2 class="section-title">Latest Articles & Guides</h2>
+          <p class="section-desc">Tips, camera setup recommendations, and online stranger chat safety.</p>
         </div>
 
         <div class="blog-preview-grid">
-          <a href="blog/safe-anonymous-video-chat-guide.html" class="blog-card">
-            <div class="blog-tag">Safety</div>
-            <h4 class="blog-title">
-              The Complete Guide to Safe Anonymous Video Chat
-            </h4>
+          <a href="blog/ai-beauty-filter-video-chat-guide.html" class="blog-card">
+            <div class="blog-tag">Guides</div>
+            <h4 class="blog-title">How AI Beauty Filters Work in Modern WebRTC Video Chat</h4>
             <p class="blog-snippet">
-              Essential privacy practices for talking to strangers online
-              without exposing personal data.
-            </p>
-          </a>
-
-          <a
-            href="blog/ai-beauty-filter-video-chat-guide.html"
-            class="blog-card"
-          >
-            <div class="blog-tag">Technology</div>
-            <h4 class="blog-title">
-              How Real-Time AI Beauty Filters Work in Web Browsers
-            </h4>
-            <p class="blog-snippet">
-              Discover how client-side WebGL canvas shaders deliver smooth skin
-              filters at 60 FPS.
+              Master lighting, skin smoothing, and virtual ring lights in your web browser without expensive studio equipment.
             </p>
           </a>
 
@@ -464,15 +1049,22 @@
             <div class="blog-tag">Comparisons</div>
             <h4 class="blog-title">Top Omegle Alternatives in 2026</h4>
             <p class="blog-snippet">
-              Why HashGANG Chat leads the next generation of random video chat
-              platforms.
+              Why HashGANG Chat leads the next generation of random video chat platforms with zero paywalls and built-in games.
+            </p>
+          </a>
+
+          <a href="blog/stranger-video-chat-safety-guide.html" class="blog-card">
+            <div class="blog-tag">Safety</div>
+            <h4 class="blog-title">Complete Safety Guide for Online Random Video Chatting</h4>
+            <p class="blog-snippet">
+              Essential tips on protecting your privacy, spotting bots, and staying secure while meeting new people online.
             </p>
           </a>
         </div>
 
-        <div class="blog-more-wrap">
-          <a href="blog/index.html" class="btn-blog-more">
-            <span>Explore All 20+ Blog Articles</span>
+        <div style="text-align: center;">
+          <a href="blog/index.html" class="btn-hero-secondary">
+            <span>Explore All Blog Articles</span>
             <i class="fa-solid fa-arrow-right"></i>
           </a>
         </div>
@@ -484,44 +1076,30 @@
       <div class="website-container">
         <div class="footer-top">
           <div class="footer-brand-wrap">
-            <a href="website.html" class="website-brand">
-              <img
-                src="logo-sm.webp"
-                alt="HashGANG Logo"
-                class="website-logo-img"
-                width="36"
-                height="36"
-              />
-              <span
-                class="brand-logo"
-                id="footer-brand-title-text"
-                style="transition: opacity 0.3s ease"
-                >HashGANG</span
-              >
+            <a href="website.html" class="brand-wrap">
+              <img src="logo-sm.webp" alt="HashGANG Logo" class="website-logo-img" width="36" height="36" />
+              <span class="brand-logo" id="footer-brand-title-text" style="transition: opacity 0.3s ease">HashGANG</span>
             </a>
             <p class="footer-desc">
-              The modern, safe, and aesthetic way to meet random strangers
-              worldwide.
+              The modern, safe, and aesthetic way to meet random strangers and play multiplayer games worldwide.
             </p>
           </div>
 
           <div class="footer-links-group">
             <div class="footer-col">
               <span class="footer-col-title">HashGANG</span>
-              <a href="https://hashgang.com/?utm_source=chat_subdomain&utm_medium=footer&utm_campaign=internal_referral" target="_blank" rel="noopener">🌐 HashGANG</a>
+              <a href="https://hashgang.com/?utm_source=chat_subdomain&utm_medium=footer&utm_campaign=internal_referral" target="_blank" rel="noopener">🌐 HashGANG Hub</a>
               <a href="https://hashgang.com/#services" target="_blank" rel="noopener">🚀 Software Solutions</a>
               <a href="https://hashgang.com/doc-validation.html" target="_blank" rel="noopener">🎓 Verify Certificate</a>
               <a href="https://hashgang.com/careers.html" target="_blank" rel="noopener">💼 Careers</a>
               <a href="https://hashgang.com/culture-policy.html" target="_blank" rel="noopener">📜 Culture Policy</a>
-              <a href="https://hashgang.com/privacy-policy.html" target="_blank" rel="noopener">🔒 Privacy Policy</a>
-              <a href="https://hashgang.com/terms-and-conditions.html" target="_blank" rel="noopener">📑 Terms & Conditions</a>
             </div>
 
             <div class="footer-col">
               <span class="footer-col-title">Navigation</span>
               <a href="#hero">Home</a>
-              <a href="#features">Features</a>
               <a href="#showcase">Showcase</a>
+              <a href="#features">Features</a>
               <a href="index.html">Launch Video Chat</a>
             </div>
 
@@ -536,23 +1114,19 @@
             </div>
 
             <div class="footer-col">
-              <span class="footer-col-title">Languages & Regions</span>
-              <a href="stranger-se-baat-karne-wala-app.html">🇮🇳 Hinglish (हिंदी)</a>
-              <a href="telugu-stranger-video-call.html">తెలుగు (Telish)</a>
-              <a href="tamil-stranger-video-chat.html">தமிழ் (Tanglish)</a>
-              <a href="kannada-random-video-chat.html">ಕನ್ನಡ (Kanglish)</a>
-              <a href="malayalam-stranger-voice-chat.html">മലയാളം (Manglish)</a>
-              <a href="bangla-stranger-chat-app.html">বাংলা (Banglish)</a>
-              <a href="marathi-random-video-chat.html">मराठी (Marathi)</a>
-              <a href="punjabi-random-video-chat.html">ਪੰਜਾਬੀ (Punjabi)</a>
-              <a href="arabic-stranger-video-chat.html">العربية (Arabic)</a>
-              <a href="indonesia-random-video-chat.html">Bahasa Indonesia</a>
+              <span class="footer-col-title">Regional Chats</span>
+              <a href="telugu-stranger-video-call.html">తెలుగు (Telugu)</a>
+              <a href="tamil-stranger-video-chat.html">தமிழ் (Tamil)</a>
+              <a href="stranger-se-baat-karne-wala-app.html">🇮🇳 Hinglish</a>
+              <a href="kannada-random-video-chat.html">ಕನ್ನಡ (Kannada)</a>
+              <a href="malayalam-stranger-voice-chat.html">മലയാളം (Malayalam)</a>
+              <a href="bangla-stranger-chat-app.html">বাংলা (Bangla)</a>
             </div>
           </div>
         </div>
 
         <div class="footer-bottom">
-          <p class="footer-copy">&copy; 2026 HashGANG. All rights reserved.</p>
+          <p class="footer-copy">&copy; 2026 HASHGANG SOLUTIONS PRIVATE LIMITED. All rights reserved.</p>
         </div>
       </div>
     </footer>
@@ -601,9 +1175,7 @@
         const names = ["#GANG", "HashGANG"];
         let currentIndex = 0;
         const brandTitleText = document.getElementById("brand-title-text");
-        const footerBrandText = document.getElementById(
-          "footer-brand-title-text",
-        );
+        const footerBrandText = document.getElementById("footer-brand-title-text");
 
         setInterval(() => {
           currentIndex = (currentIndex + 1) % names.length;
