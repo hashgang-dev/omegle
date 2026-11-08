@@ -163,6 +163,18 @@
     <priority>0.80</priority>
   </url>
   <url>
+    <loc>https://chat.hashgang.com/about.html</loc>
+    <lastmod>2026-11-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://chat.hashgang.com/contact.html</loc>
+    <lastmod>2026-11-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
     <loc>https://chat.hashgang.com/terms-of-service.html</loc>
     <lastmod>2026-10-16</lastmod>
     <changefreq>monthly</changefreq>
