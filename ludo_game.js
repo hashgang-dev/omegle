@@ -592,7 +592,7 @@
 
     // Check which movable token was clicked
     let selectedToken = null;
-    let minDist = 22; // Click tolerance radius (22px)
+    let minDist = 38; // Generous touch/click tolerance radius (38px)
 
     currentGame.movableTokens.forEach((tIdx) => {
       const step = myPlayer.tokens[tIdx];
@@ -603,6 +603,11 @@
         selectedToken = tIdx;
       }
     });
+
+    // If exactly 1 movable token and player clicked canvas, auto-select it even if slightly off target
+    if (selectedToken === null && currentGame.movableTokens.length === 1) {
+      selectedToken = currentGame.movableTokens[0];
+    }
 
     if (selectedToken !== null) {
       console.log(`🎯 [Ludo] Selected Token Index: ${selectedToken}`);
@@ -623,6 +628,12 @@
       return;
     }
     if (currentGame.dice !== null) {
+      if (Array.isArray(currentGame.movableTokens) && currentGame.movableTokens.length === 1) {
+        if (window.socket && window.socket.connected) {
+          window.socket.emit("ludo_move_token", { tokenIndex: currentGame.movableTokens[0] });
+        }
+        return;
+      }
       if (typeof v2ShowToast === "function") v2ShowToast("👆 Select one of your highlighted tokens to move!");
       return;
     }
@@ -1166,8 +1177,16 @@
             announceEl.classList.remove("hidden");
             if (currentGame.movableTokens.length === 0) {
               announceEl.innerHTML = `<span class="val-dice">🎲 ${data.dice}</span> <strong>Rolled ${data.dice}!</strong> Need 6 to unlock 🔒`;
+            } else if (currentGame.movableTokens.length === 1) {
+              announceEl.innerHTML = `<span class="val-dice">🎲 ${data.dice}</span> <strong>Rolled ${data.dice}!</strong> Moving token... ⚡`;
+              // Single token moves automatically
+              setTimeout(() => {
+                if (currentGame && currentGame.isMyTurn && currentGame.dice !== null) {
+                  window.socket.emit("ludo_move_token", { tokenIndex: currentGame.movableTokens[0] });
+                }
+              }, 400);
             } else {
-              announceEl.innerHTML = `<span class="val-dice">🎲 ${data.dice}</span> <strong>Rolled ${data.dice}!</strong> Tap token to move ✨`;
+              announceEl.innerHTML = `<span class="val-dice">🎲 ${data.dice}</span> <strong>Rolled ${data.dice}!</strong> Tap highlighted token to move ✨`;
             }
           }
           // Only show Need a 6 warning NOW (never during rolling!)
@@ -1232,7 +1251,7 @@
       const winnerSub = document.getElementById("v2-ludo-winner-subtitle");
 
       if (winnerTitle) {
-        winnerTitle.textContent = (data.winner === currentGame.myColor) ? "🏆 You Won!" : `🏆 ${data.winnerName} Won!`;
+        winnerTitle.textContent = (data.winner === currentGame.myColor) ? "You Won!" : `${data.winnerName} Won!`;
       }
       if (winnerSub) {
         winnerSub.textContent = data.reason === "forfeit"

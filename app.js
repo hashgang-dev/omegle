@@ -386,7 +386,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v351";
+const APP_CLIENT_VERSION = "v352";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -708,7 +708,17 @@ function triggerUserJoinNotification(nickname) {
     const isNearBottom = isGroupFeedNearBottom(120);
     const joinPill = document.createElement("div");
     joinPill.className = "v2-group-join-pill";
-    joinPill.innerHTML = `<span>👋 <strong>${cleanNick}</strong> joined the group</span>`;
+    const isSelf = Boolean(currentNickname && nickname === currentNickname);
+    if (isSelf) {
+      joinPill.innerHTML = `<span>👋 You joined the group</span>`;
+    } else {
+      joinPill.innerHTML = `
+        <span>👋 <strong>${cleanNick}</strong> joined the group</span>
+        <button type="button" class="v2-join-greet-btn" onclick="handleGreetNewUser(this, '${encodeURIComponent(nickname || "Stranger")}')">
+          <span class="v2-wave-hand">👋</span> Say Hi
+        </button>
+      `;
+    }
     feed.appendChild(joinPill);
     if (isNearBottom) {
       feed.scrollTop = feed.scrollHeight;
@@ -7053,6 +7063,25 @@ window.handleGroupReplyBtn = handleGroupReplyBtn;
 window.tagUserInGroupInput = tagUserInGroupInput;
 window.handleQuickWaveBack = handleQuickWaveBack;
 window.handlePrivateWaveBack = handlePrivateWaveBack;
+
+function handleGreetNewUser(btn, encodedNick) {
+  const nick = decodeURIComponent(encodedNick || "Stranger");
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add("greeted");
+    btn.innerHTML = `<span class="v2-wave-hand">👋</span> Greeted`;
+  }
+  if (!socket || !socket.connected) {
+    v2ShowToast("⚠️ Connecting to group chat...");
+    return;
+  }
+  socket.emit("send_group_msg", {
+    text: `Hi! 👋 @${nick}`,
+    nickname: currentNickname
+  });
+  v2ShowToast(`👋 Greeted ${nick}!`);
+}
+window.handleGreetNewUser = handleGreetNewUser;
 
 function isPwaStandalone() {
   return window.matchMedia("(display-mode: standalone)").matches ||
