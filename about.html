@@ -1,0 +1,631 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>About Us - HashGANG Chat | Safe, Free & Decentralized Stranger Video, Voice & Ludo</title>
+    <meta
+      name="description"
+      content="Learn about HashGANG Chat: our mission, zero-cost P2P WebRTC architecture, real-time multiplayer Ludo, safety standards, and the team behind the next-generation stranger chat platform."
+    />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://chat.hashgang.com/about.html" />
+
+    <!-- Google AdSense Verification Tag -->
+    <meta name="google-adsense-account" content="ca-pub-6927010746708408" />
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6927010746708408" crossorigin="anonymous"></script>
+
+    <!-- Favicon & PWA Icons -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico?v=101" />
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=101" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=101" />
+    <link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png?v=101" />
+    <link rel="icon" type="image/png" sizes="192x192" href="favicon-192x192.png?v=101" />
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=101" />
+    <link rel="manifest" href="manifest.json?v=101" />
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <!-- FontAwesome 6 -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+
+    <!-- JSON-LD Structured Data for AboutPage & Organization -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "AboutPage",
+        "name": "About HashGANG Chat",
+        "description": "Learn about HashGANG Chat: our mission, zero-cost P2P WebRTC architecture, real-time multiplayer Ludo, safety standards, and team behind the platform.",
+        "url": "https://chat.hashgang.com/about.html",
+        "publisher": {
+          "@type": "Organization",
+          "name": "HashGANG Solutions Private Limited",
+          "url": "https://hashgang.com",
+          "logo": "https://chat.hashgang.com/logo-sm.webp",
+          "sameAs": [
+            "https://hashgang.com",
+            "https://myleader.app",
+            "https://onedaymataram.com"
+          ]
+        }
+      }
+    </script>
+
+    <style>
+      :root {
+        --primary-purple: #9911ee;
+        --primary-purple-hover: #8000cc;
+        --accent-magenta: #f066ff;
+        --accent-emerald: #10b981;
+        --accent-cyan: #38bdf8;
+        --accent-amber: #f59e0b;
+        --bg-dark: #0d0515;
+        --bg-card: rgba(28, 14, 42, 0.92);
+        --border-glass: rgba(255, 255, 255, 0.15);
+        --text-main: #ffffff;
+        --text-muted: #cbd5e1;
+        --text-dim: #d8b4fe;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: "Inter", system-ui, -apple-system, sans-serif;
+        background-color: var(--bg-dark);
+        background-image: radial-gradient(
+          circle at 50% 0%,
+          rgba(153, 17, 238, 0.25),
+          transparent 70%
+        );
+        color: var(--text-main);
+        line-height: 1.6;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 24px;
+        background: rgba(13, 5, 21, 0.85);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid var(--border-glass);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+      }
+      .brand-logo {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: var(--text-main);
+        font-size: 1.25rem;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+      .nav-hamburger-btn {
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border-glass);
+        color: var(--text-main);
+        width: 40px;
+        height: 40px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      .nav-hamburger-btn:hover {
+        background: rgba(153, 17, 238, 0.3);
+        border-color: #f066ff;
+        color: #ffffff;
+      }
+      .nav-hamburger-dropdown {
+        position: absolute;
+        top: 48px;
+        right: 0;
+        width: 230px;
+        background: rgba(18, 7, 30, 0.98);
+        border: 1px solid var(--border-glass);
+        border-radius: 14px;
+        padding: 10px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .nav-hamburger-dropdown.closed {
+        display: none !important;
+      }
+      .nav-hamburger-dropdown a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        color: #cbd5e1;
+        font-size: 0.88rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
+      }
+      .nav-hamburger-dropdown a:hover {
+        background: rgba(153, 17, 238, 0.25);
+        color: #f066ff;
+        padding-left: 16px;
+      }
+      .nav-hamburger-dropdown a i {
+        width: 18px;
+        text-align: center;
+        font-size: 0.95rem;
+      }
+      .nav-menu-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 6px 0;
+      }
+
+      main {
+        flex: 1;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 40px 20px 80px 20px;
+        width: 100%;
+      }
+
+      .hero-wrap {
+        text-align: center;
+        margin-bottom: 48px;
+      }
+      .hero-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(153, 17, 238, 0.15);
+        border: 1px solid rgba(240, 102, 255, 0.3);
+        padding: 6px 16px;
+        border-radius: 30px;
+        font-size: 0.85rem;
+        font-weight: 700;
+        color: var(--accent-magenta);
+        margin-bottom: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      h1 {
+        font-size: 2.5rem;
+        font-weight: 900;
+        line-height: 1.2;
+        background: linear-gradient(135deg, #ffffff 40%, var(--accent-magenta));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 16px;
+      }
+      .hero-sub {
+        color: var(--text-muted);
+        font-size: 1.15rem;
+        max-width: 720px;
+        margin: 0 auto;
+        line-height: 1.6;
+      }
+
+      .about-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border-glass);
+        border-radius: 20px;
+        padding: 32px;
+        box-shadow: 0 12px 35px rgba(0, 0, 0, 0.4);
+        margin-bottom: 32px;
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+      }
+      .about-card h2 {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .about-card h2 i {
+        color: var(--accent-magenta);
+        font-size: 1.25rem;
+      }
+      .about-card p {
+        color: var(--text-muted);
+        font-size: 1rem;
+        line-height: 1.7;
+        margin-bottom: 16px;
+      }
+      .about-card p:last-child {
+        margin-bottom: 0;
+      }
+
+      .pillars-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 20px;
+        margin-top: 24px;
+      }
+      .pillar-item {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 22px;
+        transition: all 0.25s ease;
+      }
+      .pillar-item:hover {
+        transform: translateY(-4px);
+        border-color: rgba(240, 102, 255, 0.3);
+        background: rgba(153, 17, 238, 0.08);
+      }
+      .pillar-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: rgba(153, 17, 238, 0.2);
+        color: var(--accent-magenta);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        margin-bottom: 14px;
+      }
+      .pillar-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 8px;
+      }
+      .pillar-desc {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        line-height: 1.55;
+      }
+
+      .cta-card {
+        text-align: center;
+        padding: 40px 24px;
+        background: linear-gradient(135deg, rgba(153, 17, 238, 0.2), rgba(240, 102, 255, 0.1));
+        border: 1px solid rgba(240, 102, 255, 0.35);
+        border-radius: 20px;
+        margin-top: 36px;
+      }
+      .cta-title {
+        font-size: 1.6rem;
+        font-weight: 800;
+        margin-bottom: 12px;
+        color: #ffffff;
+      }
+      .cta-sub {
+        color: var(--text-muted);
+        font-size: 1rem;
+        margin-bottom: 24px;
+        max-width: 580px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .btn-start-chat {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        background: linear-gradient(135deg, var(--primary-purple), var(--accent-magenta));
+        color: #ffffff;
+        padding: 14px 32px;
+        border-radius: 30px;
+        font-size: 1rem;
+        font-weight: 700;
+        text-decoration: none;
+        box-shadow: 0 8px 24px rgba(153, 17, 238, 0.4);
+        transition: all 0.25s ease;
+      }
+      .btn-start-chat:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 12px 30px rgba(153, 17, 238, 0.6);
+        color: #ffffff;
+      }
+
+      footer {
+        padding: 50px 20px 30px;
+        background: rgba(10, 3, 18, 0.95);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .footer-inner {
+        max-width: 1000px;
+        margin: 0 auto;
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 40px;
+        text-align: left;
+      }
+      .footer-col {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .footer-col-title {
+        font-size: 0.9rem;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 4px;
+      }
+      .footer-col a {
+        color: rgba(255, 255, 255, 0.7);
+        text-decoration: none;
+        font-size: 0.88rem;
+        transition: color 0.2s ease;
+      }
+      .footer-col a:hover {
+        color: var(--accent-magenta);
+      }
+      .footer-bottom {
+        max-width: 1000px;
+        margin: 30px auto 0;
+        padding-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        text-align: center;
+        font-size: 0.82rem;
+        color: rgba(255, 255, 255, 0.6);
+      }
+
+      @media (max-width: 768px) {
+        h1 {
+          font-size: 2rem;
+        }
+        .about-card {
+          padding: 24px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top Navigation Header -->
+    <header>
+      <a href="website.html" class="brand-logo">
+        <img src="logo-sm.webp" alt="HashGANG Logo" width="38" height="38" />
+        <span id="brand-title-text" style="transition: opacity 0.3s ease">HashGANG</span>
+      </a>
+
+      <div style="position: relative">
+        <button
+          class="nav-hamburger-btn"
+          onclick="toggleAboutNavMenu(event)"
+          aria-label="Toggle Navigation Menu"
+        >
+          <i class="fa-solid fa-bars"></i>
+        </button>
+
+        <div class="nav-hamburger-dropdown closed" id="about-nav-menu">
+          <a href="index.html"><i class="fa-solid fa-video"></i> Start Chat</a>
+          <a href="website.html"><i class="fa-solid fa-house"></i> Home</a>
+          <a href="website.html#features"><i class="fa-solid fa-bolt"></i> Features</a>
+          <a href="website.html#showcase"><i class="fa-solid fa-images"></i> Feature Showcase</a>
+          <a href="blog/index.html"><i class="fa-solid fa-newspaper"></i> Blog & Articles</a>
+          <a href="press.html"><i class="fa-solid fa-bullhorn"></i> Press & Coverage</a>
+          <a href="about.html" style="color: #f066ff;"><i class="fa-solid fa-circle-info"></i> About Us</a>
+          <a href="contact.html"><i class="fa-solid fa-envelope"></i> Contact Us</a>
+          <div class="nav-menu-divider"></div>
+          <a href="terms-of-service.html"><i class="fa-solid fa-file-contract"></i> Terms of Service</a>
+          <a href="privacy-policy.html"><i class="fa-solid fa-user-shield"></i> Privacy Policy</a>
+          <a
+            href="https://hashgang.com/?utm_source=chat_subdomain&utm_medium=header&utm_campaign=internal_referral"
+            target="_blank"
+            rel="noopener"
+            style="color: #f066ff; font-weight: 700"
+          >
+            <i class="fa-solid fa-globe"></i> HashGANG
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main>
+      <div class="hero-wrap">
+        <span class="hero-badge"><i class="fa-solid fa-sparkles"></i> The Modern Stranger Network</span>
+        <h1>About HashGANG Chat</h1>
+        <p class="hero-sub">
+          A zero-cost, high-scale, decentralized stranger chat and multiplayer gaming platform engineered for safe, fast, and authentic human connections worldwide.
+        </p>
+      </div>
+
+      <!-- Section 1: Our Mission & The Genesis of HashGANG -->
+      <section class="about-card">
+        <h2><i class="fa-solid fa-compass"></i> Our Mission & Genesis</h2>
+        <p>
+          Following the closure of legacy stranger video chat services in late 2023, the global internet community was left with fragmented alternatives that quickly became cluttered with expensive coin paywalls, automated bot spam, intrusive trackers, and compromised user privacy.
+        </p>
+        <p>
+          <strong>HashGANG Chat</strong> was built to redefine the stranger chat experience from the ground up: 100% free forever, requiring no phone numbers or personal credentials, powered by modern peer-to-peer (P2P) WebRTC technology, and designed with safety, transparency, and respect as our foundational principles.
+        </p>
+        <p>
+          Whether you want to practice speaking a new language, share laughs with peers halfway across the globe, engage in an instant multiplayer Ludo board game match, or chill in the group Public Lounge, HashGANG delivers instant, high-framerate social interactions without friction.
+        </p>
+      </section>
+
+      <!-- Section 2: Architectural Pillars & Technological Edge -->
+      <section class="about-card">
+        <h2><i class="fa-solid fa-microchip"></i> Architectural Pillars & Technology</h2>
+        <p>
+          HashGANG Chat is engineered with a modern, high-performance tech stack prioritizing decentralization and user privacy:
+        </p>
+
+        <div class="pillars-grid">
+          <div class="pillar-item">
+            <div class="pillar-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <div class="pillar-title">Decentralized P2P Mesh</div>
+            <div class="pillar-desc">
+              All 1v1 video, audio, and gameplay communications flow directly peer-to-peer using end-to-end encrypted DTLS/SRTP WebRTC protocols. No media passes through or is recorded on central relay servers.
+            </div>
+          </div>
+
+          <div class="pillar-item">
+            <div class="pillar-icon"><i class="fa-solid fa-dice"></i></div>
+            <div class="pillar-title">Real-Time Multiplayer Ludo</div>
+            <div class="pillar-desc">
+              Play real-time 2-player, 3-player, and 4-player Ludo matches right inside your chat window, synchronized over P2P WebRTC data channels with integrated voice chat and authentic sound feedback.
+            </div>
+          </div>
+
+          <div class="pillar-item">
+            <div class="pillar-icon"><i class="fa-solid fa-waveform-lines"></i></div>
+            <div class="pillar-title">Client-Side WebAssembly DSP</div>
+            <div class="pillar-desc">
+              Real-time voice pitch modification (Chipmunk, Deep, Robot) powered by WebAssembly (Rubber Band & SoundTouch AudioWorklet) running 100% locally in your browser with zero latency.
+            </div>
+          </div>
+
+          <div class="pillar-item">
+            <div class="pillar-icon"><i class="fa-solid fa-users"></i></div>
+            <div class="pillar-title">Public Lounge Sharding</div>
+            <div class="pillar-desc">
+              Dynamic 25-user public lounge shards enable lively community discussions, icebreaker questions, and casual hangouts with zero-friction instant access.
+            </div>
+          </div>
+
+          <div class="pillar-item">
+            <div class="pillar-icon"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+            <div class="pillar-title">AI Virtual Backgrounds & Filters</div>
+            <div class="pillar-desc">
+              Client-side privacy background blurs, vibrant virtual backgrounds, and Gen-Z Neon Aura Glow shaders keep conversations visually delightful while protecting your physical surroundings.
+            </div>
+          </div>
+
+          <div class="pillar-item">
+            <div class="pillar-icon"><i class="fa-solid fa-hand-holding-dollar"></i></div>
+            <div class="pillar-title">100% Free • No Hidden Coins</div>
+            <div class="pillar-desc">
+              We never charge users for matches, filters, or games. HashGANG is funded purely through ethical, non-intrusive, family-safe advertisements and internal SaaS cross-promotions.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3: User Safety, Community Standards & Compliance -->
+      <section class="about-card">
+        <h2><i class="fa-solid fa-user-lock"></i> Trust, Safety & Community Standards</h2>
+        <p>
+          We maintain an uncompromising stance against harassment, predatory conduct, and illegal behavior. Our multi-tier safety architecture includes:
+        </p>
+        <ul style="padding-left: 20px; color: var(--text-muted); font-size: 0.98rem; display: flex; flex-direction: column; gap: 10px; margin-top: 10px;">
+          <li><strong>Strict 18+ Adult Policy:</strong> HashGANG Chat is strictly restricted to adults aged 18 and older. Minors are strictly prohibited from using the platform.</li>
+          <li><strong>Ephemeral Sessions & Zero Data Storage:</strong> Text messages and video streams exist only in browser memory during an active session and are permanently cleared the moment either party disconnects.</li>
+          <li><strong>Session Trace Watermarking:</strong> Every active video stream incorporates a centered, dynamic cryptographic Session Trace Code watermark to strongly deter non-consensual screen recording or extortion.</li>
+          <li><strong>Instant 1-Click Report & Block:</strong> Users can immediately disconnect from and permanently block any stranger who behaves inappropriately, with automated incident logging for law enforcement cooperation when legally mandated.</li>
+          <li><strong>No Bots Allowed:</strong> Intelligent rate limiters, WebSocket handshake validation, and proof-of-work safeguards actively eliminate automated spam bots and fraudulent traffic.</li>
+        </ul>
+      </section>
+
+      <!-- Section 4: Corporate Governance & Legal Information -->
+      <section class="about-card">
+        <h2><i class="fa-solid fa-building"></i> Corporate Governance & Grievance Redressal</h2>
+        <p>
+          HashGANG Chat is developed, operated, and maintained by <strong>HASHGANG SOLUTIONS PRIVATE LIMITED</strong>, an incorporated technology agency and software venture registered in India.
+        </p>
+        <div style="background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border-glass); border-radius: 14px; padding: 20px; margin-top: 16px;">
+          <p style="margin-bottom: 8px;"><strong>Operating Entity:</strong> HASHGANG SOLUTIONS PRIVATE LIMITED</p>
+          <p style="margin-bottom: 8px;"><strong>Registered Corporate Office:</strong> 21-10/2-239, Vijaya Durga Nagar, Vijayawada - 520003, Andhra Pradesh, India</p>
+          <p style="margin-bottom: 8px;"><strong>Statutory Grievance Officer:</strong> Chinta Ramohan Rao (under IT Rules 2021 & IT Act 2000)</p>
+          <p style="margin-bottom: 8px;"><strong>Official Support Email:</strong> <a href="mailto:support@hashgang.com" style="color: var(--accent-magenta); font-weight: 600;">support@hashgang.com</a></p>
+          <p style="margin-bottom: 0;"><strong>Corporate Hub & Portal:</strong> <a href="https://hashgang.com" target="_blank" rel="noopener" style="color: var(--accent-magenta); font-weight: 600;">https://hashgang.com</a></p>
+        </div>
+      </section>
+
+      <!-- CTA Box -->
+      <div class="cta-card">
+        <h3 class="cta-title">Ready to Connect With the World?</h3>
+        <p class="cta-sub">
+          Join thousands of real people online right now. 100% free, no login needed.
+        </p>
+        <a href="index.html" class="btn-start-chat">
+          <i class="fa-solid fa-play"></i> Start Chatting Now
+        </a>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+      <div class="footer-inner">
+        <div class="footer-col">
+          <span class="footer-col-title">HashGANG</span>
+          <a href="https://hashgang.com/?utm_source=chat_subdomain&utm_medium=footer&utm_campaign=internal_referral" target="_blank" rel="noopener">🌐 HashGANG Hub</a>
+          <a href="https://hashgang.com/#services" target="_blank" rel="noopener">🚀 Software Solutions</a>
+          <a href="https://hashgang.com/doc-validation.html" target="_blank" rel="noopener">🎓 Verify Certificate</a>
+          <a href="https://hashgang.com/careers.html" target="_blank" rel="noopener">💼 Careers</a>
+          <a href="https://hashgang.com/culture-policy.html" target="_blank" rel="noopener">📜 Culture Policy</a>
+          <a href="https://hashgang.com/privacy-policy.html" target="_blank" rel="noopener">🔒 Privacy Policy</a>
+          <a href="https://hashgang.com/terms-and-conditions.html" target="_blank" rel="noopener">📑 Terms & Conditions</a>
+        </div>
+
+        <div class="footer-col">
+          <span class="footer-col-title">Navigation</span>
+          <a href="index.html">Start Video Chat</a>
+          <a href="website.html">Home</a>
+          <a href="about.html">About Us</a>
+          <a href="contact.html">Contact Us</a>
+          <a href="press.html">Press & Coverage</a>
+          <a href="blog/index.html">Blog & Guides</a>
+        </div>
+
+        <div class="footer-col">
+          <span class="footer-col-title">Legal & Trust</span>
+          <a href="terms-of-service.html">Terms of Service</a>
+          <a href="privacy-policy.html">Privacy Policy</a>
+          <a href="privacy-policy.html#cookies">Cookie & Ad Disclosures</a>
+          <a href="contact.html#grievance">Grievance Officer (IT Rules)</a>
+        </div>
+
+        <div class="footer-col">
+          <span class="footer-col-title">Sister Projects</span>
+          <a href="https://myleader.app" target="_blank" rel="noopener">MyLeader SaaS</a>
+          <a href="https://onedaymataram.com" target="_blank" rel="noopener">One Day Mataram</a>
+          <a href="https://kuberaassociates.com" target="_blank" rel="noopener">Kubera Associates</a>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; 2026 HASHGANG SOLUTIONS PRIVATE LIMITED. All Rights Reserved.</p>
+      </div>
+    </footer>
+
+    <script>
+      function toggleAboutNavMenu(e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById("about-nav-menu");
+        if (menu) menu.classList.toggle("closed");
+      }
+
+      document.addEventListener("click", function (e) {
+        const menu = document.getElementById("about-nav-menu");
+        if (
+          menu &&
+          !menu.classList.contains("closed") &&
+          !e.target.closest(".nav-hamburger-btn")
+        ) {
+          menu.classList.add("closed");
+        }
+      });
+    </script>
+  </body>
+</html>
+
