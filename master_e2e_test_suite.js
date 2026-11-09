@@ -780,6 +780,32 @@ async function runMasterE2ESuite() {
 
       logResult("Real-Time Emoji Reaction Delivery to Peer UI", true);
 
+      // 8B. User Join Notification 1-Click Greeting ("Say Hi 👋") & @mention Sync
+      await pageBob.waitForTimeout(2600); // Allow group anti-spam rate limiter (2.5s) to clear
+      await pageBob.evaluate(() => {
+        window.triggerUserJoinNotification("Vikram_99");
+      });
+
+      const greetBtnFound = await pageBob.waitForSelector(".v2-join-greet-btn", { timeout: 4000 });
+      let greetSuccess = false;
+      if (greetBtnFound) {
+        await pageBob.click(".v2-join-greet-btn");
+        await pageBob.waitForTimeout(400);
+
+        const isGreeted = await pageBob.evaluate(() => {
+          const btn = document.querySelector(".v2-join-greet-btn");
+          return btn && btn.classList.contains("greeted") && btn.disabled === true;
+        });
+
+        await pageAlice.waitForFunction(() => {
+          const feed = document.getElementById("v2-group-messages-feed");
+          return feed && feed.textContent.includes("Hi! 👋 @Vikram_99");
+        }, { timeout: 6000 });
+
+        greetSuccess = isGreeted;
+      }
+      logResult("User Join 1-Click Greeting ('Say Hi 👋') & Tag Delivery", greetSuccess);
+
       await ctxAlice.close();
       await ctxBob.close();
     } catch (e) {
@@ -1843,10 +1869,59 @@ async function runMasterE2ESuite() {
       `[Mode: ${res4P?.mode}, Players: ${res4P?.players?.length}]`
     );
 
-    p1_4P.disconnect();
-    p2_4P.disconnect();
-    p3_4P.disconnect();
+    // 11.8B 4P Ludo Disconnect Resilience & Strict Turn Alternation (Red <-> Yellow)
+    let turnChanges = [];
+    let ludoGameOverData = null;
+
+    p1_4P.on("ludo_turn_change", (d) => turnChanges.push(d));
+    p3_4P.on("ludo_turn_change", (d) => turnChanges.push(d));
+    p1_4P.on("ludo_game_over", (d) => { ludoGameOverData = d; });
+
+    // P2 (Green) leaves explicitly, P4 (Blue) disconnects abruptly
+    p2_4P.emit("ludo_leave_game");
     p4_4P.disconnect();
+    await sleep(400);
+
+    // Red rolls dice
+    turnChanges = [];
+    const rollPromise1 = new Promise((res) => p1_4P.once("ludo_dice_rolled", res));
+    p1_4P.emit("ludo_roll_dice", { gameId: res4P.gameId });
+    const roll1 = await rollPromise1;
+    if (roll1.movableTokens && roll1.movableTokens.length > 0) {
+      await sleep(200);
+      p1_4P.emit("ludo_move_token", { tokenIndex: roll1.movableTokens[0] });
+    }
+    await sleep(2600);
+    if (roll1.dice === 6) {
+      const extraPromise = new Promise((res) => p1_4P.once("ludo_dice_rolled", res));
+      p1_4P.emit("ludo_roll_dice", { gameId: res4P.gameId });
+      const extraRoll = await extraPromise;
+      if (extraRoll.movableTokens && extraRoll.movableTokens.length > 0) {
+        await sleep(200);
+        p1_4P.emit("ludo_move_token", { tokenIndex: extraRoll.movableTokens[0] });
+      }
+      await sleep(2600);
+    }
+
+    const turnAfterRed = turnChanges[turnChanges.length - 1];
+    const turnAlternatedToYellow = (turnAfterRed?.activeColor === "yellow");
+
+    logResult("4P Ludo 2-Player Disconnect & Strict Alternation (Red -> Yellow)",
+      turnAlternatedToYellow,
+      `[Next Active: ${turnAfterRed?.activeColor}]`
+    );
+
+    // Yellow leaves -> Red declared champion by last_standing
+    p3_4P.emit("ludo_leave_game");
+    await sleep(500);
+
+    logResult("4P Ludo Last-Standing Champion Declaration",
+      ludoGameOverData?.winner === "red" && ludoGameOverData?.reason === "last_standing",
+      `[Winner: ${ludoGameOverData?.winner}, Reason: ${ludoGameOverData?.reason}]`
+    );
+
+    p1_4P.disconnect();
+    p3_4P.disconnect();
     await sleep(400);
 
     // 11.9 Headless Browser UI Permutations for Ludo (Playwright)
@@ -1974,9 +2049,10 @@ async function runMasterE2ESuite() {
       await sleep(1500);
 
       const victoryVisible = await pageA.locator("#v2-ludo-victory-overlay").isVisible();
+      const victoryTitle = await pageA.locator("#v2-ludo-winner-title").innerText();
       const victoryBtnText = await pageA.locator(".v2-btn-victory-exit").innerText();
-      logResult("Victory Overlay Rendered with 'Back to Group' Action",
-        victoryVisible && victoryBtnText.includes("Back to Group"));
+      logResult("Victory Overlay Rendered with Single Cup (No Trophy in Title)",
+        victoryVisible && !victoryTitle.includes("🏆") && victoryBtnText.includes("Back to Group"));
 
       await pageA.locator(".v2-btn-victory-exit").click();
       await sleep(1000);
