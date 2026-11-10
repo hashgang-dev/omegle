@@ -40,10 +40,14 @@ html, body {
   height: 100%;
   height: 100dvh;
   overflow: hidden;
+  position: fixed;
+  inset: 0;
   background-color: var(--v2-bg-dark);
   color: var(--v2-text-main);
   font-family: var(--v2-font);
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
 }
 
 .v2-app-container {
@@ -54,6 +58,10 @@ html, body {
   height: 100dvh;
   position: relative;
   background: radial-gradient(circle at 50% 20%, #1e0b36 0%, #0a0512 80%);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  overflow: hidden;
 }
 
 /* Utility Hidden State */
@@ -2794,6 +2802,7 @@ html, body {
   background: radial-gradient(circle at 50% 15%, rgba(46, 16, 80, 0.65) 0%, rgba(10, 5, 18, 0.95) 100%);
   z-index: 40;
   padding: 8px 14px 12px 14px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
   overflow: hidden;
   box-sizing: border-box;
 }
@@ -4089,7 +4098,9 @@ html, body {
   box-sizing: border-box;
   margin-top: 6px;
   position: relative;
-  z-index: 30;
+  z-index: 50;
+  min-height: 48px;
+  padding-bottom: max(2px, env(safe-area-inset-bottom, 2px));
 }
 
 .v2-dock-call-trigger {
@@ -4884,6 +4895,7 @@ html, body {
 @media (max-width: 480px) {
   .v2-group-chat-stage {
     padding: 4px 8px 8px 8px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 6px));
   }
   .v2-top-bar {
     padding: 6px 10px;
@@ -8325,7 +8337,8 @@ html, body {
 }
 
 .v2-feed-call-card.v2-feed-ludo-card.taken,
-.v2-feed-call-card.v2-feed-ludo-card.started {
+.v2-feed-call-card.v2-feed-ludo-card.started,
+.v2-feed-call-card.v2-feed-ludo-card.completed {
   border-color: rgba(255, 255, 255, 0.15);
   background: rgba(20, 24, 38, 0.6);
   box-shadow: none;
@@ -9763,16 +9776,309 @@ html, body {
   }
 }
 
-@keyframes v2PulseSubtle {
-  0% {
-    opacity: 0.85;
-    transform: scale(1);
+/* Secret Star ⭐ Favorites & System Pill Styles */
+.v2-msg-sender-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.v2-msg-star-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  font-size: 0.88rem;
+  line-height: 1;
+  color: rgba(251, 191, 36, 0.55);
+  transition: all 0.18s ease;
+  vertical-align: middle;
+}
+.v2-msg-star-btn:hover {
+  color: #fbbf24;
+  transform: scale(1.22);
+}
+.v2-msg-star-btn.favorited {
+  color: #f59e0b;
+  text-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+}
+
+.v2-group-favorite-pill-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 10px 0;
+  width: 100%;
+  padding: 0 8px;
+  box-sizing: border-box;
+  animation: v2FadeIn 0.3s ease;
+}
+.v2-group-favorite-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  max-width: 100%;
+  width: auto;
+  box-sizing: border-box;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(217, 119, 6, 0.1));
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 9999px;
+  padding: 6px 14px;
+  color: #fef3c7;
+  font-size: 0.82rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  text-align: center;
+  line-height: 1.35;
+}
+.v2-group-favorite-pill .v2-fav-pill-text {
+  display: inline-block;
+  text-align: center;
+  word-break: break-word;
+}
+.v2-fav-pill-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  border: none;
+  border-radius: 9999px;
+  padding: 5px 13px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.v2-fav-pill-action-btn:hover {
+  transform: scale(1.04);
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+}
+.v2-fav-pill-action-btn.favorited {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  cursor: default;
+  box-shadow: none;
+}
+
+@media (max-width: 520px) {
+  .v2-group-favorite-pill {
+    border-radius: 14px;
+    padding: 7px 11px;
+    font-size: 0.77rem;
+    gap: 6px 10px;
+    width: 100%;
+    max-width: 100%;
   }
-  100% {
-    opacity: 1;
-    transform: scale(1.04);
+  .v2-fav-pill-action-btn {
+    padding: 4px 11px;
+    font-size: 0.73rem;
   }
 }
+
+/* Star Install Modal */
+.v2-star-install-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: v2FadeIn 0.2s ease;
+}
+.v2-star-install-overlay.hidden {
+  display: none !important;
+}
+.v2-star-install-container {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  background: linear-gradient(165deg, #181926, #12131c);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 20px;
+  padding: 24px 20px;
+  text-align: center;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 24px rgba(245, 158, 11, 0.15);
+  animation: v2ModalCardPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.v2-star-modal-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.75);
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.v2-star-modal-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  transform: scale(1.1);
+}
+.v2-star-modal-ico {
+  font-size: 2.4rem;
+  margin-bottom: 8px;
+  filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.6));
+}
+.v2-star-modal-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 8px;
+}
+.v2-star-modal-desc {
+  font-size: 0.88rem;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1.45;
+  margin-bottom: 20px;
+}
+.v2-star-modal-desc strong {
+  color: #fbbf24;
+}
+.v2-star-install-btn {
+  width: 100%;
+  padding: 13px 18px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  font-size: 0.98rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+.v2-star-install-btn:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 6px 24px rgba(245, 158, 11, 0.6);
+}
+
+/* Settings Favorites List */
+.v2-favorites-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+}
+.v2-favorites-empty-text {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.45);
+  font-style: italic;
+  padding: 8px 0;
+}
+.v2-favorite-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  transition: all 0.15s ease;
+}
+.v2-favorite-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(245, 158, 11, 0.25);
+}
+.v2-fav-nick {
+  font-weight: 700;
+  color: #fef3c7;
+  font-size: 0.92rem;
+}
+.v2-fav-del-btn {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.v2-fav-del-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+  transform: scale(1.08);
+}
+
+.v2-star-loss-warning {
+  margin-top: 14px;
+  font-size: 0.78rem;
+  color: rgba(254, 240, 138, 0.85);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px dashed rgba(245, 158, 11, 0.3);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  line-height: 1.35;
+}
+
+.v2-favorites-loss-warning {
+  margin-top: 10px;
+  font-size: 0.76rem;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.35;
+}
+
+/* App Install Social Proof / FOMO Pill */
+.v2-group-install-pill {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.16), rgba(14, 165, 233, 0.1));
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #e0f2fe;
+}
+.v2-btn-install-app-action {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.4);
+}
+.v2-btn-install-app-action:hover {
+  background: linear-gradient(135deg, #38bdf8, #0284c7);
+}
+.v2-btn-install-app-action.installed {
+  background: rgba(56, 189, 248, 0.2);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+  cursor: default;
+  box-shadow: none;
+}
+
+
 
 
 

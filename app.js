@@ -7,12 +7,24 @@
 if (typeof history !== "undefined" && "scrollRestoration" in history) {
   try { history.scrollRestoration = "manual"; } catch (e) {}
 }
+// Lock browser scroll restoration to manual immediately to eliminate reload scroll drift
+if (typeof history !== "undefined" && "scrollRestoration" in history) {
+  try { history.scrollRestoration = "manual"; } catch (e) {}
+}
+
 if (typeof window !== "undefined") {
   try {
     window.scrollTo(0, 0);
-    if (document.body) document.body.scrollTop = 0;
-    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) { document.body.scrollTop = 0; document.body.scrollLeft = 0; }
+    if (document.documentElement) { document.documentElement.scrollTop = 0; document.documentElement.scrollLeft = 0; }
   } catch (e) {}
+
+  // Active zero-scroll enforcer on window/document to keep app fixed in standalone mode
+  window.addEventListener("scroll", () => {
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+      window.scrollTo(0, 0);
+    }
+  }, { passive: true });
 }
 
 function ensureInputFieldsVisibility() {
@@ -22,19 +34,42 @@ function ensureInputFieldsVisibility() {
   if (typeof window !== "undefined") {
     try {
       window.scrollTo(0, 0);
-      if (document.body) document.body.scrollTop = 0;
-      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) { document.body.scrollTop = 0; document.body.scrollLeft = 0; }
+      if (document.documentElement) { document.documentElement.scrollTop = 0; document.documentElement.scrollLeft = 0; }
     } catch (e) {}
   }
 
+  // Reset scroll on all parent containers down to stage
+  const mainStage = document.querySelector(".v2-main-stage");
+  const viewportArea = document.querySelector(".v2-viewport-area");
+  const appContainer = document.querySelector(".v2-app-container");
+  if (mainStage) mainStage.scrollTop = 0;
+  if (viewportArea) viewportArea.scrollTop = 0;
+  if (appContainer) appContainer.scrollTop = 0;
+
   const groupStage = document.getElementById("v2-group-chat-stage");
-  if (groupStage && !(typeof inCall !== "undefined" && inCall) && !currentMatchTargetId) {
-    groupStage.classList.remove("hidden");
+  if (groupStage) {
+    groupStage.scrollTop = 0;
+    if (!(typeof inCall !== "undefined" && inCall) && !currentMatchTargetId) {
+      groupStage.classList.remove("hidden");
+    }
   }
+
+  // Cleanly dismiss any dead overlays that could obscure group chat
+  if (!(typeof inCall !== "undefined" && inCall) && !currentMatchTargetId) {
+    const chatDrawer = document.getElementById("v2-chat-drawer");
+    if (chatDrawer) chatDrawer.classList.add("closed");
+    const searchStage = document.getElementById("v2-search-stage");
+    if (searchStage) searchStage.classList.add("hidden");
+  }
+
   const groupDock = document.getElementById("v2-group-dock") || document.querySelector(".v2-group-dock");
   if (groupDock) {
     groupDock.classList.remove("hidden");
     groupDock.style.display = "flex";
+    groupDock.style.visibility = "visible";
+    groupDock.style.opacity = "1";
+    groupDock.style.transform = "";
   }
   const groupInput = document.getElementById("v2-group-input-field");
   if (groupInput) {
@@ -357,10 +392,15 @@ function initScreenWakeLock() {
 }
 window.initScreenWakeLock = initScreenWakeLock;
 
+// Secret Star ⭐ Favorites Global State
+var myFavorites = new Map(); // targetUid -> targetNick
+var pendingStarTarget = null; // { targetUid, targetNick }
+
 // Initialize Application Engine on Page Load
 function initV2App() {
   initDOMElements();
   initVoiceUI();
+  loadFavoritesFromStorage();
   console.log("🚀 [HashGANG] Application Engine Initializing...");
   registerV2ServiceWorker();
   checkV2UrlInviteParameters();
@@ -386,7 +426,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v352";
+const APP_CLIENT_VERSION = "v360";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -510,16 +550,47 @@ function reloadAppShellSafely(reason) {
   const activePeer = (typeof currentMatchTargetId !== "undefined" && currentMatchTargetId) || window.currentMatchTargetId;
   const isDisc = (typeof isDisconnectedHandled !== "undefined" ? isDisconnectedHandled : false) || window.isDisconnectedHandled;
   const inActiveCall = !!(activePeer && !isDisc);
-  if (inActiveCall) {
-    console.log(`⚡ [HashGANG v2] App shell update detected (${reason}), but user is in active 1v1 chat. Deferring reload until lobby...`);
+
+  // Check if user is typing in group input field
+  const groupInput = document.getElementById("v2-group-input-field");
+  const isTyping = (document.activeElement === groupInput) || (groupInput && groupInput.value.trim().length > 0);
+
+  // Check if user is actively in a Ludo game
+  const ludoStage = document.getElementById("v2-ludo-stage");
+  const inLudo = (typeof isLudoGameActive === "function" && isLudoGameActive()) || (ludoStage && !ludoStage.classList.contains("hidden"));
+
+  if (inActiveCall || isTyping || inLudo) {
+    console.log(`⚡ [HashGANG v2] App shell update detected (${reason}), but user is actively engaged (call: ${inActiveCall}, typing: ${isTyping}, ludo: ${inLudo}). Deferring reload until idle...`);
     pendingAppShellReload = true;
     window.pendingAppShellReload = true;
+
+    // If user was typing, attach an idle handler to reload once message is sent or blurred
+    if (isTyping && groupInput && !groupInput._pendingReloadBound) {
+      groupInput._pendingReloadBound = true;
+      const onInputIdle = () => {
+        if (!groupInput.value.trim() && !inActiveCall && !inLudo) {
+          groupInput.removeEventListener("blur", onInputIdle);
+          setTimeout(() => reloadAppShellSafely("deferred after input idle"), 1200);
+        }
+      };
+      groupInput.addEventListener("blur", onInputIdle);
+    }
     return;
   }
+
   isAppShellReloading = true;
   window.isAppShellReloading = true;
   console.log(`⚡ [HashGANG v2] App shell update detected (${reason})! Refreshing app shell...`);
-  window.location.reload();
+
+  // Pre-reload cleanup: blur active element so keyboard collapses before reload
+  if (document.activeElement && typeof document.activeElement.blur === "function") {
+    try { document.activeElement.blur(); } catch (e) {}
+  }
+  window.scrollTo(0, 0);
+
+  setTimeout(() => {
+    window.location.reload();
+  }, 80);
 }
 
 function registerV2ServiceWorker() {
@@ -564,6 +635,7 @@ function registerV2ServiceWorker() {
       // When the user unlocks their phone or switches back to this tab, check for static updates!
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") {
+          ensureInputFieldsVisibility();
           try {
             if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
               navigator.serviceWorker.getRegistration().then((reg) => {
@@ -968,6 +1040,9 @@ function handlePwaInstallPrompt(e) {
         } catch (e) {}
         v2ShowToast("🎉 Thank you for installing #GANG!");
         updatePwaInstallStateUI();
+        if (socket && socket.connected) {
+          socket.emit("user_installed_app", { nick: currentNickname || localStorage.getItem("hg_user_nickname") || "Stranger" });
+        }
       }
       deferredPwaPromptV2 = null;
     });
@@ -979,6 +1054,24 @@ function handlePwaInstallPrompt(e) {
       v2ShowToast("📲 Tap browser menu (⋮) > 'Install' or 'Add to Home screen'");
     }
   }
+}
+
+// Window appinstalled event listener for social proof / FOMO broadcast
+if (typeof window !== "undefined") {
+  window.addEventListener("appinstalled", () => {
+    try {
+      localStorage.setItem("hg_is_pwa_installed", "true");
+      if (typeof trackV2Event === "function") {
+        trackV2Event("pwa_installed", { source: "browser_appinstalled" });
+      }
+    } catch (e) {}
+    if (typeof updatePwaInstallStateUI === "function") {
+      updatePwaInstallStateUI();
+    }
+    if (socket && socket.connected) {
+      socket.emit("user_installed_app", { nick: currentNickname || localStorage.getItem("hg_user_nickname") || "Stranger" });
+    }
+  });
 }
 
 function switchCamera() {
@@ -1576,6 +1669,12 @@ function initSocketConnection() {
             renderedInviteIds.add(msg.inviteId);
             feed.appendChild(renderLudoInviteCard(msg));
             lastSenderId = null;
+          } else if (msg.type === "favorite_pill") {
+            feed.appendChild(renderFavoritePillRow(msg));
+            lastSenderId = null;
+          } else if (msg.type === "app_install_pill") {
+            feed.appendChild(renderAppInstallPillRow(msg));
+            lastSenderId = null;
           } else {
             const currentSender = msg.nickname || "Stranger";
             const msgTime = msg.timestamp || msg.time || 0;
@@ -1629,6 +1728,7 @@ function initSocketConnection() {
         setTimeout(scrollFeedToBottom, 300);
         initGroupFeedScrollListener();
         hideGroupScrollBottomBtn();
+        ensureInputFieldsVisibility();
 
         // Auto-start Balloon Pop Mini-Game after 6.5s delay
         if (typeof scheduleBalloonGameAutoStart === "function") {
@@ -1708,6 +1808,35 @@ function initSocketConnection() {
       if (data && data.message) {
         v2ShowToast(data.message);
       }
+    });
+
+    socket.on("favorite_online_alert", (data) => {
+      if (data && (data.message || data.targetNick)) {
+        v2ShowToast(data.message || `⭐ Your favorite ${data.targetNick} just joined the group!`);
+        if (!inCall) playAudioChime("msg");
+      }
+    });
+
+    socket.on("favorite_success", (data) => {
+      if (data && data.targetUid) {
+        updateAllStarButtonsInDom(data.targetUid, true);
+      }
+    });
+
+    socket.on("favorite_error", (data) => {
+      if (data && data.message) {
+        v2ShowToast(data.message);
+      }
+    });
+
+    socket.on("unfavorite_success", (data) => {
+      if (data && data.targetUid) {
+        updateAllStarButtonsInDom(data.targetUid, false);
+      }
+    });
+
+    socket.on("clear_all_favorites_success", () => {
+      console.log("⭐ [Favorites] All favorites successfully cleared from server.");
     });
 
     socket.on("new_group_msg", (msg) => {
@@ -2781,9 +2910,10 @@ function v2StopCall() {
   if (el.btnNextLabel) el.btnNextLabel.textContent = "Start Chat";
   updateStatus("idle", "In Group Chat");
   updateToolbarForMode("idle");
+  ensureInputFieldsVisibility();
   if (socket && socket.connected) {
     socket.emit("leave_queue", { clientVersion: "v2" });
-    socket.emit("join_group_chat", { nickname: currentNickname });
+    socket.emit("join_group_chat", { nickname: currentNickname, anonUserId: getOrCreateAnonUserId() });
   }
 }
 
@@ -4041,20 +4171,53 @@ function setupEventListeners() {
   window.addEventListener("pagehide", cleanupMediaOnUnload);
   window.addEventListener("beforeunload", cleanupMediaOnUnload);
 
-  // Mobile Virtual Keyboard Viewport Height Adjustment for Chat Drawer
+  // Mobile Virtual Keyboard Viewport Height Adjustment for Chat Drawer and Group Chat Dock
   if (window.visualViewport) {
-    window.visualViewport.addEventListener("resize", () => {
+    const handleVisualViewportChange = () => {
+      const keyboardHeight = Math.max(0, window.innerHeight - window.visualViewport.height);
+      const isKeyboardOpen = keyboardHeight > 100;
+
+      // 1. Private Chat Drawer Keyboard Adjust
       if (currentChatMode === "text" && el.chatDrawer && !el.chatDrawer.classList.contains("closed")) {
-        const keyboardHeight = window.innerHeight - window.visualViewport.height;
-        if (keyboardHeight > 100) {
+        if (isKeyboardOpen) {
           el.chatDrawer.style.paddingBottom = `${keyboardHeight}px`;
           if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
         } else {
           el.chatDrawer.style.paddingBottom = "0px";
         }
       }
+
+      // 2. Group Chat Input Dock Keyboard Adjust
+      const groupStage = document.getElementById("v2-group-chat-stage");
+      const groupDock = document.getElementById("v2-group-dock");
+      if (groupStage && !groupStage.classList.contains("hidden") && (!inCall || !currentMatchTargetId)) {
+        if (isKeyboardOpen && groupDock) {
+          groupDock.style.transform = `translateY(-${keyboardHeight}px)`;
+          scrollGroupFeedToBottom(false);
+        } else if (groupDock) {
+          groupDock.style.transform = "";
+          window.scrollTo(0, 0);
+        }
+      }
+    };
+
+    window.visualViewport.addEventListener("resize", handleVisualViewportChange);
+    window.visualViewport.addEventListener("scroll", () => {
+      if (window.scrollY !== 0) window.scrollTo(0, 0);
     });
   }
+
+  // Continuous Input Rescue Watchdog for Standalone PWAs & Mobile Browsers
+  window.addEventListener("pageshow", () => {
+    ensureInputFieldsVisibility();
+    window.scrollTo(0, 0);
+  });
+  window.addEventListener("orientationchange", () => {
+    setTimeout(() => {
+      ensureInputFieldsVisibility();
+      window.scrollTo(0, 0);
+    }, 150);
+  });
 }
 
 function sendChatMessage() {
@@ -5137,6 +5300,7 @@ function confirmAgeAndEnter() {
     }
     return;
   }
+  ensureInputFieldsVisibility();
   joinGroupChatOnConnect();
 }
 
@@ -5199,7 +5363,7 @@ function joinGroupChatOnConnect() {
   }
   console.log("💬 [Group Chat] Emitting join_group_chat with nickname:", currentNickname);
   ensureInputFieldsVisibility();
-  const payload = { nickname: currentNickname };
+  const payload = { nickname: currentNickname, anonUserId: getOrCreateAnonUserId() };
   if (window.pendingV2RequestedRoom) {
     payload.requestedRoomNumber = window.pendingV2RequestedRoom;
   }
@@ -5358,15 +5522,37 @@ function escapeHtml(text) {
 }
 
 function extractGameChallenge(text, gameScore) {
-  if (gameScore && typeof gameScore === "object" && gameScore.score) {
-    return {
-      score: parseInt(gameScore.score, 10),
-      level: parseInt(gameScore.level || 1, 10),
-      game: gameScore.game || "Pop Color Balloon",
-      beatChallenger: gameScore.beatChallenger || null
-    };
+  if (gameScore) {
+    if (typeof gameScore === "object" && gameScore.score !== undefined) {
+      return {
+        score: parseInt(gameScore.score, 10),
+        level: parseInt(gameScore.level || 1, 10),
+        game: gameScore.game || "Pop Color Balloon",
+        beatChallenger: gameScore.beatChallenger || null
+      };
+    }
+    if (typeof gameScore === "number" && !isNaN(gameScore)) {
+      return {
+        score: parseInt(gameScore, 10),
+        level: 1,
+        game: "Pop Color Balloon",
+        beatChallenger: null
+      };
+    }
   }
   if (!text || typeof text !== "string") return null;
+
+  // Match: "Beat my score of 38" or "CHALLENGE 🎈 Pop Color Balloon: Beat my score of 38! Can you pop faster? 🎈"
+  const matchChallenge = text.match(/(?:Beat my score of|score of|CHALLENGE[^\d]*)\s*(\d+)/i);
+  if (matchChallenge && text.toLowerCase().includes("pop color balloon")) {
+    return {
+      score: parseInt(matchChallenge[1], 10),
+      level: 1,
+      game: "Pop Color Balloon",
+      beatChallenger: null
+    };
+  }
+
   const match1 = text.match(/(?:Just scored|scored)\s+(\d+)\s+points\s+reaching\s+Level\s+(\d+)\s+in\s+Pop Color Balloon/i);
   if (match1) {
     return {
@@ -5484,6 +5670,12 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
   if (msg && (msg.type === "ludo_winner" || msg.isLudoWinner)) {
     return renderLudoWinnerFeedCard(msg);
   }
+  if (msg && msg.type === "favorite_pill") {
+    return renderFavoritePillRow(msg);
+  }
+  if (msg && msg.type === "app_install_pill") {
+    return renderAppInstallPillRow(msg);
+  }
 
   const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
   const isGif = !!(msg.gif && msg.gif.url);
@@ -5578,9 +5770,21 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
     `;
   }
 
+  const targetUid = msg.senderUid || ("usr_" + String(senderNickRaw).toLowerCase().replace(/[^a-z0-9]/g, ""));
+  const isFavorited = isUserFavorited(targetUid, senderNickRaw);
+  const starIconHtml = (!isSelf && targetUid) ? `
+    <button type="button" class="v2-msg-star-btn ${isFavorited ? 'favorited' : ''}" 
+            data-target-uid="${escapeHtml(targetUid)}" 
+            data-target-nick="${escapeHtml(senderNickRaw)}" 
+            onclick="handleStarBtnClick(event, this)" 
+            title="${isFavorited ? 'Favorited (Click to remove)' : 'Add to Favorites'}">
+      ${isFavorited ? '★' : '☆'}
+    </button>
+  ` : "";
+
   const senderLabel = canGroup ? "" : (isSelf
     ? `<span class="v2-msg-sender-name self"><span class="v2-you-pill">You</span> ${senderNick}</span>`
-    : `<span class="v2-msg-sender-name clickable-tag" style="color: ${senderColor};" onclick="tagUserInGroupInput('${encodeURIComponent(senderNickRaw)}')" title="Click to mention @${senderNick}">${senderNick}</span>`);
+    : `<span class="v2-msg-sender-wrap"><span class="v2-msg-sender-name clickable-tag" style="color: ${senderColor};" onclick="tagUserInGroupInput('${encodeURIComponent(senderNickRaw)}')" title="Click to mention @${senderNick}">${senderNick}</span>${starIconHtml}</span>`);
 
   let bubbleContentHtml;
   if (challengeInfo) {
@@ -6051,7 +6255,11 @@ function renderLudoInviteCard(invite) {
 
   // Dynamic CTA Action Button with Host Early-Start capability:
   let actionBtnHtml = "";
-  if (statusClass === "started" || statusClass === "taken") {
+  if (statusClass === "completed") {
+    actionBtnHtml = `<div class="v2-btn-join-ludo-action disabled">
+      <i class="fa-solid fa-trophy"></i> Match Completed (${joinedCount}/4 Players)
+    </div>`;
+  } else if (statusClass === "started" || statusClass === "taken") {
     actionBtnHtml = `<div class="v2-btn-join-ludo-action disabled">
       <i class="fa-solid fa-gamepad"></i> Match in Progress (${joinedCount} Players)
     </div>`;
@@ -7090,6 +7298,390 @@ function isPwaStandalone() {
 }
 window.isPwaStandalone = isPwaStandalone;
 
+// ==========================================
+// SECRET STAR ⭐ FAVORITES & RETURN ENGINE
+// ==========================================
+
+function getOrCreateAnonUserId() {
+  let uid = null;
+  try {
+    uid = localStorage.getItem("hg_anon_uid");
+  } catch (e) {}
+  if (!uid || typeof uid !== "string" || !uid.startsWith("hg_usr_")) {
+    uid = "hg_usr_" + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
+    try {
+      localStorage.setItem("hg_anon_uid", uid);
+    } catch (e) {}
+  }
+  return uid;
+}
+window.getOrCreateAnonUserId = getOrCreateAnonUserId;
+
+function loadFavoritesFromStorage() {
+  try {
+    const saved = localStorage.getItem("hg_favorites");
+    if (saved) {
+      const list = JSON.parse(saved);
+      if (Array.isArray(list)) {
+        myFavorites.clear();
+        list.slice(0, 5).forEach((item) => {
+          if (item && item.targetUid) {
+            myFavorites.set(item.targetUid, item.targetNick || "Stranger");
+          }
+        });
+      }
+    }
+    // Loss Aversion Cleanup: If notifications permission is explicitly denied, clear saved favorites
+    if (typeof Notification !== "undefined" && Notification.permission === "denied" && myFavorites.size > 0) {
+      clearAllFavoritesLocal();
+    }
+  } catch (e) {}
+  updateFavoritesUI();
+}
+window.loadFavoritesFromStorage = loadFavoritesFromStorage;
+
+function saveFavoritesToStorage() {
+  try {
+    const list = [];
+    for (const [targetUid, targetNick] of myFavorites.entries()) {
+      list.push({ targetUid, targetNick });
+    }
+    localStorage.setItem("hg_favorites", JSON.stringify(list));
+  } catch (e) {}
+  updateFavoritesUI();
+}
+
+function updateFavoritesUI() {
+  const countSpan = document.getElementById("v2-favorites-count");
+  if (countSpan) {
+    countSpan.textContent = myFavorites.size;
+  }
+  renderFavoritesListInSettings();
+}
+
+function isUserFavorited(targetUid, targetNick) {
+  if (!targetUid) return false;
+  return myFavorites.has(targetUid);
+}
+window.isUserFavorited = isUserFavorited;
+
+function renderFavoritesListInSettings() {
+  const listEl = document.getElementById("v2-settings-favorites-list");
+  const countSpan = document.getElementById("v2-favorites-count");
+  if (countSpan) {
+    countSpan.textContent = myFavorites.size;
+  }
+  if (!listEl) return;
+
+  if (myFavorites.size === 0) {
+    listEl.innerHTML = `<div class="v2-favorites-empty-text">No favorites added yet. Tap ☆ next to any name in chat!</div>`;
+    return;
+  }
+
+  let html = "";
+  for (const [targetUid, targetNick] of myFavorites.entries()) {
+    const safeNick = escapeHtml(targetNick || "Stranger");
+    const safeUid = escapeHtml(targetUid);
+    html += `
+      <div class="v2-favorite-item" data-fav-uid="${safeUid}">
+        <span class="v2-fav-nick">${safeNick}</span>
+        <button type="button" class="v2-fav-del-btn" data-target-uid="${safeUid}" data-target-nick="${safeNick}" onclick="removeFavoriteFromSettings(this.dataset.targetUid, this.dataset.targetNick)" title="Remove ${safeNick}">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </div>
+    `;
+  }
+  listEl.innerHTML = html;
+}
+window.renderFavoritesListInSettings = renderFavoritesListInSettings;
+
+function isPwaAndPushEnabled() {
+  const isInstalled = isPwaInstalled();
+  const isPushGranted = ("Notification" in window && Notification.permission === "granted");
+  return isInstalled && isPushGranted;
+}
+window.isPwaAndPushEnabled = isPwaAndPushEnabled;
+window.isPwaOrPushEnabled = isPwaAndPushEnabled;
+
+function handleStarBtnClick(event, btn) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const targetUid = btn.getAttribute("data-target-uid");
+  const targetNick = btn.getAttribute("data-target-nick") || "Stranger";
+  if (!targetUid) return;
+
+  const myUid = getOrCreateAnonUserId();
+  if (myUid && targetUid === myUid) {
+    v2ShowToast("⚠️ You cannot favorite yourself.");
+    return;
+  }
+
+  if (myFavorites.has(targetUid)) {
+    // Already favorited: Confirm remove
+    if (confirm(`Remove ${targetNick} from your favorites?`)) {
+      removeFavorite(targetUid, targetNick);
+    }
+  } else {
+    // Check 5 limit
+    if (myFavorites.size >= 5) {
+      v2ShowToast("⚠️ Favorites limit reached (5/5). Please go to Settings and remove a user to favorite this person.");
+      return;
+    }
+
+    // Check if app is installed and notifications allowed
+    if (!isPwaAndPushEnabled()) {
+      openStarInstallModal(targetUid, targetNick);
+    } else {
+      addFavorite(targetUid, targetNick);
+    }
+  }
+}
+window.handleStarBtnClick = handleStarBtnClick;
+
+function openStarInstallModal(targetUid, targetNick) {
+  pendingStarTarget = { targetUid, targetNick };
+  const modal = document.getElementById("v2-star-install-modal");
+  const titleEl = document.getElementById("v2-star-modal-title");
+  const targetNameEl = document.getElementById("v2-star-target-name");
+  if (titleEl) titleEl.textContent = `Star ${targetNick}!`;
+  if (targetNameEl) targetNameEl.textContent = targetNick;
+  if (modal) modal.classList.remove("hidden");
+}
+window.openStarInstallModal = openStarInstallModal;
+
+function closeStarInstallModal() {
+  const modal = document.getElementById("v2-star-install-modal");
+  if (modal) modal.classList.add("hidden");
+  pendingStarTarget = null;
+}
+window.closeStarInstallModal = closeStarInstallModal;
+
+async function handleStarInstallAndNotify() {
+  const target = pendingStarTarget;
+  closeStarInstallModal();
+  if (!target) return;
+
+  // 1. Request notifications permission
+  let notifGranted = false;
+  if ("Notification" in window) {
+    if (Notification.permission === "granted") {
+      notifGranted = true;
+    } else {
+      try {
+        const permRes = await Notification.requestPermission();
+        if (permRes === "granted") notifGranted = true;
+      } catch (e) {}
+    }
+  }
+
+  if (!notifGranted) {
+    v2ShowToast("🔔 Notification permission is required to star friends and receive online alerts!");
+    return;
+  }
+
+  // 2. Enforce PWA installation
+  let pwaInstalled = isPwaInstalled();
+  const pwaPrompt = window.deferredPwaPrompt || deferredPwaPromptV2;
+
+  if (!pwaInstalled && pwaPrompt) {
+    try {
+      pwaPrompt.prompt();
+      const choice = await pwaPrompt.userChoice;
+      if (choice && choice.outcome === "accepted") {
+        window.deferredPwaPrompt = null;
+        deferredPwaPromptV2 = null;
+        pwaInstalled = true;
+        try { localStorage.setItem("hg_is_pwa_installed", "true"); } catch (e) {}
+        if (typeof updatePwaInstallStateUI === "function") updatePwaInstallStateUI();
+        if (socket && socket.connected) {
+          socket.emit("user_installed_app", { nick: currentNickname || localStorage.getItem("hg_user_nickname") || "Stranger" });
+        }
+      } else {
+        // User skipped or cancelled the installation prompt!
+        v2ShowToast("📲 App installation was skipped. Please install the app to star friends and receive online alerts!");
+        return;
+      }
+    } catch (e) {
+      v2ShowToast("📲 Please install the app to star friends and receive online alerts!");
+      return;
+    }
+  } else if (!pwaInstalled) {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    if (isIOS) {
+      v2ShowToast("📲 Please add HashGANG to Home Screen (Tap Share ⎋ > Add to Home Screen ⊞) to star friends!");
+      return;
+    }
+    if (!isPwaInstalled()) {
+      v2ShowToast("📲 Please install the app from your browser menu to star friends and receive alerts!");
+      return;
+    }
+  }
+
+  // 3. Register WebPush
+  try {
+    if (typeof subscribeUserToPushNotifications === "function") {
+      subscribeUserToPushNotifications();
+    }
+  } catch (e) {}
+
+  // 4. Add favorite only when both conditions are verified!
+  addFavorite(target.targetUid, target.targetNick);
+}
+window.handleStarInstallAndNotify = handleStarInstallAndNotify;
+
+function addFavorite(targetUid, targetNick) {
+  if (!targetUid) return;
+  const myUid = getOrCreateAnonUserId();
+  if (myUid && targetUid === myUid) {
+    v2ShowToast("⚠️ You cannot favorite yourself.");
+    return;
+  }
+  if (myFavorites.size >= 5 && !myFavorites.has(targetUid)) {
+    v2ShowToast("⚠️ Favorites limit reached (5/5). Please go to Settings and remove a user to favorite this person.");
+    return;
+  }
+
+  myFavorites.set(targetUid, targetNick || "Stranger");
+  saveFavoritesToStorage();
+
+  if (socket && socket.connected) {
+    socket.emit("favorite_user", { targetUid, targetNick, anonUserId: myUid });
+  }
+
+  v2ShowToast(`⭐ Added ${targetNick || "user"} to your favorites!`);
+  updateAllStarButtonsInDom(targetUid, true);
+}
+window.addFavorite = addFavorite;
+
+function removeFavorite(targetUid, targetNick) {
+  if (!targetUid) return;
+  myFavorites.delete(targetUid);
+  saveFavoritesToStorage();
+
+  if (socket && socket.connected) {
+    socket.emit("unfavorite_user", { targetUid, anonUserId: getOrCreateAnonUserId() });
+  }
+
+  v2ShowToast(`Removed ${targetNick || "user"} from favorites`);
+  updateAllStarButtonsInDom(targetUid, false);
+}
+window.removeFavorite = removeFavorite;
+
+function removeFavoriteFromSettings(targetUid, targetNick) {
+  removeFavorite(targetUid, targetNick);
+}
+window.removeFavoriteFromSettings = removeFavoriteFromSettings;
+
+function updateAllStarButtonsInDom(targetUid, isFavorited) {
+  document.querySelectorAll(`.v2-msg-star-btn[data-target-uid="${targetUid}"]`).forEach((btn) => {
+    if (isFavorited) {
+      btn.classList.add("favorited");
+      btn.textContent = "★";
+      btn.title = "Favorited (Click to remove)";
+    } else {
+      btn.classList.remove("favorited");
+      btn.textContent = "☆";
+      btn.title = "Add to Favorites";
+    }
+  });
+
+  document.querySelectorAll(`.v2-fav-pill-action-btn[data-target-uid="${targetUid}"]`).forEach((btn) => {
+    const nick = btn.getAttribute("data-target-nick") || "Friend";
+    if (isFavorited) {
+      btn.classList.add("favorited");
+      btn.textContent = "★ Favorited";
+    } else {
+      btn.classList.remove("favorited");
+      btn.textContent = `⭐ Star ${nick}`;
+    }
+  });
+}
+window.updateAllStarButtonsInDom = updateAllStarButtonsInDom;
+
+function clearAllFavoritesLocal() {
+  const myUid = getOrCreateAnonUserId();
+  myFavorites.clear();
+  try {
+    localStorage.removeItem("hg_favorites");
+  } catch (e) {}
+
+  updateFavoritesUI();
+
+  document.querySelectorAll(".v2-msg-star-btn").forEach((btn) => {
+    btn.classList.remove("favorited");
+    btn.textContent = "☆";
+    btn.title = "Add to Favorites";
+  });
+
+  document.querySelectorAll(".v2-fav-pill-action-btn").forEach((btn) => {
+    btn.classList.remove("favorited");
+    const nick = btn.getAttribute("data-target-nick") || "Friend";
+    btn.textContent = `⭐ Star ${nick}`;
+  });
+
+  if (socket && socket.connected) {
+    socket.emit("clear_all_favorites", { userUid: myUid });
+  }
+
+  try {
+    const hostOrigin = getBackendOrigin();
+    fetch(`${hostOrigin}/api/v1/strangerchat/favorites/all`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ anonUserId: myUid })
+    }).catch(() => {});
+  } catch (e) {}
+}
+window.clearAllFavoritesLocal = clearAllFavoritesLocal;
+
+function renderFavoritePillRow(msg) {
+  const wrap = document.createElement("div");
+  wrap.className = "v2-group-favorite-pill-wrap";
+  if (msg && msg.id) wrap.id = `msg-${msg.id}`;
+
+  const targetNick = msg.targetNick || msg.nick || msg.nickname || "Stranger";
+  const targetUid = msg.targetUid || ("usr_" + String(targetNick).toLowerCase());
+  const isFavorited = isUserFavorited(targetUid, targetNick);
+
+  wrap.innerHTML = `
+    <div class="v2-group-favorite-pill">
+      <span class="v2-fav-pill-text">⭐ Someone added <strong>${escapeHtml(targetNick)}</strong> to Favorites!</span>
+      <button type="button" class="v2-fav-pill-action-btn ${isFavorited ? 'favorited' : ''}" 
+              data-target-uid="${escapeHtml(targetUid)}" 
+              data-target-nick="${escapeHtml(targetNick)}" 
+              onclick="handleStarBtnClick(event, this)">
+        ${isFavorited ? '★ Favorited' : '⭐ Star ' + escapeHtml(targetNick)}
+      </button>
+    </div>
+  `;
+  return wrap;
+}
+window.renderFavoritePillRow = renderFavoritePillRow;
+
+function renderAppInstallPillRow(msg) {
+  const wrap = document.createElement("div");
+  wrap.className = "v2-group-favorite-pill-wrap v2-group-install-pill-wrap";
+  if (msg && msg.id) wrap.id = `msg-${msg.id}`;
+
+  const nick = msg.nick || msg.nickname || "Someone";
+  const safeNick = escapeHtml(nick);
+  const isInstalled = isPwaInstalled();
+
+  wrap.innerHTML = `
+    <div class="v2-group-favorite-pill v2-group-install-pill v2-app-install-pill">
+      <span class="v2-fav-pill-text">📲 <strong>${safeNick}</strong> just installed the HashGANG App!</span>
+      <button type="button" class="v2-fav-pill-action-btn v2-btn-install-app-action ${isInstalled ? 'installed' : ''}" 
+              onclick="handlePwaInstallPrompt(event)">
+        ${isInstalled ? '✓ Installed' : '📲 Install App'}
+      </button>
+    </div>
+  `;
+  return wrap;
+}
+window.renderAppInstallPillRow = renderAppInstallPillRow;
+
 let pendingPermissionMode = null;
 let pendingPermissionContext = null;
 
@@ -7143,6 +7735,15 @@ function showMediaPermissionModal(mode, reason = "prompt") {
     }
   }
 
+  const permGuideDesc = document.getElementById("v2-perm-guide-desc");
+  if (permGuideDesc) {
+    if (inApp) {
+      permGuideDesc.innerHTML = `In installed app: Open Phone <strong>Settings ⚙️</strong> &gt; <strong>Apps</strong> &gt; <strong>#GANG</strong> &gt; <strong>Permissions</strong> to allow ${mediaName}.`;
+    } else {
+      permGuideDesc.innerHTML = `Tap the lock icon 🔒 in your browser address bar to allow permissions.`;
+    }
+  }
+
   if (modal) modal.classList.remove("hidden");
 }
 window.showMediaPermissionModal = showMediaPermissionModal;
@@ -7155,6 +7756,9 @@ function closePermissionModal(e) {
   if (modal) modal.classList.add("hidden");
   pendingPermissionMode = null;
   pendingPermissionContext = null;
+  if (!inCall && !currentMatchTargetId) {
+    ensureInputFieldsVisibility();
+  }
 }
 window.closePermissionModal = closePermissionModal;
 
@@ -7232,7 +7836,7 @@ async function request1v1CallInvite(mode, forceBypass = false) {
     nickname: currentNickname, 
     testBypass: forceBypass || Boolean(window.__E2E_BYPASS_COOLDOWN__) 
   });
-  v2ShowToast(`🚀 Sent ${mode.toUpperCase()} Call invite to lounge!`);
+  v2ShowToast(`🚀 Sent ${mode.toUpperCase()} Call invite to group!`);
 }
 
 async function acceptCallInvite(inviteId, mode) {
@@ -7521,6 +8125,8 @@ function v2ReturnToGroupChat(autoInvite = false) {
   currentChatMode = "text";
   updateStatus("idle", "In Group Chat");
   updateToolbarForMode("idle");
+  ensureInputFieldsVisibility();
+  scrollGroupFeedToBottom(false);
 
   if (socket && socket.connected) {
     // Explicitly unpair from 1v1 private call on server cleanly (no cooldown) and resume group broadcast
@@ -8450,7 +9056,7 @@ function shareBalloonScoreInGroup() {
       }
     });
     if (typeof v2ShowToast === "function") {
-      v2ShowToast("🎉 Posted your score to the Group Lounge!");
+      v2ShowToast("🎉 Posted your score to the Group!");
     }
   }
 }
@@ -9927,7 +10533,10 @@ function openV2SettingsModal(e) {
   // 5. Sync Push Notifications
   syncPushSettingsUI();
 
-  // 6. Sync PWA install state
+  // 6. Sync Favorites List
+  renderFavoritesListInSettings();
+
+  // 7. Sync PWA install state
   if (typeof updatePwaInstallStateUI === "function") {
     updatePwaInstallStateUI();
   }
@@ -10240,7 +10849,8 @@ async function registerWebPushSubscription() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           subscription: subscription.toJSON ? subscription.toJSON() : subscription,
-          device: detectPushDeviceType()
+          device: detectPushDeviceType(),
+          anonUserId: getOrCreateAnonUserId()
         })
       });
     }
@@ -10309,6 +10919,16 @@ async function togglePushNotifications(checkbox) {
       }
     }
   } else {
+    // Loss Aversion Prompt: Warn user that disabling notifications removes favorites
+    if (typeof myFavorites !== "undefined" && myFavorites.size > 0) {
+      const confirmProceed = window.confirm("⚠️ Disabling notifications will permanently remove your saved favorites. Do you want to proceed?");
+      if (!confirmProceed) {
+        checkbox.checked = true;
+        syncPushSettingsUI();
+        return;
+      }
+      clearAllFavoritesLocal();
+    }
     localStorage.setItem("hg_push_enabled", "false");
     v2ShowToast("🔕 Notifications turned off.");
     syncPushSettingsUI();

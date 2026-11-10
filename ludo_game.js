@@ -1045,6 +1045,12 @@
     if (stage) stage.classList.add("hidden");
     if (dock) dock.classList.add("hidden");
     if (groupStage) groupStage.classList.remove("hidden");
+    if (typeof window.ensureInputFieldsVisibility === "function") {
+      window.ensureInputFieldsVisibility();
+    }
+    if (typeof window.scrollGroupFeedToBottom === "function") {
+      window.scrollGroupFeedToBottom(false);
+    }
   };
 
   function teardownLudoGame() {
