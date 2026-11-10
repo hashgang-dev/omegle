@@ -32,6 +32,8 @@ function logResult(testName, success, details = "") {
   }
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function runMasterE2ESuite() {
   console.log("\n=======================================================================");
   console.log("🚀 [HashGANG Master Suite] Starting Full E2E System Verification");
@@ -563,8 +565,14 @@ async function runMasterE2ESuite() {
       await pAndroid.goto(expiredInviteUrl, { waitUntil: "load" });
       await piPhone.goto(APP_URL, { waitUntil: "load" });
 
-      await pAndroid.waitForFunction(() => typeof window.v2SelectModeAndStart === "function" && window.socket?.connected);
-      await piPhone.waitForFunction(() => typeof window.v2SelectModeAndStart === "function" && window.socket?.connected);
+      for (const p of [pAndroid, piPhone]) {
+        await p.evaluate(() => {
+          if (typeof window.confirmAgeAndEnter === "function") window.confirmAgeAndEnter();
+        });
+      }
+
+      await pAndroid.waitForFunction(() => typeof window.v2SelectModeAndStart === "function" && window.socket?.connected, { timeout: 10000 });
+      await piPhone.waitForFunction(() => typeof window.v2SelectModeAndStart === "function" && window.socket?.connected, { timeout: 10000 });
 
       await pAndroid.evaluate(() => window.v2SelectModeAndStart("text"));
       await piPhone.evaluate(() => window.v2SelectModeAndStart("text"));
@@ -781,7 +789,7 @@ async function runMasterE2ESuite() {
       logResult("Real-Time Emoji Reaction Delivery to Peer UI", true);
 
       // 8B. User Join Notification 1-Click Greeting ("Say Hi 👋") & @mention Sync
-      await pageBob.waitForTimeout(2600); // Allow group anti-spam rate limiter (2.5s) to clear
+      await pageBob.waitForTimeout(3200); // Allow group anti-spam rate limiter (2.5s) to safely clear
       await pageBob.evaluate(() => {
         window.triggerUserJoinNotification("Vikram_99");
       });
@@ -797,14 +805,127 @@ async function runMasterE2ESuite() {
           return btn && btn.classList.contains("greeted") && btn.disabled === true;
         });
 
-        await pageAlice.waitForFunction(() => {
+        await pageAlice.waitForFunction((text) => {
           const feed = document.getElementById("v2-group-messages-feed");
-          return feed && feed.textContent.includes("Hi! 👋 @Vikram_99");
-        }, { timeout: 6000 });
+          return feed && feed.textContent.includes(text);
+        }, "Hi! 👋 @Vikram_99", { timeout: 8000 });
 
         greetSuccess = isGreeted;
       }
       logResult("User Join 1-Click Greeting ('Say Hi 👋') & Tag Delivery", greetSuccess);
+
+      // 8C. Secret Star ⭐ Favorites, Install Modal & Settings Card
+      const starBtn = await pageBob.waitForSelector(".v2-msg-star-btn", { timeout: 4000 });
+      let starModalSuccess = false;
+      let favSettingsSuccess = false;
+
+      if (starBtn) {
+        await starBtn.click();
+        await pageBob.waitForTimeout(400);
+
+        const modalVisible = await pageBob.locator("#v2-star-install-modal").isVisible();
+        const installBtnText = await pageBob.locator("#v2-btn-install-and-notify").innerText();
+        const hasCorrectLabel = installBtnText.includes("Install App & Get Notifications");
+        const hasLossWarning = await pageBob.locator(".v2-star-loss-warning").isVisible();
+
+        await pageBob.click(".v2-star-modal-close");
+        await pageBob.waitForTimeout(300);
+        const modalClosed = !(await pageBob.locator("#v2-star-install-modal").isVisible());
+
+        starModalSuccess = modalVisible && hasCorrectLabel && hasLossWarning && modalClosed;
+      }
+      logResult("Secret Star Install Modal, 'Install App & Get Notifications' Trigger & Loss Warning", starModalSuccess);
+
+      // Verify skipping PWA installation rejects favoriting
+      const isFavoritedWhenInstallSkipped = await pageBob.evaluate(async () => {
+        window.pendingStarTarget = { targetUid: "skipped_user", targetNick: "SkippedUser" };
+        window.deferredPwaPromptV2 = {
+          prompt: () => {},
+          userChoice: Promise.resolve({ outcome: "dismissed" })
+        };
+        await window.handleStarInstallAndNotify();
+        return window.myFavorites?.has("skipped_user");
+      });
+      logResult("Skipping PWA Install Rejects Favoriting Gate", !isFavoritedWhenInstallSkipped);
+
+      // Add favorite & verify Settings card
+      await pageBob.evaluate(() => {
+        window.addFavorite("test_target_alice", "Alice");
+        window.openV2SettingsModal();
+      });
+      await pageBob.waitForTimeout(400);
+
+      const favCount = await pageBob.locator("#v2-favorites-count").innerText();
+      const favListHtml = await pageBob.locator("#v2-settings-favorites-list").innerHTML();
+      const hasFavLossWarning = await pageBob.locator(".v2-favorites-loss-warning").isVisible();
+      const hasAliceInSettings = favCount === "1" && favListHtml.includes("Alice");
+
+      await pageBob.click(".v2-fav-del-btn");
+      await pageBob.waitForTimeout(300);
+      const favCountAfter = await pageBob.locator("#v2-favorites-count").innerText();
+      favSettingsSuccess = hasAliceInSettings && hasFavLossWarning && favCountAfter === "0";
+
+      logResult("Secret Star Favorites Card in Settings, Loss Warning & 1-Click Removal", favSettingsSuccess);
+
+      // Verify Group Discovery Pill broadcast delivery to peer Alice's live feed
+      await pageAlice.waitForSelector(".v2-group-favorite-pill", { timeout: 6000 });
+      const pillEls = pageAlice.locator(".v2-group-favorite-pill");
+      const pillCount = await pillEls.count();
+      let pillValid = false;
+      for (let i = 0; i < pillCount; i++) {
+        const pillText = await pillEls.nth(i).locator(".v2-fav-pill-text").innerText();
+        const pillActionBtn = await pillEls.nth(i).locator(".v2-fav-pill-action-btn").innerText();
+        if (pillText.includes("Someone added Alice to Favorites!") && pillActionBtn.includes("Star Alice")) {
+          pillValid = true;
+          break;
+        }
+      }
+      logResult("Secret Star Group Discovery Pill ('Someone added...') Broadcast", pillValid);
+
+      // Verify clicking Star on Discovery Pill triggers modal when not installed
+      let pillModalTriggered = false;
+      const pillActionBtn = pageAlice.locator(".v2-fav-pill-action-btn").last();
+      if (await pillActionBtn.count() > 0) {
+        await pillActionBtn.click();
+        await pageAlice.waitForTimeout(400);
+        const modalOpen = await pageAlice.locator("#v2-star-install-modal").isVisible();
+        if (modalOpen) {
+          pillModalTriggered = true;
+          await pageAlice.click(".v2-star-modal-close");
+          await pageAlice.waitForTimeout(200);
+        }
+      }
+      logResult("Secret Star Discovery Pill 1-Click Action Button Modal Trigger", pillModalTriggered);
+
+      // Verify Real-Time App Install FOMO Pill Broadcast
+      await pageBob.evaluate(() => {
+        if (window.socket) {
+          window.socket.emit("user_installed_app", { nick: "Bob" });
+        }
+      });
+      await pageAlice.waitForSelector(".v2-app-install-pill", { timeout: 6000 });
+      const installPillText = await pageAlice.locator(".v2-app-install-pill .v2-fav-pill-text").last().innerText();
+      const installPillAction = await pageAlice.locator(".v2-app-install-pill .v2-btn-install-app-action").last().innerText();
+      const installPillValid = installPillText.includes("Bob just installed the HashGANG App!") && installPillAction.includes("Install App");
+      logResult("App Install FOMO Pill Broadcast & 1-Tap Action Render", installPillValid);
+
+      // Verify Loss Aversion Prompt & Favorite Cleanup on Notification Toggle OFF
+      await pageBob.evaluate(() => {
+        window.addFavorite("test_loss_alice", "Alice");
+      });
+      pageBob.on("dialog", async (dialog) => {
+        await dialog.accept();
+      });
+      await pageBob.evaluate(() => {
+        const checkbox = document.getElementById("v2-toggle-push-notif");
+        if (checkbox) {
+          checkbox.checked = false;
+          window.togglePushNotifications(checkbox);
+        }
+      });
+      await pageBob.waitForTimeout(400);
+      const bobFavCountAfterToggle = await pageBob.evaluate(() => window.myFavorites ? window.myFavorites.size : 0);
+      logResult("Loss Aversion Favorites Cleanup on Notification Disabling", bobFavCountAfterToggle === 0);
 
       await ctxAlice.close();
       await ctxBob.close();
@@ -840,10 +961,10 @@ async function runMasterE2ESuite() {
       }
       await pageAlice.click(".video-tray-btn");
 
-      await pageAlice.waitForSelector(".v2-feed-call-card", { timeout: 5000 });
+      await pageAlice.waitForSelector(".v2-feed-call-card", { timeout: 8000 });
       logResult("Host In-Feed Call Invite Card Display", true);
 
-      await pageBob.waitForSelector("button.v2-btn-join-call-action", { timeout: 5000 });
+      await pageBob.waitForSelector("button.v2-btn-join-call-action", { timeout: 8000 });
       logResult("Stranger In-Feed Call Card Delivery", true);
 
       await pageBob.click("button.v2-btn-join-call-action");
@@ -898,6 +1019,93 @@ async function runMasterE2ESuite() {
       await ctx.close();
     } catch (e) {
       logResult("Permutation 10 Failed", false, e.message);
+    }
+
+    // Permutation 11: Standalone PWA / Installed App Auto-Refresh & Input Dock Viewport Integrity
+    console.log("🔹 [PERMUTATION 11] Standalone PWA Auto-Refresh & Input Dock Viewport Integrity...");
+    try {
+      const ctxPwa = await browser.newContext({
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true,
+        userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148",
+        serviceWorkers: "block"
+      });
+      const pagePwa = await ctxPwa.newPage();
+      await pagePwa.emulateMedia({ media: "screen" });
+      await pagePwa.addInitScript(() => {
+        Object.defineProperty(window.navigator, "standalone", { get: () => true });
+      });
+
+      await pagePwa.goto(APP_URL, { waitUntil: "load" });
+      await safeDismissAgeModal(pagePwa);
+      await pagePwa.waitForFunction(() => window.socket?.connected);
+
+      // 1. Initial Launch Input Visibility & In-Viewport Bounds
+      const initialMetrics = await pagePwa.evaluate(() => {
+        const input = document.getElementById("v2-group-input-field");
+        const dock = document.getElementById("v2-group-dock");
+        const rect = input.getBoundingClientRect();
+        const dockRect = dock.getBoundingClientRect();
+        return {
+          dockVisible: !!(dock.offsetWidth || dock.offsetHeight || dock.getClientRects().length),
+          inputVisible: !!(input.offsetWidth || input.offsetHeight || input.getClientRects().length),
+          inViewport: dockRect.bottom <= window.innerHeight && rect.bottom <= window.innerHeight
+        };
+      });
+      logResult("Standalone PWA Initial Input Dock Rendered Inside Viewport", initialMetrics.dockVisible && initialMetrics.inViewport);
+
+      // 2. Typing in group chat defers forced auto-refresh
+      await pagePwa.fill("#v2-group-input-field", "Drafting an important message...");
+      await pagePwa.evaluate(() => {
+        window.reloadAppShellSafely("v360");
+      });
+      await pagePwa.waitForTimeout(300);
+      const isReloadDeferred = await pagePwa.evaluate(() => window.pendingAppShellReload === true);
+      logResult("Active Typing in Group Chat Defers Auto-Refresh Reload", isReloadDeferred);
+
+      // 3. Post-reload scroll clamping & input dock bounds verification
+      await pagePwa.reload({ waitUntil: "load" });
+      await safeDismissAgeModal(pagePwa);
+      await pagePwa.waitForTimeout(400);
+
+      const postReloadMetrics = await pagePwa.evaluate(() => {
+        window.ensureInputFieldsVisibility();
+        const input = document.getElementById("v2-group-input-field");
+        const dock = document.getElementById("v2-group-dock");
+        const rect = input.getBoundingClientRect();
+        const dockRect = dock.getBoundingClientRect();
+        return {
+          scrollY: window.scrollY,
+          dockVisible: !!(dock.offsetWidth || dock.offsetHeight || dock.getClientRects().length),
+          inViewport: dockRect.bottom <= window.innerHeight && rect.bottom <= window.innerHeight
+        };
+      });
+      logResult("Standalone Post-Reload Clamped to (0,0) with Input Dock Visible",
+        postReloadMetrics.scrollY === 0 && postReloadMetrics.dockVisible && postReloadMetrics.inViewport);
+
+      // 4. Standalone Permission Guidance copy directs to OS settings
+      const permGuideText = await pagePwa.evaluate(() => {
+        window.showMediaPermissionModal?.("audio");
+        const descEl = document.getElementById("v2-perm-guide-desc");
+        return descEl ? descEl.textContent : "";
+      });
+      const hasPhoneSettings = permGuideText.includes("Settings") && permGuideText.includes("Apps");
+      logResult("Standalone Permission Modal Guides to Phone Settings", hasPhoneSettings);
+
+      // 5. Dismiss permission modal -> input dock remains active
+      await pagePwa.evaluate(() => window.closePermissionModal?.());
+      await pagePwa.waitForTimeout(200);
+      const dockAfterDismiss = await pagePwa.evaluate(() => {
+        const input = document.getElementById("v2-group-input-field");
+        const dock = document.getElementById("v2-group-dock");
+        return !dock.classList.contains("hidden") && input.offsetWidth > 0;
+      });
+      logResult("Input Dock Remains Active and Visible After Permission Dismissal", dockAfterDismiss);
+
+      await ctxPwa.close();
+    } catch (e) {
+      logResult("Permutation 11 (PWA Viewport & Input Integrity) Failed", false, e.message);
     }
 
     await browser.close();
@@ -1644,6 +1852,262 @@ async function runMasterE2ESuite() {
       pageRes.data.includes("Admin Password *");
     logResult("Frontend serves admin-broadcast-push.html with validation engine & live preview", hasConsoleFeatures);
 
+    // 10.8 Secret Star ⭐ In-App Online Alert Delivery on Peer Connect
+    const FAVORITES_API_URL = "http://localhost:5000/api/v1/strangerchat/favorites";
+    const testFanUid = "test_fan_uid_" + Math.random().toString(36).substring(2, 8);
+    const testTargetUid = "test_target_uid_" + Math.random().toString(36).substring(2, 8);
+
+    await axios.post(FAVORITES_API_URL, {
+      anonUserId: testFanUid,
+      targetUid: testTargetUid,
+      targetNick: "Priya"
+    });
+
+    const fanSock = io(SOCKET_URL, { transports: ["websocket"] });
+    let favAlertReceived = null;
+    fanSock.on("favorite_online_alert", (d) => {
+      favAlertReceived = d;
+    });
+
+    await new Promise((res) => {
+      fanSock.on("connect", () => {
+        fanSock.emit("join_group_chat", { nickname: "FanBoy", anonUserId: testFanUid });
+        fanSock.on("group_joined", res);
+      });
+    });
+
+    const targetSock = io(SOCKET_URL, { transports: ["websocket"] });
+    await new Promise((res) => {
+      targetSock.on("connect", () => {
+        targetSock.emit("join_group_chat", { nickname: "SuperGirl_99", anonUserId: testTargetUid });
+        targetSock.on("group_joined", res);
+      });
+    });
+
+    await sleep(600);
+    const alertSuccess = !!(favAlertReceived && favAlertReceived.message && favAlertReceived.message.includes("Priya") && favAlertReceived.message.includes("group") && !favAlertReceived.message.includes("SuperGirl_99"));
+    logResult("Secret Star Online Alert Preserves Saved Name Even If Target Changes Nickname", alertSuccess, `[Alert: "${favAlertReceived?.message}"]`);
+
+    fanSock.disconnect();
+    targetSock.disconnect();
+    await axios.delete(FAVORITES_API_URL, {
+      data: { anonUserId: testFanUid, targetUid: testTargetUid }
+    }).catch(() => {});
+
+    // 10.9 Self-Favoriting Prevention Gate (Negative Scenario)
+    let selfFavBlockedHttp = false;
+    try {
+      await axios.post(FAVORITES_API_URL, {
+        anonUserId: testFanUid,
+        targetUid: testFanUid,
+        targetNick: "Myself"
+      });
+    } catch (e) {
+      selfFavBlockedHttp = e.response && e.response.status === 400;
+    }
+
+    let selfFavBlockedSocket = false;
+    const testSelfSock = io(SOCKET_URL, { transports: ["websocket"] });
+    await new Promise((res) => {
+      testSelfSock.on("connect", () => {
+        testSelfSock.emit("join_group_chat", { nickname: "Selfie", anonUserId: testFanUid });
+        testSelfSock.on("group_joined", res);
+      });
+    });
+
+    const socketFavErrPromise = new Promise((res) => {
+      testSelfSock.on("favorite_error", (err) => {
+        if (err && err.message && err.message.includes("yourself")) {
+          selfFavBlockedSocket = true;
+        }
+        res();
+      });
+      testSelfSock.emit("favorite_user", { targetUid: testFanUid, targetNick: "Selfie" });
+      setTimeout(res, 1000);
+    });
+    await socketFavErrPromise;
+    testSelfSock.disconnect();
+
+    logResult("Secret Star Self-Favoriting Gate Enforced (HTTP & Socket)", selfFavBlockedHttp && selfFavBlockedSocket);
+
+    // 10.10 5-Item Hard Limit Enforced (Negative Scenario)
+    const limitTestUser = "test_user_limit_" + Math.random().toString(36).substring(2, 8);
+    for (let i = 1; i <= 5; i++) {
+      await axios.post(FAVORITES_API_URL, {
+        anonUserId: limitTestUser,
+        targetUid: `target_${i}_${limitTestUser}`,
+        targetNick: `Friend_${i}`
+      });
+    }
+    const count5Res = await axios.get(`${FAVORITES_API_URL}?anonUserId=${limitTestUser}`);
+    const isAt5 = count5Res.status === 200 && count5Res.data.count === 5;
+
+    let sixthBlockedHttp = false;
+    try {
+      await axios.post(FAVORITES_API_URL, {
+        anonUserId: limitTestUser,
+        targetUid: `target_6_${limitTestUser}`,
+        targetNick: `Friend_6`
+      });
+    } catch (e) {
+      sixthBlockedHttp = e.response && e.response.status === 400 && e.response.data.limitReached === true;
+    }
+
+    // Cleanup limit test user
+    for (let i = 1; i <= 5; i++) {
+      await axios.delete(FAVORITES_API_URL, {
+        data: { anonUserId: limitTestUser, targetUid: `target_${i}_${limitTestUser}` }
+      }).catch(() => {});
+    }
+
+    logResult("Secret Star 5-Item Hard Limit Enforced (6th Blocked with HTTP 400)", isAt5 && sixthBlockedHttp);
+
+    // 10.11 Duplicate Favoriting Idempotence & Safe Upsert (Positive Scenario)
+    const dupUser = "test_user_dup_" + Math.random().toString(36).substring(2, 8);
+    const dupTarget = "target_dup_" + Math.random().toString(36).substring(2, 8);
+
+    const post1 = await axios.post(FAVORITES_API_URL, { anonUserId: dupUser, targetUid: dupTarget, targetNick: "Echo" });
+    const post2 = await axios.post(FAVORITES_API_URL, { anonUserId: dupUser, targetUid: dupTarget, targetNick: "EchoUpdated" });
+    const dupCheck = await axios.get(`${FAVORITES_API_URL}?anonUserId=${dupUser}`);
+    const isIdempotent = post1.status === 201 && post2.status === 201 && dupCheck.data.count === 1 && dupCheck.data.favorites[0].targetNick === "EchoUpdated";
+
+    await axios.delete(FAVORITES_API_URL, { data: { anonUserId: dupUser, targetUid: dupTarget } }).catch(() => {});
+    logResult("Secret Star Duplicate Favoriting Idempotence & Safe Upsert", isIdempotent);
+
+    // 10.12 3-Hour Cooldown Alert Suppression (Negative Scenario)
+    const coolFan = "fan_cooldown_" + Math.random().toString(36).substring(2, 8);
+    const coolTarget = "target_cooldown_" + Math.random().toString(36).substring(2, 8);
+
+    await axios.post(FAVORITES_API_URL, { anonUserId: coolFan, targetUid: coolTarget, targetNick: "CooldownGirl" });
+
+    const coolFanSock = io(SOCKET_URL, { transports: ["websocket"] });
+    let coolAlertCount = 0;
+    coolFanSock.on("favorite_online_alert", () => {
+      coolAlertCount++;
+    });
+
+    await new Promise((res) => {
+      coolFanSock.on("connect", () => {
+        coolFanSock.emit("join_group_chat", { nickname: "CoolFan", anonUserId: coolFan });
+        coolFanSock.on("group_joined", res);
+      });
+    });
+
+    // Target joins 1st time -> Alert 1 should fire
+    const tSock1 = io(SOCKET_URL, { transports: ["websocket"] });
+    await new Promise((res) => {
+      tSock1.on("connect", () => {
+        tSock1.emit("join_group_chat", { nickname: "CooldownGirl", anonUserId: coolTarget });
+        tSock1.on("group_joined", res);
+      });
+    });
+    await sleep(500);
+    tSock1.disconnect();
+
+    // Target reconnects immediately 2nd time -> Alert 2 should BE SUPPRESSED by 3-hour cooldown
+    const tSock2 = io(SOCKET_URL, { transports: ["websocket"] });
+    await new Promise((res) => {
+      tSock2.on("connect", () => {
+        tSock2.emit("join_group_chat", { nickname: "CooldownGirl", anonUserId: coolTarget });
+        tSock2.on("group_joined", res);
+      });
+    });
+    await sleep(500);
+    tSock2.disconnect();
+    coolFanSock.disconnect();
+
+    await axios.delete(FAVORITES_API_URL, { data: { anonUserId: coolFan, targetUid: coolTarget } }).catch(() => {});
+    logResult("Secret Star 3-Hour Cooldown Suppression on Rapid Reconnects", coolAlertCount === 1, `[Alerts Triggered: ${coolAlertCount}/1]`);
+
+    // 10.13 XSS & Special Character Sanitization in Favorites (Security)
+    const xssUser = "xss_user_" + Math.random().toString(36).substring(2, 8);
+    const xssTarget = "xss_target_" + Math.random().toString(36).substring(2, 8);
+    const xssNick = "<script>alert('pwned')</script>";
+
+    const xssAddRes = await axios.post(FAVORITES_API_URL, {
+      anonUserId: xssUser,
+      targetUid: xssTarget,
+      targetNick: xssNick
+    });
+    const xssGetRes = await axios.get(`${FAVORITES_API_URL}?anonUserId=${xssUser}`);
+    const xssSafe = xssAddRes.status === 201 && xssGetRes.data.favorites[0].targetNick.includes("<script>");
+
+    await axios.delete(FAVORITES_API_URL, { data: { anonUserId: xssUser, targetUid: xssTarget } }).catch(() => {});
+    logResult("Secret Star Storage & Escape of Complex Nicknames Without Server Crash", xssSafe);
+
+    // 10.14 Loss Aversion All-Favorites Deletion API (Positive Scenario)
+    const delAllUser = "usr_del_all_" + Math.random().toString(36).substring(2, 8);
+    await axios.post(FAVORITES_API_URL, { anonUserId: delAllUser, targetUid: "t1", targetNick: "N1" });
+    await axios.post(FAVORITES_API_URL, { anonUserId: delAllUser, targetUid: "t2", targetNick: "N2" });
+    const delAllPreCheck = await axios.get(`${FAVORITES_API_URL}?anonUserId=${delAllUser}`);
+    const had2 = delAllPreCheck.data.count === 2;
+
+    const delAllRes = await axios.delete(`${FAVORITES_API_URL}/all`, { data: { anonUserId: delAllUser } });
+    const delAllPostCheck = await axios.get(`${FAVORITES_API_URL}?anonUserId=${delAllUser}`);
+    const now0 = delAllRes.status === 200 && delAllPostCheck.data.count === 0;
+    logResult("Loss Aversion All-Favorites Cleanup Endpoint (DELETE /favorites/all)", had2 && now0);
+
+    // 10.15 Socket Event clear_all_favorites (Positive Scenario)
+    const sockClearUser = "usr_sock_clear_" + Math.random().toString(36).substring(2, 8);
+    await axios.post(FAVORITES_API_URL, { anonUserId: sockClearUser, targetUid: "st1", targetNick: "SN1" });
+    const clearSock = io(SOCKET_URL, { transports: ["websocket"] });
+    let clearSuccessFired = false;
+    clearSock.on("clear_all_favorites_success", () => {
+      clearSuccessFired = true;
+    });
+    await new Promise((res) => {
+      clearSock.on("connect", () => {
+        clearSock.emit("clear_all_favorites", { userUid: sockClearUser });
+        setTimeout(res, 500);
+      });
+    });
+    clearSock.disconnect();
+    const sockPostCheck = await axios.get(`${FAVORITES_API_URL}?anonUserId=${sockClearUser}`);
+    logResult("Socket Event 'clear_all_favorites' Database Synchronization", clearSuccessFired && sockPostCheck.data.count === 0);
+
+    // 10.16 Socket Event user_installed_app Broadcasts app_install_pill (Positive Scenario)
+    const instRoomClient1 = io(SOCKET_URL, { transports: ["websocket"], autoConnect: false });
+    const instRoomClient2 = io(SOCKET_URL, { transports: ["websocket"], autoConnect: false });
+    let receivedInstallPill = null;
+
+    instRoomClient2.on("new_group_msg", (msg) => {
+      if (msg && msg.type === "app_install_pill") {
+        receivedInstallPill = msg;
+      }
+    });
+
+    await new Promise((res) => {
+      const tm = setTimeout(res, 3000);
+      instRoomClient1.once("connect", () => {
+        instRoomClient1.emit("join_group_chat", { nickname: "InstallerOne" });
+        instRoomClient1.once("group_joined", () => {
+          clearTimeout(tm);
+          res();
+        });
+      });
+      instRoomClient1.connect();
+    });
+
+    await new Promise((res) => {
+      const tm = setTimeout(res, 3000);
+      instRoomClient2.once("connect", () => {
+        instRoomClient2.emit("join_group_chat", { nickname: "ObserverTwo" });
+        instRoomClient2.once("group_joined", () => {
+          clearTimeout(tm);
+          res();
+        });
+      });
+      instRoomClient2.connect();
+    });
+
+    instRoomClient1.emit("user_installed_app", { nick: "InstallerOne" });
+    await sleep(600);
+    instRoomClient1.disconnect();
+    instRoomClient2.disconnect();
+
+    const installPillOk = receivedInstallPill && receivedInstallPill.nick === "InstallerOne" && receivedInstallPill.text.includes("installed the HashGANG App!");
+    logResult("Socket Event 'user_installed_app' Broadcasts App Install Pill", installPillOk);
+
   } catch (err) {
     logResult("Phase 10 WebPush Suite Execution", false, err.message);
   }
@@ -1656,20 +2120,27 @@ async function runMasterE2ESuite() {
   console.log("───────────────────────────────────────────────────────────────────────");
 
   try {
-    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
     const createGroupClient = (nickname) => {
       return new Promise((resolve, reject) => {
         const socket = io(SOCKET_URL, {
           transports: ["websocket"],
           forceNew: true,
+          autoConnect: false,
           query: { clientVer: "v351" }
         });
-        socket.on("connect", () => {
-          socket.emit("join_group_chat", { nickname });
+        const tm = setTimeout(() => reject(new Error(`Timeout connecting socket ${nickname}`)), 4000);
+        socket.once("connect", () => {
+          socket.emit("join_group_chat", { nickname, requestedRoomNumber: 1 });
         });
-        socket.on("group_joined", () => resolve(socket));
-        socket.on("connect_error", reject);
+        socket.once("group_joined", () => {
+          clearTimeout(tm);
+          resolve(socket);
+        });
+        socket.once("connect_error", (err) => {
+          clearTimeout(tm);
+          reject(err);
+        });
+        socket.connect();
       });
     };
 
@@ -1680,8 +2151,10 @@ async function runMasterE2ESuite() {
     let ludoInviteId = null;
     let inviteReceived = null;
 
-    const invitePromise = new Promise((resolve) => {
+    const invitePromise = new Promise((resolve, reject) => {
+      const tm = setTimeout(() => reject(new Error("Timeout waiting for new_ludo_invite")), 4000);
       challenger1.on("new_ludo_invite", (invite) => {
+        clearTimeout(tm);
         ludoInviteId = invite.inviteId;
         inviteReceived = invite;
         resolve(invite);

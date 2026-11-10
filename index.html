@@ -3,7 +3,16 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content" />
+  <!-- Lock scroll restoration to manual immediately before any layout or render -->
+  <script>
+    if (typeof history !== "undefined" && "scrollRestoration" in history) {
+      try { history.scrollRestoration = "manual"; } catch (e) {}
+    }
+    if (typeof window !== "undefined") {
+      try { window.scrollTo(0, 0); } catch (e) {}
+    }
+  </script>
   <meta name="color-scheme" content="dark" />
   <meta http-equiv="Content-Security-Policy"
     content="default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; img-src 'self' http: https: data: blob: https://*.clarity.ms https://c.bing.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; connect-src 'self' http: https: wss: ws: https://www.google-analytics.com https://*.google-analytics.com https://www.clarity.ms https://*.clarity.ms https://c.bing.com https://*.firebaseio.com https://*.googleapis.com;" />
@@ -65,7 +74,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=352" />
+  <link rel="stylesheet" href="style.css?v=360" />
 
   <!-- Google AdSense Library (Ready for approval) -->
   <meta name="google-adsense-account" content="ca-pub-6927010746708408" />
@@ -774,9 +783,8 @@
             </div>
             <div class="v2-perm-text-content">
               <strong>Camera or Microphone Access Blocked</strong>
-              <p>
-                Tap the lock icon 🔒 in your browser address bar to allow
-                permissions.
+              <p id="v2-perm-guide-desc">
+                Tap the lock icon 🔒 in your browser address bar to allow permissions.
               </p>
             </div>
           </div>
@@ -1220,6 +1228,18 @@
             </div>
           </div>
 
+          <!-- Card 2: My Favorites (Secret Star ⭐) -->
+          <div class="v2-settings-group" id="v2-settings-favorites-card">
+            <div class="v2-settings-group-title">
+              <i class="fa-solid fa-star text-amber-400"></i> My Favorites (<span id="v2-favorites-count">0</span>/5)
+            </div>
+            <p class="v2-settings-desc">Favorite up to 5 people to get alerts when they're back online:</p>
+            <div class="v2-favorites-list" id="v2-settings-favorites-list">
+              <div class="v2-favorites-empty-text">No favorites added yet. Tap ☆ next to any name in chat!</div>
+            </div>
+            <div class="v2-favorites-loss-warning"><i class="fa-solid fa-circle-exclamation"></i> Disabling notifications or uninstalling the app will permanently clear your saved favorites.</div>
+          </div>
+
           <!-- Card 2: Call Voice -->
           <div class="v2-settings-group">
             <div class="v2-settings-group-title">
@@ -1368,6 +1388,21 @@
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Star Favorite PWA Install & Notifications Prompt Modal -->
+    <div class="v2-star-install-overlay hidden" id="v2-star-install-modal">
+      <div class="v2-star-install-container">
+        <button type="button" class="v2-star-modal-close" onclick="closeStarInstallModal()" title="Close">✕</button>
+        <div class="v2-star-modal-ico">⭐</div>
+        <h3 class="v2-star-modal-title" id="v2-star-modal-title">Star Friend!</h3>
+        <p class="v2-star-modal-desc" id="v2-star-modal-desc">Get an instant notification the moment <strong id="v2-star-target-name">your friend</strong> comes back online!</p>
+        <button type="button" class="v2-star-install-btn" id="v2-btn-install-and-notify" onclick="handleStarInstallAndNotify()">
+          <i class="fa-solid fa-download"></i> 📲 Install App & Get Notifications
+        </button>
+        <p class="v2-star-loss-warning"><i class="fa-solid fa-shield-heart"></i> Note: Keeping notifications enabled preserves your saved favorites.</p>
       </div>
     </div>
 
@@ -1391,7 +1426,7 @@
     <script src="ad_mediation_config.js?v=351" defer></script>
     <script src="socket.io.min.js?v=301"></script>
     <script src="ludo_game.js?v=351" defer></script>
-    <script src="app.js?v=352" defer></script>
+    <script src="app.js?v=360" defer></script>
 </body>
 
 </html>
