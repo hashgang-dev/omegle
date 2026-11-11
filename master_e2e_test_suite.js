@@ -1058,7 +1058,7 @@ async function runMasterE2ESuite() {
       // 2. Typing in group chat defers forced auto-refresh
       await pagePwa.fill("#v2-group-input-field", "Drafting an important message...");
       await pagePwa.evaluate(() => {
-        window.reloadAppShellSafely("v360");
+        window.reloadAppShellSafely("v361");
       });
       await pagePwa.waitForTimeout(300);
       const isReloadDeferred = await pagePwa.evaluate(() => window.pendingAppShellReload === true);
