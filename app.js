@@ -416,6 +416,16 @@ function initV2App() {
     syncInviteButtonsCooldown();
   }
 
+  // Auto-sync WebPush subscription if notification permission is already granted
+  if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    try {
+      localStorage.setItem("hg_push_enabled", "true");
+      if (typeof registerWebPushSubscription === "function") {
+        registerWebPushSubscription();
+      }
+    } catch (e) {}
+  }
+
   recordVisitBackend();
   fetchActiveUsersBackend();
   fetchSelfBrandAdsFromBackend();
@@ -426,7 +436,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v360";
+const APP_CLIENT_VERSION = "v361";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -7434,6 +7444,12 @@ function handleStarBtnClick(event, btn) {
     if (!isPwaAndPushEnabled()) {
       openStarInstallModal(targetUid, targetNick);
     } else {
+      try {
+        localStorage.setItem("hg_push_enabled", "true");
+        if (typeof registerWebPushSubscription === "function") {
+          registerWebPushSubscription();
+        }
+      } catch (e) {}
       addFavorite(targetUid, targetNick);
     }
   }
@@ -7521,8 +7537,9 @@ async function handleStarInstallAndNotify() {
 
   // 3. Register WebPush
   try {
-    if (typeof subscribeUserToPushNotifications === "function") {
-      subscribeUserToPushNotifications();
+    localStorage.setItem("hg_push_enabled", "true");
+    if (typeof registerWebPushSubscription === "function") {
+      await registerWebPushSubscription();
     }
   } catch (e) {}
 

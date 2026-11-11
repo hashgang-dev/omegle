@@ -9787,20 +9787,26 @@ html, body {
   background: transparent;
   border: none;
   cursor: pointer;
-  padding: 0 2px;
-  font-size: 0.88rem;
+  padding: 0 3px;
+  font-size: 0.95rem;
   line-height: 1;
-  color: rgba(251, 191, 36, 0.55);
+  color: #ffffff;
   transition: all 0.18s ease;
   vertical-align: middle;
+  outline: none;
 }
 .v2-msg-star-btn:hover {
   color: #fbbf24;
   transform: scale(1.22);
 }
 .v2-msg-star-btn.favorited {
+  color: #fbbf24;
+  text-shadow: 0 0 7px rgba(251, 191, 36, 0.75);
+  transform: scale(1.08);
+}
+.v2-msg-star-btn.favorited:hover {
   color: #f59e0b;
-  text-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+  transform: scale(1.22);
 }
 
 .v2-group-favorite-pill-wrap {
