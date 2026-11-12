@@ -404,6 +404,7 @@ function initV2App() {
   console.log("🚀 [HashGANG] Application Engine Initializing...");
   registerV2ServiceWorker();
   checkV2UrlInviteParameters();
+  checkFavoriteAlertArrival();
   initSocketConnection();
   setupEventListeners();
   initGroupFeedScrollListener();
@@ -436,7 +437,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v361";
+const APP_CLIENT_VERSION = "v364";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -4174,6 +4175,7 @@ function setupEventListeners() {
         if (currentMatchTargetId) {
           socket.emit("disconnect_peer", { targetId: currentMatchTargetId });
         }
+        socket.disconnect();
       }
     } catch (e) {}
   };
@@ -5207,30 +5209,6 @@ async function fetchSelfBrandAdsFromBackend() {
         }
       })
       .catch(() => {});
-  } catch (e) {}
-}
-
-async function recordAdImpressionBackend(adConfig, durationWatched = 0, completedFull = false, skipped = false, clickedCta = false) {
-  if (typeof BACKEND_API_BASE === "undefined" || !adConfig) return;
-  try {
-    const visitorId = getVisitorId();
-    const device = window.innerWidth <= 768 ? "mobile" : "desktop";
-    const adId = adConfig.adId || adConfig.id || "brand-ad-unknown";
-
-    fetch(`${BACKEND_API_BASE}/ad-impression`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        adId,
-        country: "UNKNOWN",
-        device,
-        durationWatched: Math.round(durationWatched),
-        completedFull,
-        skipped,
-        clickedCta,
-        visitorId
-      }),
-    }).catch(() => {});
   } catch (e) {}
 }
 
@@ -6491,33 +6469,6 @@ function renderViralCommunityCard() {
   return card;
 }
 
-function renderDirect1v1SocialInviteFeedCard() {
-  const card = document.createElement("div");
-  card.className = "v2-feed-viral-card direct-1v1";
-  card.id = "v2-feed-direct-1v1-card";
-  card.innerHTML = `
-    <div class="v2-viral-top-content">
-      <div class="v2-viral-badge" style="color: #c084fc;">
-        <i class="fa-solid fa-lock text-purple-400"></i> Secret Private Link
-      </div>
-      <h5>Invite a friend to private chat!</h5>
-      <p>Send a secret link on WhatsApp or Telegram to connect in a private encrypted room:</p>
-    </div>
-    <div class="v2-viral-share-strip">
-      <button class="v2-social-strip-btn whatsapp" onclick="triggerDirect1v1Share('video')" title="Share Private Video Link on WhatsApp">
-        <i class="fa-brands fa-whatsapp"></i> WhatsApp Link
-      </button>
-      <button class="v2-social-strip-btn telegram" onclick="triggerDirect1v1Share('video')" title="Share Private Video Link on Telegram">
-        <i class="fa-brands fa-telegram"></i> Telegram Link
-      </button>
-      <button class="v2-social-strip-btn" onclick="openV2ShareModal('direct_1v1', 'video')" title="Choose Video, Audio, or Text Mode" style="background: rgba(192, 132, 252, 0.15); border-color: rgba(192, 132, 252, 0.4); color: #e9d5ff;">
-        <i class="fa-solid fa-link"></i> Get Secret Link
-      </button>
-    </div>
-  `;
-  return card;
-}
-
 function triggerDirectPlatformShare(platform) {
   const roomNum = activeGroupRoomNumber || 1;
   const baseUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}`;
@@ -6577,6 +6528,28 @@ function triggerDirectPlatformShare(platform) {
   }
 }
 
+function v2CopyFallback(text) {
+  try {
+    const tempInput = document.createElement("textarea");
+    tempInput.value = text;
+    tempInput.style.position = "fixed";
+    tempInput.style.opacity = "0";
+    document.body.appendChild(tempInput);
+    tempInput.focus();
+    tempInput.select();
+    const successful = document.execCommand("copy");
+    document.body.removeChild(tempInput);
+    if (successful) {
+      v2ShowToast("📋 Link copied to clipboard!");
+    } else {
+      v2ShowToast("⚠️ Please copy link manually: " + text);
+    }
+  } catch (err) {
+    v2ShowToast("⚠️ Please copy link manually: " + text);
+  }
+}
+window.v2CopyFallback = v2CopyFallback;
+
 const GROUP_ADSTERRA_HOURLY_KEY = "v2_group_adsterra_hourly_tracker_v2";
 const MAX_GROUP_ADSTERRA_PER_HOUR = 4;
 let houseCardCycleIndex = 0;
@@ -6617,30 +6590,6 @@ function incrementGroupHourlyAdsterraCount() {
     const newCount = status.count + 1;
     localStorage.setItem(GROUP_ADSTERRA_HOURLY_KEY, JSON.stringify({ count: newCount, windowStart }));
   } catch (e) {}
-}
-
-function renderPWAInstallFeedCard(badgeText = "Promoted") {
-  const card = document.createElement("div");
-  card.className = "v2-feed-house-card pwa";
-  card.innerHTML = `
-    <div class="v2-house-card-header">
-      <span class="v2-house-tag"><i class="fa-solid fa-mobile-screen-button"></i> 1-Tap Fast App</span>
-      <span class="v2-house-ad-badge">${badgeText}</span>
-    </div>
-    <div class="v2-house-card-body">
-      <div class="v2-house-icon-wrap">
-        <img src="logo-sm.webp" alt="HashGANG" class="v2-house-app-icon" width="40" height="40" />
-      </div>
-      <div class="v2-house-card-text">
-        <h5>Install HashGANG on Home Screen</h5>
-        <p>Instant stranger chat & zero browser reload lag.</p>
-      </div>
-    </div>
-    <button class="v2-btn-house-action pwa" onclick="handlePwaInstallPrompt(event)">
-      <i class="fa-solid fa-download"></i> Add to Home Screen (Free)
-    </button>
-  `;
-  return card;
 }
 
 let houseAdRotationIndex = 0;
@@ -6694,10 +6643,6 @@ function renderHousePromoFeedCard() {
     </a>
   `;
   return card;
-}
-
-function renderMyLeaderPromoFeedCard() {
-  return renderHousePromoFeedCard();
 }
 
 function injectAdSenseBanner(container, context = "group") {
@@ -6912,27 +6857,6 @@ function handlePrivateChatPacing() {
       if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
     }, 40);
   }
-}
-
-function renderPrivateChatPWAInlineCard() {
-  const card = document.createElement("div");
-  card.className = "v2-chat-inline-card pwa";
-  card.innerHTML = `
-    <div class="v2-inline-card-content">
-      <img src="logo-sm.webp" alt="HashGANG" class="v2-inline-card-icon" width="32" height="32" />
-      <div class="v2-inline-card-body">
-        <div class="v2-inline-card-title">
-          <span>Add HashGANG to Home Screen</span>
-          <span class="v2-inline-card-tag">Fast App</span>
-        </div>
-        <p class="v2-inline-card-desc">Instant stranger chat without browser reload lag.</p>
-      </div>
-      <button class="v2-inline-card-btn pwa" onclick="handlePwaInstallPrompt(event)">
-        <i class="fa-solid fa-download"></i> Install
-      </button>
-    </div>
-  `;
-  return card;
 }
 
 function renderPrivateChatHouseInlineCard() {
@@ -7440,14 +7364,14 @@ function handleStarBtnClick(event, btn) {
       return;
     }
 
-    // Check if app is installed and notifications allowed
+    // Enforce PWA installation & notifications permission for adding favorites
     if (!isPwaAndPushEnabled()) {
       openStarInstallModal(targetUid, targetNick);
     } else {
       try {
         localStorage.setItem("hg_push_enabled", "true");
         if (typeof registerWebPushSubscription === "function") {
-          registerWebPushSubscription();
+          registerWebPushSubscription(true);
         }
       } catch (e) {}
       addFavorite(targetUid, targetNick);
@@ -7515,7 +7439,6 @@ async function handleStarInstallAndNotify() {
           socket.emit("user_installed_app", { nick: currentNickname || localStorage.getItem("hg_user_nickname") || "Stranger" });
         }
       } else {
-        // User skipped or cancelled the installation prompt!
         v2ShowToast("📲 App installation was skipped. Please install the app to star friends and receive online alerts!");
         return;
       }
@@ -7535,11 +7458,11 @@ async function handleStarInstallAndNotify() {
     }
   }
 
-  // 3. Register WebPush
+  // 3. Register WebPush with fresh token
   try {
     localStorage.setItem("hg_push_enabled", "true");
     if (typeof registerWebPushSubscription === "function") {
-      await registerWebPushSubscription();
+      await registerWebPushSubscription(true);
     }
   } catch (e) {}
 
@@ -7652,6 +7575,79 @@ function clearAllFavoritesLocal() {
   } catch (e) {}
 }
 window.clearAllFavoritesLocal = clearAllFavoritesLocal;
+
+function checkFavoriteAlertArrival() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const source = urlParams.get("source");
+  if (source === "favorite_alert") {
+    try {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, cleanUrl);
+    } catch (e) {}
+
+    if (isPwaStandalone()) {
+      v2ShowToast("⭐ Welcome back! Your favorite friend is online.");
+      return;
+    }
+
+    if (typeof myFavorites !== "undefined" && myFavorites.size > 0) {
+      setTimeout(() => {
+        openFavoriteReinstallGate();
+      }, 1000);
+    }
+  }
+}
+window.checkFavoriteAlertArrival = checkFavoriteAlertArrival;
+
+function openFavoriteReinstallGate() {
+  const modal = document.getElementById("v2-fav-reinstall-modal");
+  if (modal) {
+    modal.classList.remove("hidden");
+  }
+}
+window.openFavoriteReinstallGate = openFavoriteReinstallGate;
+
+async function handleFavoriteReinstallAction() {
+  const modal = document.getElementById("v2-fav-reinstall-modal");
+  const pwaPrompt = window.deferredPwaPrompt || deferredPwaPromptV2;
+
+  if (pwaPrompt) {
+    try {
+      pwaPrompt.prompt();
+      const choice = await pwaPrompt.userChoice;
+      if (choice && choice.outcome === "accepted") {
+        window.deferredPwaPrompt = null;
+        deferredPwaPromptV2 = null;
+        try { localStorage.setItem("hg_is_pwa_installed", "true"); } catch (e) {}
+        if (typeof updatePwaInstallStateUI === "function") updatePwaInstallStateUI();
+        v2ShowToast("🎉 #GANG App installed! Your favorites are safely preserved.");
+        if (modal) modal.classList.add("hidden");
+        return;
+      } else {
+        v2ShowToast("📲 Installation cancelled. Please install the app to keep your favorites active!");
+        return;
+      }
+    } catch (err) {}
+  }
+
+  v2ShowToast("📲 Tap your browser menu (⋮) and tap 'Install app' or 'Add to Home screen' to keep your favorites!");
+  if (modal) modal.classList.add("hidden");
+}
+window.handleFavoriteReinstallAction = handleFavoriteReinstallAction;
+
+function dismissFavoriteReinstallGate(fromCloseBtn = false) {
+  const modal = document.getElementById("v2-fav-reinstall-modal");
+  if (fromCloseBtn) {
+    const confirmClear = confirm("⚠️ Without installing the app, your saved favorites will be cleared. Do you want to remove your favorites?");
+    if (!confirmClear) {
+      return;
+    }
+  }
+  if (modal) modal.classList.add("hidden");
+  clearAllFavoritesLocal();
+  v2ShowToast("🗑️ Saved favorites cleared. Install the app anytime to favorite friends!");
+}
+window.dismissFavoriteReinstallGate = dismissFavoriteReinstallGate;
 
 function renderFavoritePillRow(msg) {
   const wrap = document.createElement("div");
@@ -10840,7 +10836,7 @@ function detectPushDeviceType() {
   return "desktop";
 }
 
-async function registerWebPushSubscription() {
+async function registerWebPushSubscription(forceRefresh = false) {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
   try {
     const reg = await navigator.serviceWorker.ready;
@@ -10853,6 +10849,17 @@ async function registerWebPushSubscription() {
 
     const applicationServerKey = urlBase64ToUint8Array(data.vapidPublicKey);
     let subscription = await reg.pushManager.getSubscription();
+
+    // Stale/expired token recovery: Unsubscribe to get a fresh token from FCM
+    if (subscription && forceRefresh) {
+      try {
+        await subscription.unsubscribe();
+        subscription = null;
+      } catch (e) {
+        console.warn("[WebPush] Stale subscription unsubscribe notice:", e);
+      }
+    }
+
     if (!subscription) {
       subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
@@ -10870,6 +10877,7 @@ async function registerWebPushSubscription() {
           anonUserId: getOrCreateAnonUserId()
         })
       });
+      console.log("🔔 [WebPush] Active subscription registered successfully with backend!");
     }
   } catch (err) {
     console.debug("[WebPush] Registration notice:", err);
@@ -10909,7 +10917,7 @@ async function togglePushNotifications(checkbox) {
       v2ShowToast("🔔 Notifications enabled!");
       syncPushSettingsUI();
       testSendLocalNotification();
-      registerWebPushSubscription();
+      registerWebPushSubscription(true);
     } else if (Notification.permission === "denied") {
       v2ShowToast("⚠️ Notifications blocked in browser. Tap URL lock icon to allow.");
       checkbox.checked = false;
@@ -10922,7 +10930,7 @@ async function togglePushNotifications(checkbox) {
           v2ShowToast("🔔 Notifications enabled!");
           syncPushSettingsUI();
           testSendLocalNotification();
-          registerWebPushSubscription();
+          registerWebPushSubscription(true);
           if (typeof trackV2Event === "function") {
             trackV2Event("push_permission_granted", { source: "settings_toggle" });
           }

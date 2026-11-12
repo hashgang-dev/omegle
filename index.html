@@ -74,7 +74,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=361" />
+  <link rel="stylesheet" href="style.css?v=364" />
 
   <!-- Google AdSense Library (Ready for approval) -->
   <meta name="google-adsense-account" content="ca-pub-6927010746708408" />
@@ -1231,7 +1231,8 @@
           <!-- Card 2: My Favorites (Secret Star ⭐) -->
           <div class="v2-settings-group" id="v2-settings-favorites-card">
             <div class="v2-settings-group-title">
-              <i class="fa-solid fa-star text-amber-400"></i> My Favorites (<span id="v2-favorites-count">0</span>/5)
+              <i class="fa-solid fa-star text-amber-400"></i>
+              <span>My Favorites (<span id="v2-favorites-count">0</span>/5)</span>
             </div>
             <p class="v2-settings-desc">Favorite up to 5 people to get alerts when they're back online:</p>
             <div class="v2-favorites-list" id="v2-settings-favorites-list">
@@ -1406,6 +1407,24 @@
       </div>
     </div>
 
+    <!-- Favorite Re-Install Gate Modal (Shown when arriving from push alert in browser without PWA) -->
+    <div class="v2-star-install-overlay hidden" id="v2-fav-reinstall-modal">
+      <div class="v2-star-install-container">
+        <button type="button" class="v2-star-modal-close" onclick="dismissFavoriteReinstallGate(true)" title="Close">✕</button>
+        <div class="v2-star-modal-ico">⭐</div>
+        <h3 class="v2-star-modal-title">Keep Your Favorites Active!</h3>
+        <p class="v2-star-modal-desc">You arrived from a friend online alert! To keep your favorites saved and continue receiving online notifications, please install the <strong>#GANG App</strong>.</p>
+        <button type="button" class="v2-star-install-btn" onclick="handleFavoriteReinstallAction()">
+          <i class="fa-solid fa-download"></i> 📲 Install App & Keep Favorites
+        </button>
+        <div style="margin-top: 14px; text-align: center;">
+          <button type="button" onclick="dismissFavoriteReinstallGate(false)" style="background: none; border: none; color: #94a3b8; font-size: 0.8rem; cursor: pointer; text-decoration: underline;">
+            Don't install (Clear my favorites)
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Smart Push Notification Banner -->
     <div class="v2-peak-notif-banner hidden" id="v2-peak-notif-banner">
       <div class="v2-peak-banner-content">
@@ -1425,8 +1444,8 @@
     <script src="ads.js?v=351" defer></script>
     <script src="ad_mediation_config.js?v=351" defer></script>
     <script src="socket.io.min.js?v=301"></script>
-    <script src="ludo_game.js?v=351" defer></script>
-    <script src="app.js?v=361" defer></script>
+    <script src="ludo_game.js?v=364" defer></script>
+    <script src="app.js?v=364" defer></script>
 </body>
 
 </html>
