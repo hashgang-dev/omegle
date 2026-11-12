@@ -1027,6 +1027,10 @@
     if (stage) stage.classList.remove("hidden");
   };
 
+  window.isLudoGameActive = function () {
+    return currentGame !== null;
+  };
+
   window.confirmLeaveLudoGame = function () {
     if (confirm("Are you sure you want to leave the Ludo game?")) {
       if (window.socket && window.socket.connected) {
