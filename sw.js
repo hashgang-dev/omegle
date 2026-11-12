@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-v364';
+const CACHE_NAME = 'hashgang-v365';
 
 const ASSETS_TO_CACHE = [
   '/',
@@ -41,7 +41,7 @@ const ASSETS_TO_CACHE = [
   '/blog/top-omegle-alternatives.html',
   '/blog/free-video-chat-no-login.html',
   '/blog/ometv-vs-hashgang-chat.html',
-  '/blog/ai-beauty-filter-video-chat-guide.html',
+  '/blog/how-to-favorite-strangers-and-get-online-alerts.html',
   '/blog/mobile-pwa-stranger-video-chat.html',
   '/blog/p2p-webrtc-video-chat-explained.html',
   '/blog/safe-anonymous-video-chat-guide.html',
@@ -59,7 +59,8 @@ const ASSETS_TO_CACHE = [
   '/blog/how-anti-screen-recording-trace-watermark-works.html',
   '/blog/why-free-unlimited-video-chat-beats-coin-paywalls.html',
   '/blog/zero-wait-instant-video-chat-matchmaking.html',
-  '/blog/virtual-ring-light-dark-room-video-chat.html',
+  '/blog/free-online-voice-changer-stranger-chat-no-download.html',
+  '/blog/how-to-install-stranger-chat-pwa-android-ios.html',
   '/blog/anonymous-random-voice-chat-no-login.html',
   '/blog/anonymous-text-chat-strangers-no-registration.html',
   '/blog/3-way-text-voice-video-stranger-chat-guide.html',
@@ -73,6 +74,7 @@ const ASSETS_TO_CACHE = [
   '/blog/do-you-need-vpn-for-stranger-video-chat.html',
   '/blog/bored-at-night-fun-ways-to-talk-to-strangers-online.html',
   '/blog/stranger-chat-mini-games-play-with-strangers.html',
+  '/blog/multiplayer-ludo-board-game-stranger-chat-guide.html',
   '/blog/public-group-lounge-consensual-stranger-chat.html'
 ];
 
