@@ -522,6 +522,16 @@ async function checkFrontendVersion() {
     const localVerNum = parseNumericVersion(APP_CLIENT_VERSION);
 
     if (remoteVerNum > localVerNum) {
+      // Prevent repeated reloads for the exact same target version in the same browser session
+      try {
+        const attemptedVer = sessionStorage.getItem("hg_attempted_update_ver");
+        if (attemptedVer === data.version) {
+          console.warn(`⏳ [Static Version Sync] Already attempted update to ${data.version}. Suppressing duplicate reload.`);
+          return;
+        }
+        sessionStorage.setItem("hg_attempted_update_ver", data.version);
+      } catch (e) {}
+
       console.log(`🚀 [Static Version Sync] New frontend update deployed! (${APP_CLIENT_VERSION} -> ${data.version})`);
 
       // Check if user is in an active 1v1 private call
@@ -589,6 +599,24 @@ function reloadAppShellSafely(reason) {
     return;
   }
 
+  // PWA & Mobile WebAPK Anti-Reload Loop Protection:
+  // If a reload occurred less than 15 seconds ago, suppress further auto-reloads.
+  try {
+    const now = Date.now();
+    const lastReload = parseInt(sessionStorage.getItem("hg_last_reload_time") || "0", 10);
+    const reloadCount = parseInt(sessionStorage.getItem("hg_reload_loop_count") || "0", 10);
+    if (now - lastReload < 15000) {
+      if (reloadCount >= 1) {
+        console.warn(`🛑 [HashGANG v2] Auto-reload loop suppressed! (${reason}) Last reloaded ${now - lastReload}ms ago.`);
+        return;
+      }
+      sessionStorage.setItem("hg_reload_loop_count", (reloadCount + 1).toString());
+    } else {
+      sessionStorage.setItem("hg_reload_loop_count", "1");
+    }
+    sessionStorage.setItem("hg_last_reload_time", now.toString());
+  } catch (e) {}
+
   isAppShellReloading = true;
   window.isAppShellReloading = true;
   console.log(`⚡ [HashGANG v2] App shell update detected (${reason})! Refreshing app shell...`);
@@ -601,13 +629,15 @@ function reloadAppShellSafely(reason) {
 
   setTimeout(() => {
     window.location.reload();
-  }, 80);
+  }, 120);
 }
 
 function registerV2ServiceWorker() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       const swPath = `./sw.js?v=${APP_CLIENT_VERSION}`;
+      let swRefreshing = false;
+
       navigator.serviceWorker
         .register(swPath, { updateViaCache: "none" })
         .then((reg) => {
@@ -615,17 +645,6 @@ function registerV2ServiceWorker() {
           console.log("⚡ [PWA v2] ServiceWorker registered with updateViaCache:none", reg.scope || "");
           // Check for fresh deployment on server
           try { reg.update(); } catch (e) {}
-
-          reg.addEventListener("updatefound", () => {
-            const newWorker = reg.installing;
-            if (newWorker) {
-              newWorker.addEventListener("statechange", () => {
-                if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-                  reloadAppShellSafely("worker installed");
-                }
-              });
-            }
-          });
         })
         .catch((err) => {
           console.warn("⚠️ [PWA v2] ServiceWorker registration notice:", err);
@@ -635,10 +654,11 @@ function registerV2ServiceWorker() {
       navigator.serviceWorker.addEventListener("controllerchange", () => {
         // If there was no controller when the page initially loaded, this is the first SW installation.
         // DO NOT reload the page, as it resets user state and wipes query parameters on first visit!
-        if (!hadPreviousController) {
+        if (!hadPreviousController || swRefreshing) {
           console.log("⚡ [PWA v2] Initial Service Worker activated (skipping reload).");
           return;
         }
+        swRefreshing = true;
         reloadAppShellSafely("controller changed");
       });
 
