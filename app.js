@@ -69,7 +69,11 @@ function ensureInputFieldsVisibility() {
     groupDock.style.display = "flex";
     groupDock.style.visibility = "visible";
     groupDock.style.opacity = "1";
-    groupDock.style.transform = "";
+    groupDock.style.zIndex = "50";
+    const groupInputEl = document.getElementById("v2-group-input-field");
+    if (!groupInputEl || document.activeElement !== groupInputEl) {
+      groupDock.style.transform = "";
+    }
   }
   const groupInput = document.getElementById("v2-group-input-field");
   if (groupInput) {
@@ -84,6 +88,14 @@ function ensureInputFieldsVisibility() {
   if (chatInputRow) {
     chatInputRow.style.display = "";
     chatInputRow.classList.remove("hidden");
+  }
+
+  // Proactive socket connectivity guard for background resume
+  if (typeof socket !== "undefined" && socket && !socket.connected) {
+    try {
+      console.log("⚡ [Input Rescue] Socket disconnected on resume, triggering reconnect...");
+      socket.connect();
+    } catch (e) {}
   }
 }
 window.ensureInputFieldsVisibility = ensureInputFieldsVisibility;
@@ -437,7 +449,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v365";
+const APP_CLIENT_VERSION = "v366";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -663,9 +675,13 @@ function registerV2ServiceWorker() {
       });
 
       // Mobile & Desktop Tab Wake-Up Check:
-      // When the user unlocks their phone or switches back to this tab, check for static updates!
+      // When the user unlocks their phone or switches back to this tab, check for static updates & resume connection!
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") {
+          if (socket && !socket.connected) {
+            console.log("🔄 [v2 Wake-Up] Tab visible & socket disconnected. Reconnecting...");
+            try { socket.connect(); } catch (e) {}
+          }
           ensureInputFieldsVisibility();
           try {
             if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
@@ -1811,6 +1827,7 @@ function initSocketConnection() {
         feed.appendChild(renderWelcomeKnowledgeCard(activeGroupRoomNumber));
         feed.scrollTop = feed.scrollHeight;
         hideGroupScrollBottomBtn();
+        ensureInputFieldsVisibility();
       }
     });
 
@@ -4195,23 +4212,35 @@ function setupEventListeners() {
         if (currentMatchTargetId) {
           socket.emit("disconnect_peer", { targetId: currentMatchTargetId });
         }
-        socket.disconnect();
+        // Note: Do not call socket.disconnect() on pagehide!
+        // Pagehide fires whenever mobile users switch apps, minimize the PWA, or lock their phone.
+        // Calling disconnect() kills auto-reconnection and bricks real-time communication on resume.
       }
     } catch (e) {}
   };
 
   window.addEventListener("pagehide", cleanupMediaOnUnload);
-  window.addEventListener("beforeunload", cleanupMediaOnUnload);
+  window.addEventListener("beforeunload", () => {
+    cleanupMediaOnUnload();
+    try {
+      if (socket && socket.connected) {
+        socket.disconnect();
+      }
+    } catch (e) {}
+  });
 
   // Mobile Virtual Keyboard Viewport Height Adjustment for Chat Drawer and Group Chat Dock
   if (window.visualViewport) {
     const handleVisualViewportChange = () => {
       const keyboardHeight = Math.max(0, window.innerHeight - window.visualViewport.height);
-      const isKeyboardOpen = keyboardHeight > 100;
+      const groupInput = document.getElementById("v2-group-input-field");
+      const isTypingInGroup = groupInput && (document.activeElement === groupInput);
+      const isTypingInChat = el.chatInput && (document.activeElement === el.chatInput);
+      const isKeyboardOpen = (isTypingInGroup || isTypingInChat) && keyboardHeight > 100;
 
       // 1. Private Chat Drawer Keyboard Adjust
       if (currentChatMode === "text" && el.chatDrawer && !el.chatDrawer.classList.contains("closed")) {
-        if (isKeyboardOpen) {
+        if (isKeyboardOpen && isTypingInChat) {
           el.chatDrawer.style.paddingBottom = `${keyboardHeight}px`;
           if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
         } else {
@@ -4223,7 +4252,7 @@ function setupEventListeners() {
       const groupStage = document.getElementById("v2-group-chat-stage");
       const groupDock = document.getElementById("v2-group-dock");
       if (groupStage && !groupStage.classList.contains("hidden") && (!inCall || !currentMatchTargetId)) {
-        if (isKeyboardOpen && groupDock) {
+        if (isKeyboardOpen && isTypingInGroup && groupDock) {
           groupDock.style.transform = `translateY(-${keyboardHeight}px)`;
           scrollGroupFeedToBottom(false);
         } else if (groupDock) {
@@ -4239,10 +4268,31 @@ function setupEventListeners() {
     });
   }
 
+  // Bind blur listener on group input to guarantee transform reset when keyboard closes
+  const groupInputCandidate = document.getElementById("v2-group-input-field");
+  if (groupInputCandidate) {
+    groupInputCandidate.addEventListener("blur", () => {
+      const dock = document.getElementById("v2-group-dock");
+      if (dock) dock.style.transform = "";
+      window.scrollTo(0, 0);
+    });
+  }
+
   // Continuous Input Rescue Watchdog for Standalone PWAs & Mobile Browsers
   window.addEventListener("pageshow", () => {
+    if (socket && !socket.connected) {
+      console.log("🔄 [pageshow] Reconnecting socket...");
+      try { socket.connect(); } catch (e) {}
+    }
     ensureInputFieldsVisibility();
     window.scrollTo(0, 0);
+  });
+  window.addEventListener("focus", () => {
+    if (socket && !socket.connected) {
+      console.log("🔄 [focus] Reconnecting socket...");
+      try { socket.connect(); } catch (e) {}
+    }
+    ensureInputFieldsVisibility();
   });
   window.addEventListener("orientationchange", () => {
     setTimeout(() => {
@@ -5366,6 +5416,9 @@ function joinGroupChatOnConnect() {
     return;
   }
   if (!socket || !socket.connected) {
+    if (socket && typeof socket.connect === "function") {
+      try { socket.connect(); } catch (e) {}
+    }
     setTimeout(joinGroupChatOnConnect, 300);
     return;
   }
