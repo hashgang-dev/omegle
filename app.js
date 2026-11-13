@@ -449,7 +449,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v366";
+const APP_CLIENT_VERSION = "v368";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -813,6 +813,16 @@ function playAudioChime(type) {
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09);
       osc.start();
       osc.stop(ctx.currentTime + 0.09);
+    } else if (type === "star" || type === "favorite") {
+      // Sparkling magical star chime (ascending 3-tone twinkle: G5 -> C6 -> E6)
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(783.99, ctx.currentTime);
+      osc.frequency.setValueAtTime(1046.50, ctx.currentTime + 0.08);
+      osc.frequency.setValueAtTime(1318.51, ctx.currentTime + 0.16);
+      gain.gain.setValueAtTime(0.14, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.45);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.45);
     }
   } catch (err) {
     console.warn("Audio chime playback error:", err);
@@ -851,6 +861,35 @@ function triggerUserJoinNotification(nickname) {
     playAudioChime("join");
   }
 }
+
+function triggerFavoriteOnlineNotification(targetNick) {
+  const cleanNick = escapeHtml(targetNick || "Favorite Friend");
+  const feed = document.getElementById("v2-group-messages-feed");
+  if (feed) {
+    const isNearBottom = isGroupFeedNearBottom(120);
+    const favPill = document.createElement("div");
+    favPill.className = "v2-group-fav-online-pill";
+    favPill.innerHTML = `
+      <span>🟢 Your favorite <strong>${cleanNick}</strong> online!</span>
+      <button type="button" class="v2-fav-greet-btn" onclick="handleGreetNewUser(this, '${encodeURIComponent(targetNick || "Friend")}')">
+        <span class="v2-wave-hand">👋</span> Say Hi
+      </button>
+    `;
+    feed.appendChild(favPill);
+    if (isNearBottom) {
+      feed.scrollTop = feed.scrollHeight;
+    }
+  }
+
+  // Play Sparkling Star Magic Chime & trigger haptic pulse
+  playAudioChime("star");
+  try {
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      navigator.vibrate([40, 60, 40]);
+    }
+  } catch (e) {}
+}
+window.triggerFavoriteOnlineNotification = triggerFavoriteOnlineNotification;
 
 function triggerV2AudioMediaUpload() {
   if (!currentMatchTargetId) {
@@ -1859,9 +1898,9 @@ function initSocketConnection() {
     });
 
     socket.on("favorite_online_alert", (data) => {
-      if (data && (data.message || data.targetNick)) {
-        v2ShowToast(data.message || `⭐ Your favorite ${data.targetNick} just joined the group!`);
-        if (!inCall) playAudioChime("msg");
+      if (data && (data.targetNick || data.message)) {
+        const savedNick = data.targetNick || "Friend";
+        triggerFavoriteOnlineNotification(savedNick);
       }
     });
 
