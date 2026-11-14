@@ -579,10 +579,44 @@
     handleTokenSelectionAt(x, y);
   }
 
+  let ludoPromptTimeout = null;
+  function showLudoBoardPrompt(msg) {
+    const announceEl = document.getElementById("v2-ludo-dice-announce");
+    if (!announceEl) return;
+    if (ludoPromptTimeout) clearTimeout(ludoPromptTimeout);
+    announceEl.classList.remove("hidden");
+    announceEl.innerHTML = `<span style="color:#fbbf24; font-weight:700;">${msg}</span>`;
+    announceEl.style.borderColor = "rgba(251, 191, 36, 0.75)";
+    ludoPromptTimeout = setTimeout(() => {
+      announceEl.style.borderColor = "";
+      if (currentGame && currentGame.isMyTurn && currentGame.dice === null) {
+        announceEl.innerHTML = `<span class="val-turn">🎲 Your Turn! Roll the dice.</span>`;
+      } else {
+        announceEl.classList.add("hidden");
+      }
+    }, 2500);
+  }
+
+  function spawnLudoFloatingBadge(text, bgColor = "#a855f7") {
+    const layer = document.getElementById("v2-ludo-badges-layer");
+    if (!layer) return;
+    const badge = document.createElement("div");
+    badge.className = "v2-ludo-floating-badge";
+    badge.textContent = text;
+    badge.style.left = "50%";
+    badge.style.top = "50%";
+    badge.style.background = `linear-gradient(135deg, ${bgColor}, rgba(15, 23, 42, 0.9))`;
+    badge.style.border = `1px solid ${bgColor}`;
+    layer.appendChild(badge);
+    setTimeout(() => {
+      if (badge && badge.parentNode) badge.remove();
+    }, 1400);
+  }
+
   function handleTokenSelectionAt(clickX, clickY) {
     if (!currentGame || !currentGame.isMyTurn) return;
     if (currentGame.dice === null) {
-      if (typeof v2ShowToast === "function") v2ShowToast("🎲 Roll the dice first!");
+      showLudoBoardPrompt("🎲 Roll the dice first!");
       return;
     }
     if (!Array.isArray(currentGame.movableTokens) || currentGame.movableTokens.length === 0) return;
@@ -624,7 +658,7 @@
 
   window.rollLudoDice = function () {
     if (!currentGame || !currentGame.isMyTurn) {
-      if (typeof v2ShowToast === "function") v2ShowToast("⏳ Please wait for your turn!");
+      showLudoBoardPrompt("⏳ Please wait for your turn!");
       return;
     }
     if (currentGame.dice !== null) {
@@ -634,7 +668,7 @@
         }
         return;
       }
-      if (typeof v2ShowToast === "function") v2ShowToast("👆 Select one of your highlighted tokens to move!");
+      showLudoBoardPrompt("👆 Select a highlighted token!");
       return;
     }
     if (isDiceRollingAnimationActive) {
@@ -1148,7 +1182,6 @@
 
       if (currentGame.isMyTurn) {
         if (navigator.vibrate) { try { navigator.vibrate([100, 50, 100]); } catch (e) {} }
-        if (typeof v2ShowToast === "function") v2ShowToast("🎲 Your Turn! Roll the dice.");
         // If dock is active, pulse it
         const dock = document.getElementById("v2-ludo-floating-dock");
         if (dock && !dock.classList.contains("hidden")) {
@@ -1219,9 +1252,6 @@
         announceEl.classList.remove("hidden");
         announceEl.innerHTML = `<span class="val-strike">⚠️</span> <strong>${escapeHtml(data.nickname || data.color)} missed turn! (Strike ${data.missedTurns}/${data.maxMisses})</strong>`;
       }
-      if (typeof v2ShowToast === "function") {
-        v2ShowToast(`⚠️ ${data.nickname || data.color} missed turn! Strike ${data.missedTurns}/${data.maxMisses}`);
-      }
     });
 
     window.socket.on("ludo_token_moved", (data) => {
@@ -1237,14 +1267,10 @@
         if (cutPlayer) {
           cutPlayer.tokens[data.capturedToken.tokenIndex] = -1;
         }
-        if (typeof v2ShowToast === "function") {
-          v2ShowToast(`⚔️ ${data.color.toUpperCase()} cut ${data.capturedToken.color.toUpperCase()}'s token!`);
-        }
+        spawnLudoFloatingBadge(`⚔️ ${data.color.toUpperCase()} cut ${data.capturedToken.color.toUpperCase()}!`, "#ef4444");
       } else if (data.newPos === 56) {
         playLudoChime("home");
-        if (typeof v2ShowToast === "function") {
-          v2ShowToast(`🎉 ${data.color.toUpperCase()} reached Home!`);
-        }
+        spawnLudoFloatingBadge(`🎉 ${data.color.toUpperCase()} reached Home! +100`, "#10b981");
       } else {
         playLudoChime("hop");
       }
@@ -1370,12 +1396,10 @@
 
   // Trigger Ludo Challenge from Attachment Drawer (Unified Up to 4 Players)
   window.triggerLudoInvite = function () {
+    if (typeof window.isGroupLocked === "function" && window.isGroupLocked()) return;
     if (typeof closeV2CallDrawer === "function") closeV2CallDrawer();
     if (window.socket && window.socket.connected) {
       window.socket.emit("post_ludo_invite", { mode: "4p" });
-      if (typeof v2ShowToast === "function") {
-        v2ShowToast("🎲 Posted Ludo Game Challenge to Group! (Waiting for players)");
-      }
     } else {
       if (typeof v2ShowToast === "function") v2ShowToast("⚠️ Connecting to chat server...");
     }

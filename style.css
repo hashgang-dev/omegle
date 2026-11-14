@@ -4208,6 +4208,15 @@ html, body {
   box-shadow: 0 4px 14px rgba(168, 85, 247, 0.4);
 }
 
+.v2-dock-call-trigger:disabled {
+  opacity: 0.45;
+  cursor: not-allowed !important;
+  pointer-events: none;
+  filter: grayscale(0.5);
+  transform: none !important;
+  box-shadow: none !important;
+}
+
 /* Drawer Mini-Games Section */
 .v2-drawer-game-card {
   width: 100%;
@@ -4771,6 +4780,16 @@ html, body {
   color: rgba(255, 255, 255, 0.4);
 }
 
+.v2-group-input-pill textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+.v2-group-input-pill textarea:disabled::placeholder {
+  color: #fbbf24;
+  font-weight: 600;
+  font-size: 0.84rem;
+}
+
 .v2-group-send-btn {
   width: 36px;
   height: 36px;
@@ -4921,11 +4940,41 @@ html, body {
   margin-top: 10px;
   margin-bottom: 6px;
   line-height: 1.4;
+  white-space: nowrap;
 }
 
 .v2-nick-cooldown-hint i {
   color: #fbbf24;
   font-size: 0.82rem;
+  flex-shrink: 0;
+}
+
+.v2-nick-cooldown-hint.active-cooldown {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.16), rgba(217, 119, 6, 0.22));
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  color: #fde047;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin-top: 10px;
+  margin-bottom: 10px;
+  justify-content: center;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.15);
+  animation: v2FadeIn 0.2s ease;
+}
+.v2-nick-cooldown-hint.active-cooldown strong {
+  color: #ffffff;
+  font-weight: 700;
+  margin-left: 2px;
+}
+
+.v2-nick-input-wrap input:disabled {
+  opacity: 0.65;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.15);
 }
 
 .v2-nick-actions {
@@ -10161,6 +10210,107 @@ html, body {
   color: #38bdf8;
   cursor: default;
   box-shadow: none;
+}
+
+/* Dock Inline Hint & Mute Badge */
+.v2-dock-hint {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(217, 119, 6, 0.28));
+  border: 1px solid rgba(251, 191, 36, 0.55);
+  color: #fef08a;
+  padding: 5px 14px;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.35;
+  width: max-content;
+  max-width: 92%;
+  box-sizing: border-box;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  z-index: 60;
+  pointer-events: none;
+  animation: v2DockHintPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.v2-dock-hint.warn {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.22), rgba(220, 38, 38, 0.28));
+  border-color: rgba(248, 113, 113, 0.55);
+  color: #fee2e2;
+}
+.v2-dock-hint.info {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.22), rgba(5, 150, 105, 0.28));
+  border-color: rgba(52, 211, 153, 0.55);
+  color: #a7f3d0;
+}
+@keyframes v2DockHintPop {
+  0% { opacity: 0; transform: translate(-50%, 8px) scale(0.94); }
+  100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+/* Nickname Modal & Settings Inline Error */
+.v2-nick-inline-error {
+  color: #f87171;
+  font-size: 0.76rem;
+  font-weight: 600;
+  margin-top: 6px;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  animation: v2FadeIn 0.2s ease;
+}
+.error-shake {
+  animation: v2ShakeInput 0.35s ease-in-out;
+}
+@keyframes v2ShakeInput {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.v2-btn-nickname-save.disabled,
+.v2-btn-save-nick.disabled {
+  opacity: 0.45;
+  cursor: not-allowed !important;
+  pointer-events: none;
+  filter: grayscale(0.5);
+}
+
+/* Ludo In-Game Floating Badges Layer */
+.v2-ludo-badges-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 50;
+}
+.v2-ludo-floating-badge {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  padding: 4px 12px;
+  border-radius: 9999px;
+  font-size: 0.80rem;
+  font-weight: 800;
+  color: #ffffff;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  animation: v2FloatBadgeUp 1.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  white-space: nowrap;
+}
+@keyframes v2FloatBadgeUp {
+  0% { opacity: 0; transform: translate(-50%, -20%) scale(0.6); }
+  20% { opacity: 1; transform: translate(-50%, -60%) scale(1.18); }
+  60% { opacity: 1; transform: translate(-50%, -90%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -140%) scale(0.85); }
 }
 
 
