@@ -449,7 +449,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v368";
+const APP_CLIENT_VERSION = "v373";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -891,6 +891,71 @@ function triggerFavoriteOnlineNotification(targetNick) {
 }
 window.triggerFavoriteOnlineNotification = triggerFavoriteOnlineNotification;
 
+let dockHintTimeout = null;
+function showDockHint(message, type = "warn", duration = 4000) {
+  const is1v1 = (typeof inCall !== "undefined" && inCall) || (typeof currentChatMode !== "undefined" && currentChatMode !== "group");
+  const targetId = (is1v1 && typeof currentMatchTargetId !== "undefined" && currentMatchTargetId) ? "v2-chat-dock-hint" : "v2-group-dock-hint";
+  const el = document.getElementById(targetId) || document.getElementById("v2-group-dock-hint");
+  if (!el) return;
+  if (dockHintTimeout) clearTimeout(dockHintTimeout);
+
+  el.textContent = message;
+  el.className = `v2-dock-hint ${type}`;
+  el.classList.remove("hidden");
+  el.style.opacity = "1";
+  el.style.transform = "translateX(-50%)";
+
+  dockHintTimeout = setTimeout(() => {
+    el.style.opacity = "0";
+    el.style.transform = "translateX(-50%) translateY(6px) scale(0.96)";
+    setTimeout(() => {
+      el.classList.add("hidden");
+      el.style.opacity = "";
+      el.style.transform = "";
+    }, 250);
+  }, duration);
+}
+window.showDockHint = showDockHint;
+
+function hideDockHint() {
+  if (dockHintTimeout) clearTimeout(dockHintTimeout);
+  ["v2-group-dock-hint", "v2-chat-dock-hint"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.add("hidden");
+      el.style.opacity = "";
+      el.style.transform = "";
+    }
+  });
+}
+window.hideDockHint = hideDockHint;
+
+function setNickInlineError(errorElId, inputId, msg) {
+  const errEl = document.getElementById(errorElId);
+  const input = document.getElementById(inputId);
+  if (errEl) {
+    errEl.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> <span>${escapeHtml(msg)}</span>`;
+    errEl.classList.remove("hidden");
+  }
+  if (input) {
+    const wrap = input.closest(".v2-nick-input-wrap") || input.closest(".v2-settings-row") || input;
+    wrap.classList.remove("error-shake");
+    void wrap.offsetWidth;
+    wrap.classList.add("error-shake");
+    input.focus();
+  }
+}
+window.setNickInlineError = setNickInlineError;
+
+function clearNickInlineError(errorElId) {
+  const errEl = document.getElementById(errorElId);
+  if (errEl) {
+    errEl.classList.add("hidden");
+    errEl.innerHTML = "";
+  }
+}
+window.clearNickInlineError = clearNickInlineError;
+
 function triggerV2AudioMediaUpload() {
   if (!currentMatchTargetId) {
     v2ShowToast("⚠️ Connect to a voice stranger first to share photos/videos!");
@@ -1044,7 +1109,6 @@ function handleStrangerDisconnected(force = false) {
   } else if (currentChatMode === "video") {
     setVideoDisconnectedUI(true);
   }
-  v2ShowToast("🔴 Stranger Disconnected");
   // KEEP Report Button VISIBLE: User must still be able to report an abusive stranger even after they disconnect!
   updateTopHeaderRightIcons(true);
   if (el.chatInput) el.chatInput.blur();
@@ -1278,8 +1342,7 @@ function initSocketConnection() {
       if (inChatHeartbeatInterval) clearInterval(inChatHeartbeatInterval);
 
       if (inCall && currentMatchTargetId) {
-        // Subtle warning during 8s grace window
-        v2ShowToast("⚠️ Signal flicker... Reconnecting 🔄", 3500);
+        // Update header indicator during grace window
         const peerDot = document.getElementById("v2-chat-peer-dot");
         const peerStatus = document.getElementById("v2-chat-peer-status-text");
         if (peerDot) peerDot.classList.add("disc");
@@ -1291,7 +1354,6 @@ function initSocketConnection() {
           if (inCall && (!socket || !socket.connected)) {
             console.warn("❌ [v2 Recovery] Reconnect grace expired. Finalizing disconnect.");
             handleStrangerDisconnected(true);
-            v2ShowToast("🔴 Connection lost. Stranger disconnected", 4000);
           }
         }, 22000);
       } else {
@@ -1306,7 +1368,6 @@ function initSocketConnection() {
       const peerStatus = document.getElementById("v2-chat-peer-status-text");
       if (peerDot) peerDot.classList.remove("disc");
       if (peerStatus) peerStatus.textContent = "Private Chat";
-      v2ShowToast("🟢 Call Reconnected!", 2500);
     });
 
     socket.on("peer_reconnecting", (data) => {
@@ -1315,7 +1376,6 @@ function initSocketConnection() {
       const peerStatus = document.getElementById("v2-chat-peer-status-text");
       if (peerDot) peerDot.classList.add("disc");
       if (peerStatus) peerStatus.textContent = "🟡 Reconnecting...";
-      v2ShowToast("⚠️ Stranger's connection flickered... Waiting for reconnect 🔄", 3500);
     });
 
     socket.on("peer_reconnected", (data) => {
@@ -1328,7 +1388,6 @@ function initSocketConnection() {
       const peerStatus = document.getElementById("v2-chat-peer-status-text");
       if (peerDot) peerDot.classList.remove("disc");
       if (peerStatus) peerStatus.textContent = "Private Chat";
-      v2ShowToast("🟢 Stranger Reconnected!", 2500);
     });
 
     socket.on("chat_message_error", (data) => {
@@ -1933,6 +1992,11 @@ function initSocketConnection() {
         const isNearBottom = isGroupFeedNearBottom(180);
         const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
 
+        // If user was locked waiting for a reply and someone else replied, release the lock immediately!
+        if (!isSelf && groupLockTimer && groupLockType === "consecutive") {
+          clearGroupLock();
+        }
+
         // Check if previous element in feed was a message from the same sender
         let isConsecutive = false;
         const lastRow = feed.lastElementChild;
@@ -2190,22 +2254,27 @@ function initSocketConnection() {
     });
 
     socket.on("group_message_error", (data) => {
-      v2ShowToast(data?.message || "⚠️ Message error");
+      const msg = data?.message || "⚠️ Message error";
+      if (msg.includes("consecutive messages") || msg.includes("wait 20s")) {
+        // Direct core input lock - stops directly at the input field without redundant floating popups
+        startGroupLockCountdown(20, false);
+      } else {
+        showDockHint(msg, "warn", 4000);
+      }
     });
 
     socket.on("chat_message_error", (data) => {
-      v2ShowToast(data?.message || "⚠️ Message error");
+      showDockHint(data?.message || "⚠️ Message error", "warn", 4000);
     });
 
     socket.on("group_rate_limited", (data) => {
-      v2ShowToast(`⏳ ${data.message || "Slow down!"}`);
+      showDockHint(`⏳ ${data.message || "Slow down!"}`, "warn", 2500);
     });
 
     socket.on("group_muted", (data) => {
       const sec = data?.remainingSec || 120;
       window.__groupMutedUntil = Date.now() + (sec * 1000);
-      v2ShowToast(data?.message || `🔇 You have been muted for ${sec}s due to spamming.`, 4500);
-      startGroupMuteCountdown(sec);
+      startGroupLockCountdown(sec, true);
     });
   } catch (err) {
     console.error("Socket.io initialization error:", err);
@@ -2215,46 +2284,87 @@ function initSocketConnection() {
   }
 }
 
-let groupMuteTimer = null;
-function startGroupMuteCountdown(initialSec) {
-  if (groupMuteTimer) clearInterval(groupMuteTimer);
+let groupLockTimer = null;
+let groupLockType = null; // 'mute' | 'consecutive'
+
+function startGroupLockCountdown(initialSec, isHardMute = false) {
+  if (groupLockTimer) {
+    clearInterval(groupLockTimer);
+    groupLockTimer = null;
+  }
+  groupLockType = isHardMute ? "mute" : "consecutive";
+
   const input = document.getElementById("v2-group-input-field");
   const sendBtn = document.getElementById("v2-btn-group-send");
+  const attachBtn = document.getElementById("v2-btn-open-1v1-drawer");
   const defaultPlaceholder = "Say something nice to everyone...";
 
-  let remaining = initialSec;
+  let remaining = Math.max(1, Math.round(initialSec));
+
   if (input) {
     input.disabled = true;
-    input.placeholder = `🔇 Muted for spamming (${remaining}s)...`;
+    input.placeholder = isHardMute
+      ? `🔇 Muted for spamming (${remaining}s)...`
+      : `⏳ Please wait for reply (${remaining}s)...`;
   }
   if (sendBtn) {
     sendBtn.disabled = true;
     sendBtn.style.opacity = "0.5";
     sendBtn.style.cursor = "not-allowed";
   }
+  if (attachBtn) {
+    attachBtn.disabled = true;
+  }
+  if (typeof closeV2CallDrawer === "function") {
+    closeV2CallDrawer();
+  }
 
-  groupMuteTimer = setInterval(() => {
+  groupLockTimer = setInterval(() => {
     remaining--;
     if (remaining <= 0) {
-      clearInterval(groupMuteTimer);
-      groupMuteTimer = null;
-      window.__groupMutedUntil = 0;
-      if (input) {
-        input.disabled = false;
-        input.placeholder = defaultPlaceholder;
+      clearGroupLock();
+      if (isHardMute) {
+        showDockHint("🔊 You are unmuted. Please chat politely!", "info", 3000);
       }
-      if (sendBtn) {
-        sendBtn.disabled = false;
-        sendBtn.style.opacity = "";
-        sendBtn.style.cursor = "";
-      }
-      v2ShowToast("🔊 You are unmuted. Please chat politely!");
     } else {
       if (input) {
-        input.placeholder = `🔇 Muted for spamming (${remaining}s)...`;
+        input.placeholder = isHardMute
+          ? `🔇 Muted for spamming (${remaining}s)...`
+          : `⏳ Please wait for reply (${remaining}s)...`;
       }
     }
   }, 1000);
+}
+
+function clearGroupLock() {
+  if (groupLockTimer) {
+    clearInterval(groupLockTimer);
+    groupLockTimer = null;
+  }
+  groupLockType = null;
+  window.__groupMutedUntil = 0;
+
+  const input = document.getElementById("v2-group-input-field");
+  const sendBtn = document.getElementById("v2-btn-group-send");
+  const attachBtn = document.getElementById("v2-btn-open-1v1-drawer");
+  const defaultPlaceholder = "Say something nice to everyone...";
+
+  if (input) {
+    input.disabled = false;
+    input.placeholder = defaultPlaceholder;
+  }
+  if (sendBtn) {
+    sendBtn.disabled = false;
+    sendBtn.style.opacity = "";
+    sendBtn.style.cursor = "";
+  }
+  if (attachBtn) {
+    attachBtn.disabled = false;
+  }
+}
+
+function startGroupMuteCountdown(initialSec) {
+  startGroupLockCountdown(initialSec, true);
 }
 
 function removeElementById(id) {
@@ -3054,14 +3164,16 @@ async function createWebRTCPeerConnection(targetId, isInitiator) {
     const state = currentPeerConnection ? currentPeerConnection.iceConnectionState : "";
     console.log(`🧊 [WebRTC ICE State v2]: ${state}`);
     if (state === "disconnected") {
-      v2ShowToast("⚠️ Signal flicker... Reconnecting call 🔄");
+      const peerDot = document.getElementById("v2-chat-peer-dot");
+      const peerStatus = document.getElementById("v2-chat-peer-status-text");
+      if (peerDot) peerDot.classList.add("disc");
+      if (peerStatus) peerStatus.textContent = "🟡 Reconnecting...";
       clearTimeout(iceReconnectTimeoutV2);
       iceReconnectTimeoutV2 = setTimeout(() => {
         if (currentPeerConnection && (currentPeerConnection.iceConnectionState === "disconnected" || currentPeerConnection.iceConnectionState === "failed")) {
           setAudioDisconnectedUI(true);
           playAudioChime("disconnect");
           updateStatus("disconnected", "🔴 Stranger Disconnected");
-          v2ShowToast("🔴 Stranger Disconnected");
         }
       }, 10000);
     } else if (state === "connected" || state === "completed") {
@@ -4157,6 +4269,7 @@ function setupEventListeners() {
       }
     });
     groupInput.addEventListener("input", () => {
+      hideDockHint();
       groupInput.style.height = "auto";
       const newHeight = Math.min(groupInput.scrollHeight, 110);
       groupInput.style.height = (newHeight > 36 ? newHeight : 36) + "px";
@@ -4166,6 +4279,7 @@ function setupEventListeners() {
   const inputNewNick = document.getElementById("v2-input-new-nick");
   if (inputNewNick) {
     inputNewNick.addEventListener("input", (e) => {
+      clearNickInlineError("v2-nick-inline-error");
       // Disallow characters other than alphanumeric, spaces, and safe separators (_ - .)
       const filtered = e.target.value.replace(/[^a-zA-Z0-9_\-\. ]/g, "").slice(0, 20);
       if (filtered !== e.target.value) {
@@ -4377,7 +4491,7 @@ function sendChatMessage() {
   // Link / URL blocking: Prevent external links, phishing, IP loggers, and spam in 1v1 private chat
   const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|(\b[a-zA-Z0-9-]+\.(com|org|net|xyz|online|site|app|io|co|link|live|fun|store|club|ai|gg|ru|cn|cc|to|is)\b)|(\b[a-zA-Z0-9-]+\.(in|me|ly)\/[^\s]+)|(t\.me\/[^\s]+)|(wa\.me\/[^\s]+)|(iplogger\.[^\s]+)|(grabify\.[^\s]+)|(bit\.ly\/[^\s]+)|(tinyurl\.com\/[^\s]+)/i;
   if (urlRegex.test(text)) {
-    v2ShowToast("⚠️ Links are blocked in private chat to protect against scams & malicious sites.");
+    showDockHint("⚠️ Links are blocked in private chat to protect against scams.", "warn", 4000);
     return;
   }
   
@@ -5487,25 +5601,80 @@ function formatNicknameCooldown(ms) {
   return `${seconds}s`;
 }
 
-function promptEditNickname() {
+let nickCooldownInterval = null;
+function updateNickModalCooldownUI() {
   const remainingMs = getNicknameCooldownRemainingMs();
+  const hintEl = document.getElementById("v2-nick-cooldown-hint");
+  const saveBtn = document.getElementById("v2-btn-nickname-save");
+  const input = document.getElementById("v2-input-new-nick");
+
   if (remainingMs > 0 && !window.__E2E_BYPASS_NICK_COOLDOWN__) {
     const timeFormatted = formatNicknameCooldown(remainingMs);
-    v2ShowToast(`⏳ Nickname can only be changed once every hour. Please wait ${timeFormatted}!`);
-    return;
+    if (hintEl) {
+      hintEl.className = "v2-nick-cooldown-hint active-cooldown";
+      hintEl.innerHTML = `<i class="fa-solid fa-clock"></i> <span>Change name in <strong>${timeFormatted}</strong></span>`;
+    }
+    if (input) {
+      input.disabled = true;
+      input.readOnly = true;
+    }
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.classList.add("disabled");
+      saveBtn.title = `Cooldown active (${timeFormatted})`;
+    }
+  } else {
+    if (hintEl) {
+      hintEl.className = "v2-nick-cooldown-hint";
+      hintEl.innerHTML = `<i class="fa-solid fa-clock"></i> <span>Can be changed once every 1 hour</span>`;
+    }
+    if (input) {
+      input.disabled = false;
+      input.readOnly = false;
+    }
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.classList.remove("disabled");
+      saveBtn.title = "Save Name";
+    }
+    if (nickCooldownInterval) {
+      clearInterval(nickCooldownInterval);
+      nickCooldownInterval = null;
+    }
   }
+}
+
+function promptEditNickname() {
   const modal = document.getElementById("v2-nickname-modal");
   const input = document.getElementById("v2-input-new-nick");
   if (modal && input) {
+    clearNickInlineError("v2-nick-inline-error");
     input.value = currentNickname || "";
+    updateNickModalCooldownUI();
+    if (getNicknameCooldownRemainingMs() > 0) {
+      if (nickCooldownInterval) clearInterval(nickCooldownInterval);
+      nickCooldownInterval = setInterval(updateNickModalCooldownUI, 1000);
+    }
     modal.classList.remove("hidden");
-    input.focus();
+    if (getNicknameCooldownRemainingMs() === 0) {
+      input.focus();
+    }
   }
 }
 
 function closeNicknameModal() {
   const modal = document.getElementById("v2-nickname-modal");
   if (modal) modal.classList.add("hidden");
+  clearNickInlineError("v2-nick-inline-error");
+  if (nickCooldownInterval) {
+    clearInterval(nickCooldownInterval);
+    nickCooldownInterval = null;
+  }
+  const input = document.getElementById("v2-input-new-nick");
+  if (input) {
+    input.disabled = false;
+    input.readOnly = false;
+  }
 }
 
 function isRestrictedNickname(name) {
@@ -5548,40 +5717,40 @@ function saveNewNickname() {
   const remainingMs = getNicknameCooldownRemainingMs();
   if (remainingMs > 0 && !window.__E2E_BYPASS_NICK_COOLDOWN__) {
     const timeFormatted = formatNicknameCooldown(remainingMs);
-    v2ShowToast(`⏳ Nickname change is on cooldown. Please wait ${timeFormatted}!`);
-    closeNicknameModal();
+    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", `⏳ Name change is on cooldown (${timeFormatted})`);
     return;
   }
   const input = document.getElementById("v2-input-new-nick");
   if (!input) return;
   const raw = input.value.trim().slice(0, 20);
   if (!raw || raw.length < 2) {
-    v2ShowToast("⚠️ Name must be at least 2 characters long.");
+    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Name must be at least 2 characters long.");
     return;
   }
   const nickRegex = /^[a-zA-Z0-9_\-\. ]{2,20}$/;
   if (!nickRegex.test(raw)) {
-    v2ShowToast("⚠️ Only letters, numbers, spaces, and ( _ - . ) are allowed.");
+    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Only letters, numbers, spaces, and ( _ - . ) are allowed.");
     return;
   }
   if (!/[a-zA-Z0-9]/.test(raw)) {
-    v2ShowToast("⚠️ Name must include at least one letter or number.");
+    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Name must include at least one letter or number.");
     return;
   }
   const clean = raw.replace(/\s+/g, " ");
   if (/\d{5,}/.test(clean)) {
-    v2ShowToast("⚠️ Names cannot contain 5 or more consecutive numbers.");
+    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Names cannot contain 5 or more consecutive numbers.");
     return;
   }
   const digitCount = (clean.match(/\d/g) || []).length;
   if (digitCount > 6) {
-    v2ShowToast("⚠️ Names cannot contain more than 6 digits (No phone numbers).");
+    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Names cannot contain more than 6 digits (No phone numbers).");
     return;
   }
   if (isRestrictedNickname(clean)) {
-    v2ShowToast("⚠️ That nickname is reserved or restricted. Please choose another!");
+    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ That nickname is reserved or restricted. Please choose another!");
     return;
   }
+  clearNickInlineError("v2-nick-inline-error");
   if (clean && clean !== currentNickname) {
     currentNickname = clean;
     localStorage.setItem("hg_user_nickname", currentNickname);
@@ -5590,7 +5759,6 @@ function saveNewNickname() {
     if (socket && socket.connected) {
       socket.emit("update_nickname", { nickname: currentNickname });
     }
-    v2ShowToast(`✨ Nickname changed to ${currentNickname} (Cooldown: 1 hr)`);
   }
   closeNicknameModal();
 }
@@ -7084,13 +7252,18 @@ function sendGroupMessage() {
   const now = Date.now();
   if (window.__groupMutedUntil && now < window.__groupMutedUntil) {
     const rem = Math.max(1, Math.ceil((window.__groupMutedUntil - now) / 1000));
-    v2ShowToast(`🔇 You are muted for spamming. Please wait ${rem}s.`);
+    if (!groupLockTimer) {
+      startGroupLockCountdown(rem, true);
+    }
     return;
   }
 
-  if (now - lastGroupMsgTime < 1000) {
-    v2ShowToast("⏳ Slow down! 1 message per second.");
+  if (now - lastGroupMsgTime < 350) {
+    // Debounce fast accidental double taps within 350ms
     return;
+  }
+  if (now - lastGroupMsgTime < 1000) {
+    showDockHint("⏳ Slow down! 1 message per second.", "warn", 1500);
   }
   lastGroupMsgTime = now;
 
@@ -7099,7 +7272,7 @@ function sendGroupMessage() {
   // Link / URL blocking: Prevent external links, promos, and spam
   const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|in|org|net|xyz|me|io|co|ai|app|site|online|tv|ru|cn|cc|to|is|gg|link|live|fun|store|club)[^\s]*)|(t\.me\/[^\s]+)|(wa\.me\/[^\s]+)/i;
   if (urlRegex.test(text)) {
-    v2ShowToast("⚠️ Links are not allowed in group chat to keep everyone safe.");
+    showDockHint("⚠️ Links are not allowed in group chat to keep everyone safe.", "warn", 3500);
     return;
   }
 
@@ -7107,14 +7280,14 @@ function sendGroupMessage() {
   const maskedPhoneText = maskPhoneNumbers(text);
   if (maskedPhoneText !== text) {
     text = maskedPhoneText;
-    v2ShowToast("🛡️ Phone number masked with * to protect personal privacy.");
+    showDockHint("🛡️ Phone number masked with * to protect privacy.", "warn", 4000);
   }
 
   // Social media handles & words masking: Restrict instagram, insta, facebook, fb, snapchat, snap, telegram
   const maskedSocialText = maskSocialKeywords(text);
   if (maskedSocialText !== text) {
     text = maskedSocialText;
-    v2ShowToast("🛡️ Social media handles/words masked with * to protect personal privacy.");
+    showDockHint("🛡️ Social media handle masked with * to protect privacy.", "warn", 4000);
   }
 
   // Single-word Greeting ("Hi", "Hello", "Hey", "Hai") -> Auto Animated WebP Sticker
@@ -7289,7 +7462,6 @@ function handleQuickWaveBack(msgId, encodedNick, encodedText) {
     },
     nickname: currentNickname
   });
-  v2ShowToast(`👋 Replied to ${nick}!`);
 }
 
 function handlePrivateWaveBack(msgId) {
@@ -7310,7 +7482,6 @@ function handlePrivateWaveBack(msgId) {
     },
     clientVersion: "v2"
   });
-  v2ShowToast("👋 Replied to Stranger!");
 }
 
 window.handleGroupReplyBtn = handleGroupReplyBtn;
@@ -7333,7 +7504,6 @@ function handleGreetNewUser(btn, encodedNick) {
     text: `Hi! 👋 @${nick}`,
     nickname: currentNickname
   });
-  v2ShowToast(`👋 Greeted ${nick}!`);
 }
 window.handleGreetNewUser = handleGreetNewUser;
 
@@ -7961,7 +8131,6 @@ async function request1v1CallInvite(mode, forceBypass = false) {
     nickname: currentNickname, 
     testBypass: forceBypass || Boolean(window.__E2E_BYPASS_COOLDOWN__) 
   });
-  v2ShowToast(`🚀 Sent ${mode.toUpperCase()} Call invite to group!`);
 }
 
 async function acceptCallInvite(inviteId, mode) {
@@ -8271,6 +8440,7 @@ function triggerDirect1v1Share(mode = "video") {
 }
 
 function toggleV2CallDrawer() {
+  if (groupLockTimer) return;
   const backdrop = document.getElementById("v2-call-drawer-backdrop");
   if (!backdrop) return;
   if (backdrop.classList.contains("hidden")) {
@@ -8296,6 +8466,7 @@ function closeV2CallDrawer(event) {
 }
 
 function selectDrawerCallMode(mode) {
+  if (groupLockTimer) return;
   const remainingSec = typeof getActiveInviteCooldownRemaining === "function" ? getActiveInviteCooldownRemaining() : 0;
   if (remainingSec > 0 && !window.__E2E_BYPASS_COOLDOWN__) {
     v2ShowToast(`⏳ Please wait ${remainingSec}s before sending another invite!`);
@@ -8333,6 +8504,10 @@ window.startLudoGameNow = startLudoGameNow;
 window.renderLudoInviteCard = renderLudoInviteCard;
 window.renderLudoWinnerFeedCard = renderLudoWinnerFeedCard;
 window.acceptCallInvite = acceptCallInvite;
+window.startGroupLockCountdown = startGroupLockCountdown;
+window.clearGroupLock = clearGroupLock;
+window.startGroupMuteCountdown = startGroupMuteCountdown;
+window.isGroupLocked = () => !!groupLockTimer;
 window.sendGroupMessage = sendGroupMessage;
 window.quickSendEmoji = quickSendEmoji;
 window.quickSendReaction = quickSendReaction;
@@ -9180,9 +9355,6 @@ function shareBalloonScoreInGroup() {
         beatChallenger: (balloonGameState.targetToBeat && balloonGameState.score > balloonGameState.targetToBeat) ? balloonGameState.challengerName : null
       }
     });
-    if (typeof v2ShowToast === "function") {
-      v2ShowToast("🎉 Posted your score to the Group!");
-    }
   }
 }
 
@@ -10612,6 +10784,39 @@ window.v2GamePromptState = v2GamePromptState;
    Comprehensive Settings & Privacy Center Controller
    ========================================================================== */
 
+let settingsNickCooldownInterval = null;
+function updateSettingsNickCooldownUI() {
+  const remainingMs = getNicknameCooldownRemainingMs();
+  const hintEl = document.getElementById("v2-settings-nick-hint");
+  const saveBtn = document.getElementById("v2-btn-save-settings-nick");
+  if (remainingMs > 0 && !window.__E2E_BYPASS_NICK_COOLDOWN__) {
+    const timeFormatted = formatNicknameCooldown(remainingMs);
+    if (hintEl) {
+      hintEl.innerHTML = `<i class="fa-solid fa-clock"></i> <span>Change available in <strong>${timeFormatted}</strong></span>`;
+      hintEl.style.color = "#fbbf24";
+    }
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.classList.add("disabled");
+      saveBtn.title = `Cooldown active (${timeFormatted})`;
+    }
+  } else {
+    if (hintEl) {
+      hintEl.innerHTML = `<i class="fa-solid fa-clock"></i> Can be changed once every 1 hour`;
+      hintEl.style.color = "#a855f7";
+    }
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.classList.remove("disabled");
+      saveBtn.title = "Save Account Name";
+    }
+    if (settingsNickCooldownInterval) {
+      clearInterval(settingsNickCooldownInterval);
+      settingsNickCooldownInterval = null;
+    }
+  }
+}
+
 function openV2SettingsModal(e) {
   if (e && e.preventDefault) e.preventDefault();
   const popover = document.getElementById("v2-popover-menu");
@@ -10624,17 +10829,12 @@ function openV2SettingsModal(e) {
   const nickInput = document.getElementById("v2-settings-nick-input");
   if (nickInput) {
     nickInput.value = currentNickname || "Stranger";
+    clearNickInlineError("v2-settings-nick-error");
   }
-  const nickHint = document.getElementById("v2-settings-nick-hint");
-  if (nickHint && typeof getNicknameCooldownRemainingMs === "function") {
-    const cd = getNicknameCooldownRemainingMs();
-    if (cd > 0) {
-      nickHint.innerHTML = `<i class="fa-solid fa-clock"></i> Cooldown active: Change available in ${formatNicknameCooldown(cd)}`;
-      nickHint.style.color = "#f59e0b";
-    } else {
-      nickHint.innerHTML = `<i class="fa-solid fa-clock"></i> Can be changed once every 1 hour`;
-      nickHint.style.color = "#a855f7";
-    }
+  updateSettingsNickCooldownUI();
+  if (getNicknameCooldownRemainingMs() > 0) {
+    if (settingsNickCooldownInterval) clearInterval(settingsNickCooldownInterval);
+    settingsNickCooldownInterval = setInterval(updateSettingsNickCooldownUI, 1000);
   }
 
   // 2. Sync Default Voice Persona
@@ -10677,6 +10877,11 @@ function openV2SettingsModal(e) {
 function closeV2SettingsModal(e) {
   const modal = document.getElementById("v2-settings-modal");
   if (modal) modal.classList.add("hidden");
+  clearNickInlineError("v2-settings-nick-error");
+  if (settingsNickCooldownInterval) {
+    clearInterval(settingsNickCooldownInterval);
+    settingsNickCooldownInterval = null;
+  }
   if (window.location.hash === "#settings") {
     try {
       history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -10722,40 +10927,41 @@ function saveSettingsNickname() {
     const remainingMs = getNicknameCooldownRemainingMs();
     if (remainingMs > 0 && !window.__E2E_BYPASS_NICK_COOLDOWN__) {
       const timeFormatted = formatNicknameCooldown(remainingMs);
-      v2ShowToast(`⏳ Name change is on cooldown. Please wait ${timeFormatted}!`);
+      setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", `⏳ Name change is on cooldown (${timeFormatted})`);
       return;
     }
   }
 
   const raw = input.value.trim().slice(0, 20);
   if (!raw || raw.length < 2) {
-    v2ShowToast("⚠️ Name must be at least 2 characters long.");
+    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ Name must be at least 2 characters long.");
     return;
   }
   const nickRegex = /^[a-zA-Z0-9_\-\. ]{2,20}$/;
   if (!nickRegex.test(raw)) {
-    v2ShowToast("⚠️ Only letters, numbers, spaces, and ( _ - . ) are allowed.");
+    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ Only letters, numbers, spaces, and ( _ - . ) are allowed.");
     return;
   }
   if (!/[a-zA-Z0-9]/.test(raw)) {
-    v2ShowToast("⚠️ Name must include at least one letter or number.");
+    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ Name must include at least one letter or number.");
     return;
   }
   const clean = raw.replace(/\s+/g, " ");
   if (/\d{5,}/.test(clean)) {
-    v2ShowToast("⚠️ Names cannot contain 5 or more consecutive numbers.");
+    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ Names cannot contain 5 or more consecutive numbers.");
     return;
   }
   const digitCount = (clean.match(/\d/g) || []).length;
   if (digitCount > 6) {
-    v2ShowToast("⚠️ Names cannot contain more than 6 digits (No phone numbers).");
+    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ Names cannot contain more than 6 digits (No phone numbers).");
     return;
   }
   if (isRestrictedNickname(clean)) {
-    v2ShowToast("⚠️ That nickname is reserved or restricted. Please choose another!");
+    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ That nickname is reserved or restricted. Please choose another!");
     return;
   }
 
+  clearNickInlineError("v2-settings-nick-error");
   if (clean && clean !== currentNickname) {
     currentNickname = clean;
     localStorage.setItem("hg_user_nickname", currentNickname);
@@ -10764,10 +10970,9 @@ function saveSettingsNickname() {
     if (socket && socket.connected) {
       socket.emit("update_nickname", { nickname: currentNickname });
     }
-    v2ShowToast(`✨ Account Name saved as: ${currentNickname}`);
+    showDockHint(`✨ Account Name saved as: ${currentNickname}`, "info", 3000);
     closeV2SettingsModal();
   } else {
-    v2ShowToast("✅ Account Name unchanged.");
     closeV2SettingsModal();
   }
 }
@@ -11168,6 +11373,10 @@ function openV2GifDrawer(mode = "gif", context = null) {
     currentGifContext = "private";
   } else {
     currentGifContext = "group";
+  }
+
+  if (currentGifContext === "group" && groupLockTimer) {
+    return;
   }
 
   // Close parent attachment / call drawers if open

@@ -1414,13 +1414,15 @@ async function runMasterE2ESuite() {
     const nickUpdated = await pNick.textContent("#v2-user-nickname-display");
     logResult("Initial Nickname Customization", nickUpdated.trim() === "Starlight_Hero");
 
-    // Immediate attempt to edit again must be blocked with cooldown toast
+    // Immediate attempt to edit again must show cooldown lockout inside the modal
     await pNick.click("#v2-btn-edit-nick");
     await pNick.waitForTimeout(300);
-    const isModalBlocked = await pNick.locator("#v2-nickname-modal").isHidden();
+    const isSaveDisabled = await pNick.locator("#v2-btn-nickname-save").isDisabled();
+    const isInputDisabled = await pNick.locator("#v2-input-new-nick").isDisabled();
+    const isCooldownBadgeVisible = await pNick.locator(".v2-nick-cooldown-hint.active-cooldown").isVisible();
     const cooldownRemaining = await pNick.evaluate(() => window.getNicknameCooldownRemainingMs());
 
-    logResult("1-Hour Nickname Cooldown Lockout Enforced", isModalBlocked && cooldownRemaining > 3500000);
+    logResult("1-Hour Nickname Cooldown Lockout Enforced", isSaveDisabled && isInputDisabled && isCooldownBadgeVisible && cooldownRemaining > 3500000);
 
     // Persistence across reload (F5)
     await pNick.reload();
@@ -1435,7 +1437,8 @@ async function runMasterE2ESuite() {
     await pNick.click("#v2-btn-edit-nick");
     await pNick.waitForTimeout(300);
     const modalUnlocked = await pNick.locator("#v2-nickname-modal").isVisible();
-    logResult("Nickname Change Unlocked After 1-Hour Elapsed", modalUnlocked);
+    const saveUnlocked = !(await pNick.locator("#v2-btn-nickname-save").isDisabled());
+    logResult("Nickname Change Unlocked After 1-Hour Elapsed", modalUnlocked && saveUnlocked);
     await bNick.close();
 
     // 6.5 Asset Version Numbers Verification
