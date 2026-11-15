@@ -112,6 +112,7 @@ let isAudioMuted = false;
 let isVideoOff = false;
 let inCall = false;
 window.inCall = inCall;
+let currentCallStartTime = 0;
 let lastReportablePeerId = null;
 let lastReportableTraceCode = null;
 let activeVoicePreset = localStorage.getItem("omg_voice_preset") || "normal";
@@ -449,7 +450,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v380";
+const APP_CLIENT_VERSION = "v382";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -1733,6 +1734,7 @@ function initSocketConnection() {
         }, 15000);
 
         updateStatus("connected", "🟢 Live Chat");
+        currentCallStartTime = Date.now();
         trackV2Event("v2_matched", { mode: currentChatMode, targetId: targetId });
         if (el.searchStage) el.searchStage.classList.add("hidden");
         const groupStage = document.getElementById("v2-group-chat-stage");
@@ -2994,7 +2996,7 @@ function renderSearchingAd() {
       <span class="v2-self-brand-badge">FEATURED PROMOTION</span>
       <h4 class="v2-self-brand-title">MyLeader AI Platform</h4>
       <p class="v2-self-brand-desc">Streamline leadership workflows & team collaboration with AI.</p>
-      <a href="https://hashgang.com" target="_blank" rel="noopener noreferrer" class="v2-self-brand-cta">
+      <a href="https://hashgang.com" target="_blank" rel="noopener noreferrer" class="v2-self-brand-cta" onclick="if(typeof trackV2Event==='function')trackV2Event('promo_card_clicked', { promo: 'myleader_banner' })">
         <span>Explore MyLeader 🚀</span>
         <i class="fa-solid fa-arrow-up-right-from-square"></i>
       </a>
@@ -3451,6 +3453,19 @@ function cleanupPeerConnection(isStrangerSkip = false) {
   }
   dismissV2AudioSharedMedia();
   dismissV2VideoSharedMedia();
+  const startTs = currentCallStartTime || window.currentCallStartTime || 0;
+  if (startTs > 0) {
+    const durationSec = Math.round((Date.now() - startTs) / 1000);
+    if (typeof trackV2Event === "function") {
+      if (isStrangerSkip) {
+        trackV2Event("peer_skipped", { mode: currentChatMode, duration_seconds: durationSec, who: "stranger" });
+      } else {
+        trackV2Event("call_ended", { mode: currentChatMode, duration_seconds: durationSec });
+      }
+    }
+    currentCallStartTime = 0;
+    window.currentCallStartTime = 0;
+  }
   if (currentMatchTargetId && isStrangerSkip) {
     recordSkippedPeerV2(currentMatchTargetId);
   }
@@ -4038,6 +4053,10 @@ async function setVoicePersona(preset) {
   if (typeof v2ShowToast === "function") {
     const names = { normal: "🎙️ Normal Voice Active", girl: "🌸 Girl Voice Active", boy: "👨 Boy Voice Active" };
     v2ShowToast(names[preset] || "Voice Mask Updated");
+  }
+
+  if (typeof trackV2Event === "function") {
+    trackV2Event("voice_changer_used", { preset: preset });
   }
 }
 window.setVoicePersona = setVoicePersona;
@@ -4978,6 +4997,7 @@ function appendChatMessage(sender, text, type, replyTo = null, msgId = null) {
 }
 
 const v2PendingChatMedia = {};
+window.v2PendingChatMedia = v2PendingChatMedia;
 
 function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, msgId = null, isViewOnce = false, isGreeting = false) {
   if (!el.chatMessages) initDOMElements();
@@ -5154,6 +5174,10 @@ function revealMediaCard(msgId) {
   const card = document.getElementById(`privacy-card-${msgId}`);
   if (!card) return;
 
+  if (typeof trackV2Event === "function") {
+    trackV2Event("media_shield_action", { action: "reveal", media_type: item.mediaType });
+  }
+
   if (item.isViewOnce) {
     openV2Lightbox(item.mediaType, item.dataUrl, true, () => {
       delete v2PendingChatMedia[msgId];
@@ -5212,6 +5236,10 @@ function hideMediaCard(msgId) {
   if (!item) return;
   const wrap = document.getElementById(`revealed-media-${msgId}`);
   if (!wrap) return;
+
+  if (typeof trackV2Event === "function") {
+    trackV2Event("media_shield_action", { action: "hide", media_type: item.mediaType });
+  }
 
   const isUser = Boolean(item.isUser);
   const isStk = item.mediaType === "sticker";
@@ -5823,6 +5851,10 @@ function v2ReportAndBlockStranger() {
     socket.emit("report_peer", { targetId: targetId, traceCode: traceCode, reason: "inappropriate" });
   }
 
+  if (typeof trackV2Event === "function") {
+    trackV2Event("peer_reported", { traceCode: traceCode, mode: currentChatMode, reason: "inappropriate" });
+  }
+
   v2ShowToast(`🚩 Reported! Trace Code: ${traceCode} (Copied to Clipboard)`);
 
   // Clear reportable session after reporting
@@ -5997,6 +6029,9 @@ function checkAgeConfirmationOnLoad() {
 function confirmAgeAndEnter() {
   is18Confirmed = true;
   localStorage.setItem("hg_18_confirmed", "true");
+  if (typeof trackV2Event === "function") {
+    trackV2Event("age_confirmed_18plus");
+  }
   const ageModal = document.getElementById("v2-age-modal");
   if (ageModal) ageModal.classList.add("hidden");
   acquireScreenWakeLock();
@@ -7896,6 +7931,9 @@ function sendGroupMessage() {
         replyTo: replyData,
         nickname: currentNickname
       });
+      if (typeof trackV2Event === "function") {
+        trackV2Event("group_msg_sent", { type: "greeting_sticker", has_reply: !!replyData });
+      }
       input.value = "";
       input.style.height = "36px";
       cancelGroupReply();
@@ -7907,6 +7945,9 @@ function sendGroupMessage() {
   }
 
   if (socket && socket.connected) {
+    if (typeof trackV2Event === "function") {
+      trackV2Event("group_msg_sent", { type: "text", has_reply: !!activeGroupReplyTo });
+    }
     socket.emit("send_group_msg", {
       text,
       replyTo: activeGroupReplyTo,
@@ -8363,6 +8404,10 @@ function addFavorite(targetUid, targetNick) {
     socket.emit("favorite_user", { targetUid, targetNick, anonUserId: myUid });
   }
 
+  if (typeof trackV2Event === "function") {
+    trackV2Event("secret_star_added", { total_favorites: myFavorites.size });
+  }
+
   v2ShowToast(`⭐ Added ${targetNick || "user"} to your favorites!`);
   updateAllStarButtonsInDom(targetUid, true);
 }
@@ -8375,6 +8420,10 @@ function removeFavorite(targetUid, targetNick) {
 
   if (socket && socket.connected) {
     socket.emit("unfavorite_user", { targetUid, anonUserId: getOrCreateAnonUserId() });
+  }
+
+  if (typeof trackV2Event === "function") {
+    trackV2Event("secret_star_removed", { total_favorites: myFavorites.size });
   }
 
   v2ShowToast(`Removed ${targetNick || "user"} from favorites`);
