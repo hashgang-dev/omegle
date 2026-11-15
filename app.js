@@ -449,7 +449,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v377";
+const APP_CLIENT_VERSION = "v379";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -1877,7 +1877,7 @@ function initSocketConnection() {
       // Handle Text Chat Signals
       if (data.signal.type === "chat") {
         if (data.signal.gif && data.signal.gif.url) {
-          appendMediaMessage("Stranger", data.signal.gif.type || "gif", data.signal.gif.url, "stranger", data.signal.replyTo, data.signal.msgId);
+          appendMediaMessage("Stranger", data.signal.gif.type || "gif", data.signal.gif.url, "stranger", data.signal.replyTo, data.signal.msgId, false, Boolean(data.signal.gif?.isGreeting));
         } else {
           appendChatMessage("Stranger", data.signal.text, "stranger", data.signal.replyTo, data.signal.msgId);
         }
@@ -4547,16 +4547,19 @@ function setupEventListeners() {
   if (inputNewNick) {
     inputNewNick.addEventListener("input", (e) => {
       clearNickInlineError("v2-nick-inline-error");
-      // Disallow characters other than alphanumeric, spaces, and safe separators (_ - .)
-      const filtered = e.target.value.replace(/[^a-zA-Z0-9_\-\. ]/g, "").slice(0, 20);
+      // Disallow spaces (auto-replace with _), allow alphanumeric and safe separators (_ - .)
+      const filtered = e.target.value.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_\-\.]/g, "").slice(0, 20);
       if (filtered !== e.target.value) {
         e.target.value = filtered;
+      }
+      if (typeof containsUnparliamentaryWords === "function" && containsUnparliamentaryWords(filtered)) {
+        setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Nickname contains unparliamentary words. Please choose another.");
       }
     });
     inputNewNick.addEventListener("paste", (e) => {
       e.preventDefault();
       const pasted = (e.clipboardData || window.clipboardData)?.getData("text") || "";
-      const filtered = pasted.replace(/[^a-zA-Z0-9_\-\. ]/g, "");
+      const filtered = pasted.replace(/\s+/g, "_").replace(/[^a-zA-Z0-9_\-\.]/g, "");
       const start = inputNewNick.selectionStart || 0;
       const end = inputNewNick.selectionEnd || 0;
       const current = inputNewNick.value || "";
@@ -4564,6 +4567,9 @@ function setupEventListeners() {
       inputNewNick.value = updated;
       const newCursorPos = Math.min(start + filtered.length, updated.length);
       inputNewNick.setSelectionRange(newCursorPos, newCursorPos);
+      if (typeof containsUnparliamentaryWords === "function" && containsUnparliamentaryWords(updated)) {
+        setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Nickname contains unparliamentary words. Please choose another.");
+      }
     });
     inputNewNick.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -4725,7 +4731,8 @@ function setupEventListeners() {
 function sendChatMessage() {
   if (!el.chatInput) return;
   const text = el.chatInput.value.trim();
-  if (!text || !socket || !currentMatchTargetId) return;
+  const targetId = currentMatchTargetId || window.currentMatchTargetId;
+  if (!text || !socket || !targetId) return;
 
   // Single-word Greeting ("Hi", "Hello", "Hey", "Hai") -> Auto Animated WebP Sticker
   if (GREETING_REGEX.test(text)) {
@@ -4733,10 +4740,10 @@ function sendChatMessage() {
     const msgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const replyData = currentV2ReplyTarget ? { ...currentV2ReplyTarget } : null;
 
-    appendMediaMessage("You", "sticker", greetingStickerUrl, "user", replyData, msgId);
+    appendMediaMessage("You", "sticker", greetingStickerUrl, "user", replyData, msgId, false, true);
 
     socket.emit("signal", {
-      targetId: currentMatchTargetId,
+      targetId: targetId,
       signal: {
         type: "chat",
         text: text,
@@ -4768,7 +4775,7 @@ function sendChatMessage() {
   appendChatMessage("You", text, "user", replyData, msgId);
   
   socket.emit("signal", {
-    targetId: currentMatchTargetId,
+    targetId: targetId,
     signal: { type: "chat", text: text, msgId: msgId, replyTo: replyData },
     clientVersion: "v2"
   });
@@ -4972,7 +4979,7 @@ function appendChatMessage(sender, text, type, replyTo = null, msgId = null) {
 
 const v2PendingChatMedia = {};
 
-function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, msgId = null, isViewOnce = false) {
+function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, msgId = null, isViewOnce = false, isGreeting = false) {
   if (!el.chatMessages) initDOMElements();
   if (!el.chatMessages) el.chatMessages = document.getElementById("v2-chat-messages") || document.getElementById("chat-messages");
   if (!el.chatMessages) return;
@@ -5007,12 +5014,33 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
   let mediaHtml = "";
   if (mediaType === "gif" || mediaType === "sticker") {
     const isSticker = mediaType === "sticker";
-    const stickerAttrs = isSticker ? 'width="120" height="120" loading="eager"' : 'loading="lazy"';
-    mediaHtml = `
-      <div class="v2-msg-gif-container ${isSticker ? 'is-sticker' : ''}">
-        <img src="${escapeHtml(dataUrl)}" class="v2-chat-gif-img" alt="${isSticker ? 'Sticker' : 'GIF'}" ${stickerAttrs} />
-      </div>
-    `;
+    const displayMode = getMediaDisplayMode();
+    if (isGreeting || displayMode !== "tap_to_view") {
+      const stickerAttrs = isSticker ? 'width="120" height="120" loading="eager"' : 'loading="lazy"';
+      mediaHtml = `
+        <div class="v2-msg-gif-container ${isSticker ? 'is-sticker' : ''}">
+          <img src="${escapeHtml(dataUrl)}" class="v2-chat-gif-img" alt="${isSticker ? 'Sticker' : 'GIF'}" ${stickerAttrs} />
+        </div>
+      `;
+    } else {
+      v2PendingChatMedia[msgId] = { mediaType, dataUrl, isViewOnce: false, isUser: (type === 'user') };
+      const isUser = (type === "user");
+      const iconClass = isSticker ? "fa-solid fa-note-sticky" : "fa-solid fa-film";
+      const label = isSticker
+        ? (isUser ? "Sticker sent" : "Sticker received")
+        : (isUser ? "GIF sent" : "GIF received");
+      mediaHtml = `
+        <div class="v2-media-privacy-card" id="privacy-card-${msgId}">
+          <div class="v2-media-privacy-header">
+            <i class="${iconClass}"></i>
+            <span>${label}</span>
+          </div>
+          <button type="button" class="v2-media-reveal-btn" onclick="revealMediaCard('${msgId}')">
+            <i class="fa-solid fa-eye"></i> Tap to View
+          </button>
+        </div>
+      `;
+    }
   } else if (type === "user") {
     if (isViewOnce) {
       mediaHtml = `
@@ -5146,13 +5174,23 @@ function revealMediaCard(msgId) {
       mediaElem.className = "v2-chat-media-img";
       mediaElem.alt = "Shared Photo";
       mediaElem.onclick = () => openV2Lightbox("image", item.dataUrl);
-    } else {
+    } else if (item.mediaType === "video") {
       mediaElem = document.createElement("video");
       mediaElem.src = item.dataUrl;
       mediaElem.className = "v2-chat-media-video";
       mediaElem.controls = true;
       mediaElem.playsInline = true;
       mediaElem.onclick = () => openV2Lightbox("video", item.dataUrl);
+    } else {
+      const isStk = item.mediaType === "sticker";
+      mediaElem = document.createElement("img");
+      mediaElem.src = item.dataUrl;
+      mediaElem.className = `v2-chat-gif-img${isStk ? " is-sticker" : ""}`;
+      mediaElem.alt = isStk ? "Sticker" : "GIF";
+      if (isStk) {
+        mediaElem.width = 120;
+        mediaElem.height = 120;
+      }
     }
 
     const hideBtn = document.createElement("button");
@@ -5176,10 +5214,21 @@ function hideMediaCard(msgId) {
   if (!wrap) return;
 
   const isUser = Boolean(item.isUser);
-  const iconClass = item.mediaType === "image" ? "fa-solid fa-image" : "fa-solid fa-video";
-  const label = isUser
-    ? (item.mediaType === "image" ? "Photo sent" : "Video sent")
-    : (item.mediaType === "image" ? "Photo received" : "Video received");
+  const isStk = item.mediaType === "sticker";
+  const isGif = item.mediaType === "gif";
+  let iconClass = "fa-solid fa-image";
+  let label = isUser ? "Photo sent" : "Photo received";
+
+  if (item.mediaType === "video") {
+    iconClass = "fa-solid fa-video";
+    label = isUser ? "Video sent" : "Video received";
+  } else if (isStk) {
+    iconClass = "fa-solid fa-note-sticky";
+    label = isUser ? "Sticker sent" : "Sticker received";
+  } else if (isGif) {
+    iconClass = "fa-solid fa-film";
+    label = isUser ? "GIF sent" : "GIF received";
+  }
 
   const card = document.createElement("div");
   card.className = "v2-media-privacy-card";
@@ -6144,6 +6193,7 @@ function isRestrictedNickname(name) {
   // Abusive / Vulgar keywords
   const vulgar = /(?:^|[_\-\. ])(nude|sex|porn|horny|boobs|pussy|dick|bitch|slut|asshole|whore|fucker|fuck|bastard|madarchod|bhenchod|lodu|chutiya)(?:[_\-\. ]|[0-9]|$)/i;
   if (vulgar.test(clean)) return true;
+  if (typeof containsUnparliamentaryWords === "function" && containsUnparliamentaryWords(clean)) return true;
 
   return false;
 }
@@ -6162,16 +6212,16 @@ function saveNewNickname() {
     setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Name must be at least 2 characters long.");
     return;
   }
-  const nickRegex = /^[a-zA-Z0-9_\-\. ]{2,20}$/;
-  if (!nickRegex.test(raw)) {
-    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Only letters, numbers, spaces, and ( _ - . ) are allowed.");
+  const clean = raw.replace(/\s+/g, "_");
+  const nickRegex = /^[a-zA-Z0-9_\-\.]{2,20}$/;
+  if (!nickRegex.test(clean)) {
+    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Only letters, numbers, and ( _ - . ) are allowed.");
     return;
   }
-  if (!/[a-zA-Z0-9]/.test(raw)) {
+  if (!/[a-zA-Z0-9]/.test(clean)) {
     setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Name must include at least one letter or number.");
     return;
   }
-  const clean = raw.replace(/\s+/g, " ");
   if (/\d{5,}/.test(clean)) {
     setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Names cannot contain 5 or more consecutive numbers.");
     return;
@@ -6179,6 +6229,10 @@ function saveNewNickname() {
   const digitCount = (clean.match(/\d/g) || []).length;
   if (digitCount > 6) {
     setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Names cannot contain more than 6 digits (No phone numbers).");
+    return;
+  }
+  if (typeof containsUnparliamentaryWords === "function" && containsUnparliamentaryWords(clean)) {
+    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Nickname contains unparliamentary words. Please choose another.");
     return;
   }
   if (isRestrictedNickname(clean)) {
@@ -6519,23 +6573,49 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
   } else if (msg.gif && msg.gif.url) {
     const safeGifUrl = escapeHtml(msg.gif.url);
     const isGreetingSticker = Boolean(isSticker && (msg.gif?.isGreeting || GREETING_REGEX.test(msg.text || "")));
-    let waveBackHtml = "";
-    if (isGreetingSticker && !isSelf) {
-      waveBackHtml = `
-        <div class="v2-wave-back-wrap">
-          <button type="button" class="v2-wave-back-btn" onclick="handleQuickWaveBack('${msg.id}', '${encodeURIComponent(senderNickRaw)}', '${encodeURIComponent(msg.text || "Hi")}')">
-            <span class="v2-wave-hand">👋</span> Wave Back
+    const displayMode = getMediaDisplayMode();
+
+    if (isGreetingSticker || displayMode !== "tap_to_view") {
+      let waveBackHtml = "";
+      if (isGreetingSticker && !isSelf) {
+        waveBackHtml = `
+          <div class="v2-wave-back-wrap">
+            <button type="button" class="v2-wave-back-btn" onclick="handleQuickWaveBack('${msg.id}', '${encodeURIComponent(senderNickRaw)}', '${encodeURIComponent(msg.text || "Hi")}')">
+              <span class="v2-wave-hand">👋</span> Wave Back
+            </button>
+          </div>
+        `;
+      }
+      const stickerAttrs = isSticker ? 'width="120" height="120" loading="eager"' : 'loading="lazy"';
+      bubbleContentHtml = `
+        <div class="v2-msg-gif-container ${isSticker ? 'is-sticker' : ''}">
+          <img src="${safeGifUrl}" class="v2-chat-gif-img" alt="${isSticker ? 'Sticker' : 'GIF'}" ${stickerAttrs} />
+        </div>
+        ${waveBackHtml}
+      `;
+    } else {
+      v2PendingChatMedia[msg.id] = {
+        mediaType: isSticker ? "sticker" : "gif",
+        dataUrl: msg.gif.url,
+        isViewOnce: false,
+        isUser: isSelf
+      };
+      const iconClass = isSticker ? "fa-solid fa-note-sticky" : "fa-solid fa-film";
+      const label = isSticker
+        ? (isSelf ? "Sticker sent" : "Sticker received")
+        : (isSelf ? "GIF sent" : "GIF received");
+      bubbleContentHtml = `
+        <div class="v2-media-privacy-card" id="privacy-card-${msg.id}">
+          <div class="v2-media-privacy-header">
+            <i class="${iconClass}"></i>
+            <span>${label}</span>
+          </div>
+          <button type="button" class="v2-media-reveal-btn" onclick="revealMediaCard('${msg.id}')">
+            <i class="fa-solid fa-eye"></i> Tap to View
           </button>
         </div>
       `;
     }
-    const stickerAttrs = isSticker ? 'width="120" height="120" loading="eager"' : 'loading="lazy"';
-    bubbleContentHtml = `
-      <div class="v2-msg-gif-container ${isSticker ? 'is-sticker' : ''}">
-        <img src="${safeGifUrl}" class="v2-chat-gif-img" alt="${isSticker ? 'Sticker' : 'GIF'}" ${stickerAttrs} />
-      </div>
-      ${waveBackHtml}
-    `;
   } else {
     const formattedText = formatGroupMentions(cleanText, currentNickname);
     const mentionBadgeHtml = isMentioned ? `<div class="v2-mention-badge"><i class="fa-solid fa-at"></i> Mentioned You</div>` : "";
@@ -7678,11 +7758,40 @@ function maskSocialKeywords(text) {
 }
 window.maskSocialKeywords = maskSocialKeywords;
 
+// ============================================================================
+// Multi-lingual Unparliamentary & Bad Words Filter (Delegates to bad_words_config.js)
+// ============================================================================
+function normalizeForProfanity(str) {
+  if (typeof window !== "undefined" && window.HashGangModeration && typeof window.HashGangModeration.normalizeText === "function") {
+    return window.HashGangModeration.normalizeText(str);
+  }
+  if (!str || typeof str !== "string") return "";
+  let s = str.toLowerCase();
+  s = s.replace(/[@]/g, "a").replace(/[0]/g, "o").replace(/[1!|]/g, "i").replace(/[3]/g, "e").replace(/[$5]/g, "s");
+  return s.replace(/(.)\1{2,}/g, "$1$1");
+}
+
+function containsUnparliamentaryWords(text) {
+  if (typeof window !== "undefined" && window.HashGangModeration && typeof window.HashGangModeration.containsUnparliamentaryWords === "function") {
+    return window.HashGangModeration.containsUnparliamentaryWords(text);
+  }
+  return false;
+}
+window.containsUnparliamentaryWords = containsUnparliamentaryWords;
+window.normalizeForProfanity = normalizeForProfanity;
+
 function sendGroupMessage() {
   const input = document.getElementById("v2-group-input-field");
   if (!input) return;
   const rawText = input.value.trim();
   if (!rawText) return;
+
+  // Unparliamentary / Bad words filter: Strictly block abusive words in all languages
+  if (containsUnparliamentaryWords(rawText)) {
+    showDockHint("⚠️ Unparliamentary words are not allowed. Please rephrase.", "warn", 4000);
+    v2ShowToast("⚠️ Unparliamentary words are not allowed. Please rephrase.");
+    return;
+  }
 
   const now = Date.now();
   if (window.__groupMutedUntil && now < window.__groupMutedUntil) {
@@ -7703,6 +7812,13 @@ function sendGroupMessage() {
   lastGroupMsgTime = now;
 
   let text = rawText.slice(0, 180);
+
+  // Secondary check on sliced text
+  if (containsUnparliamentaryWords(text)) {
+    showDockHint("⚠️ Unparliamentary words are not allowed. Please rephrase.", "warn", 4000);
+    v2ShowToast("⚠️ Unparliamentary words are not allowed. Please rephrase.");
+    return;
+  }
 
   // Link / URL blocking: Prevent external links, promos, and spam
   const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|in|org|net|xyz|me|io|co|ai|app|site|online|tv|ru|cn|cc|to|is|gg|link|live|fun|store|club)[^\s]*)|(t\.me\/[^\s]+)|(wa\.me\/[^\s]+)/i;
@@ -12150,6 +12266,7 @@ window.hideVideoStageMedia = hideVideoStageMedia;
 window.syncAudioMuteUI = syncAudioMuteUI;
 window.syncVideoCamUI = syncVideoCamUI;
 window.resetMediaControlStates = resetMediaControlStates;
+window.renderGroupMessageRow = renderGroupMessageRow;
 
 
 
