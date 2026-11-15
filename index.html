@@ -74,7 +74,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=373" />
+  <link rel="stylesheet" href="style.css?v=377" />
 
   <!-- Google AdSense Library (Ready for approval) -->
   <meta name="google-adsense-account" content="ca-pub-6927010746708408" />
@@ -848,7 +848,7 @@
         <!-- Floating Call Control Toolbar (Hidden on Mode Selection Screen) -->
         <div class="v2-control-toolbar hidden" id="v2-control-toolbar">
           <button class="v2-ctrl-btn" id="v2-btn-audio-attach" title="Share Photo or Video"
-            onclick="triggerV2AudioMediaUpload()">
+            onclick="openV2CallAttachModal()">
             <i class="fa-solid fa-paperclip"></i>
           </button>
           <button class="v2-ctrl-btn" id="v2-btn-mute" title="Toggle Mic" onclick="toggleAudio()">
@@ -1005,11 +1005,18 @@
           </button>
         </div>
         <div class="v2-attach-menu-grid">
-          <button class="v2-attach-tile media-tile" onclick="triggerAttachmentMediaUpload()">
+          <button class="v2-attach-tile media-tile" onclick="triggerAttachmentMediaUpload(false)">
             <div class="v2-attach-tile-icon"><i class="fa-solid fa-camera-retro"></i></div>
             <div class="v2-attach-tile-body">
               <span class="v2-attach-tile-label">Photo / Video</span>
               <span class="v2-attach-tile-sub">Share a camera picture or clip</span>
+            </div>
+          </button>
+          <button class="v2-attach-tile view-once-tile" onclick="triggerAttachmentMediaUpload(true)">
+            <div class="v2-attach-tile-icon"><span class="v2-view-once-badge-icon">1</span></div>
+            <div class="v2-attach-tile-body">
+              <span class="v2-attach-tile-label"><span class="v2-view-once-inline-icon">1</span> Photo / Video</span>
+              <span class="v2-attach-tile-sub">Disappears after viewing</span>
             </div>
           </button>
           <button class="v2-attach-tile rps-tile" onclick="triggerManualGameChallenge('rps')">
@@ -1024,6 +1031,32 @@
             <div class="v2-attach-tile-body">
               <span class="v2-attach-tile-label">Balloon Pop Duel</span>
               <span class="v2-attach-tile-sub">30s live speed pop battle</span>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Call Media Attachment Sheet Modal (Audio & Video calls) -->
+    <div class="v2-modal-overlay hidden" id="v2-call-attach-modal" onclick="closeV2CallAttachModal(event)">
+      <div class="v2-modal-card v2-attach-menu-card" onclick="event.stopPropagation()">
+        <div class="v2-timeout-header">
+          <span class="v2-timeout-badge"><i class="fa-solid fa-paperclip text-purple-400"></i> Share Media in Call</span>
+          <button class="v2-close-btn" onclick="closeV2CallAttachModal()">&times;</button>
+        </div>
+        <div class="v2-attach-menu-grid">
+          <button class="v2-attach-tile media-tile" onclick="selectCallMediaMode(false)">
+            <div class="v2-attach-tile-icon"><i class="fa-solid fa-camera-retro"></i></div>
+            <div class="v2-attach-tile-body">
+              <span class="v2-attach-tile-label">Photo / Video</span>
+              <span class="v2-attach-tile-sub">Share a camera picture or clip</span>
+            </div>
+          </button>
+          <button class="v2-attach-tile view-once-tile" onclick="selectCallMediaMode(true)">
+            <div class="v2-attach-tile-icon"><span class="v2-view-once-badge-icon">1</span></div>
+            <div class="v2-attach-tile-body">
+              <span class="v2-attach-tile-label"><span class="v2-view-once-inline-icon">1</span> Photo / Video</span>
+              <span class="v2-attach-tile-sub">Disappears after viewing</span>
             </div>
           </button>
         </div>
@@ -1128,9 +1161,14 @@
 
     <!-- Fullscreen Media Lightbox Modal -->
     <div class="v2-lightbox-overlay hidden" id="v2-lightbox-modal" onclick="closeV2Lightbox()">
-      <div class="v2-lightbox-container" onclick="event.stopPropagation()">
-        <button class="v2-lightbox-close" onclick="closeV2Lightbox()">&times;</button>
-        <div id="v2-lightbox-content"></div>
+      <div class="v2-lightbox-card" onclick="event.stopPropagation()">
+        <div class="v2-lightbox-header" id="v2-lightbox-header">
+          <div class="v2-lightbox-header-left" id="v2-lightbox-header-title">
+            <span class="v2-lightbox-title-text"><i class="fa-solid fa-photo-film text-purple-400"></i> Media Preview</span>
+          </div>
+          <button type="button" class="v2-lightbox-close v2-lightbox-header-close" onclick="closeV2Lightbox()" title="Close">&times;</button>
+        </div>
+        <div class="v2-lightbox-body" id="v2-lightbox-content"></div>
       </div>
     </div>
 
@@ -1307,6 +1345,35 @@
             </div>
           </div>
 
+          <!-- Card 4: Media Privacy & Visibility -->
+          <div class="v2-settings-group">
+            <div class="v2-settings-group-title">
+              <i class="fa-solid fa-shield-halved text-emerald-400"></i> Media Visibility
+            </div>
+            <p class="v2-settings-desc">Choose how photos & videos from strangers appear in chat & calls:</p>
+            <div class="v2-media-privacy-options">
+              <label class="v2-media-option-label" onclick="setMediaDisplayMode('tap_to_view')">
+                <input type="radio" name="media_display_mode" id="v2-media-mode-tap" value="tap_to_view" checked />
+                <div class="v2-media-option-card">
+                  <div class="v2-media-option-header">
+                    <span class="v2-media-option-title"><i class="fa-solid fa-lock text-emerald-400"></i> Tap to View (Safe & Private)</span>
+                    <span class="v2-media-badge-rec">Recommended</span>
+                  </div>
+                  <span class="v2-media-option-desc">Shared photos & videos stay hidden behind a private card until you tap to view them. Perfect for office & public places.</span>
+                </div>
+              </label>
+              <label class="v2-media-option-label" onclick="setMediaDisplayMode('direct')">
+                <input type="radio" name="media_display_mode" id="v2-media-mode-direct" value="direct" />
+                <div class="v2-media-option-card">
+                  <div class="v2-media-option-header">
+                    <span class="v2-media-option-title"><i class="fa-solid fa-image text-purple-400"></i> Always Show Directly</span>
+                  </div>
+                  <span class="v2-media-option-desc">Shared photos & videos open immediately on screen. For home & private use.</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
           <!-- Card 4: Camera Permission -->
           <div class="v2-settings-group">
             <div class="v2-perm-card-header">
@@ -1455,8 +1522,8 @@
     <script src="ads.js?v=351" defer></script>
     <script src="ad_mediation_config.js?v=351" defer></script>
     <script src="socket.io.min.js?v=301"></script>
-    <script src="ludo_game.js?v=373" defer></script>
-    <script src="app.js?v=373" defer></script>
+    <script src="ludo_game.js?v=377" defer></script>
+    <script src="app.js?v=377" defer></script>
 </body>
 
 </html>
