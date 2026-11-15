@@ -284,25 +284,26 @@ html, body {
 /* Dynamic Split Viewport when Shared Media is active in Video Call */
 .v2-viewport-area.has-video-media .v2-video-shared-media-stage {
   display: flex;
-  height: 33%;
+  height: 36%;
   width: 100%;
   position: relative;
   top: 0;
   left: 0;
   transform: none;
   border-radius: 0;
-  border-bottom: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
   background: #07030e;
   z-index: 20;
   flex-shrink: 0;
   max-width: 100%;
-  max-height: 33%;
+  max-height: 36%;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
 }
 
 .v2-viewport-area.has-video-media .v2-remote-container {
-  height: 67%;
+  height: 64%;
   flex: none;
 }
 
@@ -479,8 +480,10 @@ html, body {
 
 .v2-audio-shared-media-stage {
   position: relative;
-  margin-top: 14px;
-  max-width: 90%;
+  margin-top: 10px;
+  width: 90%;
+  max-width: 320px;
+  height: 280px;
   max-height: 280px;
   border-radius: 14px;
   overflow: hidden;
@@ -488,12 +491,27 @@ html, body {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
   background: rgba(0, 0, 0, 0.6);
   animation: v2ToastFade 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.v2-audio-media-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .v2-audio-media-content img,
 .v2-audio-media-content video {
   max-width: 100%;
-  max-height: 260px;
+  max-height: 100%;
   display: block;
   object-fit: contain;
   border-radius: 12px;
@@ -535,10 +553,21 @@ html, body {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
 }
 
+.v2-video-media-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
 .v2-video-media-content img,
 .v2-video-media-content video {
   max-width: 100%;
-  max-height: 30vh;
+  max-height: 100%;
   display: block;
   object-fit: contain;
   border-radius: 12px;
@@ -2738,58 +2767,108 @@ html, body {
 .v2-lightbox-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.92);
-  backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   z-index: 9999999;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 12px;
+  box-sizing: border-box;
 }
 
-.v2-lightbox-container {
+.v2-lightbox-card {
   position: relative;
-  max-width: 90vw;
-  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  max-width: 94vw;
+  max-height: 92vh;
+  width: auto;
+  min-width: 280px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
+  animation: v2FadeIn 0.2s ease;
+}
+
+.v2-lightbox-header {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(15, 23, 42, 0.98);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  gap: 12px;
+  flex-shrink: 0;
 }
 
+.v2-lightbox-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.v2-lightbox-header-close,
 .v2-lightbox-close {
-  position: absolute;
-  top: -45px;
-  right: 0;
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  position: static;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   color: #fff;
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
   border-radius: 50%;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
+  line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
+.v2-lightbox-header-close:hover,
+.v2-lightbox-header-close:active,
 .v2-lightbox-close:hover {
-  background: rgba(239, 68, 68, 0.8);
+  background: rgba(239, 68, 68, 0.85);
+  border-color: rgba(239, 68, 68, 1);
+  transform: scale(0.95);
+}
+
+.v2-lightbox-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  background: #000;
 }
 
 .v2-lightbox-media-img {
   max-width: 90vw;
-  max-height: 80vh;
+  max-height: 75vh;
   object-fit: contain;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  border-radius: 8px;
+  display: block;
 }
 
 .v2-lightbox-media-video {
   max-width: 90vw;
-  max-height: 80vh;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  max-height: 75vh;
+  border-radius: 8px;
+  display: block;
 }
 
 /* ==========================================================================
@@ -10311,6 +10390,363 @@ html, body {
   20% { opacity: 1; transform: translate(-50%, -60%) scale(1.18); }
   60% { opacity: 1; transform: translate(-50%, -90%) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -140%) scale(0.85); }
+}
+
+/* ==========================================================================
+   Media Visibility & Privacy Shield (Tap to View & View Once)
+   ========================================================================== */
+.v2-media-privacy-options {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+.v2-media-option-label {
+  display: block;
+  cursor: pointer;
+}
+.v2-media-option-label input[type="radio"] {
+  display: none;
+}
+.v2-media-option-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px 14px;
+  transition: all 0.2s ease;
+}
+.v2-media-option-label input[type="radio"]:checked + .v2-media-option-card {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(52, 211, 153, 0.5);
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+}
+.v2-media-option-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.v2-media-option-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.v2-media-badge-rec {
+  background: rgba(16, 185, 129, 0.25);
+  border: 1px solid rgba(52, 211, 153, 0.5);
+  color: #a7f3d0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.v2-media-option-desc {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  line-height: 1.35;
+  display: block;
+}
+
+/* In-Chat Privacy Card (Tap to View) */
+.v2-media-privacy-card {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  padding: 10px 14px;
+  min-width: 190px;
+  max-width: 260px;
+  box-sizing: border-box;
+  animation: v2FadeIn 0.2s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.v2-media-privacy-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+.v2-media-privacy-header i {
+  color: #38bdf8;
+  font-size: 0.95rem;
+}
+.v2-media-reveal-btn {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+}
+.v2-media-reveal-btn:active {
+  transform: scale(0.96);
+}
+.v2-media-privacy-card.opened {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  flex-direction: row;
+  align-items: center;
+  font-size: 0.82rem;
+  gap: 6px;
+  padding: 8px 14px;
+}
+
+/* In-Call Stage Privacy Card (Audio & Video calls) */
+.v2-stage-media-privacy-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 18px;
+  padding: 22px 28px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  max-width: 290px;
+  margin: 0 auto;
+  text-align: center;
+  animation: v2FadeIn 0.25s ease;
+}
+.v2-stage-media-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(168, 85, 247, 0.2);
+  border: 1px solid rgba(168, 85, 247, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: #c084fc;
+}
+.v2-stage-media-label {
+  font-size: 0.90rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+.v2-stage-reveal-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 9px 20px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.35);
+  transition: transform 0.15s ease;
+}
+.v2-stage-reveal-btn:active {
+  transform: scale(0.96);
+}
+
+/* View Once Badges & Icons */
+/* WhatsApp-style Circled 1 View Once Badge */
+.v2-view-once-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 50%;
+  border: 1.5px dashed #fbbf24;
+  color: #fbbf24;
+  font-size: 0.8rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.v2-view-once-inline-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px;
+  height: 17px;
+  min-width: 17px;
+  border-radius: 50%;
+  border: 1.5px dashed #fbbf24;
+  color: #fbbf24;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  box-sizing: border-box;
+  margin-right: 4px;
+}
+
+.v2-attach-tile.view-once-tile .v2-view-once-badge-icon {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  font-size: 1.05rem;
+  border-width: 2px;
+}
+
+.v2-stage-media-icon .v2-view-once-badge-icon {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  font-size: 1.5rem;
+  border-width: 2.5px;
+}
+
+.v2-media-privacy-card.opened .v2-view-once-badge-icon {
+  border: 1.5px solid #94a3b8;
+  color: #94a3b8;
+}
+
+.v2-view-once-badge {
+  display: none !important;
+}
+
+.v2-lightbox-view-once-badge {
+  display: none !important;
+}
+
+.v2-attach-tile.view-once-tile .v2-attach-tile-icon {
+  background: rgba(245, 158, 11, 0.2);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+}
+
+/* In-Chat Revealed Media Wrapper with Tap to Hide */
+.v2-media-revealed-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  animation: v2FadeIn 0.2s ease;
+}
+.v2-chat-msg.user .v2-media-revealed-wrap {
+  align-items: flex-end;
+}
+.v2-chat-msg.stranger .v2-media-revealed-wrap {
+  align-items: flex-start;
+}
+.v2-media-hide-btn {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.15s ease;
+}
+.v2-media-hide-btn:hover,
+.v2-media-hide-btn:active {
+  background: rgba(30, 41, 59, 0.95);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: scale(0.96);
+}
+
+/* Stage Media Revealed Wrapper & Flex Structure */
+.v2-stage-revealed-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+  padding: 6px 10px 8px;
+  overflow: hidden;
+}
+
+.v2-stage-media-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-width: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+.v2-stage-media-display img,
+.v2-stage-media-display video,
+.v2-audio-media-img,
+.v2-audio-media-video,
+.v2-video-media-img,
+.v2-video-media-video {
+  max-width: 100%;
+  max-height: 100%;
+  height: auto;
+  object-fit: contain;
+  border-radius: 10px;
+  display: block;
+  margin: 0 auto;
+}
+
+.v2-stage-hide-wrap {
+  flex: 0 0 auto;
+  margin-top: 6px;
+  padding-bottom: 2px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 5;
+}
+
+/* Stage Tap to Hide Button (In Audio & Video Calls) */
+.v2-stage-hide-btn {
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #cbd5e1;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 4px 14px;
+  border-radius: 9999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+.v2-stage-hide-btn:hover,
+.v2-stage-hide-btn:active {
+  background: rgba(30, 41, 59, 0.95);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: scale(0.96);
 }
 
 
