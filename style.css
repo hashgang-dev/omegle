@@ -10643,10 +10643,12 @@ html, body {
   gap: 6px;
   animation: v2FadeIn 0.2s ease;
 }
-.v2-chat-msg.user .v2-media-revealed-wrap {
+.v2-chat-msg.user .v2-media-revealed-wrap,
+.v2-group-msg-row.self .v2-media-revealed-wrap {
   align-items: flex-end;
 }
-.v2-chat-msg.stranger .v2-media-revealed-wrap {
+.v2-chat-msg.stranger .v2-media-revealed-wrap,
+.v2-group-msg-row.other .v2-media-revealed-wrap {
   align-items: flex-start;
 }
 .v2-media-hide-btn {

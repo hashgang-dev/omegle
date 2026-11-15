@@ -1,10 +1,11 @@
-const CACHE_NAME = 'hashgang-v377';
+const CACHE_NAME = 'hashgang-v379';
 
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
+  '/bad_words_config.js',
   '/ludo_game.js',
   '/assets/dice-roll.mp3',
   '/rubberband-processor.js',
