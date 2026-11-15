@@ -1126,6 +1126,13 @@
         movableTokens: []
       };
 
+      if (typeof window.trackV2Event === "function") {
+        window.trackV2Event("ludo_game_started", {
+          mode: data.mode,
+          players_count: Array.isArray(data.players) ? data.players.length : 0
+        });
+      }
+
       // Hide group stage, show Ludo stage
       const groupStage = document.getElementById("v2-group-chat-stage");
       const ludoStage = document.getElementById("v2-ludo-stage");
@@ -1295,6 +1302,14 @@
           : `Match completed! Fantastic battle!`;
       }
       if (victoryOverlay) victoryOverlay.classList.remove("hidden");
+
+      if (typeof window.trackV2Event === "function") {
+        window.trackV2Event("ludo_game_won", {
+          winner: data.winner,
+          reason: data.reason || "normal",
+          is_me: data.winner === currentGame.myColor
+        });
+      }
     });
 
     window.socket.on("ludo_player_silent", (data) => {
