@@ -68,6 +68,46 @@ const { chromium } = require("playwright");
     }
   }
 
+  // 2b. Test Silent Auto-Sanitization for Existing / Old Stored Nicknames
+  console.log("Testing Silent Auto-Sanitization for Existing Stored Nicknames...");
+  const oldNickSanitization = await page.evaluate(() => {
+    const sanitize = window.sanitizeStoredNickname;
+
+    // Test 1: Existing name with spaces
+    const spaced = sanitize("Cool Gamer 99");
+
+    // Test 2: Existing name with multiple spaces
+    const multiSpaced = sanitize("  Hyper   Falcon  ");
+
+    // Test 3: Existing name with bad words -> must auto reset to safe cool name
+    const vulgarReset = sanitize("bad_fuck_guy");
+
+    // Test 4: Verify localStorage auto-sanitization on checkAgeConfirmationOnLoad
+    localStorage.setItem("hg_user_nickname", "Old_Fuck_User");
+    window.checkAgeConfirmationOnLoad();
+    const storedAfterBad = localStorage.getItem("hg_user_nickname");
+
+    // Test 5: Verify localStorage space replacement on checkAgeConfirmationOnLoad
+    localStorage.setItem("hg_user_nickname", "Legend Warrior");
+    window.checkAgeConfirmationOnLoad();
+    const storedAfterSpaced = localStorage.getItem("hg_user_nickname");
+
+    return {
+      spacedMatches: spaced === "Cool_Gamer_99",
+      multiSpacedMatches: multiSpaced === "Hyper_Falcon",
+      vulgarResetSafe: !window.containsUnparliamentaryWords(vulgarReset) && vulgarReset !== "bad_fuck_guy",
+      storedAfterBadSafe: !window.containsUnparliamentaryWords(storedAfterBad) && storedAfterBad !== "Old_Fuck_User",
+      storedAfterSpacedMatches: storedAfterSpaced === "Legend_Warrior"
+    };
+  });
+
+  console.log("✅ 2b. Old stored nickname sanitization results:", oldNickSanitization);
+  for (const [key, val] of Object.entries(oldNickSanitization)) {
+    if (!val) {
+      throw new Error(`Old nickname sanitization failed for: ${key}`);
+    }
+  }
+
   // 3. Test Nickname Modal Space Replacement & Inline Error
   console.log("Testing Nickname Modal space auto-replace and unparliamentary warning...");
   await page.evaluate(() => {
