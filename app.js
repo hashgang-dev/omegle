@@ -449,7 +449,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v379";
+const APP_CLIENT_VERSION = "v380";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -5923,11 +5923,44 @@ async function fetchSelfBrandAdsFromBackend() {
 // GROUP CHAT (MULTIPLAYER FALLBACK) ENGINE
 // ==========================================
 
-function checkAgeConfirmationOnLoad() {
-  if (!currentNickname) {
-    currentNickname = generateCoolNickname();
-    localStorage.setItem("hg_user_nickname", currentNickname);
+function sanitizeStoredNickname(storedNick) {
+  if (!storedNick || typeof storedNick !== "string") {
+    return generateCoolNickname();
   }
+  // 1. Silent space auto-replace: spaces converted to underscores
+  let clean = storedNick.trim().replace(/\s+/g, "_").slice(0, 20);
+
+  // 2. Validate format: letters, numbers, _, -, . (2 to 20 chars, at least one alphanumeric)
+  const nickRegex = /^[a-zA-Z0-9_\-\.]{2,20}$/;
+  if (!nickRegex.test(clean) || !/[a-zA-Z0-9]/.test(clean)) {
+    return generateCoolNickname();
+  }
+
+  // 3. Prevent phone numbers / long digit sequences
+  if (/\d{5,}/.test(clean) || (clean.match(/\d/g) || []).length > 6) {
+    return generateCoolNickname();
+  }
+
+  // 4. Check for unparliamentary / abusive words (Silent auto-reset to cool name, no toast)
+  if (typeof containsUnparliamentaryWords === "function" && containsUnparliamentaryWords(clean)) {
+    return generateCoolNickname();
+  }
+
+  // 5. Check restricted keywords & reserved handles
+  if (typeof isRestrictedNickname === "function" && isRestrictedNickname(clean)) {
+    return generateCoolNickname();
+  }
+
+  return clean;
+}
+window.sanitizeStoredNickname = sanitizeStoredNickname;
+
+function checkAgeConfirmationOnLoad() {
+  const stored = localStorage.getItem("hg_user_nickname") || currentNickname;
+  currentNickname = sanitizeStoredNickname(stored);
+  try {
+    localStorage.setItem("hg_user_nickname", currentNickname);
+  } catch (e) {}
   updateNicknameDisplay(currentNickname);
 
   const ageModal = document.getElementById("v2-age-modal");
@@ -6059,6 +6092,13 @@ function joinGroupChatOnConnect() {
     setTimeout(joinGroupChatOnConnect, 300);
     return;
   }
+  // Sanitize stored nickname to guarantee no spaces or bad words ever reach signaling
+  currentNickname = sanitizeStoredNickname(currentNickname || localStorage.getItem("hg_user_nickname"));
+  try {
+    localStorage.setItem("hg_user_nickname", currentNickname);
+  } catch (e) {}
+  updateNicknameDisplay(currentNickname);
+
   console.log("💬 [Group Chat] Emitting join_group_chat with nickname:", currentNickname);
   ensureInputFieldsVisibility();
   const payload = { nickname: currentNickname, anonUserId: getOrCreateAnonUserId() };
