@@ -450,7 +450,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v383";
+const APP_CLIENT_VERSION = "v386";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -766,6 +766,16 @@ function unlockAudioContextOnGesture() {
   document.addEventListener("keydown", unlock, { passive: true });
 }
 
+function triggerHapticPulse(pattern) {
+  try {
+    if (typeof localStorage !== "undefined" && localStorage.getItem("hg_sound_muted") === "true") return;
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      navigator.vibrate(pattern);
+    }
+  } catch (e) {}
+}
+window.triggerHapticPulse = triggerHapticPulse;
+
 function playAudioChime(type) {
   try {
     if (typeof localStorage !== "undefined" && localStorage.getItem("hg_sound_muted") === "true") return;
@@ -884,11 +894,7 @@ function triggerFavoriteOnlineNotification(targetNick) {
 
   // Play Sparkling Star Magic Chime & trigger haptic pulse
   playAudioChime("star");
-  try {
-    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
-      navigator.vibrate([40, 60, 40]);
-    }
-  } catch (e) {}
+  triggerHapticPulse([40, 60, 40]);
 }
 window.triggerFavoriteOnlineNotification = triggerFavoriteOnlineNotification;
 
@@ -1332,9 +1338,7 @@ function handleStrangerDisconnected(force = false) {
   if (typeof dismiss1v1GamePrompt === "function") dismiss1v1GamePrompt(true);
   cleanupPeerConnection(false);
   playAudioChime("disconnect");
-  if (navigator.vibrate) {
-    try { navigator.vibrate(200); } catch (e) {}
-  }
+  triggerHapticPulse(200);
   updateStatus("disconnected", "🔴 Stranger Disconnected");
   if (currentChatMode === "text") {
     appendSystemCard("disconnect", "🔴 Stranger has disconnected.", true);
@@ -1787,9 +1791,7 @@ function initSocketConnection() {
         );
         updateToolbarForMode("active");
         playAudioChime("connect");
-        if (navigator.vibrate) {
-          try { navigator.vibrate([100, 50, 100]); } catch (e) {}
-        }
+        triggerHapticPulse([100, 50, 100]);
 
         // Generate Session Trace Watermark Code (Server Authoritative)
         const sessionTraceCode = (data && data.traceCode) ? data.traceCode : ((targetId || "HG" + Math.random().toString(36).substring(2, 8)).slice(-8).toUpperCase());
@@ -6517,8 +6519,14 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
   }
 
   const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
-  const isGif = !!(msg.gif && msg.gif.url);
-  const isSticker = isGif && msg.gif.type === "sticker";
+  const isGif = !!(msg.gif && msg.gif.url) || msg.type === "gif" || msg.type === "sticker";
+  const isSticker = (isGif && msg.gif && msg.gif.type === "sticker") || msg.type === "sticker" || msg.mediaType === "sticker";
+  if (!msg.gif && (msg.dataUrl || msg.mediaUrl)) {
+    msg.gif = {
+      url: msg.dataUrl || msg.mediaUrl,
+      type: isSticker ? "sticker" : "gif"
+    };
+  }
 
   const isReplyToMe = Boolean(
     msg.replyTo &&
@@ -11523,6 +11531,21 @@ function openV2SettingsModal(e) {
     else tapRadio.checked = true;
   }
 
+  // 9. Sync App Version & Connection Status
+  const verNumEl = document.getElementById("v2-settings-version-num");
+  if (verNumEl) {
+    verNumEl.textContent = APP_CLIENT_VERSION;
+  }
+  const statusTextEl = document.getElementById("v2-settings-status-text");
+  const statusDotEl = document.querySelector(".v2-status-online-dot");
+  if (statusTextEl) {
+    const isConn = Boolean(socket && socket.connected);
+    statusTextEl.textContent = isConn ? "Connected" : "Reconnecting...";
+    if (statusDotEl) {
+      statusDotEl.classList.toggle("offline", !isConn);
+    }
+  }
+
   modal.classList.remove("hidden");
   if (window.location.hash !== "#settings") {
     try {
@@ -11652,13 +11675,111 @@ function applyDefaultVoicePersona(preset) {
 function toggleSoundMute(checkbox) {
   if (!checkbox.checked) {
     localStorage.setItem("hg_sound_muted", "true");
-    v2ShowToast("🔇 Chat sounds muted");
+    v2ShowToast("🔇 Sounds & vibration muted");
   } else {
     localStorage.removeItem("hg_sound_muted");
-    v2ShowToast("🔊 Chat sounds active");
+    v2ShowToast("🔊 Sounds & vibration active");
     if (typeof playAudioChime === "function") playAudioChime("pop");
+    triggerHapticPulse(40);
   }
 }
+
+async function checkForAppUpdates(manual = false) {
+  const btn = document.getElementById("v2-btn-check-updates");
+  const originalHtml = btn ? btn.innerHTML : "";
+  if (btn && manual) {
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Checking...</span>`;
+  }
+  try {
+    const res = await fetch(`version.json?t=${Date.now()}`, {
+      cache: "no-store",
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache"
+      }
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    if (!data || !data.version) throw new Error("Invalid version data");
+
+    const remoteVerNum = parseNumericVersion(data.version);
+    const localVerNum = parseNumericVersion(APP_CLIENT_VERSION);
+
+    if (remoteVerNum > localVerNum) {
+      if (typeof v2ShowToast === "function") {
+        v2ShowToast(`🚀 New update found (${data.version})! Refreshing with latest features...`, 2500);
+      }
+      setTimeout(() => {
+        reloadAppShellSafely(`manual_update (${APP_CLIENT_VERSION} -> ${data.version})`);
+      }, 500);
+    } else {
+      if (manual && typeof v2ShowToast === "function") {
+        v2ShowToast(`✅ You're on the latest version (${APP_CLIENT_VERSION})!`, 2200);
+      }
+    }
+  } catch (err) {
+    console.warn("Update check notice:", err);
+    if (manual && typeof v2ShowToast === "function") {
+      v2ShowToast(`✅ You're on the latest version (${APP_CLIENT_VERSION})!`, 2200);
+    }
+  } finally {
+    if (btn && manual) {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }, 600);
+    }
+  }
+}
+window.checkForAppUpdates = checkForAppUpdates;
+
+async function clearAssetsAndMediaCache() {
+  const btn = document.getElementById("v2-btn-clear-cache");
+  const originalHtml = btn ? btn.innerHTML : "";
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>Clearing...</span>`;
+  }
+  try {
+    // 1. Delete all Service Worker caches (assets, media, audio, wasm)
+    if (typeof window !== "undefined" && "caches" in window) {
+      const cacheNames = await caches.keys();
+      await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      console.log("🧹 [Cache Cleaner] Deleted Service Worker caches:", cacheNames);
+    }
+    // 2. Clear temporary session storage
+    try {
+      sessionStorage.clear();
+    } catch (e) {}
+
+    // 3. User feedback
+    if (typeof v2ShowToast === "function") {
+      v2ShowToast("🧹 Media & asset cache cleared! Refreshing...", 2200);
+    }
+
+    // 4. Force fresh asset reload from server without touching localStorage (preserves anon UID, favorites & push)
+    setTimeout(() => {
+      window.location.href = window.location.origin + window.location.pathname + "?cache_bust=" + Date.now();
+    }, 700);
+  } catch (err) {
+    console.error("Cache clean error:", err);
+    if (typeof v2ShowToast === "function") {
+      v2ShowToast("⚠️ Could not clear cache. Reloading...");
+    }
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
+  } finally {
+    if (btn) {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalHtml;
+      }, 2000);
+    }
+  }
+}
+window.clearAssetsAndMediaCache = clearAssetsAndMediaCache;
 
 // Dedicated Hardware Permissions Manager with Unblock Guidance
 async function checkHardwarePermissions() {
@@ -12363,6 +12484,9 @@ window.syncAudioMuteUI = syncAudioMuteUI;
 window.syncVideoCamUI = syncVideoCamUI;
 window.resetMediaControlStates = resetMediaControlStates;
 window.renderGroupMessageRow = renderGroupMessageRow;
+window.checkForAppUpdates = checkForAppUpdates;
+window.clearAssetsAndMediaCache = clearAssetsAndMediaCache;
+window.triggerHapticPulse = triggerHapticPulse;
 
 
 

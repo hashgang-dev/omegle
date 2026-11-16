@@ -74,7 +74,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=383" />
+  <link rel="stylesheet" href="style.css?v=386" />
 
   <!-- Google AdSense Library (Ready for approval) -->
   <meta name="google-adsense-account" content="ca-pub-6927010746708408" />
@@ -1331,12 +1331,12 @@
             </div>
           </div>
 
-          <!-- Card 3: Chat Sounds -->
+          <!-- Card 3: Sounds & Vibration -->
           <div class="v2-settings-group">
             <div class="v2-settings-switch-row">
               <div class="v2-switch-meta">
-                <span class="v2-switch-label"><i class="fa-solid fa-volume-high text-indigo-400"></i> Chat Sounds</span>
-                <span class="v2-switch-sub">Play audio tone when messages or matches arrive</span>
+                <span class="v2-switch-label"><i class="fa-solid fa-volume-high text-indigo-400"></i> Sounds &amp; Vibration</span>
+                <span class="v2-switch-sub">Play audio chimes and vibrate on matches, messages &amp; alerts</span>
               </div>
               <label class="v2-toggle-switch">
                 <input type="checkbox" id="v2-toggle-sound-chimes" checked onchange="toggleSoundMute(this)" />
@@ -1467,6 +1467,46 @@
               </button>
             </div>
           </div>
+
+          <!-- Card 9: App Version & Diagnostics -->
+          <div class="v2-settings-group" id="v2-settings-app-info-card">
+            <div class="v2-settings-group-title">
+              <i class="fa-solid fa-circle-info text-sky-400"></i> App Info &amp; Diagnostics
+            </div>
+            <div class="v2-app-info-row">
+              <div class="v2-app-info-meta">
+                <span class="v2-app-version-badge" id="v2-settings-version-badge">#GANG Chat <strong id="v2-settings-version-num">v385</strong></span>
+                <span class="v2-app-status-indicator" id="v2-settings-app-status"><span class="v2-status-online-dot"></span> <span id="v2-settings-status-text">Connected</span></span>
+              </div>
+              <div class="v2-app-diag-actions">
+                <button type="button" class="v2-diag-btn update" id="v2-btn-check-updates" onclick="checkForAppUpdates(true)">
+                  <i class="fa-solid fa-arrows-rotate"></i> <span>Check for Updates</span>
+                </button>
+                <button type="button" class="v2-diag-btn clear-cache" id="v2-btn-clear-cache" onclick="clearAssetsAndMediaCache()">
+                  <i class="fa-solid fa-broom"></i> <span>Clear Cache</span>
+                </button>
+              </div>
+            </div>
+            <p class="v2-settings-desc" style="margin-top: 10px; font-size: 0.76rem; color: #64748b;">
+              Clearing cache reloads fresh app assets without affecting your saved favorites or notifications.
+            </p>
+          </div>
+
+          <!-- Card 10: Legal, Safety & Trust Footer Links -->
+          <div class="v2-settings-legal-footer">
+            <div class="v2-settings-legal-links">
+              <a href="terms-of-service.html" target="_blank" rel="noopener">Terms of Service</a>
+              <span class="v2-legal-sep">•</span>
+              <a href="privacy-policy.html" target="_blank" rel="noopener">Privacy Policy</a>
+              <span class="v2-legal-sep">•</span>
+              <a href="contact.html" target="_blank" rel="noopener">Contact &amp; Grievance</a>
+              <span class="v2-legal-sep">•</span>
+              <a href="about.html" target="_blank" rel="noopener">About</a>
+            </div>
+            <p class="v2-settings-copyright">
+              &copy; 2026 HashGANG Enterprise. Indian IT Act 2000 Compliant.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -1522,9 +1562,9 @@
     <script src="ads.js?v=351" defer></script>
     <script src="ad_mediation_config.js?v=351" defer></script>
     <script src="socket.io.min.js?v=301"></script>
-    <script src="bad_words_config.js?v=383" defer></script>
-    <script src="ludo_game.js?v=383" defer></script>
-    <script src="app.js?v=383" defer></script>
+    <script src="bad_words_config.js?v=386" defer></script>
+    <script src="ludo_game.js?v=386" defer></script>
+    <script src="app.js?v=386" defer></script>
 </body>
 
 </html>
