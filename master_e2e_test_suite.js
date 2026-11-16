@@ -258,6 +258,33 @@ async function runMasterE2ESuite() {
       sGroup1ReceivedReply?.replyTo?.text === "Hello Gang!"
     );
 
+    // 2.4.b Sticker Delivery as Valid Chat Message
+    await new Promise((r) => setTimeout(r, 2600)); // wait for rate limiter
+    let sGroup1ReceivedSticker = null;
+    const stickerPromise = new Promise((resolve) => {
+      sGroup1.on("new_group_msg", (msg) => {
+        if (msg.gif && (msg.type === "sticker" || msg.gif.type === "sticker")) {
+          sGroup1ReceivedSticker = msg;
+          resolve();
+        }
+      });
+    });
+
+    sGroup2.emit("send_group_msg", {
+      text: "",
+      gif: {
+        url: "https://media1.giphy.com/media/w1OBpBd7kJqHrJnJ13/200.webp",
+        type: "sticker"
+      }
+    });
+    await stickerPromise;
+
+    logResult("Sticker Real-Time Delivery as Valid Chat Message",
+      (sGroup1ReceivedSticker?.type === "sticker" || sGroup1ReceivedSticker?.gif?.type === "sticker") &&
+      sGroup1ReceivedSticker?.text.includes("[Sticker]") &&
+      Boolean(sGroup1ReceivedSticker?.gif?.url)
+    );
+
     // 2.5 Anti-Spam Slow Mode Rate Limiting
     let rateLimited = false;
     const rateLimitPromise = new Promise((resolve) => {
@@ -788,6 +815,23 @@ async function runMasterE2ESuite() {
 
       logResult("Real-Time Emoji Reaction Delivery to Peer UI", true);
 
+      // 8A. Sticker Sending & Peer DOM Render Verification
+      await pageAlice.waitForTimeout(2800); // Allow rate limiter to clear
+      await pageAlice.evaluate(() => {
+        window.onSelectGifOrSticker("https://media1.giphy.com/media/w1OBpBd7kJqHrJnJ13/200.webp", "sticker");
+      });
+
+      await pageBob.waitForFunction(() => {
+        const stickers = document.querySelectorAll(".v2-chat-gif-img, .is-sticker-msg");
+        return stickers.length > 0;
+      }, { timeout: 6000 });
+
+      const stickerRendered = await pageBob.evaluate(() => {
+        const stickers = document.querySelectorAll(".v2-chat-gif-img, .is-sticker-msg");
+        return stickers.length > 0;
+      });
+      logResult("Sticker Real-Time Peer UI Rendering", stickerRendered);
+
       // 8B. User Join Notification 1-Click Greeting ("Say Hi 👋") & @mention Sync
       await pageBob.waitForTimeout(3200); // Allow group anti-spam rate limiter (2.5s) to safely clear
       await pageBob.evaluate(() => {
@@ -871,6 +915,14 @@ async function runMasterE2ESuite() {
       favSettingsSuccess = hasAliceInSettings && hasFavLossWarning && favCountAfter === "0";
 
       logResult("Secret Star Favorites Card in Settings, Loss Warning & 1-Click Removal", favSettingsSuccess);
+
+      // 8C-2. Settings App Info, Version Display & Legal Footer
+      const settingsVerText = await pageBob.locator("#v2-settings-version-num").innerText();
+      const hasUpdateBtn = await pageBob.locator("#v2-btn-check-updates").isVisible();
+      const hasClearCacheBtn = await pageBob.locator("#v2-btn-clear-cache").isVisible();
+      const hasLegalLinks = await pageBob.locator(".v2-settings-legal-links a").count() >= 3;
+      const isSettingsInfoValid = settingsVerText.startsWith("v") && hasUpdateBtn && hasClearCacheBtn && hasLegalLinks;
+      logResult("Settings App Version Display, Diagnostics & Legal Footer", isSettingsInfoValid);
 
       // Verify Group Discovery Pill broadcast delivery to peer Alice's live feed
       await pageAlice.waitForSelector(".v2-group-favorite-pill", { timeout: 6000 });
