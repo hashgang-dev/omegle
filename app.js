@@ -450,7 +450,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v386";
+const APP_CLIENT_VERSION = "v388";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -7577,9 +7577,10 @@ function injectWaterfallAdBanner(container, context = "group") {
     return;
   }
 
-  // 1. Google AdSense (High-CPM Primary - Active when approved)
+  // 1. Google AdSense (High-CPM Primary - Active when approved, safe in group/editorial only)
+  // Per Google AdSense UGC & Webcam policy, ads are restricted from unmoderated 1v1 private video feeds
   const isAdsenseEnabled = mediationConfig.adsenseEnabled === true;
-  if (isAdsenseEnabled) {
+  if (isAdsenseEnabled && context !== "private") {
     injectAdSenseBanner(container, context);
     console.log(`🎯 [Ad Waterfall] Served Google AdSense in ${context}`);
     return;
