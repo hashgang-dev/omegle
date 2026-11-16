@@ -450,7 +450,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v382";
+const APP_CLIENT_VERSION = "v383";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -2058,11 +2058,17 @@ function initSocketConnection() {
             renderedInviteIds.add(msg.inviteId);
             feed.appendChild(renderLudoInviteCard(msg));
             lastSenderId = null;
+          } else if (msg.type === "ludo_winner" || msg.isLudoWinner) {
+            feed.appendChild(renderLudoWinnerFeedCard(msg));
+            lastSenderId = null;
           } else if (msg.type === "favorite_pill") {
             feed.appendChild(renderFavoritePillRow(msg));
             lastSenderId = null;
           } else if (msg.type === "app_install_pill") {
             feed.appendChild(renderAppInstallPillRow(msg));
+            lastSenderId = null;
+          } else if (msg.type === "house_promo_card") {
+            feed.appendChild(renderHousePromoFeedCard());
             lastSenderId = null;
           } else {
             const currentSender = msg.nickname || "Stranger";
@@ -2078,19 +2084,9 @@ function initSocketConnection() {
             lastSenderId = currentSender;
             lastMsgTime = msgTime;
           }
-
-          // In-feed card injection in middle of backlog history if sufficiently long (>= 15 msgs)
-          if (idx === Math.floor(totalMsgs * 0.5) && !adInjected && totalMsgs >= 15) {
-            feed.appendChild(renderHousePromoFeedCard());
-            adInjected = true;
-            lastSenderId = null;
-          }
         });
 
-        // 2. Inline Welcome Card placed directly AFTER the last backlog message!
-        feed.appendChild(renderWelcomeKnowledgeCard(activeGroupRoomNumber));
-
-        // 3. Render active call invites if not already rendered in backlog
+        // 1. Render all active open invites right after the 50 messages + pills
         if (Array.isArray(data.activeInvites)) {
           data.activeInvites.forEach((inv) => {
             if (!renderedInviteIds.has(inv.inviteId)) {
@@ -2098,6 +2094,9 @@ function initSocketConnection() {
             }
           });
         }
+
+        // 2. Inline Welcome Card placed at the VERY BOTTOM of feed!
+        feed.appendChild(renderWelcomeKnowledgeCard(activeGroupRoomNumber));
 
         // Auto-post invite if user requested upon return, now that room is 100% active
         if (window.pendingAutoInviteMode) {
@@ -2152,6 +2151,14 @@ function initSocketConnection() {
           } else if (msg.type === "ludo_invite") {
             renderedInviteIds.add(msg.inviteId);
             feed.appendChild(renderLudoInviteCard(msg));
+          } else if (msg.type === "ludo_winner" || msg.isLudoWinner) {
+            feed.appendChild(renderLudoWinnerFeedCard(msg));
+          } else if (msg.type === "favorite_pill") {
+            feed.appendChild(renderFavoritePillRow(msg));
+          } else if (msg.type === "app_install_pill") {
+            feed.appendChild(renderAppInstallPillRow(msg));
+          } else if (msg.type === "house_promo_card") {
+            feed.appendChild(renderHousePromoFeedCard());
           } else {
             const row = renderGroupMessageRow(msg, false);
             feed.appendChild(row);
