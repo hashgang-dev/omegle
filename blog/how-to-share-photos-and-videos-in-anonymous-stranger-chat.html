@@ -228,7 +228,7 @@
       </h1>
 
       <div class="meta">
-        <span><i class="fa-solid fa-calendar"></i> November 2026 (Updated for v397)</span>
+        <span><i class="fa-solid fa-calendar"></i> November 2026 (Updated for v401)</span>
         <span><i class="fa-solid fa-clock"></i> 6 Min Read</span>
         <span><i class="fa-solid fa-bolt"></i> P2P WebRTC RTCDataChannel</span>
       </div>
@@ -237,7 +237,7 @@
         If you have ever used traditional stranger chat platforms like Omegle, OmeTV, or Chatroulette, you know their core limitation: <strong>you can only send plain text messages or stream raw webcam feeds</strong>. Sharing a travel photograph, an interesting sketch, a hobby clip, or a funny meme was virtually impossible without surrendering your private phone number or Instagram handle.
       </p>
       <p>
-        <strong>HashGANG Chat</strong> fundamentally re-engineers this experience. In our latest release (<code>v397</code>), all media shared in 1v1 private conversations is <strong>Strictly View-Once by Default</strong>. Built on peer-to-peer (P2P) WebRTC data channels, HTML5 forensic watermarks, active anti-screenshot blackout shields, and in-memory destruction, you can now share visual media with zero fear of server storage, unintended public exposure, or untraceable leaks.
+        <strong>HashGANG Chat</strong> fundamentally re-engineers this experience. In our latest release (<code>v401</code>), all media shared in 1v1 private conversations is <strong>Strictly View-Once by Default</strong>. Built on peer-to-peer (P2P) WebRTC data channels, HTML5 forensic watermarks, full-surface laser scanner touch-and-hold interactions, active multi-touch gesture blackout shields, and in-memory destruction, you can now share visual media with zero fear of server storage, unintended public exposure, or untraceable leaks.
       </p>
 
       <h2><i class="fa-solid fa-lock"></i> 1. Strictly View-Once by Default: Why Direct View Was Deprecated</h2>
@@ -260,13 +260,15 @@
         </ul>
       </div>
 
-      <h2><i class="fa-solid fa-shield-cat"></i> 2. The HTML5 Forensic Lightbox: Timed Photos & Natural Duration Videos</h2>
+      <h2><i class="fa-solid fa-fingerprint"></i> 2. The HTML5 Forensic Lightbox: Touch-and-Hold & Full-Surface Scanner</h2>
       <p>
-        When you tap <strong>"View Photo"</strong> or <strong>"View Video"</strong>, media opens in an isolated, dark forensic lightbox modal rendered onto an HTML5 <code>&lt;canvas&gt;</code> element with strict timing mechanics:
+        When you tap <strong>"View Photo"</strong> or <strong>"View Video"</strong>, media does not simply flash open. Instead, it renders in an isolated, dark forensic lightbox modal blurred behind a full-surface vertical laser scanner with an animated biometric fingerprint aura:
       </p>
       <ul>
-        <li><strong>Photos (10-Second Auto-Destruct Countdown):</strong> A top progress bar and circular countdown ring smoothly animate from 10 seconds to 0. When the timer expires, the photo instantly closes, burns from memory, and the card transitions to <code>Opened</code>.</li>
-        <li><strong>Videos (Full Natural Duration Guaranteed):</strong> Unlike arbitrary timers that prematurely cut off video clips, HashGANG Chat dynamically binds video playback to the media's natural duration. The video plays through once and triggers memory wipe the exact moment it finishes (<code>hiddenVideo.onended</code>).</li>
+        <li><strong>Continuous Touch-and-Hold Requirement:</strong> The user must press and hold down anywhere on the screen (<code>Touch &amp; Hold to View</code> for photos, <code>Touch &amp; Hold to Play</code> for videos). The media remains visible and unblurred only while physical contact with the display is maintained.</li>
+        <li><strong>Photos (10-Second Countdown & Instant Release Destruction):</strong> While holding, an animated countdown ring counts down from 10s to 0. If the viewer lifts their finger at any time (even after 1 second), the photo immediately vanishes, burns from device RAM, and permanently closes.</li>
+        <li><strong>Videos (Hold-to-Play & Natural Duration):</strong> View-Once videos play with full audio strictly while the screen is held. Every video frame is rendered onto an HTML5 <code>&lt;canvas&gt;</code> in real time with dynamic forensic watermarks. Releasing your finger pauses and destroys the video immediately; if held to the end, the video auto-destructs the millisecond playback concludes (<code>hiddenVideo.onended</code>).</li>
+        <li><strong>Physical Defense Against OS Screenshots:</strong> Web browsers operate in secure sandboxes that cannot intercept operating system kernel button combinations (like Android/iOS Power + Volume Down). By requiring one hand to continuously hold the glass, taking a physical screenshot requires awkward, two-handed coordination. Moreover, multi-touch swipe shortcuts (like 3-finger swipe screenshot gestures) are actively detected by the browser touch engine (<code>touches.length &gt; 1</code>), immediately triggering an emergency blackout curtain before a capture can occur!</li>
       </ul>
 
       <h2><i class="fa-solid fa-fingerprint"></i> 3. Tri-Point Forensic Watermarking: Live Traceability</h2>
@@ -282,12 +284,13 @@
         </ul>
       </div>
 
-      <h2><i class="fa-solid fa-ban"></i> 4. Active Anti-Screenshot Hotkey Interception & Blackout Curtain</h2>
+      <h2><i class="fa-solid fa-ban"></i> 4. Active Anti-Screenshot Hotkeys, Multi-Touch Gestures & Blackout Curtain</h2>
       <p>
         HashGANG Chat provides active, proactive client-side defenses while media is displayed in the forensic lightbox:
       </p>
       <ul>
-        <li><strong>Hotkey Interception:</strong> Pressing <code>PrintScreen</code>, <code>Ctrl+P</code> (Print), or <code>Ctrl+S</code> (Save Page) immediately triggers an opaque <strong>Security Blackout Curtain</strong>, clears the system clipboard (<code>navigator.clipboard.writeText</code>), and burns the media from RAM.</li>
+        <li><strong>Multi-Touch Gesture Blackout:</strong> Android and iOS devices frequently support 3-finger or 2-finger swipe gestures for quick screenshots. HashGANG's touch engine listens to active touch count (<code>touches.length &gt; 1</code>). The instant multiple touch points are detected, an emergency <strong>Security Blackout Curtain</strong> drops and the media is destroyed instantly.</li>
+        <li><strong>Hotkey Interception:</strong> Pressing <code>PrintScreen</code>, <code>Ctrl+P</code> (Print), or <code>Ctrl+S</code> (Save Page) immediately triggers the opaque Security Blackout Curtain, overwrites the system clipboard (<code>navigator.clipboard.writeText</code>), and burns the media from RAM.</li>
         <li><strong>Focus Loss & Tab Switch Protection:</strong> If the viewer attempts to switch tabs, minimize the browser, or switch to a background screen recording tool, the window <code>blur</code> and document <code>visibilitychange</code> listeners fire instantly, blacking out the screen and terminating the view session permanently.</li>
       </ul>
 

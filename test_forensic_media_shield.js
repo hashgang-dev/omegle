@@ -44,15 +44,18 @@ const { chromium } = require("playwright");
 
     await page.waitForTimeout(600);
 
-    // Check canvas and modal fit
+    // Check canvas, hold overlay and modal fit
     const metrics = await page.evaluate(() => {
       const modal = document.getElementById("v2-lightbox-modal");
       const card = document.getElementById("v2-lightbox-card");
       const canvas = document.getElementById("v2-lightbox-canvas");
+      const holdOverlay = document.getElementById("v2-lightbox-hold-overlay");
       const cardRect = card.getBoundingClientRect();
       const canvasRect = canvas.getBoundingClientRect();
       return {
         modalVisible: modal && !modal.classList.contains("hidden"),
+        holdOverlayVisible: holdOverlay && !holdOverlay.classList.contains("hidden"),
+        holdText: holdOverlay ? holdOverlay.textContent.trim() : "",
         cardWidth: Math.round(cardRect.width),
         cardHeight: Math.round(cardRect.height),
         canvasWidth: Math.round(canvasRect.width),
@@ -63,20 +66,54 @@ const { chromium } = require("playwright");
       };
     });
 
-    console.log(`  🔍 ${dev.name}: Card ${metrics.cardWidth}x${metrics.cardHeight} (Fits: ${metrics.fitsInViewport}) | Canvas: ${metrics.canvasWidth}x${metrics.canvasHeight}`);
+    console.log(`  🔍 ${dev.name}: Card ${metrics.cardWidth}x${metrics.cardHeight} (Fits: ${metrics.fitsInViewport}) | Canvas: ${metrics.canvasWidth}x${metrics.canvasHeight} | Hold Overlay: ${metrics.holdOverlayVisible}`);
     if (!metrics.modalVisible) throw new Error(`Lightbox modal failed to open on ${dev.name}`);
     if (!metrics.fitsInViewport) throw new Error(`Lightbox card overflows viewport on ${dev.name}`);
+    if (!metrics.holdOverlayVisible || !(metrics.holdText.includes("Touch & Hold") || metrics.holdText.includes("Hold down"))) {
+      throw new Error(`Hold overlay failed to render on ${dev.name}`);
+    }
 
-    // Save screenshot for primary mobile and desktop
+    // Save screenshot for primary mobile hold prompt
     if (dev.name === "mobile_portrait") {
+      const holdShotPath = "/home/hashgang/.gemini/antigravity/brain/bd6c5e22-7e3d-41f2-881e-6f3dd0a8bd74/shot_forensic_hold_prompt.png";
+      await page.screenshot({ path: holdShotPath });
+      console.log("  📸 Saved mobile hold prompt screenshot:", holdShotPath);
+
+      // Trigger hold to reveal the canvas and watermark
+      await page.evaluate(() => {
+        const overlay = document.getElementById("v2-lightbox-hold-overlay");
+        if (overlay && overlay.onmousedown) {
+          overlay.onmousedown({ type: "mousedown", button: 0 });
+        }
+      });
+      await page.waitForTimeout(300);
+
       const shotPath = "/home/hashgang/.gemini/antigravity/brain/bd6c5e22-7e3d-41f2-881e-6f3dd0a8bd74/shot_forensic_lightbox_view_once.png";
       await page.screenshot({ path: shotPath });
-      console.log("  📸 Saved primary mobile screenshot:", shotPath);
+      console.log("  📸 Saved revealed mobile screenshot:", shotPath);
     } else if (dev.name === "desktop_hd") {
+      // Trigger hold on desktop
+      await page.evaluate(() => {
+        const overlay = document.getElementById("v2-lightbox-hold-overlay");
+        if (overlay && overlay.onmousedown) {
+          overlay.onmousedown({ type: "mousedown", button: 0 });
+        }
+      });
+      await page.waitForTimeout(300);
+
       const shotPath = "/home/hashgang/.gemini/antigravity/brain/bd6c5e22-7e3d-41f2-881e-6f3dd0a8bd74/shot_forensic_lightbox_desktop.png";
       await page.screenshot({ path: shotPath });
       console.log("  📸 Saved desktop screenshot:", shotPath);
     } else if (dev.name === "mobile_landscape") {
+      // Trigger hold on landscape
+      await page.evaluate(() => {
+        const overlay = document.getElementById("v2-lightbox-hold-overlay");
+        if (overlay && overlay.onmousedown) {
+          overlay.onmousedown({ type: "mousedown", button: 0 });
+        }
+      });
+      await page.waitForTimeout(300);
+
       const shotPath = "/home/hashgang/.gemini/antigravity/brain/bd6c5e22-7e3d-41f2-881e-6f3dd0a8bd74/shot_forensic_lightbox_landscape.png";
       await page.screenshot({ path: shotPath });
       console.log("  📸 Saved landscape screenshot:", shotPath);
@@ -187,7 +224,7 @@ const { chromium } = require("playwright");
   await testPage.screenshot({ path: chatCardShotPath });
   console.log("  📸 Saved in-chat card screenshot:", chatCardShotPath);
 
-  // 3. Reveal and verify Lightbox opening + burning on close
+  // 3. Reveal and verify Lightbox opening + hold start + burning on release
   await testPage.evaluate((msgId) => {
     window.revealMediaCard(msgId);
   }, chatFlowResult.msgId);
@@ -196,17 +233,28 @@ const { chromium } = require("playwright");
   const lightboxState = await testPage.evaluate(() => {
     const modal = document.getElementById("v2-lightbox-modal");
     const countdown = document.getElementById("v2-countdown-text");
+    const holdOverlay = document.getElementById("v2-lightbox-hold-overlay");
     return {
       visible: modal && !modal.classList.contains("hidden"),
-      countdownVal: countdown ? countdown.textContent : ""
+      countdownVal: countdown ? countdown.textContent : "",
+      hasHoldOverlay: holdOverlay && !holdOverlay.classList.contains("hidden")
     };
   });
-  console.log("  🔍 Lightbox Active:", lightboxState);
-  if (!lightboxState.visible) throw new Error("Lightbox failed to open when tapping View Photo!");
+  console.log("  🔍 Lightbox Active with Hold Overlay:", lightboxState);
+  if (!lightboxState.visible || !lightboxState.hasHoldOverlay) throw new Error("Lightbox failed to open with hold overlay!");
 
-  // Close Lightbox to burn media
+  // Start hold down
   await testPage.evaluate(() => {
-    window.closeV2Lightbox();
+    const overlay = document.getElementById("v2-lightbox-hold-overlay");
+    if (overlay && overlay.onmousedown) {
+      overlay.onmousedown({ type: "mousedown", button: 0 });
+    }
+  });
+  await testPage.waitForTimeout(400);
+
+  // Release hold to burn media
+  await testPage.evaluate(() => {
+    window.dispatchEvent(new MouseEvent("mouseup"));
   });
   await testPage.waitForTimeout(500);
 
@@ -222,8 +270,28 @@ const { chromium } = require("playwright");
 
   console.log("  🔥 Post-Burn Verification:", postBurnCheck);
   if (!postBurnCheck.isBurnedInMemory || !postBurnCheck.cardHasOpened) {
-    throw new Error("Media was not burned or card did not update to Opened!");
+    throw new Error("Media was not burned or card did not update to Opened on hold release!");
   }
+
+  // 3b. Verify Multi-Touch Gesture Detection (Blackout Curtain)
+  console.log("  🛡️ Testing Multi-Touch Gesture Detection...");
+  const multiTouchCheck = await testPage.evaluate((imgData) => {
+    window.openV2Lightbox("image", imgData, true);
+    const fakeTouchEvent = new Event("touchstart", { bubbles: true, cancelable: true });
+    Object.defineProperty(fakeTouchEvent, "touches", {
+      value: [{ clientX: 100, clientY: 100 }, { clientX: 200, clientY: 200 }]
+    });
+    window.dispatchEvent(fakeTouchEvent);
+
+    const blackout = document.getElementById("v2-lightbox-blackout");
+    return {
+      blackoutVisible: blackout && !blackout.classList.contains("hidden")
+    };
+  }, sampleImgData);
+
+  console.log("  🔍 Multi-Touch Blackout Result:", multiTouchCheck);
+  if (!multiTouchCheck.blackoutVisible) throw new Error("Multi-touch gesture failed to trigger blackout curtain!");
+  await testPage.waitForTimeout(700); // allow blackout timeout to close cleanly
 
   // 4. Verify Sticker Wave-Back Filtering (Only greeting stickers have Wave Back)
   console.log("  👋 Testing Sticker Wave-Back Filter...");
@@ -251,6 +319,87 @@ const { chromium } = require("playwright");
   }
   if (!stickerWaveTest.greetingHasWave) {
     throw new Error("Greeting sticker is missing Wave Back chip!");
+  }
+
+  // 5. Verify Video View-Once Press & Hold, Playback & Release Burn
+  console.log("  🎬 Testing Video View-Once Press & Hold Flow...");
+  const sampleVideoUrl = "http://localhost:8000/assets/ads/vpn_ad.mp4";
+  
+  await testPage.evaluate((vidUrl) => {
+    window.openV2Lightbox("video", vidUrl, true, () => {
+      window._testVideoClosedCallbackFired = true;
+    });
+  }, sampleVideoUrl);
+  await testPage.waitForTimeout(600);
+
+  const videoLightboxState = await testPage.evaluate(() => {
+    const modal = document.getElementById("v2-lightbox-modal");
+    const holdOverlay = document.getElementById("v2-lightbox-hold-overlay");
+    const holdTitle = document.getElementById("v2-hold-title");
+    const holdSub = document.getElementById("v2-hold-sub");
+    const video = document.getElementById("v2-lightbox-hidden-video");
+    const canvas = document.getElementById("v2-lightbox-canvas");
+    return {
+      modalOpen: modal && !modal.classList.contains("hidden"),
+      hasOverlay: holdOverlay && !holdOverlay.classList.contains("hidden"),
+      title: holdTitle ? holdTitle.textContent : "",
+      sub: holdSub ? holdSub.textContent : "",
+      videoPaused: video ? video.paused : true,
+      canvasBlurred: canvas && canvas.style.filter.includes("blur")
+    };
+  });
+  console.log("  🔍 Video View-Once Lightbox State:", videoLightboxState);
+  if (!videoLightboxState.modalOpen || !videoLightboxState.hasOverlay || !videoLightboxState.title.includes("Touch & Hold to Play") || !videoLightboxState.videoPaused || !videoLightboxState.canvasBlurred) {
+    throw new Error("Video View-Once failed to initialize paused with Press & Hold overlay and blurred canvas!");
+  }
+
+  // Save video hold prompt screenshot
+  const videoHoldShotPath = "/home/hashgang/.gemini/antigravity/brain/bd6c5e22-7e3d-41f2-881e-6f3dd0a8bd74/shot_forensic_video_hold_prompt.png";
+  await testPage.screenshot({ path: videoHoldShotPath });
+  console.log("  📸 Saved video hold prompt screenshot:", videoHoldShotPath);
+
+  // Trigger hold on touch pad / overlay to start playing video
+  await testPage.evaluate(() => {
+    const pad = document.getElementById("v2-hold-touch-pad") || document.getElementById("v2-lightbox-hold-overlay");
+    if (pad && pad.onmousedown) {
+      pad.onmousedown({ type: "mousedown", button: 0 });
+    }
+  });
+  await testPage.waitForTimeout(600);
+
+  const videoPlayingState = await testPage.evaluate(() => {
+    const holdOverlay = document.getElementById("v2-lightbox-hold-overlay");
+    const video = document.getElementById("v2-lightbox-hidden-video");
+    const canvas = document.getElementById("v2-lightbox-canvas");
+    return {
+      overlayHidden: holdOverlay && holdOverlay.classList.contains("hidden"),
+      videoPlaying: video && !video.paused,
+      canvasUnblurred: canvas && canvas.style.filter === "none"
+    };
+  });
+  console.log("  🔍 Video Playing on Hold:", videoPlayingState);
+  if (!videoPlayingState.overlayHidden || !videoPlayingState.videoPlaying || !videoPlayingState.canvasUnblurred) {
+    throw new Error("Video failed to play and unblur on press & hold!");
+  }
+
+  // Release hold to burn video
+  await testPage.evaluate(() => {
+    window.dispatchEvent(new MouseEvent("mouseup"));
+  });
+  await testPage.waitForTimeout(500);
+
+  const postVideoBurnState = await testPage.evaluate(() => {
+    const modal = document.getElementById("v2-lightbox-modal");
+    const video = document.getElementById("v2-lightbox-hidden-video");
+    return {
+      modalClosed: modal && modal.classList.contains("hidden"),
+      videoDestroyed: video && (video.paused || !video.src),
+      callbackFired: Boolean(window._testVideoClosedCallbackFired)
+    };
+  });
+  console.log("  🔥 Video Post-Burn State:", postVideoBurnState);
+  if (!postVideoBurnState.modalClosed || !postVideoBurnState.callbackFired) {
+    throw new Error("Video failed to close and destroy on hold release!");
   }
 
   console.log("==================================================");

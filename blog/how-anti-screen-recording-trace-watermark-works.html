@@ -446,7 +446,7 @@
 
     <article class="article-container">
       <div class="meta">
-        Category: Privacy & Safety • Updated: November 2026 (v397) • 7 min read
+        Category: Privacy & Safety • Updated: November 2026 (v401) • 7 min read
       </div>
       <h1>
         How Anti-Screen Recording & Forensic Trace Watermarks Prevent Video Leaks & Blackmail
@@ -496,14 +496,16 @@
         </p>
       </div>
 
-      <h2><i class="fa-solid fa-image"></i> 2. Ephemeral Media Sharing: The HTML5 Forensic Lightbox</h2>
+      <h2><i class="fa-solid fa-fingerprint"></i> 2. Ephemeral Media Sharing: Touch-and-Hold & Full-Surface Scanner</h2>
       <p>
-        In version <strong>v397</strong>, HashGANG Chat expanded forensic protection to user-uploaded photos and videos in 1v1 private chats:
+        In version <strong>v401</strong>, HashGANG Chat expanded forensic protection to user-uploaded photos and videos in 1v1 private chats with an active Touch-and-Hold physical defense:
       </p>
       <ul>
         <li><strong>Strictly View-Once:</strong> Media is delivered behind opaque cards (<code>Photo received • [View Photo]</code>). It can only be opened once.</li>
-        <li><strong>10-Second Photo Countdown:</strong> Photos open in an HTML5 <code>&lt;canvas&gt;</code> lightbox with a circular countdown ring. After 10 seconds, the modal closes and the media is burned from memory.</li>
-        <li><strong>Natural Video Playback:</strong> Videos play for their natural duration (never truncated prematurely) and auto-destruct the instant playback concludes.</li>
+        <li><strong>Touch-and-Hold Requirement:</strong> Media opens blurred behind a full-surface laser scanner with a fingerprint ripple aura. The user must keep their finger pressed on screen (<code>Touch &amp; Hold to View</code> for photos, <code>Touch &amp; Hold to Play</code> for videos) to view. Releasing physical touch at any time immediately destroys and burns the media from RAM.</li>
+        <li><strong>10-Second Photo Countdown:</strong> Photos count down while held from 10s to 0s, auto-destructing upon timer expiry or finger release.</li>
+        <li><strong>Full-Duration Video Playback:</strong> Videos play with sound while held, dynamically rendering real-time forensic watermarks across every frame. Videos auto-destruct when playback finishes (<code>hiddenVideo.onended</code>) or if the finger is lifted.</li>
+        <li><strong>Multi-Touch Gesture Defense:</strong> Swiping with 3 fingers or 2 fingers for mobile screenshot gestures (<code>touches.length &gt; 1</code>) instantly triggers the blackout curtain and burns the media.</li>
       </ul>
 
       <h2><i class="fa-solid fa-watermark"></i> 3. Tri-Point Forensic Watermarking Mechanics</h2>

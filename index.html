@@ -74,7 +74,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=397" />
+  <link rel="stylesheet" href="style.css?v=401" />
 
   <!-- Google AdSense Library (Ready for approval) -->
   <meta name="google-adsense-account" content="ca-pub-6927010746708408" />
@@ -1168,12 +1168,38 @@
         <div class="v2-lightbox-body" id="v2-lightbox-content">
           <canvas id="v2-lightbox-canvas" class="v2-lightbox-canvas"></canvas>
           <video id="v2-lightbox-hidden-video" class="v2-lightbox-hidden-video" playsinline webkit-playsinline preload="auto" style="display:none;"></video>
+
+          <!-- Touch & Hold Overlay Across Full Image Surface -->
+          <div class="v2-lightbox-hold-overlay hidden" id="v2-lightbox-hold-overlay">
+            <!-- Full-Surface Laser Scanner Effect spanning the entire image -->
+            <div class="v2-hold-full-scanner"></div>
+
+            <div class="v2-hold-minimal-box">
+              <div class="v2-hold-icon-aura">
+                <i class="fa-solid fa-fingerprint v2-hold-touch-icon"></i>
+                <span class="v2-hold-pulse-ring"></span>
+              </div>
+
+              <div class="v2-hold-tag-pill">
+                <span class="v2-hold-tag-dot"></span>
+                <span id="v2-hold-title">Touch &amp; Hold to View</span>
+              </div>
+
+              <p class="v2-hold-sub" id="v2-hold-sub">Hold down to view • Lifting finger destroys it</p>
+
+              <div class="v2-hold-badge" id="v2-hold-badge">
+                <i class="fa-solid fa-fire-flame-curved"></i> <span id="v2-hold-badge-text">View Once (10s)</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Forensic Protection Notice Bar -->
         <div class="v2-lightbox-forensic-footer" id="v2-lightbox-forensic-footer">
-          <i class="fa-solid fa-shield-halved text-emerald-400"></i>
-          <span id="v2-lightbox-forensic-label">Forensic Watermarked • Recording & sharing without consent is punishable under IT Rules 2021</span>
+          <p class="v2-lightbox-forensic-label" id="v2-lightbox-forensic-label">
+            <i class="fa-solid fa-shield-halved text-emerald-400"></i>
+            Forensic Watermarked • Recording &amp; sharing without consent is punishable under IT Rules 2021
+          </p>
         </div>
 
         <!-- Instant Blackout Curtain (Triggers on blur, visibilitychange, or screenshot attempt) -->
@@ -1550,8 +1576,8 @@
     <script src="ad_mediation_config.js?v=351" defer></script>
     <script src="socket.io.min.js?v=301"></script>
     <script src="bad_words_config.js?v=386" defer></script>
-    <script src="ludo_game.js?v=397" defer></script>
-    <script src="app.js?v=397" defer></script>
+    <script src="ludo_game.js?v=401" defer></script>
+    <script src="app.js?v=401" defer></script>
 </body>
 
 </html>

@@ -450,7 +450,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v397";
+const APP_CLIENT_VERSION = "v401";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -4384,6 +4384,7 @@ function applyV2MessageReaction(msgId, emoji, senderType) {
 
 let activeLightboxCloseCallback = null;
 let currentLightboxIsViewOnce = false;
+let currentLightboxMediaType = "image";
 let lightboxCountdownInterval = null;
 let lightboxVideoAnimFrame = null;
 let isLightboxActive = false;
@@ -4468,6 +4469,140 @@ function onLightboxSecurityKeyup(e) {
   }
 }
 
+let isHoldingMedia = false;
+let hasStartedHoldingMedia = false;
+
+function onLightboxTouchStart(e) {
+  if (!isLightboxActive) return;
+  // Multi-Touch Screen Capture Gesture Defense (3-finger / 2-finger swipe)
+  if (e.touches && e.touches.length > 1) {
+    if (e.cancelable) e.preventDefault();
+    triggerLightboxSecurityBlackout("multi_touch_gesture");
+  }
+}
+
+function onLightboxTouchMove(e) {
+  if (!isLightboxActive) return;
+  if (e.touches && e.touches.length > 1) {
+    if (e.cancelable) e.preventDefault();
+    triggerLightboxSecurityBlackout("multi_touch_gesture");
+  }
+}
+
+function onLightboxHoldStart(e) {
+  if (!isLightboxActive) return;
+  if (e.type === "mousedown" && e.button !== 0) return; // Only primary mouse button
+
+  if (e.touches && e.touches.length > 1) {
+    if (e.cancelable) e.preventDefault();
+    triggerLightboxSecurityBlackout("multi_touch_gesture");
+    return;
+  }
+
+  const holdOverlay = document.getElementById("v2-lightbox-hold-overlay");
+  const canvas = document.getElementById("v2-lightbox-canvas");
+  const hiddenVideo = document.getElementById("v2-lightbox-hidden-video");
+  const countdownBadge = document.getElementById("v2-lightbox-countdown-badge");
+  const countdownText = document.getElementById("v2-countdown-text");
+  const countdownCircle = document.getElementById("v2-countdown-circle-progress");
+
+  if (!isHoldingMedia) {
+    isHoldingMedia = true;
+    hasStartedHoldingMedia = true;
+
+    if (holdOverlay) holdOverlay.classList.add("hidden");
+    if (canvas) canvas.style.filter = "none";
+
+    if (currentLightboxMediaType === "video") {
+      // Start Video Playback & Real-time Canvas Rendering Loop
+      if (hiddenVideo) {
+        hiddenVideo.play().catch(e => console.warn("Auto video play err:", e));
+
+        const viewerNick = (typeof currentNickname !== "undefined" && currentNickname) ? currentNickname : "Stranger";
+        const rawTrace = window.currentSessionTraceCode || window.lastReportableTraceCode || (currentMatchTargetId ? "HG" + currentMatchTargetId.slice(-6).toUpperCase() : (socket && socket.id ? "HG" + socket.id.slice(-6).toUpperCase() : "HG-LIVE"));
+        const traceCode = String(rawTrace);
+        const now = new Date();
+        const datePart = now.toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric" });
+        const timePart = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+        const timeStr = `${datePart}, ${timePart}`;
+        const ctx = canvas ? canvas.getContext("2d") : null;
+
+        function drawVideoFrame() {
+          if (!isLightboxActive) return;
+          if (!hiddenVideo.paused && !hiddenVideo.ended && ctx) {
+            ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+            renderCanvasWatermark(ctx, canvas.width, canvas.height, viewerNick, traceCode, timeStr);
+
+            if (currentLightboxIsViewOnce) {
+              const dur = (hiddenVideo.duration && !isNaN(hiddenVideo.duration) && hiddenVideo.duration > 0) ? hiddenVideo.duration : 0;
+              const cur = hiddenVideo.currentTime || 0;
+              if (dur > 0) {
+                const rem = Math.max(0, Math.ceil(dur - cur));
+                if (countdownText) countdownText.textContent = `${rem}s`;
+                if (countdownCircle) {
+                  const off = (cur / dur) * 100;
+                  countdownCircle.style.strokeDashoffset = String(off);
+                }
+              }
+            }
+          }
+          lightboxVideoAnimFrame = requestAnimationFrame(drawVideoFrame);
+        }
+        if (lightboxVideoAnimFrame) cancelAnimationFrame(lightboxVideoAnimFrame);
+        lightboxVideoAnimFrame = requestAnimationFrame(drawVideoFrame);
+      }
+    } else {
+      // Start 10s countdown for Photos now that holding has begun!
+      if (currentLightboxIsViewOnce && !lightboxCountdownInterval) {
+        if (countdownBadge) countdownBadge.classList.remove("hidden");
+        const totalMs = 10000;
+        if (countdownText) countdownText.textContent = "10s";
+        if (countdownCircle) countdownCircle.style.strokeDashoffset = "0";
+
+        const startTime = Date.now();
+        lightboxCountdownInterval = setInterval(() => {
+          if (!isLightboxActive) {
+            if (lightboxCountdownInterval) clearInterval(lightboxCountdownInterval);
+            lightboxCountdownInterval = null;
+            return;
+          }
+          const elapsed = Date.now() - startTime;
+          const remaining = Math.max(0, totalMs - elapsed);
+          const secs = Math.ceil(remaining / 1000);
+          if (countdownText) countdownText.textContent = `${secs}s`;
+          if (countdownCircle) {
+            const offset = ((totalMs - remaining) / totalMs) * 100;
+            countdownCircle.style.strokeDashoffset = String(offset);
+          }
+
+          if (remaining <= 0) {
+            if (lightboxCountdownInterval) clearInterval(lightboxCountdownInterval);
+            lightboxCountdownInterval = null;
+            v2ShowToast("🔒 Photo expired and was destroyed.", 3000);
+            closeV2Lightbox();
+          }
+        }, 100);
+      }
+    }
+  }
+}
+
+function onLightboxHoldEnd(e) {
+  if (!isLightboxActive) return;
+  if (hasStartedHoldingMedia) {
+    isHoldingMedia = false;
+    hasStartedHoldingMedia = false;
+    const isVid = (currentLightboxMediaType === "video");
+    const video = document.getElementById("v2-lightbox-hidden-video");
+    if (video) {
+      try { video.pause(); } catch (err) {}
+    }
+    // User released finger / mouse while viewing ephemeral media -> immediately burn and close!
+    v2ShowToast(isVid ? "🔒 Video closed and destroyed after viewing." : "🔒 Photo closed and destroyed after viewing.", 3000);
+    closeV2Lightbox();
+  }
+}
+
 function triggerLightboxSecurityBlackout(reason) {
   const blackout = document.getElementById("v2-lightbox-blackout");
   if (blackout) blackout.classList.remove("hidden");
@@ -4477,12 +4612,12 @@ function triggerLightboxSecurityBlackout(reason) {
     try { video.pause(); } catch (e) {}
   }
 
-  // If viewing confidential / view-once media, window switch or screenshot attempt permanently burns the media!
+  // If viewing confidential / view-once media, window switch, gesture or screenshot attempt permanently burns the media!
   if (currentLightboxIsViewOnce) {
     if (lightboxCountdownInterval) clearInterval(lightboxCountdownInterval);
     setTimeout(() => {
       closeV2Lightbox();
-      v2ShowToast("⚠️ Privacy protection: Media closed because app focus was lost.", 4000);
+      v2ShowToast("⚠️ Privacy protection: Media closed because screen capture or gesture was detected.", 4000);
     }, 600);
   }
 }
@@ -4501,6 +4636,7 @@ function openV2Lightbox(mediaType, dataUrl, isViewOnce = false, onClosed = null)
 
   isLightboxActive = true;
   currentLightboxIsViewOnce = Boolean(isViewOnce);
+  currentLightboxMediaType = mediaType;
   activeLightboxCloseCallback = typeof onClosed === "function" ? onClosed : null;
 
   if (blackoutEl) blackoutEl.classList.add("hidden");
@@ -4525,10 +4661,33 @@ function openV2Lightbox(mediaType, dataUrl, isViewOnce = false, onClosed = null)
 
   const ctx = canvas.getContext("2d");
 
-  // Attach Security Listeners (blur, visibilitychange, keyup)
+  const holdOverlay = document.getElementById("v2-lightbox-hold-overlay");
+  const holdTitle = document.getElementById("v2-hold-title");
+  const holdSub = document.getElementById("v2-hold-sub");
+  const holdBadgeText = document.getElementById("v2-hold-badge-text");
+
+  // Multi-target binding for seamless touch anywhere (overlay, body, canvas)
+  if (holdOverlay) {
+    holdOverlay.onmousedown = onLightboxHoldStart;
+    holdOverlay.ontouchstart = onLightboxHoldStart;
+    holdOverlay.oncontextmenu = (e) => e.preventDefault();
+  }
+  if (canvas) {
+    canvas.onmousedown = onLightboxHoldStart;
+    canvas.ontouchstart = onLightboxHoldStart;
+    canvas.oncontextmenu = (e) => e.preventDefault();
+    canvas.ondragstart = (e) => e.preventDefault();
+  }
+
+  // Attach Security & Gesture Listeners (blur, visibilitychange, keyup, touch gestures)
   window.addEventListener("blur", onLightboxSecurityBlur);
   document.addEventListener("visibilitychange", onLightboxSecurityVisibility);
   window.addEventListener("keyup", onLightboxSecurityKeyup);
+  window.addEventListener("touchstart", onLightboxTouchStart, { passive: false });
+  window.addEventListener("touchmove", onLightboxTouchMove, { passive: false });
+  window.addEventListener("touchend", onLightboxHoldEnd);
+  window.addEventListener("touchcancel", onLightboxHoldEnd);
+  window.addEventListener("mouseup", onLightboxHoldEnd);
 
   if (mediaType === "image") {
     if (hiddenVideo) {
@@ -4559,46 +4718,35 @@ function openV2Lightbox(mediaType, dataUrl, isViewOnce = false, onClosed = null)
 
     if (isViewOnce) {
       if (countdownBadge) countdownBadge.classList.remove("hidden");
-      const totalMs = 10000;
       if (countdownText) countdownText.textContent = "10s";
       if (countdownCircle) countdownCircle.style.strokeDashoffset = "0";
+      if (holdOverlay) holdOverlay.classList.remove("hidden");
+      if (holdTitle) holdTitle.textContent = "Touch & Hold to View";
+      if (holdSub) holdSub.textContent = "Hold down to view • Lifting finger destroys it";
+      if (holdBadgeText) holdBadgeText.textContent = "View Once (10s)";
+      canvas.style.filter = "blur(22px)";
 
-      if (lightboxCountdownInterval) clearInterval(lightboxCountdownInterval);
-      const startTime = Date.now();
-      lightboxCountdownInterval = setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const remaining = Math.max(0, totalMs - elapsed);
-        const secs = Math.ceil(remaining / 1000);
-        if (countdownText) countdownText.textContent = `${secs}s`;
-        if (countdownCircle) {
-          const offset = ((totalMs - remaining) / totalMs) * 100;
-          countdownCircle.style.strokeDashoffset = String(offset);
-        }
-
-        if (remaining <= 0) {
-          clearInterval(lightboxCountdownInterval);
-          lightboxCountdownInterval = null;
-          v2ShowToast("🔒 Photo expired and was destroyed.", 3000);
-          closeV2Lightbox();
-        }
-      }, 100);
+      if (lightboxCountdownInterval) {
+        clearInterval(lightboxCountdownInterval);
+        lightboxCountdownInterval = null;
+      }
+      // Note: Countdown begins in onLightboxHoldStart when user presses and holds!
     } else {
       if (countdownBadge) countdownBadge.classList.add("hidden");
+      if (holdOverlay) holdOverlay.classList.add("hidden");
+      canvas.style.filter = "none";
     }
   } else {
     // Video Handling
-    if (countdownBadge) countdownBadge.classList.remove("hidden");
-    if (countdownText) countdownText.textContent = "...";
-    if (countdownCircle) countdownCircle.style.strokeDashoffset = "0";
-
     if (hiddenVideo) {
+      hiddenVideo.pause();
       hiddenVideo.src = dataUrl;
       hiddenVideo.currentTime = 0;
       hiddenVideo.muted = false;
       hiddenVideo.playsInline = true;
       hiddenVideo.style.display = "none";
 
-      const startVideoLoop = () => {
+      const setupVideoCanvas = () => {
         if (!isLightboxActive) return;
         const maxW = Math.min(window.innerWidth * 0.92, 720);
         const maxH = Math.min(window.innerHeight * 0.68, 540);
@@ -4608,59 +4756,49 @@ function openV2Lightbox(mediaType, dataUrl, isViewOnce = false, onClosed = null)
         canvas.width = Math.round(vw * scale);
         canvas.height = Math.round(vh * scale);
 
-        hiddenVideo.play().catch(e => console.warn("Auto video play err:", e));
-
-        function drawFrame() {
-          if (!isLightboxActive) return;
-          if (!hiddenVideo.paused && !hiddenVideo.ended) {
-            ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
-            renderCanvasWatermark(ctx, canvas.width, canvas.height, viewerNick, traceCode, timeStr);
-
-            if (isViewOnce) {
-              const dur = (hiddenVideo.duration && !isNaN(hiddenVideo.duration) && hiddenVideo.duration > 0) ? hiddenVideo.duration : 0;
-              const cur = hiddenVideo.currentTime || 0;
-              if (dur > 0) {
-                const rem = Math.max(0, Math.ceil(dur - cur));
-                if (countdownText) countdownText.textContent = `${rem}s`;
-                if (countdownCircle) {
-                  const off = (cur / dur) * 100;
-                  countdownCircle.style.strokeDashoffset = String(off);
-                }
-              }
-            }
-          }
-          lightboxVideoAnimFrame = requestAnimationFrame(drawFrame);
-        }
-        lightboxVideoAnimFrame = requestAnimationFrame(drawFrame);
-      };
-
-      hiddenVideo.onloadedmetadata = () => {
         if (hiddenVideo.duration && !isNaN(hiddenVideo.duration) && hiddenVideo.duration > 0) {
-          if (countdownText) countdownText.textContent = `${Math.ceil(hiddenVideo.duration)}s`;
+          const durSec = Math.ceil(hiddenVideo.duration);
+          if (countdownText) countdownText.textContent = `${durSec}s`;
+          if (holdBadgeText) holdBadgeText.textContent = `View Once (${durSec}s)`;
         }
-        startVideoLoop();
+
+        // Draw preview frame onto canvas with watermark
+        try {
+          ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+          renderCanvasWatermark(ctx, canvas.width, canvas.height, viewerNick, traceCode, timeStr);
+        } catch (e) {}
       };
+
+      hiddenVideo.onloadedmetadata = setupVideoCanvas;
       if (hiddenVideo.readyState >= 1) {
-        startVideoLoop();
+        setupVideoCanvas();
       }
 
       hiddenVideo.onended = () => {
-        if (isViewOnce) {
+        if (currentLightboxIsViewOnce) {
           v2ShowToast("🔒 Video finished and was destroyed.", 3000);
           closeV2Lightbox();
         }
       };
 
-      if (!isViewOnce) {
+      if (isViewOnce) {
+        if (countdownBadge) countdownBadge.classList.remove("hidden");
+        if (countdownText) countdownText.textContent = "...";
+        if (countdownCircle) countdownCircle.style.strokeDashoffset = "0";
+        if (holdOverlay) holdOverlay.classList.remove("hidden");
+        if (holdTitle) holdTitle.textContent = "Touch & Hold to Play";
+        if (holdSub) holdSub.textContent = "Hold down to play • Lifting finger destroys it";
+        if (holdBadgeText) holdBadgeText.textContent = "View Once (Video)";
+        canvas.style.filter = "blur(22px)";
+      } else {
         if (countdownBadge) countdownBadge.classList.add("hidden");
+        if (holdOverlay) holdOverlay.classList.add("hidden");
+        canvas.style.filter = "none";
         canvas.style.cursor = "pointer";
         canvas.onclick = () => {
           if (hiddenVideo.paused) hiddenVideo.play();
           else hiddenVideo.pause();
         };
-      } else {
-        canvas.style.cursor = "default";
-        canvas.onclick = null;
       }
     }
   }
@@ -4676,10 +4814,19 @@ function openV2Lightbox(mediaType, dataUrl, isViewOnce = false, onClosed = null)
 function closeV2Lightbox(fromPopstate = false) {
   isLightboxActive = false;
   currentLightboxIsViewOnce = false;
+  currentLightboxMediaType = "image";
 
   window.removeEventListener("blur", onLightboxSecurityBlur);
   document.removeEventListener("visibilitychange", onLightboxSecurityVisibility);
   window.removeEventListener("keyup", onLightboxSecurityKeyup);
+  window.removeEventListener("touchstart", onLightboxTouchStart);
+  window.removeEventListener("touchmove", onLightboxTouchMove);
+  window.removeEventListener("touchend", onLightboxHoldEnd);
+  window.removeEventListener("touchcancel", onLightboxHoldEnd);
+  window.removeEventListener("mouseup", onLightboxHoldEnd);
+
+  isHoldingMedia = false;
+  hasStartedHoldingMedia = false;
 
   if (lightboxCountdownInterval) {
     clearInterval(lightboxCountdownInterval);
@@ -4694,8 +4841,16 @@ function closeV2Lightbox(fromPopstate = false) {
   const canvas = document.getElementById("v2-lightbox-canvas");
   const hiddenVideo = document.getElementById("v2-lightbox-hidden-video");
   const blackoutEl = document.getElementById("v2-lightbox-blackout");
+  const holdOverlay = document.getElementById("v2-lightbox-hold-overlay");
 
   if (blackoutEl) blackoutEl.classList.add("hidden");
+
+  if (holdOverlay) {
+    holdOverlay.classList.add("hidden");
+    holdOverlay.onmousedown = null;
+    holdOverlay.ontouchstart = null;
+    holdOverlay.oncontextmenu = null;
+  }
 
   if (hiddenVideo) {
     try {
@@ -4707,6 +4862,11 @@ function closeV2Lightbox(fromPopstate = false) {
 
   if (canvas) {
     canvas.onclick = null;
+    canvas.onmousedown = null;
+    canvas.ontouchstart = null;
+    canvas.oncontextmenu = null;
+    canvas.ondragstart = null;
+    canvas.style.filter = "none";
     const ctx = canvas.getContext("2d");
     if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
     canvas.width = 0;
