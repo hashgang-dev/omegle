@@ -322,7 +322,7 @@
         </div>
 
         <h1>Privacy Policy</h1>
-        <span class="meta-date">Last Updated & Effective: November 17, 2026 (v397)</span>
+        <span class="meta-date">Last Updated & Effective: November 17, 2026 (v401)</span>
 
         <p>
           Your privacy is fundamental to <strong>HashGANG</strong>. This
@@ -345,13 +345,13 @@
           <strong>Strictly View-Once Ephemeral Media Sharing:</strong> In 1v1 private chats, user media sharing is strictly enforced as View-Once by default. Incoming and outgoing media files are delivered behind opaque privacy envelopes (<em>"Photo received • [View Photo]"</em>) and transferred chunk-by-chunk directly browser-to-browser via encrypted WebRTC <code>RTCDataChannel</code> pipelines. Files never touch any server hard drive.
         </p>
         <p>
-          <strong>Instant RAM Memory Garbage Collection:</strong> Media rendered in the viewer modal is destroyed the moment viewing finishes (10-second auto-destruct countdown for photos, or full natural playback for videos) or when the user closes the modal. The browser immediately revokes the object Blob URL (<code>URL.revokeObjectURL</code>) and purges the binary memory buffer from device RAM (<code>isBurnedInMemory: true</code>). Once closed, media cannot be retrieved, reloaded, or recovered.
+          <strong>Touch-and-Hold Viewing & Instant RAM Garbage Collection:</strong> Media rendered in the viewer modal requires continuous physical touch-and-hold interaction (<em>"Touch &amp; Hold to View"</em> for photos, <em>"Touch &amp; Hold to Play"</em> for videos) and is destroyed the moment viewing finishes (10-second auto-destruct countdown for photos, full natural playback for videos, or when the user releases physical contact with the display). The browser immediately revokes the object Blob URL (<code>URL.revokeObjectURL</code>) and purges the binary memory buffer from device RAM (<code>isBurnedInMemory: true</code>). Once closed, media cannot be retrieved, reloaded, or recovered.
         </p>
         <p>
           <strong>Notice of Tri-Point Forensic Watermarking:</strong> To protect users against unauthorized digital leaks, screenshots, and extortion attempts, the client-side HTML5 canvas viewer renders a dynamic, semi-transparent Tri-Point Forensic Watermark directly onto the media bitmap displaying the authentic <code>HashGANG</code> brand, localized date/time including the full year, the viewer's anonymous pseudonym, and the active 8-character Session Trace Code. This establishes an indelible forensic chain-of-custody that links unauthorized captures directly to the viewing session.
         </p>
         <p>
-          <strong>Client-Side Screen Defense Listeners:</strong> The web application actively listens for screenshot hotkeys (<code>PrintScreen</code>, <code>Ctrl+P</code>, <code>Ctrl+S</code>), window focus loss (<code>blur</code>), and document visibility changes (<code>visibilitychange</code>) to immediately display a full-screen Security Blackout Curtain, flush system clipboard memory, and purge active media from RAM. These event listeners operate strictly client-side within the active browser tab to protect ephemeral content and do NOT log, monitor, or track user activity outside the application.
+          <strong>Client-Side Screen & Multi-Touch Gesture Defense Listeners:</strong> The web application actively listens for multi-touch screenshot gestures (<code>touches.length &gt; 1</code>), screenshot hotkeys (<code>PrintScreen</code>, <code>Ctrl+P</code>, <code>Ctrl+S</code>), window focus loss (<code>blur</code>), and document visibility changes (<code>visibilitychange</code>) to immediately display a full-screen Security Blackout Curtain, flush system clipboard memory, and purge active media from RAM. These event listeners operate strictly client-side within the active browser tab to protect ephemeral content and do NOT log, monitor, or track user activity outside the application.
         </p>
         <p>
           <strong>P2P Direct Network Endpoint Notice (Informed Consent):</strong> As an open internet standard, WebRTC peer-to-peer streaming directly connects participating browsers and exchanges network endpoints (IP addresses) to establish the direct media communication pathway. We recommend using a Virtual Private Network (VPN) if you wish to mask your personal network location or IP address from connected peers.
