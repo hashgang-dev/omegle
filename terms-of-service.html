@@ -312,7 +312,7 @@
     <main>
       <div class="legal-card">
         <h1>Terms of Service</h1>
-        <span class="meta-date">Last Updated & Effective: August 24, 2026</span>
+        <span class="meta-date">Last Updated & Effective: November 17, 2026 (v397)</span>
 
         <div class="alert-box">
           <i class="fa-solid fa-triangle-exclamation"></i>
@@ -384,6 +384,15 @@
             recordings.
           </li>
           <li>
+            Capturing, recording, screenshotting, photographing with external devices, scraping, downloading, or circulating any View-Once ephemeral media, private 1v1 video streams, or user content shared on the platform without express explicit mutual consent.
+          </li>
+          <li>
+            Attempting to bypass, disable, tamper with, or circumvent client-side media protections, anti-screenshot blackout shields, focus-loss blur guards, or forensic watermarking engines.
+          </li>
+          <li>
+            Extortion, blackmail, sextortion, or threats to publish captured content or personal details. Any extortion attempt will be met with immediate permanent network termination and formal statutory reporting under Section 43A, 66E, 67, and 67A of the Information Technology Act, 2000, Section 308 (Extortion) of the Bharatiya Nyaya Sanhita, 2023 (or erstwhile IPC Section 384), and related criminal statutes.
+          </li>
+          <li>
             Spamming, commercial solicitation, phishing, or distribution of
             malware.
           </li>
@@ -420,15 +429,30 @@
           </ul>
         </div>
 
-        <h2><i class="fa-solid fa-lock"></i> 6. Media Privacy & 1-Year Compliance Log Retention</h2>
+        <h2><i class="fa-solid fa-lock"></i> 6. Media Privacy, Strictly View-Once Ephemerality & Forensic Watermarking</h2>
         <p>
-          HashGANG operates on a privacy-first P2P WebRTC architecture.
-          Video/audio streams and text messages pass encrypted directly between user browsers and are
-          <strong>NEVER recorded, intercepted, or stored</strong> on any central server.
+          HashGANG operates on a privacy-first, zero-central-media-storage P2P WebRTC architecture:
         </p>
-        <p>
-          <strong>Statutory Log Retention (IT Rules 2021 & Sec 91 CrPC):</strong> In compliance with Rule 3(1)(h) of the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021, basic network signaling metadata (IP addresses, timestamps, device telemetry, and Session Trace Codes) are securely preserved in database archives for <strong>365 days (1 Year)</strong> to assist law enforcement agencies during lawful inquiries, after which logs are automatically purged under data minimization principles.
-        </p>
+        <ul>
+          <li>
+            <strong>Zero Media Server Storage:</strong> All private video/audio streams, text messages, and user-uploaded media (photos, short videos) pass encrypted directly between participant browsers using WebRTC <code>RTCDataChannel</code> protocols and are <strong>NEVER recorded, intercepted, relayed, or stored</strong> on any central HashGANG server or cloud storage bucket.
+          </li>
+          <li>
+            <strong>Strictly View-Once Ephemeral Lifecycle:</strong> In 1v1 private chats, media sharing is strictly enforced as View-Once. Incoming and outgoing items render behind discreet opaque cards (<em>"Photo received • [View Photo]"</em>). Once viewed (10-second auto-destruct countdown for photos, or full natural playback duration for videos) or when the lightbox modal is closed, the underlying object Blob URL is revoked and media buffers are permanently purged from device RAM (<code>isBurnedInMemory: true</code>), permanently locking the in-chat card to a grayed-out <em>"[1] Opened"</em> state.
+          </li>
+          <li>
+            <strong>Notice of Tri-Point Forensic Watermarking:</strong> You acknowledge and agree that whenever ephemeral media is rendered in the HTML5 canvas viewer, the platform dynamically embeds a high-contrast, semi-transparent Tri-Point Forensic Watermark directly into the rendered bitmap buffer. This watermark incorporates the authentic <code>HashGANG</code> brand mark, localized date/time including the full year, the viewer's anonymous pseudonym, and the active 8-character Session Trace Code. This measure exists solely to protect users against unauthorized digital leaks, establish legal chain-of-custody, and eliminate anonymous blackmail capability.
+          </li>
+          <li>
+            <strong>Active Anti-Screenshot Blackout Defenses:</strong> The platform deploys client-side security event listeners. Pressing screenshot hotkeys (<code>PrintScreen</code>, <code>Ctrl+P</code>, <code>Ctrl+S</code>), losing browser window focus (<code>blur</code>), or switching tabs (<code>visibilitychange</code>) triggers an instant full-screen Security Blackout Curtain, flushes the system clipboard, and immediately destroys the active media buffer from RAM.
+          </li>
+          <li>
+            <strong>Hardware Threat Model Disclaimer (Zero False Promises):</strong> Users expressly acknowledge that while HashGANG incorporates proactive software hotkey interception and focus-loss protections, no web application, browser, or software can physically prevent an individual from aiming an external physical secondary camera or mobile phone at a physical display monitor. In the event of an external physical capture or leak, the embedded Tri-Point Forensic Watermark serves as incontrovertible digital forensic evidence linking the capture directly to the offending session. HashGANG disclaims all liability for off-platform physical camera recordings conducted by bad actors, while maintaining full cooperation with law enforcement agencies under applicable statutes.
+          </li>
+          <li>
+            <strong>Statutory Log Retention (IT Rules 2021 & Sec 91 CrPC):</strong> In compliance with Rule 3(1)(h) of the Information Technology (Intermediary Guidelines and Digital Media Ethics Code) Rules, 2021 and Section 91 of the Code of Criminal Procedure (CrPC), basic network signaling metadata (IP addresses, timestamps, device telemetry, and Session Trace Codes) are securely preserved in database archives for <strong>365 days (1 Year)</strong> to assist law enforcement agencies during lawful inquiries, after which logs are automatically purged under data minimization principles.
+          </li>
+        </ul>
 
         <h2>
           <i class="fa-solid fa-gavel"></i> 7. Disclaimer of Warranties &

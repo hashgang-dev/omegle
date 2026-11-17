@@ -450,7 +450,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v388";
+const APP_CLIENT_VERSION = "v397";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -964,18 +964,11 @@ function clearNickInlineError(errorElId) {
 window.clearNickInlineError = clearNickInlineError;
 
 function getMediaDisplayMode() {
-  return localStorage.getItem("hg_media_display_mode") || "tap_to_view";
+  return "tap_to_view";
 }
 
 function setMediaDisplayMode(mode) {
-  const safeMode = mode === "direct" ? "direct" : "tap_to_view";
-  localStorage.setItem("hg_media_display_mode", safeMode);
-  const tapRadio = document.getElementById("v2-media-mode-tap");
-  const directRadio = document.getElementById("v2-media-mode-direct");
-  if (tapRadio && directRadio) {
-    if (safeMode === "direct") directRadio.checked = true;
-    else tapRadio.checked = true;
-  }
+  localStorage.setItem("hg_media_display_mode", "tap_to_view");
 }
 
 let pendingAudioUploadIsViewOnce = false;
@@ -994,17 +987,17 @@ function closeV2CallAttachModal(event) {
   if (modal) modal.classList.add("hidden");
 }
 
-function selectCallMediaMode(isViewOnce = false) {
+function selectCallMediaMode(isViewOnce = true) {
   closeV2CallAttachModal();
-  triggerV2AudioMediaUpload(isViewOnce);
+  triggerV2AudioMediaUpload(true);
 }
 
-function triggerV2AudioMediaUpload(isViewOnce = false) {
+function triggerV2AudioMediaUpload(isViewOnce = true) {
   if (!currentMatchTargetId) {
     v2ShowToast("⚠️ Connect to a stranger first to share photos/videos!");
     return;
   }
-  pendingAudioUploadIsViewOnce = Boolean(isViewOnce);
+  pendingAudioUploadIsViewOnce = true;
   let audioInput = document.getElementById("v2-audio-file-input");
   if (!audioInput) {
     audioInput = document.createElement("input");
@@ -1029,98 +1022,55 @@ function dismissV2AudioSharedMedia() {
   currentStageAudioMedia = null;
 }
 
-function renderSharedAudioMedia(mediaType, dataUrl, isViewOnce = false, isSender = false) {
+function renderSharedAudioMedia(mediaType, dataUrl, isViewOnce = true, isSender = false) {
   const stage = document.getElementById("v2-audio-shared-media-stage");
   const content = document.getElementById("v2-audio-media-content");
   if (!stage || !content) return;
 
   playAudioChime("msg");
   content.innerHTML = "";
-  currentStageAudioMedia = { mediaType, dataUrl, isViewOnce, isSender };
+  currentStageAudioMedia = { mediaType, dataUrl, isViewOnce: true, isSender };
 
-  const displayMode = getMediaDisplayMode();
-  if ((!isSender || displayMode === "tap_to_view") && (displayMode === "tap_to_view" || isViewOnce)) {
-    const label = isSender
-      ? (mediaType === 'image' ? 'Photo sent' : 'Video sent')
-      : (mediaType === 'image' ? 'Photo received' : 'Video received');
-    const iconHtml = isViewOnce
-      ? `<span class="v2-view-once-badge-icon">1</span>`
-      : `<i class="${mediaType === 'image' ? 'fa-solid fa-image' : 'fa-solid fa-video'}"></i>`;
-    content.innerHTML = `
-      <div class="v2-stage-media-privacy-card" id="v2-audio-stage-card">
-        <div class="v2-stage-media-icon">${iconHtml}</div>
-        <div class="v2-stage-media-label">${label}</div>
-        <button type="button" class="v2-stage-reveal-btn" onclick="revealAudioStageMedia()">
-          <i class="fa-solid fa-eye"></i> Tap to View
-        </button>
-      </div>
-    `;
-  } else {
-    const viewOnceTag = (isSender && isViewOnce) ? '<div style="margin-bottom:6px;"><span class="v2-view-once-badge-icon">1</span></div>' : '';
-    let mediaHtml = "";
-    if (mediaType === "image") {
-      mediaHtml = `<img src="${dataUrl}" class="v2-audio-media-img" alt="Shared Media" onclick="openV2Lightbox('image', '${dataUrl}', ${isViewOnce ? 'true' : 'false'})" />`;
-    } else {
-      mediaHtml = `<video src="${dataUrl}" class="v2-audio-media-video" controls playsinline preload="metadata"></video>`;
-    }
-    content.innerHTML = `
-      <div class="v2-stage-revealed-wrap">
-        ${viewOnceTag}
-        <div class="v2-stage-media-display">
-          ${mediaHtml}
-        </div>
-        <div class="v2-stage-hide-wrap">
-          <button type="button" class="v2-stage-hide-btn" onclick="hideAudioStageMedia()">
-            <i class="fa-solid fa-eye-slash"></i> Tap to Hide
-          </button>
-        </div>
-      </div>
-    `;
-  }
+  const label = isSender
+    ? (mediaType === 'image' ? 'Photo sent' : 'Video sent')
+    : (mediaType === 'image' ? 'Photo received' : 'Video received');
+  const iconHtml = `<span class="v2-view-once-badge-icon">1</span>`;
+  content.innerHTML = `
+    <div class="v2-stage-media-privacy-card" id="v2-audio-stage-card">
+      <div class="v2-stage-media-icon">${iconHtml}</div>
+      <div class="v2-stage-media-label">${label}</div>
+      ${!isSender ? `
+      <button type="button" class="v2-stage-reveal-btn" onclick="revealAudioStageMedia()">
+        <i class="fa-solid fa-eye"></i> View ${mediaType === 'image' ? 'Photo' : 'Video'}
+      </button>
+      ` : `
+      <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;"><i class="fa-solid fa-shield-halved text-emerald-400"></i> View Once Protected</div>
+      `}
+    </div>
+  `;
 
   stage.classList.remove("hidden");
-  v2ShowToast(isSender ? "📸 Photo / video sent!" : "📸 Shared media received from stranger!");
+  v2ShowToast(isSender ? "📸 Photo / video sent!" : "📸 Media received from stranger!");
 }
 
 function revealAudioStageMedia(paramMediaType, paramDataUrl, paramIsViewOnce) {
   const content = document.getElementById("v2-audio-media-content");
   if (!content) return;
-  const item = (paramDataUrl ? { mediaType: paramMediaType, dataUrl: paramDataUrl, isViewOnce: paramIsViewOnce } : currentStageAudioMedia);
+  const item = (paramDataUrl ? { mediaType: paramMediaType, dataUrl: paramDataUrl, isViewOnce: true } : currentStageAudioMedia);
   if (!item || !item.dataUrl) return;
 
-  if (item.isViewOnce) {
-    openV2Lightbox(item.mediaType, item.dataUrl, true, () => {
-      currentStageAudioMedia = null;
-      if (content) {
-        content.innerHTML = `
-          <div class="v2-stage-media-privacy-card">
-            <div class="v2-stage-media-icon"><span class="v2-view-once-badge-icon">1</span></div>
-            <div class="v2-stage-media-label"><i class="fa-solid fa-circle-check text-emerald-400"></i> Opened</div>
-          </div>
-        `;
-        setTimeout(dismissV2AudioSharedMedia, 2200);
-      }
-    });
-  } else {
-    let mediaHtml = "";
-    if (item.mediaType === "image") {
-      mediaHtml = `<img src="${item.dataUrl}" class="v2-audio-media-img" alt="Shared Media" onclick="openV2Lightbox('image', '${item.dataUrl}', false)" />`;
-    } else {
-      mediaHtml = `<video src="${item.dataUrl}" class="v2-audio-media-video" controls autoplay playsinline></video>`;
+  openV2Lightbox(item.mediaType, item.dataUrl, true, () => {
+    currentStageAudioMedia = null;
+    if (content) {
+      content.innerHTML = `
+        <div class="v2-stage-media-privacy-card">
+          <div class="v2-stage-media-icon"><span class="v2-view-once-badge-icon">1</span></div>
+          <div class="v2-stage-media-label"><i class="fa-solid fa-circle-check text-emerald-400"></i> Opened</div>
+        </div>
+      `;
+      setTimeout(dismissV2AudioSharedMedia, 2200);
     }
-    content.innerHTML = `
-      <div class="v2-stage-revealed-wrap">
-        <div class="v2-stage-media-display">
-          ${mediaHtml}
-        </div>
-        <div class="v2-stage-hide-wrap">
-          <button type="button" class="v2-stage-hide-btn" onclick="hideAudioStageMedia()">
-            <i class="fa-solid fa-eye-slash"></i> Tap to Hide
-          </button>
-        </div>
-      </div>
-    `;
-  }
+  });
 }
 
 function hideAudioStageMedia() {
@@ -1164,92 +1114,49 @@ function renderSharedVideoMedia(mediaType, dataUrl, isViewOnce = false, isSender
 
   playAudioChime("msg");
   content.innerHTML = "";
-  currentStageVideoMedia = { mediaType, dataUrl, isViewOnce, isSender };
+  currentStageVideoMedia = { mediaType, dataUrl, isViewOnce: true, isSender };
 
-  const displayMode = getMediaDisplayMode();
-  if ((!isSender || displayMode === "tap_to_view") && (displayMode === "tap_to_view" || isViewOnce)) {
-    const label = isSender
-      ? (mediaType === 'image' ? 'Photo sent' : 'Video sent')
-      : (mediaType === 'image' ? 'Photo received' : 'Video received');
-    const iconHtml = isViewOnce
-      ? `<span class="v2-view-once-badge-icon">1</span>`
-      : `<i class="${mediaType === 'image' ? 'fa-solid fa-image' : 'fa-solid fa-video'}"></i>`;
-    content.innerHTML = `
-      <div class="v2-stage-media-privacy-card" id="v2-video-stage-card">
-        <div class="v2-stage-media-icon">${iconHtml}</div>
-        <div class="v2-stage-media-label">${label}</div>
-        <button type="button" class="v2-stage-reveal-btn" onclick="revealVideoStageMedia()">
-          <i class="fa-solid fa-eye"></i> Tap to View
-        </button>
-      </div>
-    `;
-  } else {
-    const viewOnceTag = (isSender && isViewOnce) ? '<div style="margin-bottom:6px;"><span class="v2-view-once-badge-icon">1</span></div>' : '';
-    let mediaHtml = "";
-    if (mediaType === "image") {
-      mediaHtml = `<img src="${dataUrl}" class="v2-video-media-img" alt="Shared Media" onclick="openV2Lightbox('image', '${dataUrl}', ${isViewOnce ? 'true' : 'false'})" />`;
-    } else {
-      mediaHtml = `<video src="${dataUrl}" class="v2-video-media-video" controls playsinline preload="metadata"></video>`;
-    }
-    content.innerHTML = `
-      <div class="v2-stage-revealed-wrap">
-        ${viewOnceTag}
-        <div class="v2-stage-media-display">
-          ${mediaHtml}
-        </div>
-        <div class="v2-stage-hide-wrap">
-          <button type="button" class="v2-stage-hide-btn" onclick="hideVideoStageMedia()">
-            <i class="fa-solid fa-eye-slash"></i> Tap to Hide
-          </button>
-        </div>
-      </div>
-    `;
-  }
+  const label = isSender
+    ? (mediaType === 'image' ? 'Photo sent' : 'Video sent')
+    : (mediaType === 'image' ? 'Photo received' : 'Video received');
+  const iconHtml = `<span class="v2-view-once-badge-icon">1</span>`;
+  content.innerHTML = `
+    <div class="v2-stage-media-privacy-card" id="v2-video-stage-card">
+      <div class="v2-stage-media-icon">${iconHtml}</div>
+      <div class="v2-stage-media-label">${label}</div>
+      ${!isSender ? `
+      <button type="button" class="v2-stage-reveal-btn" onclick="revealVideoStageMedia()">
+        <i class="fa-solid fa-eye"></i> View ${mediaType === 'image' ? 'Photo' : 'Video'}
+      </button>
+      ` : `
+      <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;"><i class="fa-solid fa-shield-halved text-emerald-400"></i> View Once Protected</div>
+      `}
+    </div>
+  `;
 
   if (viewport) viewport.classList.add("has-video-media");
   stage.classList.remove("hidden");
-  v2ShowToast(isSender ? "📸 Photo / video sent!" : "📸 Shared media received from stranger!");
+  v2ShowToast(isSender ? "📸 Photo / video sent!" : "📸 Media received from stranger!");
 }
 
 function revealVideoStageMedia(paramMediaType, paramDataUrl, paramIsViewOnce) {
   const content = document.getElementById("v2-video-media-content");
   if (!content) return;
-  const item = (paramDataUrl ? { mediaType: paramMediaType, dataUrl: paramDataUrl, isViewOnce: paramIsViewOnce } : currentStageVideoMedia);
+  const item = (paramDataUrl ? { mediaType: paramMediaType, dataUrl: paramDataUrl, isViewOnce: true } : currentStageVideoMedia);
   if (!item || !item.dataUrl) return;
 
-  if (item.isViewOnce) {
-    openV2Lightbox(item.mediaType, item.dataUrl, true, () => {
-      currentStageVideoMedia = null;
-      if (content) {
-        content.innerHTML = `
-          <div class="v2-stage-media-privacy-card">
-            <div class="v2-stage-media-icon"><span class="v2-view-once-badge-icon">1</span></div>
-            <div class="v2-stage-media-label"><i class="fa-solid fa-circle-check text-emerald-400"></i> Opened</div>
-          </div>
-        `;
-        setTimeout(dismissV2VideoSharedMedia, 2200);
-      }
-    });
-  } else {
-    let mediaHtml = "";
-    if (item.mediaType === "image") {
-      mediaHtml = `<img src="${item.dataUrl}" class="v2-video-media-img" alt="Shared Media" onclick="openV2Lightbox('image', '${item.dataUrl}', false)" />`;
-    } else {
-      mediaHtml = `<video src="${item.dataUrl}" class="v2-video-media-video" controls autoplay playsinline></video>`;
+  openV2Lightbox(item.mediaType, item.dataUrl, true, () => {
+    currentStageVideoMedia = null;
+    if (content) {
+      content.innerHTML = `
+        <div class="v2-stage-media-privacy-card">
+          <div class="v2-stage-media-icon"><span class="v2-view-once-badge-icon">1</span></div>
+          <div class="v2-stage-media-label"><i class="fa-solid fa-circle-check text-emerald-400"></i> Opened</div>
+        </div>
+      `;
+      setTimeout(dismissV2VideoSharedMedia, 2200);
     }
-    content.innerHTML = `
-      <div class="v2-stage-revealed-wrap">
-        <div class="v2-stage-media-display">
-          ${mediaHtml}
-        </div>
-        <div class="v2-stage-hide-wrap">
-          <button type="button" class="v2-stage-hide-btn" onclick="hideVideoStageMedia()">
-            <i class="fa-solid fa-eye-slash"></i> Tap to Hide
-          </button>
-        </div>
-      </div>
-    `;
-  }
+  });
 }
 
 function hideVideoStageMedia() {
@@ -1913,10 +1820,10 @@ function initSocketConnection() {
         return;
       }
 
-      // Handle Image/Video Media Signals
+      // Handle Image/Video Media Signals (Strictly View-Once & Forensically Shielded)
       if (data.signal.type === "media") {
         removeElementById("media-progress-loader");
-        const isViewOnce = Boolean(data.signal.isViewOnce);
+        const isViewOnce = true;
         if (currentChatMode === "audio") {
           renderSharedAudioMedia(data.signal.mediaType, data.signal.dataUrl, isViewOnce, false);
         } else if (currentChatMode === "video") {
@@ -4476,28 +4383,288 @@ function applyV2MessageReaction(msgId, emoji, senderType) {
 }
 
 let activeLightboxCloseCallback = null;
+let currentLightboxIsViewOnce = false;
+let lightboxCountdownInterval = null;
+let lightboxVideoAnimFrame = null;
+let isLightboxActive = false;
+
+function renderCanvasWatermark(ctx, width, height, viewerNick, traceCode, timeStr) {
+  ctx.save();
+
+  const padX = Math.max(14, Math.min(24, Math.floor(width * 0.045)));
+  const padY = Math.max(12, Math.min(22, Math.floor(height * 0.045)));
+
+  // Responsive typography
+  const cornerFontSize = Math.max(11, Math.min(15, Math.floor(width / 26)));
+  const centerNickSize = Math.max(12, Math.min(17, Math.floor(width / 24)));
+  const centerTraceSize = Math.max(11, Math.min(14, Math.floor(width / 28)));
+
+  // Soft dark halo shadow for readability on any background
+  ctx.shadowColor = "rgba(0, 0, 0, 0.88)";
+  ctx.shadowBlur = 5;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 1;
+
+  // 1. Top-Left: Brand Name "HashGANG"
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.font = `bold ${cornerFontSize}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
+  ctx.fillText("HashGANG", padX, padY);
+
+  // 2. Bottom-Right: Date & Time (e.g. "17 Nov, 01:20 PM")
+  ctx.textAlign = "right";
+  ctx.textBaseline = "bottom";
+  ctx.font = `600 ${cornerFontSize - 1}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.70)";
+  ctx.fillText(timeStr, width - padX, height - padY);
+
+  // 3. Center: Username & Trace ID only (no extra labels, crystal clear & transparent)
+  const centerX = width / 2;
+  const centerY = height / 2;
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  // Center Line 1: Viewer Username
+  ctx.font = `bold ${centerNickSize}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = "rgba(255, 255, 255, 0.78)";
+  ctx.fillText(viewerNick || "Stranger", centerX, centerY - (centerNickSize * 0.65));
+
+  // Center Line 2: Trace ID (no label, soft mint tint)
+  ctx.font = `700 ${centerTraceSize}px system-ui, -apple-system, sans-serif`;
+  ctx.fillStyle = "rgba(200, 255, 230, 0.82)";
+  ctx.fillText(traceCode || "HG-LIVE", centerX, centerY + (centerTraceSize * 0.65));
+
+  ctx.restore();
+}
+
+function onLightboxSecurityBlur() {
+  if (!isLightboxActive) return;
+  triggerLightboxSecurityBlackout("blur");
+}
+
+function onLightboxSecurityVisibility() {
+  if (!isLightboxActive) return;
+  if (document.hidden) {
+    triggerLightboxSecurityBlackout("visibility");
+  }
+}
+
+function onLightboxSecurityKeyup(e) {
+  if (!isLightboxActive) return;
+  if (e.key === "Escape") {
+    closeV2Lightbox();
+    return;
+  }
+  if (e.key === "PrintScreen" || (e.ctrlKey && (e.key === "p" || e.key === "s"))) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText("⚠️ Screenshots are strictly prohibited on HashGANG Private Media.");
+      }
+    } catch (err) {}
+    triggerLightboxSecurityBlackout("screenshot_key");
+    v2ShowToast("⚠️ Screenshot attempt detected! Media destroyed.", 3500);
+  }
+}
+
+function triggerLightboxSecurityBlackout(reason) {
+  const blackout = document.getElementById("v2-lightbox-blackout");
+  if (blackout) blackout.classList.remove("hidden");
+
+  const video = document.getElementById("v2-lightbox-hidden-video");
+  if (video) {
+    try { video.pause(); } catch (e) {}
+  }
+
+  // If viewing confidential / view-once media, window switch or screenshot attempt permanently burns the media!
+  if (currentLightboxIsViewOnce) {
+    if (lightboxCountdownInterval) clearInterval(lightboxCountdownInterval);
+    setTimeout(() => {
+      closeV2Lightbox();
+      v2ShowToast("⚠️ Privacy protection: Media closed because app focus was lost.", 4000);
+    }, 600);
+  }
+}
 
 function openV2Lightbox(mediaType, dataUrl, isViewOnce = false, onClosed = null) {
   const modal = document.getElementById("v2-lightbox-modal");
-  const container = document.getElementById("v2-lightbox-content");
+  const canvas = document.getElementById("v2-lightbox-canvas");
+  const hiddenVideo = document.getElementById("v2-lightbox-hidden-video");
   const titleEl = document.getElementById("v2-lightbox-header-title");
-  if (!modal || !container) return;
+  const countdownBadge = document.getElementById("v2-lightbox-countdown-badge");
+  const countdownText = document.getElementById("v2-countdown-text");
+  const countdownCircle = document.getElementById("v2-countdown-circle-progress");
+  const blackoutEl = document.getElementById("v2-lightbox-blackout");
 
+  if (!modal || !canvas) return;
+
+  isLightboxActive = true;
+  currentLightboxIsViewOnce = Boolean(isViewOnce);
   activeLightboxCloseCallback = typeof onClosed === "function" ? onClosed : null;
 
+  if (blackoutEl) blackoutEl.classList.add("hidden");
+
+  // Determine viewer credentials using existing active chat/call trace code
+  const viewerNick = (typeof currentNickname !== "undefined" && currentNickname) ? currentNickname : "Stranger";
+  const rawTrace = window.currentSessionTraceCode || window.lastReportableTraceCode || (currentMatchTargetId ? "HG" + currentMatchTargetId.slice(-6).toUpperCase() : (socket && socket.id ? "HG" + socket.id.slice(-6).toUpperCase() : "HG-LIVE"));
+  const traceCode = String(rawTrace);
+  const now = new Date();
+  const datePart = now.toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric" });
+  const timePart = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const timeStr = `${datePart}, ${timePart}`;
+
+  // Header Title & Forensic Badge
   if (titleEl) {
     if (isViewOnce) {
-      titleEl.innerHTML = `<span class="v2-view-once-badge-icon">1</span> <span>${mediaType === 'video' ? 'Video' : 'Photo'}</span>`;
+      titleEl.innerHTML = `<span class="v2-view-once-badge-icon">1</span> <span>${mediaType === 'video' ? 'Video' : 'Photo'}</span> <span class="v2-forensic-pill"><i class="fa-solid fa-shield"></i> Trace</span>`;
     } else {
       titleEl.innerHTML = `<i class="fa-solid fa-${mediaType === 'video' ? 'video' : 'image'} text-purple-400"></i> <span>Media Preview</span>`;
     }
   }
 
+  const ctx = canvas.getContext("2d");
+
+  // Attach Security Listeners (blur, visibilitychange, keyup)
+  window.addEventListener("blur", onLightboxSecurityBlur);
+  document.addEventListener("visibilitychange", onLightboxSecurityVisibility);
+  window.addEventListener("keyup", onLightboxSecurityKeyup);
+
   if (mediaType === "image") {
-    container.innerHTML = `<img src="${dataUrl}" class="v2-lightbox-media-img" alt="Enlarged Photo" oncontextmenu="return false;" />`;
+    if (hiddenVideo) {
+      hiddenVideo.pause();
+      hiddenVideo.removeAttribute("src");
+      hiddenVideo.style.display = "none";
+    }
+
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (!isLightboxActive) return;
+      const maxW = Math.min(window.innerWidth * 0.92, 780);
+      const maxH = Math.min(window.innerHeight * 0.70, 620);
+      let w = img.naturalWidth || img.width || 400;
+      let h = img.naturalHeight || img.height || 300;
+
+      const scale = Math.min(maxW / w, maxH / h, 1);
+      const scaledW = Math.round(w * scale);
+      const scaledH = Math.round(h * scale);
+
+      canvas.width = scaledW;
+      canvas.height = scaledH;
+      ctx.drawImage(img, 0, 0, scaledW, scaledH);
+      renderCanvasWatermark(ctx, scaledW, scaledH, viewerNick, traceCode, timeStr);
+    };
+    img.src = dataUrl;
+
+    if (isViewOnce) {
+      if (countdownBadge) countdownBadge.classList.remove("hidden");
+      const totalMs = 10000;
+      if (countdownText) countdownText.textContent = "10s";
+      if (countdownCircle) countdownCircle.style.strokeDashoffset = "0";
+
+      if (lightboxCountdownInterval) clearInterval(lightboxCountdownInterval);
+      const startTime = Date.now();
+      lightboxCountdownInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const remaining = Math.max(0, totalMs - elapsed);
+        const secs = Math.ceil(remaining / 1000);
+        if (countdownText) countdownText.textContent = `${secs}s`;
+        if (countdownCircle) {
+          const offset = ((totalMs - remaining) / totalMs) * 100;
+          countdownCircle.style.strokeDashoffset = String(offset);
+        }
+
+        if (remaining <= 0) {
+          clearInterval(lightboxCountdownInterval);
+          lightboxCountdownInterval = null;
+          v2ShowToast("🔒 Photo expired and was destroyed.", 3000);
+          closeV2Lightbox();
+        }
+      }, 100);
+    } else {
+      if (countdownBadge) countdownBadge.classList.add("hidden");
+    }
   } else {
-    container.innerHTML = `<video src="${dataUrl}" class="v2-lightbox-media-video" controls autoplay playsinline oncontextmenu="return false;"></video>`;
+    // Video Handling
+    if (countdownBadge) countdownBadge.classList.remove("hidden");
+    if (countdownText) countdownText.textContent = "...";
+    if (countdownCircle) countdownCircle.style.strokeDashoffset = "0";
+
+    if (hiddenVideo) {
+      hiddenVideo.src = dataUrl;
+      hiddenVideo.currentTime = 0;
+      hiddenVideo.muted = false;
+      hiddenVideo.playsInline = true;
+      hiddenVideo.style.display = "none";
+
+      const startVideoLoop = () => {
+        if (!isLightboxActive) return;
+        const maxW = Math.min(window.innerWidth * 0.92, 720);
+        const maxH = Math.min(window.innerHeight * 0.68, 540);
+        const vw = hiddenVideo.videoWidth || 480;
+        const vh = hiddenVideo.videoHeight || 360;
+        const scale = Math.min(maxW / vw, maxH / vh, 1);
+        canvas.width = Math.round(vw * scale);
+        canvas.height = Math.round(vh * scale);
+
+        hiddenVideo.play().catch(e => console.warn("Auto video play err:", e));
+
+        function drawFrame() {
+          if (!isLightboxActive) return;
+          if (!hiddenVideo.paused && !hiddenVideo.ended) {
+            ctx.drawImage(hiddenVideo, 0, 0, canvas.width, canvas.height);
+            renderCanvasWatermark(ctx, canvas.width, canvas.height, viewerNick, traceCode, timeStr);
+
+            if (isViewOnce) {
+              const dur = (hiddenVideo.duration && !isNaN(hiddenVideo.duration) && hiddenVideo.duration > 0) ? hiddenVideo.duration : 0;
+              const cur = hiddenVideo.currentTime || 0;
+              if (dur > 0) {
+                const rem = Math.max(0, Math.ceil(dur - cur));
+                if (countdownText) countdownText.textContent = `${rem}s`;
+                if (countdownCircle) {
+                  const off = (cur / dur) * 100;
+                  countdownCircle.style.strokeDashoffset = String(off);
+                }
+              }
+            }
+          }
+          lightboxVideoAnimFrame = requestAnimationFrame(drawFrame);
+        }
+        lightboxVideoAnimFrame = requestAnimationFrame(drawFrame);
+      };
+
+      hiddenVideo.onloadedmetadata = () => {
+        if (hiddenVideo.duration && !isNaN(hiddenVideo.duration) && hiddenVideo.duration > 0) {
+          if (countdownText) countdownText.textContent = `${Math.ceil(hiddenVideo.duration)}s`;
+        }
+        startVideoLoop();
+      };
+      if (hiddenVideo.readyState >= 1) {
+        startVideoLoop();
+      }
+
+      hiddenVideo.onended = () => {
+        if (isViewOnce) {
+          v2ShowToast("🔒 Video finished and was destroyed.", 3000);
+          closeV2Lightbox();
+        }
+      };
+
+      if (!isViewOnce) {
+        if (countdownBadge) countdownBadge.classList.add("hidden");
+        canvas.style.cursor = "pointer";
+        canvas.onclick = () => {
+          if (hiddenVideo.paused) hiddenVideo.play();
+          else hiddenVideo.pause();
+        };
+      } else {
+        canvas.style.cursor = "default";
+        canvas.onclick = null;
+      }
+    }
   }
+
   modal.classList.remove("hidden");
 
   // Push history state so Android / mobile hardware back button closes lightbox instead of dropping the call!
@@ -4507,10 +4674,46 @@ function openV2Lightbox(mediaType, dataUrl, isViewOnce = false, onClosed = null)
 }
 
 function closeV2Lightbox(fromPopstate = false) {
+  isLightboxActive = false;
+  currentLightboxIsViewOnce = false;
+
+  window.removeEventListener("blur", onLightboxSecurityBlur);
+  document.removeEventListener("visibilitychange", onLightboxSecurityVisibility);
+  window.removeEventListener("keyup", onLightboxSecurityKeyup);
+
+  if (lightboxCountdownInterval) {
+    clearInterval(lightboxCountdownInterval);
+    lightboxCountdownInterval = null;
+  }
+  if (lightboxVideoAnimFrame) {
+    cancelAnimationFrame(lightboxVideoAnimFrame);
+    lightboxVideoAnimFrame = null;
+  }
+
   const modal = document.getElementById("v2-lightbox-modal");
-  const container = document.getElementById("v2-lightbox-content");
+  const canvas = document.getElementById("v2-lightbox-canvas");
+  const hiddenVideo = document.getElementById("v2-lightbox-hidden-video");
+  const blackoutEl = document.getElementById("v2-lightbox-blackout");
+
+  if (blackoutEl) blackoutEl.classList.add("hidden");
+
+  if (hiddenVideo) {
+    try {
+      hiddenVideo.pause();
+      hiddenVideo.removeAttribute("src");
+      hiddenVideo.load();
+    } catch (e) {}
+  }
+
+  if (canvas) {
+    canvas.onclick = null;
+    const ctx = canvas.getContext("2d");
+    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    canvas.width = 0;
+    canvas.height = 0;
+  }
+
   if (modal) modal.classList.add("hidden");
-  if (container) container.innerHTML = "";
 
   if (typeof activeLightboxCloseCallback === "function") {
     const cb = activeLightboxCloseCallback;
@@ -4853,8 +5056,8 @@ let pendingPrivateUploadIsViewOnce = false;
 /**
  * Safe Compressed Media Upload & Progress Notification
  */
-async function v2HandleMediaUpload(event, isViewOnce = false) {
-  const finalIsViewOnce = Boolean(isViewOnce || pendingPrivateUploadIsViewOnce);
+async function v2HandleMediaUpload(event, isViewOnce = true) {
+  const finalIsViewOnce = true; // All 1v1 private photos & videos are strictly View-Once & Forensically Shielded
   pendingPrivateUploadIsViewOnce = false;
 
   const file = event.target.files && event.target.files[0];
@@ -4889,7 +5092,7 @@ async function v2HandleMediaUpload(event, isViewOnce = false) {
     clientVersion: "v2"
   });
 
-  v2ShowToast(finalIsViewOnce ? "⏳ Sending View Once photo / video..." : "⏳ Optimizing & sending attachment...");
+  v2ShowToast(isImage ? "⏳ Sending Photo..." : "⏳ Sending Video...");
 
   try {
     let dataUrl = "";
@@ -5071,67 +5274,33 @@ function appendMediaMessage(sender, mediaType, dataUrl, type, replyTo = null, ms
       `;
     }
   } else if (type === "user") {
-    if (isViewOnce) {
-      mediaHtml = `
-        <div class="v2-media-privacy-card">
-          <div class="v2-media-privacy-header">
-            <span class="v2-view-once-badge-icon">1</span>
-            <span>${mediaType === 'image' ? 'Photo sent' : 'Video sent'}</span>
-          </div>
+    mediaHtml = `
+      <div class="v2-media-privacy-card">
+        <div class="v2-media-privacy-header">
+          <span class="v2-view-once-badge-icon">1</span>
+          <span>${mediaType === 'image' ? 'Photo sent' : 'Video sent'}</span>
         </div>
-      `;
-    } else {
-      const displayMode = getMediaDisplayMode();
-      if (displayMode === "tap_to_view") {
-        v2PendingChatMedia[msgId] = { mediaType, dataUrl, isViewOnce: false, isUser: true };
-        const iconClass = mediaType === "image" ? "fa-solid fa-image" : "fa-solid fa-video";
-        mediaHtml = `
-          <div class="v2-media-privacy-card" id="privacy-card-${msgId}">
-            <div class="v2-media-privacy-header">
-              <i class="${iconClass}"></i>
-              <span>${mediaType === 'image' ? 'Photo sent' : 'Video sent'}</span>
-            </div>
-            <button type="button" class="v2-media-reveal-btn" onclick="revealMediaCard('${msgId}')">
-              <i class="fa-solid fa-eye"></i> Tap to View
-            </button>
-          </div>
-        `;
-      } else {
-        if (mediaType === "image") {
-          mediaHtml = `<img src="${dataUrl}" class="v2-chat-media-img" alt="Shared Photo" onclick="openV2Lightbox('image', '${dataUrl}')" />`;
-        } else {
-          mediaHtml = `<video src="${dataUrl}" class="v2-chat-media-video" controls playsinline onclick="openV2Lightbox('video', '${dataUrl}')"></video>`;
-        }
-      }
-    }
+      </div>
+    `;
   } else {
-    // Incoming Stranger Media: Check Media Privacy Mode & View Once
-    const displayMode = getMediaDisplayMode();
-    if (displayMode === "tap_to_view" || isViewOnce) {
-      v2PendingChatMedia[msgId] = { mediaType, dataUrl, isViewOnce, isUser: false };
-      const iconClass = mediaType === "image" ? "fa-solid fa-image" : "fa-solid fa-video";
-      mediaHtml = `
-        <div class="v2-media-privacy-card" id="privacy-card-${msgId}">
-          <div class="v2-media-privacy-header">
-            ${isViewOnce ? '<span class="v2-view-once-badge-icon">1</span>' : `<i class="${iconClass}"></i>`}
-            <span>${mediaType === 'image' ? 'Photo received' : 'Video received'}</span>
-          </div>
-          <button type="button" class="v2-media-reveal-btn" onclick="revealMediaCard('${msgId}')">
-            <i class="fa-solid fa-eye"></i> Tap to View
-          </button>
+    // Incoming Stranger Media: Strictly View-Once & Forensically Shielded
+    v2PendingChatMedia[msgId] = { mediaType, dataUrl, isViewOnce: true, isUser: false };
+    mediaHtml = `
+      <div class="v2-media-privacy-card" id="privacy-card-${msgId}">
+        <div class="v2-media-privacy-header">
+          <span class="v2-view-once-badge-icon">1</span>
+          <span>${mediaType === 'image' ? 'Photo received' : 'Video received'}</span>
         </div>
-      `;
-    } else {
-      if (mediaType === "image") {
-        mediaHtml = `<img src="${dataUrl}" class="v2-chat-media-img" alt="Shared Photo" onclick="openV2Lightbox('image', '${dataUrl}')" />`;
-      } else {
-        mediaHtml = `<video src="${dataUrl}" class="v2-chat-media-video" controls playsinline onclick="openV2Lightbox('video', '${dataUrl}')"></video>`;
-      }
-    }
+        <button type="button" class="v2-media-reveal-btn" onclick="revealMediaCard('${msgId}')">
+          <i class="fa-solid fa-eye"></i> View ${mediaType === 'image' ? 'Photo' : 'Video'}
+        </button>
+      </div>
+    `;
   }
 
   let waveBackHtml = "";
-  if (isSticker && type === "stranger") {
+  const isGreetingSticker = Boolean(isSticker && (isGreeting || (typeof GREETING_STICKERS_POOL !== "undefined" && GREETING_STICKERS_POOL.includes(dataUrl))));
+  if (isGreetingSticker && type === "stranger") {
     waveBackHtml = `
       <div class="v2-wave-back-wrap">
         <button type="button" class="v2-wave-back-btn" onclick="handlePrivateWaveBack('${msgId}')">
@@ -5187,7 +5356,8 @@ function revealMediaCard(msgId) {
     trackV2Event("media_shield_action", { action: "reveal", media_type: item.mediaType });
   }
 
-  if (item.isViewOnce) {
+  const isPhotoOrVideo = (item.mediaType === "image" || item.mediaType === "video");
+  if (item.isViewOnce || isPhotoOrVideo) {
     openV2Lightbox(item.mediaType, item.dataUrl, true, () => {
       delete v2PendingChatMedia[msgId];
       if (card) {
@@ -10658,10 +10828,10 @@ function closeV2AttachmentMenu(event) {
   if (modal) modal.classList.add("hidden");
 }
 
-function triggerAttachmentMediaUpload(isViewOnce = false) {
+function triggerAttachmentMediaUpload(isViewOnce = true) {
   const modal = document.getElementById("v2-attachment-modal");
   if (modal) modal.classList.add("hidden");
-  pendingPrivateUploadIsViewOnce = Boolean(isViewOnce);
+  pendingPrivateUploadIsViewOnce = true;
   const fileInput = document.getElementById("v2-media-file-input");
   if (fileInput) fileInput.click();
 }
