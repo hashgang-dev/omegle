@@ -450,7 +450,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v402";
+const APP_CLIENT_VERSION = "v407";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -6428,9 +6428,9 @@ function generateCoolNickname() {
   const femaleCharacters = [
     "WonderWoman", "BlackWidow", "HarleyQuinn", "AryaStark", "SansaStark",
     "Daenerys", "Hermione", "Wednesday", "Barbie", "Catwoman",
-    "LaraCroft", "ScarletWitch", "Supergirl", "Batgirl", "Gamora",
+    "LaraCroft", "ScarletWitch", "Starfire", "Raven", "Gamora",
     "Katniss", "Mulan", "Elsa", "Cleopatra", "Ahsoka",
-    "Rey", "Trinity", "CaptainMarvel", "Padme", "Maleficent",
+    "Rey", "Trinity", "CaptainMarvel", "Padme", "GwenStacy",
     "Moana", "Rapunzel", "SheHulk", "EnolaHolmes", "PrincessLeia",
     "Nami", "Mikasa", "Hinata", "Tsunade", "Katara",
     "Toph", "Korra", "Cinderella", "SnowWhite", "Jasmine",
@@ -6613,6 +6613,15 @@ function isRestrictedNickname(name) {
   const vulgar = /(?:^|[_\-\. ])(nude|sex|porn|horny|boobs|pussy|dick|bitch|slut|asshole|whore|fucker|fuck|bastard|madarchod|bhenchod|lodu|chutiya)(?:[_\-\. ]|[0-9]|$)/i;
   if (vulgar.test(clean)) return true;
   if (typeof containsUnparliamentaryWords === "function" && containsUnparliamentaryWords(clean)) return true;
+
+  // Gender keywords / identifiers
+  if (/(boy|boys|girl|girls|female|females|uncle|uncles|aunty|aunties)/i.test(normalized)) {
+    return true;
+  }
+  const genderMale = /(?:^|[_\-\. ]|\d)(male|males)(?:[_\-\. ]|\d|$)|^(male|males)|(male|males)$/i;
+  if (genderMale.test(clean) || genderMale.test(normalized)) {
+    return true;
+  }
 
   return false;
 }
@@ -6854,6 +6863,14 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
   }
   if (msg && msg.type === "old_messages_notice") {
     return renderOldMessagesNoticeRow(msg);
+  }
+
+  // Frontend Gender Neutralization & Explicit Keyword Masking for all messages & replies
+  if (msg && typeof msg.text === "string") {
+    msg.text = maskExplicitKeywords(sanitizeGroupGenderWords(msg.text));
+  }
+  if (msg && msg.replyTo && typeof msg.replyTo.text === "string") {
+    msg.replyTo.text = maskExplicitKeywords(sanitizeGroupGenderWords(msg.replyTo.text));
   }
 
   const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
@@ -8187,6 +8204,40 @@ function maskSocialKeywords(text) {
 }
 window.maskSocialKeywords = maskSocialKeywords;
 
+function maskExplicitKeywords(text) {
+  if (!text || typeof text !== "string") return text;
+  // Restrict words like sex (including s3x, $ex, sexy, sexting, sexual) and replace with *
+  const pattern = /(?:^|[^a-zA-Z0-9])([s$5]+[e3]+x+(?:y|ual|ting)?)(?=[^a-zA-Z0-9]|$)/gi;
+  return text.replace(pattern, (full, match) => full.replace(match, "*".repeat(match.length)));
+}
+window.maskExplicitKeywords = maskExplicitKeywords;
+
+function sanitizeGroupGenderWords(text) {
+  if (!text || typeof text !== "string") {
+    return text;
+  }
+  function matchCase(original, replacement) {
+    if (original === original.toUpperCase()) {
+      return replacement.toUpperCase();
+    }
+    if (original[0] === original[0].toUpperCase()) {
+      return replacement.charAt(0).toUpperCase() + replacement.slice(1).toLowerCase();
+    }
+    return replacement.toLowerCase();
+  }
+
+  // 1. Plural terms -> friends
+  const pluralRegex = /\b(girls|boys|females|males|uncles|aunties)\b/gi;
+  text = text.replace(pluralRegex, (m) => matchCase(m, "friends"));
+
+  // 2. Singular terms -> friend
+  const singularRegex = /\b(girl|boy|female|male|uncle|aunty)\b/gi;
+  text = text.replace(singularRegex, (m) => matchCase(m, "friend"));
+
+  return text;
+}
+window.sanitizeGroupGenderWords = sanitizeGroupGenderWords;
+
 // ============================================================================
 // Multi-lingual Unparliamentary & Bad Words Filter (Delegates to bad_words_config.js)
 // ============================================================================
@@ -8269,6 +8320,16 @@ function sendGroupMessage() {
     text = maskedSocialText;
     showDockHint("🛡️ Social media handle masked with * to protect privacy.", "warn", 4000);
   }
+
+  // Explicit keywords masking: Restrict sex, s3x, $ex, etc. and replace with *
+  const maskedExplicitText = maskExplicitKeywords(text);
+  if (maskedExplicitText !== text) {
+    text = maskedExplicitText;
+    showDockHint("🛡️ Explicit keyword masked with * to protect community safety.", "warn", 4000);
+  }
+
+  // Gender neutralization: Convert English gender words (boy, girl, male, female, uncle, aunty, etc.) to friend / friends
+  text = sanitizeGroupGenderWords(text);
 
   // Single-word Greeting ("Hi", "Hello", "Hey", "Hai") -> Auto Animated WebP Sticker
   if (GREETING_REGEX.test(rawText)) {
@@ -8440,7 +8501,7 @@ function handleQuickWaveBack(msgId, encodedNick, encodedText) {
     return;
   }
   socket.emit("send_group_msg", {
-    text: "Hi! 👋",
+    text: "Hi! How are you? 👋",
     replyTo: {
       id: msgId,
       nickname: nick,
@@ -8457,12 +8518,12 @@ function handlePrivateWaveBack(msgId) {
   }
   const replyData = { msgId, sender: "Stranger", snippet: "🏷️ [Sticker] Hi 👋" };
   const waveMsgId = `msg-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-  appendChatMessage("You", "Hi! 👋", "user", replyData, waveMsgId);
+  appendChatMessage("You", "Hi! How are you? 👋", "user", replyData, waveMsgId);
   socket.emit("signal", {
     targetId: currentMatchTargetId,
     signal: {
       type: "chat",
-      text: "Hi! 👋",
+      text: "Hi! How are you? 👋",
       msgId: waveMsgId,
       replyTo: replyData
     },
