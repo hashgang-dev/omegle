@@ -450,7 +450,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v407";
+const APP_CLIENT_VERSION = "v415";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -7590,13 +7590,14 @@ function renderWelcomeKnowledgeCard(roomNumber = 1) {
 
   card.innerHTML = `
     <div class="v2-welcome-top">
-      <span class="v2-welcome-emoji">👋</span>
       <div class="v2-welcome-headings">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-          <h4>Welcome to HashGANG</h4>
+          <h4>👋 Welcome to HashGANG</h4>
           <span class="v2-welcome-cooldown-badge ${remaining > 0 ? '' : 'hidden'}" id="v2-welcome-cooldown-indicator">${remaining > 0 ? '<i class="fa-solid fa-hourglass-half"></i> Wait ' + remaining + 's' : ''}</span>
         </div>
-        <p>You are chatting as <strong style="color: #c084fc;">${nick}</strong>. Chat freely or start a private call:</p>
+        <p style="color: #e9d5ff; font-weight: 500; margin-top: 3px; line-height: 1.35;">
+          Nobody knows you. Talk freely &amp; share your heart 💜🫂✨
+        </p>
       </div>
     </div>
     <div class="v2-welcome-modes-strip">
@@ -8206,8 +8207,8 @@ window.maskSocialKeywords = maskSocialKeywords;
 
 function maskExplicitKeywords(text) {
   if (!text || typeof text !== "string") return text;
-  // Restrict words like sex (including s3x, $ex, sexy, sexting, sexual) and replace with *
-  const pattern = /(?:^|[^a-zA-Z0-9])([s$5]+[e3]+x+(?:y|ual|ting)?)(?=[^a-zA-Z0-9]|$)/gi;
+  // Restrict words like sex (including s3x, $ex, sexy, sexting, sexual) and asl (including a/s/l) and replace with *
+  const pattern = /(?:^|[^a-zA-Z0-9])([s$5]+[e3]+x+(?:y|ual|ting)?|asl|a\/s\/l)(?=[^a-zA-Z0-9]|$)/gi;
   return text.replace(pattern, (full, match) => full.replace(match, "*".repeat(match.length)));
 }
 window.maskExplicitKeywords = maskExplicitKeywords;
@@ -8221,17 +8222,34 @@ function sanitizeGroupGenderWords(text) {
       return replacement.toUpperCase();
     }
     if (original[0] === original[0].toUpperCase()) {
-      return replacement.charAt(0).toUpperCase() + replacement.slice(1).toLowerCase();
+      return (
+        replacement.charAt(0).toUpperCase() + replacement.slice(1).toLowerCase()
+      );
     }
     return replacement.toLowerCase();
   }
 
-  // 1. Plural terms -> friends
-  const pluralRegex = /\b(girls|boys|females|males|uncles|aunties)\b/gi;
+  // 1. Dual pairs first (singular pair -> friend, plural pair -> friends)
+  const pluralPairsRegex =
+    /\b(boys?\s+or\s+girls?|girls?\s+or\s+boys?|males?\s+or\s+females?|females?\s+or\s+males?|men\s+or\s+women|women\s+or\s+men)\b/gi;
+  text = text.replace(pluralPairsRegex, (m) => {
+    return m.toLowerCase().includes("s") || m.toLowerCase().includes("men")
+      ? matchCase(m, "friends")
+      : matchCase(m, "friend");
+  });
+
+  const singularPairsRegex =
+    /\b(boy\s+or\s+girl|girl\s+or\s+boy|male\s+or\s+female|female\s+or\s+male|man\s+or\s+woman|woman\s+or\s+man)\b/gi;
+  text = text.replace(singularPairsRegex, (m) => matchCase(m, "friend"));
+
+  // 2. Plural terms -> friends
+  const pluralRegex =
+    /\b(girls|boys|females|males|uncles|aunties|women)\b/gi;
   text = text.replace(pluralRegex, (m) => matchCase(m, "friends"));
 
-  // 2. Singular terms -> friend
-  const singularRegex = /\b(girl|boy|female|male|uncle|aunty)\b/gi;
+  // 3. Singular terms -> friend (includes woman, preserves casual "man")
+  const singularRegex =
+    /\b(girl|boy|female|male|uncle|aunty|woman)\b/gi;
   text = text.replace(singularRegex, (m) => matchCase(m, "friend"));
 
   return text;
@@ -8548,7 +8566,7 @@ function handleGreetNewUser(btn, encodedNick) {
     return;
   }
   socket.emit("send_group_msg", {
-    text: `Hi! 👋 @${nick}`,
+    text: `Hi @${nick}! How are you? 👋`,
     nickname: currentNickname
   });
 }
@@ -8871,7 +8889,7 @@ function updateAllStarButtonsInDom(targetUid, isFavorited) {
       btn.textContent = "★ Favorited";
     } else {
       btn.classList.remove("favorited");
-      btn.textContent = `⭐ Star ${nick}`;
+      btn.textContent = `⭐ ${nick}`;
     }
   });
 }
@@ -8895,7 +8913,7 @@ function clearAllFavoritesLocal() {
   document.querySelectorAll(".v2-fav-pill-action-btn").forEach((btn) => {
     btn.classList.remove("favorited");
     const nick = btn.getAttribute("data-target-nick") || "Friend";
-    btn.textContent = `⭐ Star ${nick}`;
+    btn.textContent = `⭐ ${nick}`;
   });
 
   if (socket && socket.connected) {
@@ -8997,12 +9015,12 @@ function renderFavoritePillRow(msg) {
 
   wrap.innerHTML = `
     <div class="v2-group-favorite-pill">
-      <span class="v2-fav-pill-text">⭐ Someone added <strong>${escapeHtml(targetNick)}</strong> to Favorites!</span>
+      <span class="v2-fav-pill-text">Someone added <strong>${escapeHtml(targetNick)}</strong> to Favorites!</span>
       <button type="button" class="v2-fav-pill-action-btn ${isFavorited ? 'favorited' : ''}" 
               data-target-uid="${escapeHtml(targetUid)}" 
               data-target-nick="${escapeHtml(targetNick)}" 
               onclick="handleStarBtnClick(event, this)">
-        ${isFavorited ? '★ Favorited' : '⭐ Star ' + escapeHtml(targetNick)}
+        ${isFavorited ? '★ Favorited' : '⭐ ' + escapeHtml(targetNick)}
       </button>
     </div>
   `;
@@ -9021,10 +9039,10 @@ function renderAppInstallPillRow(msg) {
 
   wrap.innerHTML = `
     <div class="v2-group-favorite-pill v2-group-install-pill v2-app-install-pill">
-      <span class="v2-fav-pill-text">📲 <strong>${safeNick}</strong> just installed the HashGANG App!</span>
+      <span class="v2-fav-pill-text"><strong>${safeNick}</strong> installed HashGANG App!</span>
       <button type="button" class="v2-fav-pill-action-btn v2-btn-install-app-action ${isInstalled ? 'installed' : ''}" 
               onclick="handlePwaInstallPrompt(event)">
-        ${isInstalled ? '✓ Installed' : '📲 Install App'}
+        ${isInstalled ? '✓ Installed' : '📲 Install'}
       </button>
     </div>
   `;
@@ -9037,11 +9055,13 @@ function renderOldMessagesNoticeRow(msg) {
   wrap.className = "v2-group-retention-notice-wrap";
   if (msg && msg.id) wrap.id = `msg-${msg.id}`;
 
-  const text = (msg && msg.text) ? msg.text : "🔒 Older messages cleared to protect privacy";
+  const rawText = (msg && msg.text) ? msg.text : "Older messages cleared to protect privacy";
+  const cleanText = rawText.replace(/^[🔒\s]+/, "");
   wrap.innerHTML = `
     <div class="v2-group-retention-notice">
+      <i class="fa-solid fa-lock"></i>
+      <span>${escapeHtml(cleanText)}</span>
       <i class="fa-solid fa-shield-halved"></i>
-      <span>${escapeHtml(text)}</span>
     </div>
   `;
   return wrap;

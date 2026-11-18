@@ -963,7 +963,7 @@ async function runMasterE2ESuite() {
       await pageAlice.waitForSelector(".v2-app-install-pill", { timeout: 6000 });
       const installPillText = await pageAlice.locator(".v2-app-install-pill .v2-fav-pill-text").last().innerText();
       const installPillAction = await pageAlice.locator(".v2-app-install-pill .v2-btn-install-app-action").last().innerText();
-      const installPillValid = installPillText.includes("Bob just installed the HashGANG App!") && installPillAction.includes("Install App");
+      const installPillValid = installPillText.includes("Bob installed HashGANG App!") && installPillAction.includes("Install");
       logResult("App Install FOMO Pill Broadcast & 1-Tap Action Render", installPillValid);
 
       // Verify Loss Aversion Prompt & Favorite Cleanup on Notification Toggle OFF
