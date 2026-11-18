@@ -450,7 +450,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v401";
+const APP_CLIENT_VERSION = "v402";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -1976,6 +1976,9 @@ function initSocketConnection() {
           } else if (msg.type === "app_install_pill") {
             feed.appendChild(renderAppInstallPillRow(msg));
             lastSenderId = null;
+          } else if (msg.type === "old_messages_notice") {
+            feed.appendChild(renderOldMessagesNoticeRow(msg));
+            lastSenderId = null;
           } else if (msg.type === "house_promo_card") {
             feed.appendChild(renderHousePromoFeedCard());
             lastSenderId = null;
@@ -2066,6 +2069,8 @@ function initSocketConnection() {
             feed.appendChild(renderFavoritePillRow(msg));
           } else if (msg.type === "app_install_pill") {
             feed.appendChild(renderAppInstallPillRow(msg));
+          } else if (msg.type === "old_messages_notice") {
+            feed.appendChild(renderOldMessagesNoticeRow(msg));
           } else if (msg.type === "house_promo_card") {
             feed.appendChild(renderHousePromoFeedCard());
           } else {
@@ -6847,6 +6852,9 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
   if (msg && msg.type === "app_install_pill") {
     return renderAppInstallPillRow(msg);
   }
+  if (msg && msg.type === "old_messages_notice") {
+    return renderOldMessagesNoticeRow(msg);
+  }
 
   const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
   const isGif = !!(msg.gif && msg.gif.url) || msg.type === "gif" || msg.type === "sticker";
@@ -8962,6 +8970,22 @@ function renderAppInstallPillRow(msg) {
   return wrap;
 }
 window.renderAppInstallPillRow = renderAppInstallPillRow;
+
+function renderOldMessagesNoticeRow(msg) {
+  const wrap = document.createElement("div");
+  wrap.className = "v2-group-retention-notice-wrap";
+  if (msg && msg.id) wrap.id = `msg-${msg.id}`;
+
+  const text = (msg && msg.text) ? msg.text : "🔒 Older messages cleared to protect privacy";
+  wrap.innerHTML = `
+    <div class="v2-group-retention-notice">
+      <i class="fa-solid fa-shield-halved"></i>
+      <span>${escapeHtml(text)}</span>
+    </div>
+  `;
+  return wrap;
+}
+window.renderOldMessagesNoticeRow = renderOldMessagesNoticeRow;
 
 let pendingPermissionMode = null;
 let pendingPermissionContext = null;
