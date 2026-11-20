@@ -450,7 +450,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v415";
+const APP_CLIENT_VERSION = "v419";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -840,11 +840,31 @@ function playAudioChime(type) {
   }
 }
 
+const recentUserJoinMap = new Map(); // nickKey -> timestamp
 let lastJoinChimeTime = 0;
 function triggerUserJoinNotification(nickname) {
+  if (!nickname) return;
   const cleanNick = escapeHtml(nickname || "Stranger");
+  const nickKey = String(nickname).trim().toLowerCase();
+  const now = Date.now();
+  const lastSeen = recentUserJoinMap.get(nickKey) || 0;
+  if (now - lastSeen < 6000) {
+    console.log(`🛡️ [Join Notification] Suppressed duplicate join pill for ${nickname} within 6s`);
+    return;
+  }
+  recentUserJoinMap.set(nickKey, now);
+
   const feed = document.getElementById("v2-group-messages-feed");
   if (feed) {
+    const lastEl = feed.lastElementChild;
+    if (lastEl && lastEl.classList.contains("v2-group-join-pill")) {
+      const existingText = lastEl.textContent || "";
+      if (existingText.includes(nickname)) {
+        console.log(`🛡️ [Join Notification] Feed already ends with join pill for ${nickname}`);
+        return;
+      }
+    }
+
     const isNearBottom = isGroupFeedNearBottom(120);
     const joinPill = document.createElement("div");
     joinPill.className = "v2-group-join-pill";
@@ -866,7 +886,6 @@ function triggerUserJoinNotification(nickname) {
   }
 
   // Throttle sound with 4-second cooldown to prevent audio fatigue
-  const now = Date.now();
   if (now - lastJoinChimeTime > 4000) {
     lastJoinChimeTime = now;
     playAudioChime("join");
@@ -1291,6 +1310,22 @@ window.addEventListener("beforeinstallprompt", (e) => {
   updatePwaInstallStateUI();
 });
 
+let lastAppInstallBroadcastTime = 0;
+function broadcastAppInstalledToServer(nick) {
+  const now = Date.now();
+  if (now - lastAppInstallBroadcastTime < 15000) {
+    console.log("🛡️ [PWA Install] Suppressed duplicate user_installed_app broadcast within 15s");
+    return;
+  }
+  lastAppInstallBroadcastTime = now;
+  if (socket && socket.connected) {
+    socket.emit("user_installed_app", {
+      nick: nick || currentNickname || localStorage.getItem("hg_user_nickname") || "Stranger"
+    });
+  }
+}
+window.broadcastAppInstalledToServer = broadcastAppInstalledToServer;
+
 window.addEventListener("appinstalled", () => {
   try {
     localStorage.setItem("hg_is_pwa_installed", "true");
@@ -1300,6 +1335,7 @@ window.addEventListener("appinstalled", () => {
   } catch (err) {}
   v2ShowToast("🎉 #GANG installed successfully to your device!");
   updatePwaInstallStateUI();
+  broadcastAppInstalledToServer(currentNickname);
 });
 
 function isPwaInstalled() {
@@ -1343,9 +1379,7 @@ function handlePwaInstallPrompt(e) {
         } catch (e) {}
         v2ShowToast("🎉 Thank you for installing #GANG!");
         updatePwaInstallStateUI();
-        if (socket && socket.connected) {
-          socket.emit("user_installed_app", { nick: currentNickname || localStorage.getItem("hg_user_nickname") || "Stranger" });
-        }
+        broadcastAppInstalledToServer(currentNickname);
       }
       deferredPwaPromptV2 = null;
     });
@@ -1357,24 +1391,6 @@ function handlePwaInstallPrompt(e) {
       v2ShowToast("📲 Tap browser menu (⋮) > 'Install' or 'Add to Home screen'");
     }
   }
-}
-
-// Window appinstalled event listener for social proof / FOMO broadcast
-if (typeof window !== "undefined") {
-  window.addEventListener("appinstalled", () => {
-    try {
-      localStorage.setItem("hg_is_pwa_installed", "true");
-      if (typeof trackV2Event === "function") {
-        trackV2Event("pwa_installed", { source: "browser_appinstalled" });
-      }
-    } catch (e) {}
-    if (typeof updatePwaInstallStateUI === "function") {
-      updatePwaInstallStateUI();
-    }
-    if (socket && socket.connected) {
-      socket.emit("user_installed_app", { nick: currentNickname || localStorage.getItem("hg_user_nickname") || "Stranger" });
-    }
-  });
 }
 
 function switchCamera() {
@@ -2154,6 +2170,19 @@ function initSocketConnection() {
       if (inCall) return;
       const feed = document.getElementById("v2-group-messages-feed");
       if (feed) {
+        // Anti-Duplication Defense: Drop consecutive identical install pills
+        if (msg && msg.type === "app_install_pill") {
+          const installNick = (msg.nickname || msg.nick || "").trim().toLowerCase();
+          const lastEl = feed.lastElementChild;
+          if (lastEl && lastEl.classList.contains("v2-group-install-pill-wrap")) {
+            const existingText = (lastEl.textContent || "").toLowerCase();
+            if (installNick && existingText.includes(installNick)) {
+              console.log(`🛡️ [Feed] Dropped duplicate incoming install pill for ${msg.nickname}`);
+              return;
+            }
+          }
+        }
+
         const isNearBottom = isGroupFeedNearBottom(180);
         const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
 
@@ -6455,6 +6484,7 @@ function generateCoolNickname() {
   return `${chosen}_${num}`;
 }
 
+let lastGroupJoinEmitTime = 0;
 function joinGroupChatOnConnect() {
   if (window.isJoiningPrivateInvite || window.pendingV2InviteCode) {
     console.log("🛡️ [Group Chat] Prevented auto-join: 1-on-1 private invite is active.");
@@ -6471,6 +6501,13 @@ function joinGroupChatOnConnect() {
     setTimeout(joinGroupChatOnConnect, 300);
     return;
   }
+
+  const now = Date.now();
+  if (now - lastGroupJoinEmitTime < 1500) {
+    console.log("🛡️ [Group Chat] Suppressed rapid join_group_chat emit within 1.5s");
+    return;
+  }
+  lastGroupJoinEmitTime = now;
   // Sanitize stored nickname to guarantee no spaces or bad words ever reach signaling
   currentNickname = sanitizeStoredNickname(currentNickname || localStorage.getItem("hg_user_nickname"));
   try {
@@ -8782,9 +8819,7 @@ async function handleStarInstallAndNotify() {
         pwaInstalled = true;
         try { localStorage.setItem("hg_is_pwa_installed", "true"); } catch (e) {}
         if (typeof updatePwaInstallStateUI === "function") updatePwaInstallStateUI();
-        if (socket && socket.connected) {
-          socket.emit("user_installed_app", { nick: currentNickname || localStorage.getItem("hg_user_nickname") || "Stranger" });
-        }
+        broadcastAppInstalledToServer(currentNickname);
       } else {
         v2ShowToast("📲 App installation was skipped. Please install the app to star friends and receive online alerts!");
         return;
@@ -9015,7 +9050,7 @@ function renderFavoritePillRow(msg) {
 
   wrap.innerHTML = `
     <div class="v2-group-favorite-pill">
-      <span class="v2-fav-pill-text">Someone added <strong>${escapeHtml(targetNick)}</strong> to Favorites!</span>
+      <span class="v2-fav-pill-text">Someone starred <strong>${escapeHtml(targetNick)}</strong> to get alerts when online!</span>
       <button type="button" class="v2-fav-pill-action-btn ${isFavorited ? 'favorited' : ''}" 
               data-target-uid="${escapeHtml(targetUid)}" 
               data-target-nick="${escapeHtml(targetNick)}" 
