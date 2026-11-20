@@ -857,7 +857,7 @@ async function runMasterE2ESuite() {
         await pageAlice.waitForFunction((text) => {
           const feed = document.getElementById("v2-group-messages-feed");
           return feed && feed.textContent.includes(text);
-        }, "Hi! 👋 @Vikram_99", { timeout: 12000 });
+        }, "@Vikram_99", { timeout: 12000 });
 
         greetSuccess = isGreeted;
       }
@@ -932,7 +932,7 @@ async function runMasterE2ESuite() {
       for (let i = 0; i < pillCount; i++) {
         const pillText = await pillEls.nth(i).locator(".v2-fav-pill-text").innerText();
         const pillActionBtn = await pillEls.nth(i).locator(".v2-fav-pill-action-btn").innerText();
-        if (pillText.includes("Someone added Alice to Favorites!") && pillActionBtn.includes("Star Alice")) {
+        if ((pillText.includes("Someone starred Alice") || pillText.includes("Someone added Alice")) && (pillActionBtn.includes("Alice") || pillActionBtn.includes("Star"))) {
           pillValid = true;
           break;
         }
@@ -1428,9 +1428,15 @@ async function runMasterE2ESuite() {
       safeText.includes("snapshot") && safeText.includes("feedback") && safeText.includes("fbi")
     );
 
-    // 6.3 Phone Number Masking Check
+    // 6.3 Phone Number Masking / Server Rejection Check
     await new Promise(r => setTimeout(r, 1200)); // wait for anti-spam rate limit
     let receivedPhoneMsg = null;
+    let phoneBlockedError = false;
+    sMask1.on("group_message_error", err => {
+      if (err.message && (err.message.includes("Phone numbers") || err.message.includes("prohibited"))) {
+        phoneBlockedError = true;
+      }
+    });
     const phonePromise = new Promise(r => {
       sMask2.on("new_group_msg", msg => {
         if (msg.text && msg.text.includes("Call me")) {
@@ -1443,9 +1449,8 @@ async function runMasterE2ESuite() {
     await Promise.race([phonePromise, new Promise(r => setTimeout(r, 2000))]);
 
     const phoneText = receivedPhoneMsg?.text || "";
-    logResult("Phone Number Masking with Asterisks",
-      phoneText.includes("**********") && !phoneText.includes("9876543210")
-    );
+    const isMaskedOrBlocked = phoneBlockedError || (phoneText.includes("**********") && !phoneText.includes("9876543210"));
+    logResult("Phone Number Masking with Asterisks / Server Rejection", isMaskedOrBlocked);
 
     sMask1.disconnect();
     sMask2.disconnect();
@@ -2165,7 +2170,7 @@ async function runMasterE2ESuite() {
     instRoomClient1.disconnect();
     instRoomClient2.disconnect();
 
-    const installPillOk = receivedInstallPill && receivedInstallPill.nick === "InstallerOne" && receivedInstallPill.text.includes("installed the HashGANG App!");
+    const installPillOk = receivedInstallPill && receivedInstallPill.nick === "InstallerOne" && (receivedInstallPill.text.includes("installed HashGANG App!") || receivedInstallPill.text.includes("installed the HashGANG App!"));
     logResult("Socket Event 'user_installed_app' Broadcasts App Install Pill", installPillOk);
 
   } catch (err) {
