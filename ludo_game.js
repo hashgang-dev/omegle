@@ -644,6 +644,10 @@
     }
 
     if (selectedToken !== null) {
+      if (currentGame.isMovingToken) return;
+      currentGame.isMovingToken = true;
+      currentGame.dice = null;
+      currentGame.movableTokens = [];
       console.log(`🎯 [Ludo] Selected Token Index: ${selectedToken}`);
       playLudoChime("hop");
       if (window.socket && window.socket.connected) {
@@ -661,10 +665,17 @@
       showLudoBoardPrompt("⏳ Please wait for your turn!");
       return;
     }
+    if (currentGame.isMovingToken) {
+      return;
+    }
     if (currentGame.dice !== null) {
       if (Array.isArray(currentGame.movableTokens) && currentGame.movableTokens.length === 1) {
+        currentGame.isMovingToken = true;
+        const targetToken = currentGame.movableTokens[0];
+        currentGame.dice = null;
+        currentGame.movableTokens = [];
         if (window.socket && window.socket.connected) {
-          window.socket.emit("ludo_move_token", { tokenIndex: currentGame.movableTokens[0] });
+          window.socket.emit("ludo_move_token", { tokenIndex: targetToken });
         }
         return;
       }
@@ -1168,6 +1179,7 @@
 
     window.socket.on("ludo_turn_change", (data) => {
       if (!currentGame) return;
+      currentGame.isMovingToken = false;
       currentGame.activeColor = data.activeColor;
       currentGame.isMyTurn = (currentGame.myColor === data.activeColor);
       currentGame.dice = null;
@@ -1178,12 +1190,26 @@
       const announceEl = document.getElementById("v2-ludo-dice-announce");
       if (announceEl) {
         announceEl.classList.remove("hidden");
-        if (currentGame.isMyTurn) {
-          announceEl.innerHTML = `<span class="val-turn">🟢</span> <strong>Your Turn! Roll Dice (60s).</strong>`;
+        if (data.extraTurn) {
+          if (currentGame.isMyTurn) {
+            announceEl.innerHTML = `<span class="val-turn">🎁</span> <strong>BONUS ROLL! Roll Again! 🎲</strong>`;
+            playLudoChime("hop");
+            if (typeof v2ShowToast === "function") {
+              v2ShowToast("🎁 Bonus Roll! Roll the dice again!", 2500);
+            }
+          } else {
+            const activeP = currentGame.players.find(p => p.color === data.activeColor);
+            const pName = activeP ? activeP.nickname : data.activeColor.toUpperCase();
+            announceEl.innerHTML = `<span class="val-turn">🎁</span> <strong>${escapeHtml(pName)} got a BONUS ROLL! 🎲</strong>`;
+          }
         } else {
-          const activeP = currentGame.players.find(p => p.color === data.activeColor);
-          const pName = activeP ? activeP.nickname : data.activeColor.toUpperCase();
-          announceEl.innerHTML = `<span class="val-turn">⏳</span> <strong>${escapeHtml(pName)}'s turn to roll...</strong>`;
+          if (currentGame.isMyTurn) {
+            announceEl.innerHTML = `<span class="val-turn">🟢</span> <strong>Your Turn! Roll Dice (60s).</strong>`;
+          } else {
+            const activeP = currentGame.players.find(p => p.color === data.activeColor);
+            const pName = activeP ? activeP.nickname : data.activeColor.toUpperCase();
+            announceEl.innerHTML = `<span class="val-turn">⏳</span> <strong>${escapeHtml(pName)}'s turn to roll...</strong>`;
+          }
         }
       }
 
@@ -1194,14 +1220,14 @@
         if (dock && !dock.classList.contains("hidden")) {
           dock.classList.add("your-turn");
           const dockStatus = document.getElementById("v2-dock-status");
-          if (dockStatus) dockStatus.textContent = "YOUR TURN! 🎲";
+          if (dockStatus) dockStatus.textContent = data.extraTurn ? "BONUS ROLL! 🎁" : "YOUR TURN! 🎲";
         }
       } else {
         const dock = document.getElementById("v2-ludo-floating-dock");
         if (dock) {
           dock.classList.remove("your-turn");
           const dockStatus = document.getElementById("v2-dock-status");
-          if (dockStatus) dockStatus.textContent = `${data.activeColor.toUpperCase()}'s turn`;
+          if (dockStatus) dockStatus.textContent = data.extraTurn ? `${data.activeColor.toUpperCase()} bonus roll! 🎁` : `${data.activeColor.toUpperCase()}'s turn`;
         }
       }
     });
@@ -1231,8 +1257,14 @@
               announceEl.innerHTML = `<span class="val-dice">🎲 ${data.dice}</span> <strong>Rolled ${data.dice}!</strong> Moving token... ⚡`;
               // Single token moves automatically
               setTimeout(() => {
-                if (currentGame && currentGame.isMyTurn && currentGame.dice !== null) {
-                  window.socket.emit("ludo_move_token", { tokenIndex: currentGame.movableTokens[0] });
+                if (currentGame && currentGame.isMyTurn && currentGame.dice !== null && !currentGame.isMovingToken) {
+                  currentGame.isMovingToken = true;
+                  const targetToken = currentGame.movableTokens[0];
+                  currentGame.dice = null;
+                  currentGame.movableTokens = [];
+                  if (window.socket && window.socket.connected) {
+                    window.socket.emit("ludo_move_token", { tokenIndex: targetToken });
+                  }
                 }
               }, 400);
             } else {
@@ -1287,6 +1319,7 @@
 
     window.socket.on("ludo_game_over", (data) => {
       if (!currentGame) return;
+      currentGame.isMovingToken = false;
       playLudoChime("win");
 
       const victoryOverlay = document.getElementById("v2-ludo-victory-overlay");

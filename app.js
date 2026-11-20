@@ -450,7 +450,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v419";
+const APP_CLIENT_VERSION = "v422";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -8220,19 +8220,98 @@ function injectPrivateChatAdsterraBanner(container) {
 }
 
 let lastGroupMsgTime = 0;
+function normalizeContactText(text) {
+  if (!text || typeof text !== "string") return "";
+  let s = text.normalize("NFKD");
+  // Strip invisible characters and directional overrides
+  s = s.replace(/[\u200B-\u200D\uFEFF\u00AD\u2060\u2063\u202A-\u202E]/g, "");
+
+  // Circled digits and subscripts/superscripts to standard ASCII 0-9
+  const circledMap = {
+    "⓪": "0", "①": "1", "②": "2", "③": "3", "④": "4", "⑤": "5", "⑥": "6", "⑦": "7", "⑧": "8", "⑨": "9",
+    "❶": "1", "❷": "2", "❸": "3", "❹": "4", "❺": "5", "❻": "6", "❼": "7", "❽": "8", "❾": "9",
+    "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9",
+    "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4", "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9"
+  };
+  s = s.replace(/[⓪①②③④⑤⑥⑦⑧⑨❶❷❸❹❺❻❼❽❾⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉]/g, (ch) => circledMap[ch] || ch);
+
+  // Contextual Leet-speak: O/o to 0 and l/I/| to 1 when directly bordered by digits
+  s = s.replace(/(\d[\s\W_]*)[oO]+/g, (m, p) => p + "0".repeat(m.length - p.length));
+  s = s.replace(/[oO]+(?=[\s\W_]*\d)/g, (m) => "0".repeat(m.length));
+  s = s.replace(/(\d[\s\W_]*)[lI|]+/g, (m, p) => p + "1".repeat(m.length - p.length));
+  s = s.replace(/[lI|]+(?=[\s\W_]*\d)/g, (m) => "1".repeat(m.length));
+
+  // Multilingual Number Words (English, Romanized Telugu, Romanized Hindi)
+  const wordDigits = [
+    { regex: /\b(?:zero|sunna|shunya|oh)\b/gi, val: "0" },
+    { regex: /\b(?:one|okati|ek)\b/gi, val: "1" },
+    { regex: /\b(?:two|rendu|do)\b/gi, val: "2" },
+    { regex: /\b(?:three|moodu|teen)\b/gi, val: "3" },
+    { regex: /\b(?:four|naalugu|nalugu|chaar|char)\b/gi, val: "4" },
+    { regex: /\b(?:five|aidu|idu|paanch|panch)\b/gi, val: "5" },
+    { regex: /\b(?:six|aaru|aru|chhe|che)\b/gi, val: "6" },
+    { regex: /\b(?:seven|yeedu|eedu|saat)\b/gi, val: "7" },
+    { regex: /\b(?:eight|enimidi|yenimidi|enimidhi|aath|ath)\b/gi, val: "8" },
+    { regex: /\b(?:nine|tommidi|nau)\b/gi, val: "9" },
+    { regex: /\bdouble\s+(\d)/gi, val: "$1$1" },
+    { regex: /\btriple\s+(\d)/gi, val: "$1$1$1" }
+  ];
+  for (const wd of wordDigits) {
+    s = s.replace(wd.regex, wd.val);
+  }
+  return s;
+}
+
+function detectsPhoneNumber(rawText) {
+  if (!rawText || typeof rawText !== "string") return false;
+  const normalized = normalizeContactText(rawText);
+
+  // 1. Universal E.164 8 to 15 digits separated by spaces, symbols, underscores, or emojis
+  const universalDigitPattern = /(?:\+?[\s\W_]*\d[\s\W_]*){8,15}/gu;
+  if (universalDigitPattern.test(normalized)) {
+    return true;
+  }
+
+  // 2. International prefix (+, 00, 011) followed by 7+ digits
+  const intlPattern = /(?:\+|00|011)[\s\W_]*\d(?:[\s\W_]*\d){6,14}/gu;
+  if (intlPattern.test(normalized)) {
+    return true;
+  }
+
+  // 3. Letter interleaved infiltration (e.g. 8a6b8c8d1e0f0g3h7i2 or 8x6x8x8x1x0x0x3x7x2)
+  const letterInterleaved = /(?:\d[\s\W_]*[a-zA-Z]{1,2}[\s\W_]*){7,}\d/u;
+  if (letterInterleaved.test(normalized)) {
+    return true;
+  }
+
+  // 4. Chunked 5+5 or 5+4 numbers separated by words (e.g. 86881 and 00372, or 86881 call me 00372)
+  const chunkedPattern = /(?:\b\d{5,8}\b[\s\S]{1,25}\b\d{4,8}\b)/i;
+  if (chunkedPattern.test(normalized)) {
+    return true;
+  }
+
+  // 5. Obfuscated WhatsApp / Telegram / Direct messaging links pointing to phone numbers
+  const socialProxy = /(?:wa\.me|api\.whatsapp\.com|t\.me)[\s\W_]*\/?[\s\W_]*\+?[\s\W_]*\d(?:[\s\W_]*\d){6,14}/i;
+  if (socialProxy.test(normalized)) {
+    return true;
+  }
+
+  return false;
+}
+
 function maskPhoneNumbers(text) {
   if (!text || typeof text !== "string") return text;
-  // Match standard and international phone numbers (10 to 14 digits with optional +, spaces, dashes, dots, parens)
-  const phonePattern = /(?:(?:\+|00)\d{1,3}[-.\s]?)?(?:\(?\d{2,5}\)?[-.\s]?)?\d{3,5}[-.\s]?\d{3,5}(?:[-.\s]?\d{1,4})?|\b(?:\d[-.\s]?){9,13}\d\b/g;
-
-  return text.replace(phonePattern, (match) => {
-    const digitsOnly = match.replace(/\D/g, "");
-    if (digitsOnly.length >= 10 && digitsOnly.length <= 15) {
-      return match.replace(/\d/g, "*");
-    }
-    return match;
-  });
+  // Replace universal 8 to 15 digits sequence with *
+  const universalPattern = /(?:\+?[\s\W_]*\d[\s\W_]*){8,15}/gu;
+  let res = text.replace(universalPattern, (match) => match.replace(/\d/g, "*"));
+  // Replace letter interleaved sequences with *
+  const letterInterleaved = /(?:\d[\s\W_]*[a-zA-Z]{1,2}[\s\W_]*){7,}\d/gu;
+  res = res.replace(letterInterleaved, (match) => match.replace(/\d/g, "*"));
+  return res;
 }
+window.detectsPhoneNumber = detectsPhoneNumber;
+window.normalizeContactText = normalizeContactText;
+window.maskPhoneNumbers = maskPhoneNumbers;
 
 function maskSocialKeywords(text) {
   if (!text || typeof text !== "string") return text;
@@ -8359,6 +8438,13 @@ function sendGroupMessage() {
   const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([a-zA-Z0-9-]+\.(com|in|org|net|xyz|me|io|co|ai|app|site|online|tv|ru|cn|cc|to|is|gg|link|live|fun|store|club)[^\s]*)|(t\.me\/[^\s]+)|(wa\.me\/[^\s]+)/i;
   if (urlRegex.test(text)) {
     showDockHint("⚠️ Links are not allowed in group chat to keep everyone safe.", "warn", 3500);
+    return;
+  }
+
+  // Watertight Global Phone Number Blocking: Reject completely if phone number detected
+  if (detectsPhoneNumber(text)) {
+    showDockHint("🛡️ Phone numbers or contacts from any country are strictly prohibited in lounge chat.", "warn", 4500);
+    v2ShowToast("🛡️ Phone numbers are not allowed in lounge chat.");
     return;
   }
 
