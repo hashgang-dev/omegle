@@ -25,22 +25,33 @@ If servers are down, start them:
 
 ## 2. Test Suites Overview & Execution
 
-### A. Unified Master E2E Verification Suite
+### A. Unified Master E2E & High-Concurrency Load Suite
 - **Script Location**: `/home/hashgang/Workspace/omegle/master_e2e_test_suite.js`
-- **Scope**: 89 automated tests spanning 10 unified phases:
+- **Scope**: 165+ automated tests spanning 12 unified phases:
   - Phase 1: Socket signaling, trace codes (`HGXXXXXX`), MongoDB audit retrieval, report disconnects, 24h block enforcement.
   - Phase 2: Group chat protocol, nickname customization, 50-message rolling capacity, quoted replies, emoji reactions, 25-cap dynamic room sharding, dual-track invite matching, double-accept race locks, zombie card cleanups.
   - Phase 3 & 4: Playwright browser UI permutations (18+ gate, group chat onboarding, brand name animation, call drawer transitions, search radar shortcut).
   - Phase 5: Deep edge cases (repeat calls, anti-spam external link blocks, offline inviter fallback).
-  - Phase 6: Social media keywords & phone number masking, 1-hour nickname cooldown persistence, asset cache-busting version sync, voice persona switcher.
+  - Phase 6: Social media keywords & watertight E.164 global phone defense (31 attack vectors & multi-message split protection), gender neutralization, 1-hour nickname cooldown persistence, asset cache-busting version sync, voice persona switcher.
   - Phase 7: Private chat report redirection to group lounge, post-disconnect reporting, and 1v1 in-chat heartbeat.
   - Phase 8: Anti-collusion duo loophole prevention, 20s return-to-group cooldown, server sync tolerance, and mutual invite card sync.
-  - Phase 9: Security audit, admin trace lookup & push broadcast 403 access control, XSS payload neutralization, and frontend `escapeHtml` sanitization.
-  - Phase 10: WebPush admin broadcast endpoints, VAPID key retrieval, MongoDB subscription lifecycle, and admin console form validation engine.
-- **Execution Command**:
-  ```bash
-  cd /home/hashgang/Workspace/omegle && NODE_PATH=/home/hashgang/Workspace/myleader/backend/node_modules node master_e2e_test_suite.js
-  ```
+  - Phase 9: Security audit, admin trace lookup & push broadcast 403 access control, XSS payload neutralization, multilingual profanity filter, multi-device forensic media shield & view-once instant burn engine.
+  - Phase 10: WebPush admin broadcast endpoints, VAPID key retrieval, MongoDB subscription lifecycle, 5-slot PWA install card shift engine & anti-duplication debounce.
+  - Phase 11: Multiplayer Ludo board game (2P/3P/4P, 6 core bonus roll scenarios, double/triple 6 rules, token cuts, victory events, P2P audio mesh).
+  - Phase 12: High-concurrency Socket.IO load ramp-up, dynamic 25-cap room sharding, event loop lag monitoring (<100ms), and latency percentiles.
+- **Execution Commands**:
+  - Full E2E & 50-Socket Load Test:
+    ```bash
+    cd /home/hashgang/Workspace/omegle && NODE_PATH=/home/hashgang/Workspace/myleader/backend/node_modules node master_e2e_test_suite.js
+    # Or via npm
+    npm test
+    ```
+  - Custom High-Concurrency Stress Test (e.g., 500 sockets):
+    ```bash
+    cd /home/hashgang/Workspace/omegle && LOAD_CLIENTS=500 NODE_PATH=/home/hashgang/Workspace/myleader/backend/node_modules node master_e2e_test_suite.js
+    # Or via npm
+    npm run test:load
+    ```
 
 ### B. Mobile & Desktop Playwright UI Suite
 - **Script Location**: `/home/hashgang/Workspace/omegle/test_mobile_ui.js`

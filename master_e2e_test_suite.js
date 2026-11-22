@@ -3454,6 +3454,120 @@ async function runMasterE2ESuite() {
     logResult("Phase 11 Ludo Multiplayer Suite Execution", false, err.message);
   }
 
+  // ===========================================================================
+  // PHASE 12: High-Concurrency Socket.IO Load, Sharding & Telemetry Stress Suite
+  // ===========================================================================
+  console.log("\n───────────────────────────────────────────────────────────────────────");
+  console.log("📌 PHASE 12: High-Concurrency Socket.IO Load, Sharding & Stress Telemetry");
+  console.log("───────────────────────────────────────────────────────────────────────");
+
+  try {
+    const TARGET_LOAD_CLIENTS = parseInt(process.env.LOAD_CLIENTS || "50", 10);
+    const BATCH_SIZE = 25;
+    const BATCH_INTERVAL_MS = 80;
+
+    console.log(`⚡ Simulating high-concurrency burst with ${TARGET_LOAD_CLIENTS} sockets...`);
+
+    const loadMetrics = {
+      connected: 0,
+      connectErrors: 0,
+      groupJoined: 0,
+      roomsAllocated: new Set(),
+      messagesSent: 0,
+      reactionsSent: 0,
+      connectionTimes: []
+    };
+
+    let maxEventLoopLag = 0;
+    let lastLagCheck = Date.now();
+    const lagMonitor = setInterval(() => {
+      const now = Date.now();
+      const delta = now - lastLagCheck;
+      const lag = Math.max(0, delta - 50);
+      if (lag > maxEventLoopLag) maxEventLoopLag = lag;
+      lastLagCheck = now;
+    }, 50);
+
+    const loadSockets = [];
+    for (let i = 0; i < TARGET_LOAD_CLIENTS; i += BATCH_SIZE) {
+      const currentBatch = Math.min(BATCH_SIZE, TARGET_LOAD_CLIENTS - i);
+      for (let j = 0; j < currentBatch; j++) {
+        const idx = i + j;
+        const connStart = Date.now();
+        const s = io(SOCKET_URL, {
+          transports: ["websocket"],
+          reconnection: false,
+          timeout: 10000
+        });
+
+        s.on("connect", () => {
+          loadMetrics.connected++;
+          loadMetrics.connectionTimes.push(Date.now() - connStart);
+          s.emit("join_group_chat", { nickname: `LoadUser_${idx}` });
+        });
+
+        s.on("connect_error", () => {
+          loadMetrics.connectErrors++;
+        });
+
+        s.on("group_joined", (data) => {
+          loadMetrics.groupJoined++;
+          if (data && data.roomId) {
+            loadMetrics.roomsAllocated.add(data.roomId);
+          }
+        });
+
+        loadSockets.push(s);
+      }
+      await sleep(BATCH_INTERVAL_MS);
+    }
+
+    // Wait for in-flight socket handshakes
+    let settleAttempts = 0;
+    while (loadMetrics.connected < TARGET_LOAD_CLIENTS * 0.95 && settleAttempts < 40) {
+      await sleep(150);
+      settleAttempts++;
+    }
+
+    // Burst messages from first 10 chatters
+    const chatters = loadSockets.slice(0, Math.min(10, loadSockets.length));
+    for (let k = 0; k < chatters.length; k++) {
+      const s = chatters[k];
+      if (s.connected) {
+        s.emit("send_group_msg", { text: `Concurrency stress msg #${k}` });
+        loadMetrics.messagesSent++;
+        if (k % 2 === 0) {
+          s.emit("send_group_reaction", { messageId: "load_seed", emoji: "🔥" });
+          loadMetrics.reactionsSent++;
+        }
+      }
+    }
+    await sleep(2000);
+
+    // Clean disconnect
+    for (const s of loadSockets) {
+      if (s.connected) s.disconnect();
+    }
+    clearInterval(lagMonitor);
+
+    const loadSuccess = loadMetrics.connected >= TARGET_LOAD_CLIENTS * 0.95 && loadMetrics.connectErrors === 0;
+    logResult(`High-Concurrency Socket.IO Load Ramp (${loadMetrics.connected}/${TARGET_LOAD_CLIENTS} connected, 0 errors)`,
+      loadSuccess,
+      `[Rooms Sharded: ${loadMetrics.roomsAllocated.size}, Max Lag: ${maxEventLoopLag}ms]`
+    );
+
+    const shardingSuccess = loadMetrics.roomsAllocated.size >= Math.ceil(loadMetrics.connected / 25);
+    logResult(`Dynamic 25-Cap Sharding Under Concurrency (${loadMetrics.roomsAllocated.size} Rooms for ${loadMetrics.connected} Users)`,
+      shardingSuccess
+    );
+
+    const lagHealthy = maxEventLoopLag < 100;
+    logResult("Node.js Event Loop Lag & Telemetry Health (<100ms)", lagHealthy, `[Lag: ${maxEventLoopLag}ms]`);
+
+  } catch (err) {
+    logResult("Phase 12 Load & Concurrency Suite Execution", false, err.message);
+  }
+
   console.log("\n=======================================================================");
   console.log(`📊 MASTER TEST SUITE SUMMARY: ${totalPassed} Passed | ${totalFailed} Failed`);
   console.log("=======================================================================\n");
