@@ -1,4 +1,10 @@
 {
+  "name": "hashgang-omegle",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node master_e2e_test_suite.js",
+    "test:load": "LOAD_CLIENTS=500 node master_e2e_test_suite.js"
+  },
   "dependencies": {
     "@soundtouchjs/audio-worklet": "^2.1.1",
     "@soundtouchjs/formant-correction-worklet": "^2.1.1",

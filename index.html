@@ -74,7 +74,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=422" />
+  <link rel="stylesheet" href="style.css?v=426" />
 
   <!-- Google AdSense Library (Ready for approval) -->
   <meta name="google-adsense-account" content="ca-pub-6927010746708408" />
@@ -416,7 +416,31 @@
         <div class="v2-stage-overlay v2-group-chat-stage" id="v2-group-chat-stage">
           <!-- Group Chat Messages Feed (Timeless, No Timestamps) -->
           <div class="v2-group-feed" id="v2-group-messages-feed">
-            <!-- Messages, in-feed Adsterra banner, and interactive call cards will render here -->
+            <div class="v2-feed-skeleton-wrap" id="v2-lounge-skeleton">
+              <div class="v2-skeleton-pill">
+                <i class="fa-solid fa-spinner"></i>
+                <span>Connecting to Live Lounge...</span>
+              </div>
+              <div class="v2-skeleton-row other">
+                <div class="v2-skeleton-bubble w-large">
+                  <div class="v2-skeleton-line h-title"></div>
+                  <div class="v2-skeleton-line" style="width: 90%;"></div>
+                  <div class="v2-skeleton-line" style="width: 65%;"></div>
+                </div>
+              </div>
+              <div class="v2-skeleton-row self">
+                <div class="v2-skeleton-bubble w-med">
+                  <div class="v2-skeleton-line" style="width: 85%;"></div>
+                  <div class="v2-skeleton-line" style="width: 50%;"></div>
+                </div>
+              </div>
+              <div class="v2-skeleton-row other">
+                <div class="v2-skeleton-bubble w-small">
+                  <div class="v2-skeleton-line h-title"></div>
+                  <div class="v2-skeleton-line" style="width: 75%;"></div>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Onboarding Welcome Knowledge Card Slot (Bottom-Aligned, Easy Thumb Reach) -->
@@ -1576,8 +1600,8 @@
     <script src="ad_mediation_config.js?v=351" defer></script>
     <script src="socket.io.min.js?v=301"></script>
     <script src="bad_words_config.js?v=386" defer></script>
-    <script src="ludo_game.js?v=422" defer></script>
-    <script src="app.js?v=422" defer></script>
+    <script src="ludo_game.js?v=426" defer></script>
+    <script src="app.js?v=426" defer></script>
 </body>
 
 </html>

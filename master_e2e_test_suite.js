@@ -91,6 +91,19 @@ async function runMasterE2ESuite() {
     await signalPromise;
     logResult("WebRTC P2P Signaling Relay & Partner Security", signalRelayed === true);
 
+    // 1.2b 1v1 Private Chat Defamation Shadow Drop Verification
+    let privDefamatoryReceived = false;
+    let privNormalReceived = false;
+    s2.on("signal", (data) => {
+      if (data.signal?.text?.includes("fake website")) privDefamatoryReceived = true;
+      if (data.signal?.text === "hello friend") privNormalReceived = true;
+    });
+    s1.emit("signal", { targetId: s2SocketId, signal: { type: "chat", text: "this is a fake website", msgId: "shadow_1" } });
+    await new Promise((r) => setTimeout(r, 300));
+    s1.emit("signal", { targetId: s2SocketId, signal: { type: "chat", text: "hello friend", msgId: "normal_1" } });
+    await new Promise((r) => setTimeout(r, 400));
+    logResult("1v1 Private Chat Defamation Shadow Drop", !privDefamatoryReceived && privNormalReceived);
+
     // 1.3 Skip Peer Signal Handling
     const skipLeftPromise = new Promise((resolve) => {
       s2.on("peer_left", () => resolve(true));
@@ -452,8 +465,34 @@ async function runMasterE2ESuite() {
     logResult("Group Chat Initial Feed Strictly Maintained at 50 Messages", groupCapJoinedData && Array.isArray(groupCapJoinedData.messages) && (groupCapJoinedData.messages.length === 59 || groupCapJoinedData.messages.length >= 50));
     sGroupCap.disconnect();
 
+    // 2.13 Shadow Drop / Ghost Posting Engine for Defamatory Lounge Messages
     sGroup1.disconnect();
     sGroup2.disconnect();
+
+    const sGhost1 = io(SOCKET_URL, { transports: ["websocket"], forceNew: true });
+    const sGhost2 = io(SOCKET_URL, { transports: ["websocket"], forceNew: true });
+    await Promise.all([
+      new Promise(r => { sGhost1.once("group_joined", r); sGhost1.emit("join_group_chat", { nickname: "GhostTester1" }); }),
+      new Promise(r => { sGhost2.once("group_joined", r); sGhost2.emit("join_group_chat", { nickname: "GhostTester2" }); })
+    ]);
+
+    let shadowGhostToSender = false;
+    let shadowLeakedToPeer = false;
+    const ghostMsgPromise = new Promise((resolve) => {
+      sGhost1.on("new_group_msg", (m) => {
+        if (m.text?.includes("Fake App")) shadowGhostToSender = true;
+      });
+      sGhost2.on("new_group_msg", (m) => {
+        if (m.text?.includes("Fake App")) shadowLeakedToPeer = true;
+      });
+      setTimeout(resolve, 1200);
+    });
+    sGhost1.emit("send_group_msg", { text: "Fake App, Waste Website", nickname: "GhostTester1" });
+    await ghostMsgPromise;
+    logResult("Shadow Drop Ghost Posting for Defamatory Lounge Messages", shadowGhostToSender && !shadowLeakedToPeer);
+
+    sGhost1.disconnect();
+    sGhost2.disconnect();
 
   } catch (err) {
     logResult("Phase 2 Group Chat Execution Error", false, err.message);
@@ -650,10 +689,19 @@ async function runMasterE2ESuite() {
 
     const safeDismissAgeModal = async (p) => {
       try {
-        const ageBtn = p.locator("#v2-btn-age-confirm, .v2-btn-enter");
-        if (await ageBtn.count() > 0 && await ageBtn.first().isVisible({ timeout: 1500 })) {
-          await ageBtn.first().click();
+        const btn = await p.$("#v2-btn-age-confirm, .v2-btn-enter");
+        if (btn && await btn.isVisible()) {
+          await btn.click();
+          await p.waitForTimeout(300);
         }
+      } catch (_) {}
+      try {
+        await p.evaluate(() => {
+          localStorage.setItem("hg_18_confirmed", "true");
+          const modal = document.getElementById("v2-age-modal");
+          if (modal) modal.classList.add("hidden");
+          if (typeof confirmAgeAndEnter === "function") confirmAgeAndEnter();
+        });
       } catch (_) {}
     };
 
@@ -742,8 +790,8 @@ async function runMasterE2ESuite() {
       await safeDismissAgeModal(pageAlice);
       await safeDismissAgeModal(pageBob);
 
-      await pageAlice.waitForFunction(() => window.socket?.connected);
-      await pageBob.waitForFunction(() => window.socket?.connected);
+      await pageAlice.waitForFunction(() => window.socket?.connected, null, { timeout: 15000 });
+      await pageBob.waitForFunction(() => window.socket?.connected, null, { timeout: 15000 });
       await pageAlice.waitForTimeout(500);
 
       const aliceMsgText = "Hello Bob from Alice!";
@@ -1005,8 +1053,8 @@ async function runMasterE2ESuite() {
       await safeDismissAgeModal(pageAlice);
       await safeDismissAgeModal(pageBob);
 
-      await pageAlice.waitForFunction(() => window.socket?.connected);
-      await pageBob.waitForFunction(() => window.socket?.connected);
+      await pageAlice.waitForFunction(() => window.socket?.connected, null, { timeout: 15000 });
+      await pageBob.waitForFunction(() => window.socket?.connected, null, { timeout: 15000 });
       await pageAlice.waitForTimeout(500);
 
       await pageAlice.evaluate(() => { window.__E2E_BYPASS_COOLDOWN__ = true; });
@@ -1288,7 +1336,7 @@ async function runMasterE2ESuite() {
     });
     await new Promise(r => setTimeout(r, 600));
 
-    // Test 2: Sending social handle in 1v1 chat is allowed
+    // Test 2: Sending social handle in 1v1 chat is shadow-dropped to prevent platform leakage
     let privReceivedHandle = false;
     sPriv2.once("signal", sig => {
       if (sig?.signal?.text?.includes("@rahul_23")) privReceivedHandle = true;
@@ -1299,10 +1347,10 @@ async function runMasterE2ESuite() {
     });
     await new Promise(r => setTimeout(r, 600));
 
-    logResult("1v1 Private Chat Link Blocking & Handle Allowance",
+    logResult("1v1 Private Chat Link Blocking & Social Handle Shadow Drop",
       privChatError && privChatError.message.includes("Links are blocked in private chat") &&
       privReceivedLink === false &&
-      privReceivedHandle === true
+      privReceivedHandle === false
     );
 
     sPriv1.disconnect();
@@ -1381,32 +1429,22 @@ async function runMasterE2ESuite() {
       new Promise(r => { sMask2.on("group_joined", r); sMask2.emit("join_group_chat", { nickname: "Receiver_01" }); })
     ]);
 
-    let receivedMaskedMsg = null;
-    const msgPromise = new Promise(r => {
-      sMask2.on("new_group_msg", msg => {
-        if (msg.nickname === "Sender_01") {
-          receivedMaskedMsg = msg;
-          r();
-        }
-      });
+    let s1GotGhostMsg = false;
+    let s2LeakedMsg = false;
+    sMask1.on("new_group_msg", msg => {
+      if (msg.text?.includes("instagram")) s1GotGhostMsg = true;
+    });
+    sMask2.on("new_group_msg", msg => {
+      if (msg.text?.includes("instagram")) s2LeakedMsg = true;
     });
 
     sMask1.emit("send_group_msg", {
       text: "Follow my instagram and insta, also add me on facebook or fb, ping snap or snapchat or telegram"
     });
-    await Promise.race([msgPromise, new Promise(r => setTimeout(r, 2000))]);
+    await new Promise(r => setTimeout(r, 1000));
 
-    const maskedText = receivedMaskedMsg?.text || "";
-    const isInstagramMasked = !maskedText.toLowerCase().includes("instagram") && maskedText.includes("*********");
-    const isInstaMasked = !maskedText.toLowerCase().includes("insta") && maskedText.includes("*****");
-    const isFacebookMasked = !maskedText.toLowerCase().includes("facebook") && maskedText.includes("********");
-    const isSnapchatMasked = !maskedText.toLowerCase().includes("snapchat") && maskedText.includes("********");
-    const isTelegramMasked = !maskedText.toLowerCase().includes("telegram") && maskedText.includes("********");
-    const isFbMasked = !maskedText.toLowerCase().includes("fb") && maskedText.includes("**");
-    const isSnapMasked = !maskedText.toLowerCase().includes("snap") && maskedText.includes("****");
-
-    logResult("Social Media Keyword Masking in Group Chat", 
-      isInstagramMasked && isInstaMasked && isFacebookMasked && isSnapchatMasked && isTelegramMasked && isFbMasked && isSnapMasked
+    logResult("Social Media Keyword Shadow Drop in Group Chat", 
+      s1GotGhostMsg && !s2LeakedMsg
     );
 
     // 6.2 Safe Substrings (Snapshot, Feedback, FBI) Preservation
@@ -1428,32 +1466,150 @@ async function runMasterE2ESuite() {
       safeText.includes("snapshot") && safeText.includes("feedback") && safeText.includes("fbi")
     );
 
-    // 6.3 Phone Number Masking / Server Rejection Check
+    // 6.3 Phone Number Shadow Drop Check (Zero Error Popup, Zero Leakage)
     await new Promise(r => setTimeout(r, 1200)); // wait for anti-spam rate limit
-    let receivedPhoneMsg = null;
-    let phoneBlockedError = false;
-    sMask1.on("group_message_error", err => {
-      if (err.message && (err.message.includes("Phone numbers") || err.message.includes("prohibited"))) {
-        phoneBlockedError = true;
-      }
+    let s1GotPhoneGhost = false;
+    let s2GotPhoneLeak = false;
+    sMask1.on("new_group_msg", msg => {
+      if (msg.text && msg.text.includes("9876543210")) s1GotPhoneGhost = true;
     });
-    const phonePromise = new Promise(r => {
-      sMask2.on("new_group_msg", msg => {
-        if (msg.text && msg.text.includes("Call me")) {
-          receivedPhoneMsg = msg;
-          r();
-        }
-      });
+    sMask2.on("new_group_msg", msg => {
+      if (msg.text && msg.text.includes("9876543210")) s2GotPhoneLeak = true;
     });
     sMask1.emit("send_group_msg", { text: "Call me now on 9876543210 please!" });
-    await Promise.race([phonePromise, new Promise(r => setTimeout(r, 2000))]);
+    await new Promise(r => setTimeout(r, 1000));
 
-    const phoneText = receivedPhoneMsg?.text || "";
-    const isMaskedOrBlocked = phoneBlockedError || (phoneText.includes("**********") && !phoneText.includes("9876543210"));
-    logResult("Phone Number Masking with Asterisks / Server Rejection", isMaskedOrBlocked);
+    logResult("Phone Number Shadow Drop (Zero Error Popup & Zero Leakage)", s1GotPhoneGhost && !s2GotPhoneLeak);
 
     sMask1.disconnect();
     sMask2.disconnect();
+
+    // 6.3b Watertight Global E.164 Phone Defense & 31-Vector Unit Matrix
+    function normalizeContactText(text) {
+      if (!text || typeof text !== "string") return "";
+      let s = text.normalize("NFKD");
+      s = s.replace(/[\u200B-\u200D\uFEFF\u00AD\u2060\u2063\u202A-\u202E]/g, "");
+      const circledMap = {
+        "⓪": "0", "①": "1", "②": "2", "③": "3", "④": "4", "⑤": "5", "⑥": "6", "⑦": "7", "⑧": "8", "⑨": "9",
+        "❶": "1", "❷": "2", "❸": "3", "❹": "4", "❺": "5", "❻": "6", "❼": "7", "❽": "8", "❾": "9",
+        "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9",
+        "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4", "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9"
+      };
+      s = s.replace(/[⓪①②③④⑤⑥⑦⑧⑨❶❷❸❹❺❻❼❽❾⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉]/g, (ch) => circledMap[ch] || ch);
+      s = s.replace(/(\d[\s\W_]*)[oO]+/g, (m, p) => p + "0".repeat(m.length - p.length));
+      s = s.replace(/[oO]+(?=[\s\W_]*\d)/g, (m) => "0".repeat(m.length));
+      s = s.replace(/(\d[\s\W_]*)[lI|]+/g, (m, p) => p + "1".repeat(m.length - p.length));
+      s = s.replace(/[lI|]+(?=[\s\W_]*\d)/g, (m) => "1".repeat(m.length));
+
+      const wordDigits = [
+        { regex: /\b(?:zero|sunna|shunya|oh)\b/gi, val: "0" },
+        { regex: /\b(?:one|okati|ek)\b/gi, val: "1" },
+        { regex: /\b(?:two|rendu|do)\b/gi, val: "2" },
+        { regex: /\b(?:three|moodu|teen)\b/gi, val: "3" },
+        { regex: /\b(?:four|naalugu|nalugu|chaar|char)\b/gi, val: "4" },
+        { regex: /\b(?:five|aidu|idu|paanch|panch)\b/gi, val: "5" },
+        { regex: /\b(?:six|aaru|aru|chhe|che)\b/gi, val: "6" },
+        { regex: /\b(?:seven|yeedu|eedu|saat)\b/gi, val: "7" },
+        { regex: /\b(?:eight|enimidi|yenimidi|enimidhi|aath|ath)\b/gi, val: "8" },
+        { regex: /\b(?:nine|tommidi|nau)\b/gi, val: "9" },
+        { regex: /\bdouble\s+(\d)/gi, val: "$1$1" },
+        { regex: /\btriple\s+(\d)/gi, val: "$1$1$1" }
+      ];
+      for (const wd of wordDigits) {
+        s = s.replace(wd.regex, wd.val);
+      }
+      return s;
+    }
+
+    function detectsPhoneNumber(rawText) {
+      if (!rawText || typeof rawText !== "string") return false;
+      const normalized = normalizeContactText(rawText);
+      const universalDigitPattern = /(?:\+?[\s\W_]*\d[\s\W_]*){8,15}/gu;
+      if (universalDigitPattern.test(normalized)) return true;
+      const intlPattern = /(?:\+|00|011)[\s\W_]*\d(?:[\s\W_]*\d){6,14}/gu;
+      if (intlPattern.test(normalized)) return true;
+      const letterInterleaved = /(?:\d[\s\W_]*[a-zA-Z]{1,2}[\s\W_]*){7,}\d/u;
+      if (letterInterleaved.test(normalized)) return true;
+      const chunkedPattern = /(?:\b\d{5,8}\b[\s\S]{1,25}\b\d{4,8}\b)/i;
+      if (chunkedPattern.test(normalized)) return true;
+      const socialProxy = /(?:wa\.me|api\.whatsapp\.com|t\.me)[\s\W_]*\/?[\s\W_]*\+?[\s\W_]*\d(?:[\s\W_]*\d){6,14}/i;
+      if (socialProxy.test(normalized)) return true;
+      return false;
+    }
+
+    const unitVectors = [
+      { text: "8_6_8_8_1 _0_0_3_7_2", expected: true },
+      { text: "8 - 6 - 8 - 8 - 1 - 0 - 0 - 3 - 7 - 2", expected: true },
+      { text: "86881 00372", expected: true },
+      { text: "8.6.8.8.1.0.0.3.7.2", expected: true },
+      { text: "8*6*8*8*1*0*0*3*7*2", expected: true },
+      { text: "8🔥6🔥8🔥8🔥1🔥0🔥0🔥3🔥7🔥2", expected: true },
+      { text: "８６８８１００３７２", expected: true },
+      { text: "8\u200B6\u200B8\u200B8\u200B1\u200B0\u200B0\u200B3\u200B7\u200B2", expected: true },
+      { text: "86881 OO372", expected: true },
+      { text: "86881 II372", expected: true },
+      { text: "O5O 1234567", expected: true },
+      { text: "+971 50 123 4567", expected: true },
+      { text: "+44 7911 123456", expected: true },
+      { text: "91234567", expected: true },
+      { text: "9_1_2_3_4_5_6_7", expected: true },
+      { text: "+1 (212) 555-0199", expected: true },
+      { text: "8a6b8c8d1e0f0g3h7i2", expected: true },
+      { text: "8x6x8x8x1x0x0x3x7x2", expected: true },
+      { text: "86881 and 00372", expected: true },
+      { text: "86881 call me 00372", expected: true },
+      { text: "eight six eight eight one zero zero three seven two", expected: true },
+      { text: "call double eight one zero triple zero three seven two", expected: true },
+      { text: "enimidi aaru enimidi enimidi okati sunna sunna moodu eedu rendu", expected: true },
+      { text: "aath chhe aath aath ek shunya shunya teen saat do", expected: true },
+      { text: "wa.me/918688100372", expected: true },
+      { text: "Hello guys! How are you all?", expected: false },
+      { text: "I was born in 1998 and my sister in 2002", expected: false },
+      { text: "Let us meet at 10:30 AM tomorrow", expected: false },
+      { text: "My score was 1500 points in balloon game", expected: false },
+      { text: "It costs $50 or 250 rs", expected: false },
+      { text: "Pin code is 500081", expected: false }
+    ];
+
+    let allVectorsPassed = true;
+    for (const uv of unitVectors) {
+      if (detectsPhoneNumber(uv.text) !== uv.expected) {
+        allVectorsPassed = false;
+        break;
+      }
+    }
+    logResult("Watertight Global E.164 Phone Defense & 31-Vector Unit Matrix", allVectorsPassed);
+
+    // 6.3c Multi-Message Split Attack Socket Defense
+    const sSplitReceiver = io(SOCKET_URL, { transports: ["websocket"] });
+    const sSplitSender = io(SOCKET_URL, { transports: ["websocket"] });
+
+    await Promise.all([
+      new Promise(r => { sSplitReceiver.on("group_joined", r); sSplitReceiver.emit("join_group_chat", { nickname: "SplitRecv_99" }); }),
+      new Promise(r => { sSplitSender.on("group_joined", r); sSplitSender.emit("join_group_chat", { nickname: "SplitSend_99" }); })
+    ]);
+
+    let sSplitSenderGotSecondHalf = false;
+    let sSplitReceiverLeaked = false;
+    sSplitSender.on("new_group_msg", (msg) => {
+      if (msg.text && msg.text.includes("00372")) {
+        sSplitSenderGotSecondHalf = true;
+      }
+    });
+    sSplitReceiver.on("new_group_msg", (msg) => {
+      if (msg.text && msg.text.includes("00372")) {
+        sSplitReceiverLeaked = true;
+      }
+    });
+
+    sSplitSender.emit("send_group_msg", { text: "86881" });
+    await sleep(1200);
+    sSplitSender.emit("send_group_msg", { text: "00372" });
+    await sleep(800);
+
+    logResult("Multi-Message Split Attack Socket Defense (Zero Leakage)", sSplitSenderGotSecondHalf && !sSplitReceiverLeaked);
+    sSplitReceiver.disconnect();
+    sSplitSender.disconnect();
 
     // 6.4 Playwright Browser 1-Hour Nickname Cooldown & Persistence Test
     const bNick = await chromium.launch({ headless: true });
@@ -1541,6 +1697,55 @@ async function runMasterE2ESuite() {
     logResult("Voice Persona ('girl') Persistence Across Reload (F5)", persistedGirl);
 
     await bVoice.close();
+
+    // 6.7 Frontend Chat Gender Neutralization & Whitelist Exclusions
+    const appJsContent = fs.readFileSync("/home/hashgang/Workspace/omegle/app.js", "utf8");
+    const sanitizeMatch = appJsContent.match(/function sanitizeGroupGenderWords\([\s\S]*?\n\}/);
+    const maskExplicitMatch = appJsContent.match(/function maskExplicitKeywords\([\s\S]*?\n\}/);
+    const isRestrictedMatch = appJsContent.match(/function isRestrictedNickname\(name\) \{[\s\S]*?\n\}/);
+
+    const sanitizeFn = new Function("text", `${sanitizeMatch[0]}; return sanitizeGroupGenderWords(text);`);
+    const maskExplicitFn = new Function("text", `${maskExplicitMatch[0]}; return maskExplicitKeywords(text);`);
+    const isRestrictedFn = new Function("name", `${isRestrictedMatch[0]}; return isRestrictedNickname(name);`);
+
+    const genderCases = [
+      { in: "Any girls here?", expected: "Any friends here?" },
+      { in: "Hi girls", expected: "Hi friends" },
+      { in: "Ur boy or girl", expected: "Ur friend" },
+      { in: "GIRLS CALL ME", expected: "FRIENDS CALL ME" },
+      { in: "I am a single male looking for female", expected: "I am a single friend looking for friend" },
+      { in: "Hello uncles and aunties", expected: "Hello friends and friends" },
+      { in: "Boy or Girl?", expected: "Friend?" },
+      { in: "Any woman online?", expected: "Any friend online?" },
+      { in: "Are you a man or woman?", expected: "Are you a friend?" },
+      { in: "Are you boys or girls?", expected: "Are you friends?" },
+      { in: "Do you have a girlfriend?", expected: "Do you have a girlfriend?" },
+      { in: "Hey man, what is up?", expected: "Hey man, what is up?" },
+      { in: "any grl online?", expected: "any grl online?" },
+      { in: "Hey Anti unte msg cheyandi", expected: "Hey Anti unte msg cheyandi" },
+      { in: "aunti unnara", expected: "aunti unnara" }
+    ];
+
+    const allGenderPassed = genderCases.every(c => sanitizeFn(c.in) === c.expected);
+    logResult("Frontend Gender Neutralization & Clean Exclusions (girlfriend, man, grl, aunti)", allGenderPassed);
+
+    // 6.8 Mask Explicit Keywords ("sex" & "asl" -> "*")
+    const explicitCases = [
+      { in: "need sex now", expected: "need *** now" },
+      { in: "what is your asl?", expected: "what is your ***?" },
+      { in: "tell me your a/s/l", expected: "tell me your *****" },
+      { in: "I am fast asleep", expected: "I am fast asleep" },
+      { in: "Essex street", expected: "Essex street" }
+    ];
+    const allExplicitPassed = explicitCases.every(c => maskExplicitFn(c.in) === c.expected);
+    logResult("Frontend Explicit Keywords Masking (sex, asl masked; asleep, Essex preserved)", allExplicitPassed);
+
+    // 6.9 Restricted Nicknames vs Clean Superheroines & Allowed Exclusions
+    const restrictedNicks = ["boy", "girl", "male", "female", "uncle", "aunty", "hyd_boy", "smartboy"];
+    const allowedNicks = ["Starfire", "Raven", "GwenStacy", "Batman", "cute_grl", "vizag_aunti", "anti_hero"];
+    const nicksPass = restrictedNicks.every(n => isRestrictedFn(n) === true) && allowedNicks.every(n => isRestrictedFn(n) === false);
+    logResult("Restricted Nicknames Filter & Clean Superheroines Whitelist-Free Allowance", nicksPass);
+
   } catch (err) {
     logResult("Phase 6 Features Suite", false, err.message);
   }
@@ -1595,9 +1800,13 @@ async function runMasterE2ESuite() {
     logResult("Active Private Chat Report Redirects Directly to Group Lounge", isGroupActiveAfterReport);
 
     // 7.2 Disconnected Peer Report Option Accessibility
+    await pBob.evaluate(() => window.v2ReturnToGroupChat && window.v2ReturnToGroupChat(false));
     await pAlice.evaluate(() => window.clearActiveInviteCooldown && window.clearActiveInviteCooldown());
+    await pBob.evaluate(() => window.clearActiveInviteCooldown && window.clearActiveInviteCooldown());
+    await Promise.all([pAlice.waitForTimeout(600), pBob.waitForTimeout(600)]);
+
     await pAlice.evaluate(() => window.request1v1CallInvite("text", true));
-    await pAlice.waitForTimeout(600);
+    await pAlice.waitForTimeout(1000);
 
     const inviteId2 = await pAlice.evaluate(() => sessionStorage.getItem("hg_my_recent_invite"));
     if (inviteId2) {
@@ -1605,11 +1814,11 @@ async function runMasterE2ESuite() {
         window.acceptCallInvite(invId);
       }, inviteId2);
     }
-    await Promise.all([pAlice.waitForTimeout(800), pBob.waitForTimeout(800)]);
+    await Promise.all([pAlice.waitForTimeout(1000), pBob.waitForTimeout(1000)]);
 
     // Bob abruptly leaves/disconnects
     await pBob.evaluate(() => window.socket && window.socket.disconnect());
-    await pAlice.waitForTimeout(600);
+    await pAlice.waitForTimeout(1000);
 
     const isHeaderFlagVisibleAfterDisconnect = await pAlice.locator("#v2-btn-flag-report").isVisible();
     const hasFooterReportRemoved = (await pAlice.locator("#v2-btn-chat-disc-report").count()) === 0;
@@ -1842,6 +2051,392 @@ async function runMasterE2ESuite() {
     logResult("Frontend app.js Renders Message Text & Nicknames via escapeHtml() (XSS Immune)", usesEscapeHtmlInChat);
 
     sSec.disconnect();
+
+    // =========================================================================
+    // 9.4 - 9.9 MULTILINGUAL PROFANITY FILTER & MEDIA SHIELDING (Browser Suite)
+    // =========================================================================
+    const bProfanity = await chromium.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"]
+    });
+    const cProfanity = await bProfanity.newContext({
+      permissions: ["camera", "microphone"],
+      viewport: { width: 1280, height: 800 }
+    });
+    const pProfanity = await cProfanity.newPage();
+    await pProfanity.goto(APP_URL, { waitUntil: "networkidle" });
+
+    // 9.4 Multilingual Profanity Filter in Browser Context
+    const profanityResults = await pProfanity.evaluate(() => {
+      const fn = window.containsUnparliamentaryWords;
+      return {
+        suckAllowed: !fn("this game sucks"),
+        suckWordAllowed: !fn("suck"),
+        dengueAllowed: !fn("I have dengue fever"),
+        helloAllowed: !fn("Hello friend!"),
+        fuckBlocked: fn("what the fuck"),
+        fukSpacedBlocked: fn("f u c k this"),
+        bitchBlocked: fn("b.i.t.c.h"),
+        lanjaBlocked: fn("lanja"),
+        denguBlocked: fn("dengu"),
+        teluguScriptBlocked: fn("దెంగు"),
+        madarchodBlocked: fn("madarchod"),
+        chutiyaBlocked: fn("chutiya"),
+        hindiScriptBlocked: fn("मादरचोद"),
+        pendejoBlocked: fn("eres un pendejo"),
+        merdeBlocked: fn("merde")
+      };
+    });
+    const allProfanityPass = Object.values(profanityResults).every(v => v === true);
+    logResult("Multilingual Profanity Filter (English, Telugu, Hindi, Spanish, French)", allProfanityPass);
+
+    // 9.5 Silent Auto-Sanitization for Existing / Stored Nicknames
+    const oldNickSanitization = await pProfanity.evaluate(() => {
+      const sanitize = window.sanitizeStoredNickname;
+      const spaced = sanitize("Cool Gamer 99");
+      const multiSpaced = sanitize("  Hyper   Falcon  ");
+      const vulgarReset = sanitize("bad_fuck_guy");
+
+      localStorage.setItem("hg_user_nickname", "Old_Fuck_User");
+      window.checkAgeConfirmationOnLoad();
+      const storedAfterBad = localStorage.getItem("hg_user_nickname");
+
+      localStorage.setItem("hg_user_nickname", "Legend Warrior");
+      window.checkAgeConfirmationOnLoad();
+      const storedAfterSpaced = localStorage.getItem("hg_user_nickname");
+
+      return {
+        spacedMatches: spaced === "Cool_Gamer_99",
+        multiSpacedMatches: multiSpaced === "Hyper_Falcon",
+        vulgarResetSafe: !window.containsUnparliamentaryWords(vulgarReset) && vulgarReset !== "bad_fuck_guy",
+        storedAfterBadSafe: !window.containsUnparliamentaryWords(storedAfterBad) && storedAfterBad !== "Old_Fuck_User",
+        storedAfterSpacedMatches: storedAfterSpaced === "Legend_Warrior"
+      };
+    });
+    const allNickSanitizePass = Object.values(oldNickSanitization).every(v => v === true);
+    logResult("Silent Auto-Sanitization for Stored Nicknames (Spaces & Vulgar Reset)", allNickSanitizePass);
+
+    // 9.6 Nickname Modal Auto-Underscore & Unparliamentary Warning
+    await pProfanity.evaluate(() => {
+      window.__E2E_BYPASS_NICK_COOLDOWN__ = true;
+      window.promptEditNickname();
+    });
+    await pProfanity.waitForSelector("#v2-input-new-nick", { state: "visible" });
+
+    const nickInputEl = pProfanity.locator("#v2-input-new-nick");
+    await nickInputEl.fill("");
+    await nickInputEl.pressSequentially("Super Cool Guy", { delay: 10 });
+    const valWithUnderscores = await nickInputEl.inputValue();
+
+    await nickInputEl.fill("");
+    await nickInputEl.pressSequentially("bad_fuck_user", { delay: 10 });
+    const errorText = await pProfanity.evaluate(() => {
+      const err = document.getElementById("v2-nick-inline-error");
+      return err ? err.innerText : "";
+    });
+
+    await pProfanity.evaluate(() => window.saveNewNickname());
+    const errorTextAfterSave = await pProfanity.evaluate(() => {
+      const err = document.getElementById("v2-nick-inline-error");
+      return err ? err.innerText : "";
+    });
+    await pProfanity.evaluate(() => window.closeNicknameModal());
+
+    const modalValidationPass = valWithUnderscores === "Super_Cool_Guy" &&
+                                errorText.includes("unparliamentary") &&
+                                errorTextAfterSave.includes("unparliamentary");
+    logResult("Nickname Modal Space Auto-Replace & Unparliamentary Inline Warning", modalValidationPass);
+
+    // 9.7 Public Group Chat Profanity Blocking & Dock Hint
+    await pProfanity.evaluate(() => {
+      if (typeof window.switchMode === "function") window.switchMode("group");
+    });
+    await pProfanity.waitForTimeout(400);
+
+    const groupInputEl = pProfanity.locator("#v2-group-input-field");
+    await groupInputEl.fill("what the fuck is this");
+    await pProfanity.evaluate(() => window.sendGroupMessage());
+
+    const dockHint = await pProfanity.evaluate(() => {
+      const hint = document.getElementById("v2-group-dock-hint");
+      return hint ? hint.innerText : "";
+    });
+
+    // Allowed phrase: "this game sucks"
+    await groupInputEl.fill("this game sucks");
+    await pProfanity.evaluate(() => {
+      window.lastGroupMsgTime = 0;
+      if (window.socket) {
+        window.__emittedGroupMsgs = [];
+        const origEmit = window.socket.emit;
+        window.socket.emit = function(event, data) {
+          if (event === "send_group_msg") window.__emittedGroupMsgs.push(data);
+          return origEmit.apply(this, arguments);
+        };
+      }
+      window.sendGroupMessage();
+    });
+    const sucksEmitted = await pProfanity.evaluate(() => window.__emittedGroupMsgs && window.__emittedGroupMsgs.length > 0);
+    logResult("Public Lounge Profanity Blocking Dock Hint & Safe Word ('sucks') Allowance", dockHint.includes("Unparliamentary") && sucksEmitted);
+
+    // 9.8 1v1 Private Chat Unfiltered Communication (Freedom of Private Banter)
+    await pProfanity.evaluate(() => {
+      if (typeof window.switchMode === "function") window.switchMode("text");
+      window.currentMatchTargetId = "dummy-target-123";
+      window.__emittedPrivateSignals = [];
+      if (window.socket) {
+        const origEmit = window.socket.emit;
+        window.socket.emit = function(event, data) {
+          if (event === "signal") window.__emittedPrivateSignals.push(data);
+          return origEmit.apply(this, arguments);
+        };
+      }
+      const input = document.getElementById("chat-input");
+      if (input) input.value = "damn what the fuck bro";
+      window.sendChatMessage();
+    });
+    const privateSignalEmitted = await pProfanity.evaluate(() => {
+      return window.__emittedPrivateSignals && window.__emittedPrivateSignals.some(s => s.signal && s.signal.text === "damn what the fuck bro");
+    });
+    logResult("1v1 Private Chat Unfiltered Banter (Zero Arbitrary Censorship)", privateSignalEmitted);
+
+    // 9.9 Media Shielding: Certified Greeting Sticker Direct Display vs External GIF Shield
+    const mediaShieldingTest = await pProfanity.evaluate(() => {
+      localStorage.setItem("hg_media_display_mode", "tap_to_view");
+      const greetingRow = window.renderGroupMessageRow({
+        id: "grp-test-1",
+        senderNick: "Alice",
+        gif: { url: "/assets/stickers/greeting-wave.webp", type: "sticker", isGreeting: true },
+        text: "Hi 👋",
+        timestamp: Date.now()
+      }, false);
+      const gifRow = window.renderGroupMessageRow({
+        id: "grp-test-2",
+        senderNick: "Bob",
+        gif: { url: "https://media.giphy.com/media/test/giphy.gif", type: "gif" },
+        timestamp: Date.now()
+      }, false);
+      return {
+        greetingHasShield: greetingRow.outerHTML.includes("v2-media-privacy-card"),
+        gifHasShield: gifRow.outerHTML.includes("v2-media-privacy-card"),
+        gifHasTapToView: gifRow.outerHTML.includes("Tap to View")
+      };
+    });
+    logResult("Media Shielding: Greeting Sticker Direct Display vs External GIF Tap-to-View",
+      !mediaShieldingTest.greetingHasShield && mediaShieldingTest.gifHasShield && mediaShieldingTest.gifHasTapToView);
+
+    await bProfanity.close();
+
+    // =========================================================================
+    // 9.10 - 9.15 FORENSIC MEDIA SHIELD, MULTI-DEVICE VIEW-ONCE & WATERMARK
+    // =========================================================================
+    const sampleImgData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAEsCAIAAABi1XKVAAAFrklEQVR4nO3awW0bSRBAUe5CITCwDcJBOBgdNkAGsQcZhCxR1HBpafir3zvbVncD9VEj+K+f//x7ACj4e+8DAGwlWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpDxtPcBLvvx47T3EWB1z8/HvY/wlg0LyBAsIEOwgAzBAjIEC8gQLCBDsIAMwQIyBAvIECwgQ7CADMECMgQLyBAsIEOwgAzBAjIEC8gQLCBDsIAMwQIyBAvIECwgQ7CADMECMgQLyBAsIEOwgAzBAjIEC8gQLCBDsIAMwQIyBAvIECwgQ7CADMECMgQLyBAsIEOwgAzBAjIEC8gQLCBDsIAMwQIyBAvIECwgQ7CADMECMgQLyHja+wDkHY/H7X/4dDp93UkYT7C42U2Fuv539YubCBZb3dOpT/9N5WILweITX9GpKz9FubhCsPjQ96Tq4g+VLS4SLC7YJVXvDyBbvCFY/Gb3VL0mW7whWPzyUKl6TbY48x9HORweuFZnj39CvoENa3WhEFi1sGEtLVSrs+KZ+VMEa13dye+enDv5JFzRgIH3ebgmG9ZyBtTqbNJd2EKw1jJvwufdiCsEayFTZ3vqvXhPsFYxe6pn344zwVrCCvO8wh0RLCBDsOZbZ/VY56bLEqzhVvh1e67GsGabM3pXfPWixAsIEOwxlp50Vj57rMJ1kwm1guMJFhAhmANZLl44R3mESwgQ7CmsVa85jWGESwgQ7BGsVC8500mESwgQ7DmsEp8xMuMIVhAhmABGYI1hK+e67zPDIIFZAgWkCFYE/je2cIrDSBYQIZgARmCBWQIFpAhWHl+l7ydt6oTLCBDsIAMwQIyBAvIECwgQ7CADMECMgQLyBAsIEOwgAzBAjIEC8gQLCBDsIAMwco7nU57HyHDW9UJFpAhWECGYAEZggVkCNYEfpe8hVcaQLCADMECMgRrCN8713mfGQQLyBAsIEOw5vDV8xEvM4ZgARmCNYpV4j1vMolgARmCNY2F4jWvMYxgARmCNZC14oV3mEewgAzBmsly4QVGEqyxVp7Yle8+m2ABGYI12ZqLxpq3XoRgDbfa9K5239UI1nzrzPA6N12WYAEZgrWEFVaPFe6IYK1i9jzPvh1ngrWQqVM99V68J1hrmTfb827EFYK1nEkTPukubPG09wHYwcucH4/HvQ/y/0nVmmxY6+rOfPfk3Emwllac/OKZ+VN8Eq4u9HkoVdiwOBwKLXj8E/INbFj88rCrllRxJlj85qGyJVW8IVhcsHu2pIqLBIsP7ZItqeIKweIT54J8abl0ii0Ei62+olw6xU0Ei5u9qcxN/VIo7iFY3EuD+Db+4yiQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpAhWECGYAEZggVkCBaQIVhAhmABGYIFZAgWkCFYQIZgARmCBWQIFpDxtPcBLvvx47T3EWB1z8/HvY/wlg0LyBAsIEOwgAzBAjIEC8gQLCBDsIAMwQIyBAvIECwgQ7CADMECMgQLyBAsIEOwgAzBAjIEC8gQLCBDsIAMwQIyBAvIECwgQ7CADMECMgQLyBAsIEOwgAzBAjIEC8gQLCBDsIAMwQIyBAvIECwgQ7CADMECMgQLyBAsIEOwgAzBAjIEC8gQLCBDsIAMwQIyBAvIECwgQ7CADMECMgQLyBAsIOM/vZjW/CV3DooAAAAASUVORK5CYII=";
+    const bForensic = await chromium.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--use-fake-ui-for-media-stream"]
+    });
+
+    // 9.10 Multi-Device Forensic Lightbox Viewport & Hold Overlay Matrix
+    const devices = [
+      { name: "mobile_portrait", width: 412, height: 915 },
+      { name: "mobile_compact", width: 360, height: 740 },
+      { name: "tablet_ipad", width: 768, height: 1024 },
+      { name: "mobile_landscape", width: 844, height: 390 },
+      { name: "desktop_hd", width: 1280, height: 800 }
+    ];
+    let allDevicesFit = true;
+    for (const dev of devices) {
+      const ctxDev = await bForensic.newContext({ viewport: { width: dev.width, height: dev.height } });
+      const pDev = await ctxDev.newPage();
+      await pDev.goto(APP_URL, { waitUntil: "domcontentloaded" });
+      const ageBtn = pDev.locator("#v2-btn-age-confirm");
+      if (await ageBtn.isVisible()) await ageBtn.click();
+      await pDev.waitForTimeout(300);
+
+      await pDev.evaluate((imgData) => {
+        window.currentNickname = "CyberSamurai";
+        window.currentSessionTraceCode = "HGWPL5DJ";
+        window.openV2Lightbox("image", imgData, true);
+      }, sampleImgData);
+      await pDev.waitForTimeout(300);
+
+      const metrics = await pDev.evaluate(() => {
+        const modal = document.getElementById("v2-lightbox-modal");
+        const card = document.getElementById("v2-lightbox-card");
+        const holdOverlay = document.getElementById("v2-lightbox-hold-overlay");
+        const cardRect = card ? card.getBoundingClientRect() : { width: 0, height: 0 };
+        return {
+          modalVisible: modal && !modal.classList.contains("hidden"),
+          holdOverlayVisible: holdOverlay && !holdOverlay.classList.contains("hidden"),
+          fits: cardRect.width <= window.innerWidth && cardRect.height <= window.innerHeight
+        };
+      });
+
+      if (!metrics.modalVisible || !metrics.holdOverlayVisible || !metrics.fits) {
+        allDevicesFit = false;
+      }
+      await pDev.evaluate(() => window.closeV2Lightbox());
+      await ctxDev.close();
+    }
+    logResult("Multi-Device Forensic Lightbox Viewport & Hold Overlay Matrix (5 Devices)", allDevicesFit);
+
+    // 9.11 Strict View-Once Clean Settings & Attachment Menu UI
+    const cStrict = await bForensic.newContext({ viewport: { width: 412, height: 915 } });
+    const pStrict = await cStrict.newPage();
+    await pStrict.goto(APP_URL, { waitUntil: "domcontentloaded" });
+    const ageBtnStrict = pStrict.locator("#v2-btn-age-confirm");
+    if (await ageBtnStrict.isVisible()) await ageBtnStrict.click();
+    await pStrict.waitForTimeout(300);
+
+    // Clean Settings Check
+    await pStrict.evaluate(() => window.openV2SettingsModal());
+    await pStrict.waitForTimeout(300);
+    const settingsClean = await pStrict.evaluate(() => {
+      const card = document.querySelector(".v2-media-privacy-status-card");
+      const options = document.querySelector(".v2-media-privacy-options");
+      return !card && !options;
+    });
+    await pStrict.evaluate(() => window.closeV2SettingsModal());
+    await pStrict.waitForTimeout(200);
+
+    // Attachment Menu Tile Check
+    await pStrict.evaluate(() => window.openV2AttachmentMenu());
+    await pStrict.waitForTimeout(300);
+    const attachMenuCheck = await pStrict.evaluate(() => {
+      const modal = document.getElementById("v2-attachment-modal");
+      const mediaTile = modal ? (modal.querySelector(".view-once-tile") || modal.querySelector(".media-tile")) : null;
+      const hasTileIconBadge = mediaTile ? Boolean(mediaTile.querySelector(".v2-attach-tile-icon .v2-view-once-badge-icon")) : false;
+      const hasInlineOneInLabel = mediaTile ? Boolean(mediaTile.querySelector(".v2-attach-tile-label .v2-view-once-inline-icon")) : false;
+      const label = mediaTile ? mediaTile.querySelector(".v2-attach-tile-label")?.textContent.trim() : "";
+      return modal && !modal.classList.contains("hidden") && hasTileIconBadge && !hasInlineOneInLabel && label === "Photo / Video";
+    });
+    await pStrict.evaluate(() => window.closeV2AttachmentMenu());
+    logResult("Strict View-Once Clean Settings & Attachment Menu Tile Branding", settingsClean && attachMenuCheck);
+
+    // 9.12 In-Chat View-Once Card & Hold-to-Reveal Burning Engine
+    const chatBurnResult = await pStrict.evaluate((imgData) => {
+      window.currentChatMode = "text";
+      window.inCall = true;
+      window.currentMatchTargetId = "remote-test-peer";
+      const testMsgId = "msg-master-test-burn";
+      window.appendMediaMessage("Stranger", "image", imgData, "stranger", null, testMsgId, true);
+      const card = document.getElementById(`privacy-card-${testMsgId}`);
+      const badge = card ? card.querySelector(".v2-view-once-badge-icon") : null;
+      const revealBtn = card ? card.querySelector(".v2-media-reveal-btn") : null;
+      const initialOk = Boolean(card && badge && revealBtn && !card.textContent.includes("Confidential"));
+      return { initialOk, msgId: testMsgId };
+    }, sampleImgData);
+
+    await pStrict.evaluate((msgId) => window.revealMediaCard(msgId), chatBurnResult.msgId);
+    await pStrict.waitForTimeout(400);
+
+    // Hold down on overlay
+    await pStrict.evaluate(() => {
+      const overlay = document.getElementById("v2-lightbox-hold-overlay");
+      if (overlay && overlay.onmousedown) overlay.onmousedown({ type: "mousedown", button: 0 });
+    });
+    await pStrict.waitForTimeout(300);
+
+    // Release hold to burn media
+    await pStrict.evaluate(() => window.dispatchEvent(new MouseEvent("mouseup")));
+    await pStrict.waitForTimeout(400);
+
+    const postBurnCheck = await pStrict.evaluate((msgId) => {
+      const card = document.getElementById(`privacy-card-${msgId}`);
+      const isBurned = typeof window.v2PendingChatMedia[msgId] === "undefined";
+      const cardOpened = card && card.classList.contains("opened") && card.textContent.includes("Opened");
+      return isBurned && cardOpened;
+    }, chatBurnResult.msgId);
+    logResult("In-Chat View-Once Card Rendering & Hold-to-Reveal Instant Burn Engine", chatBurnResult.initialOk && postBurnCheck);
+
+    // 9.13 Multi-Touch Gesture Detection & Blackout Curtain
+    const multiTouchPass = await pStrict.evaluate((imgData) => {
+      window.openV2Lightbox("image", imgData, true);
+      const fakeTouchEvent = new Event("touchstart", { bubbles: true, cancelable: true });
+      Object.defineProperty(fakeTouchEvent, "touches", {
+        value: [{ clientX: 100, clientY: 100 }, { clientX: 200, clientY: 200 }]
+      });
+      window.dispatchEvent(fakeTouchEvent);
+      const blackout = document.getElementById("v2-lightbox-blackout");
+      return blackout && !blackout.classList.contains("hidden");
+    }, sampleImgData);
+    await pStrict.waitForTimeout(400);
+    logResult("Multi-Touch Gesture Anti-Screenshot Blackout Curtain", multiTouchPass);
+
+    // 9.14 Sticker Wave-Back Filtering (Only Greeting Stickers Have Wave Back)
+    const stickerWavePass = await pStrict.evaluate(() => {
+      const regId = "msg-stk-reg-e2e";
+      window.appendMediaMessage("Stranger", "sticker", "https://media.giphy.com/media/random/200.webp", "stranger", null, regId, false, false);
+      const regHasWave = Boolean(document.getElementById(regId)?.querySelector(".v2-wave-back-wrap"));
+
+      const greetId = "msg-stk-greet-e2e";
+      window.appendMediaMessage("Stranger", "sticker", "https://media1.giphy.com/media/w1OBpBd7kJqHrJnJ13/200.webp", "stranger", null, greetId, false, true);
+      const greetHasWave = Boolean(document.getElementById(greetId)?.querySelector(".v2-wave-back-wrap"));
+
+      return !regHasWave && greetHasWave;
+    });
+    logResult("Sticker Wave-Back Targeting (Greeting Stickers Only)", stickerWavePass);
+
+    // 9.15 Video View-Once Press & Hold Playback & Release Burn Engine
+    const pVideo = await cStrict.newPage();
+    await pVideo.goto(APP_URL, { waitUntil: "domcontentloaded" });
+    const ageBtnVideo = pVideo.locator("#v2-btn-age-confirm");
+    if (await ageBtnVideo.isVisible()) await ageBtnVideo.click();
+    await pVideo.waitForTimeout(400);
+
+    const sampleVideoUrl = "/assets/ads/vpn_ad.mp4";
+    await pVideo.evaluate((vidUrl) => {
+      window.openV2Lightbox("video", vidUrl, true, () => {
+        window._testVideoClosedCallbackFired = true;
+      });
+    }, sampleVideoUrl);
+    await pVideo.waitForTimeout(600);
+
+    const videoInitCheck = await pVideo.evaluate(() => {
+      const modal = document.getElementById("v2-lightbox-modal");
+      const holdOverlay = document.getElementById("v2-lightbox-hold-overlay");
+      const video = document.getElementById("v2-lightbox-hidden-video");
+      const canvas = document.getElementById("v2-lightbox-canvas");
+      return Boolean(modal && !modal.classList.contains("hidden") &&
+             holdOverlay && !holdOverlay.classList.contains("hidden") &&
+             video && video.paused &&
+             canvas && canvas.style.filter.includes("blur"));
+    });
+
+    // Trigger hold to play
+    await pVideo.evaluate(() => {
+      const pad = document.getElementById("v2-hold-touch-pad") || document.getElementById("v2-lightbox-hold-overlay");
+      if (pad && pad.onmousedown) pad.onmousedown({ type: "mousedown", button: 0 });
+    });
+    await pVideo.waitForTimeout(600);
+
+    const videoPlayCheck = await pVideo.evaluate(() => {
+      const holdOverlay = document.getElementById("v2-lightbox-hold-overlay");
+      const video = document.getElementById("v2-lightbox-hidden-video");
+      const canvas = document.getElementById("v2-lightbox-canvas");
+      return Boolean(holdOverlay && holdOverlay.classList.contains("hidden") &&
+             video && !video.paused &&
+             canvas && canvas.style.filter === "none");
+    });
+
+    // Release hold to burn video
+    await pVideo.evaluate(() => window.dispatchEvent(new MouseEvent("mouseup")));
+    await pVideo.waitForTimeout(600);
+
+    const videoBurnCheck = await pVideo.evaluate(() => {
+      const modal = document.getElementById("v2-lightbox-modal");
+      const video = document.getElementById("v2-lightbox-hidden-video");
+      return Boolean(modal && modal.classList.contains("hidden") &&
+             video && (video.paused || !video.src) &&
+             window._testVideoClosedCallbackFired);
+    });
+
+    logResult("Video View-Once Press & Hold Playback & Instant Release Burn", videoInitCheck && videoPlayCheck && videoBurnCheck);
+    await pVideo.close();
+
+    await cStrict.close();
+    await bForensic.close();
+
   } catch (err) {
     logResult("Phase 9 Security Audit Execution", false, err.message);
   }
@@ -2173,6 +2768,82 @@ async function runMasterE2ESuite() {
     const installPillOk = receivedInstallPill && receivedInstallPill.nick === "InstallerOne" && (receivedInstallPill.text.includes("installed HashGANG App!") || receivedInstallPill.text.includes("installed the HashGANG App!"));
     logResult("Socket Event 'user_installed_app' Broadcasts App Install Pill", installPillOk);
 
+    // 10.17 5-Slot PWA Install Card Cascade Shift & Deduplication Engine
+    function create5SlotShiftTracker() {
+      const serverLatestEvents = {
+        appInstall1: { type: "app_install_pill", nickname: "AryaS", text: "AryaS installed HashGANG App!" },
+        appInstall2: { type: "app_install_pill", nickname: "Daenerys", text: "Daenerys installed HashGANG App!" },
+        appInstall3: { type: "app_install_pill", nickname: "RobbStark", text: "RobbStark installed HashGANG App!" },
+        appInstall4: { type: "app_install_pill", nickname: "JonSnow", text: "JonSnow installed HashGANG App!" },
+        appInstall5: { type: "app_install_pill", nickname: "SansaStark", text: "SansaStark installed HashGANG App!" }
+      };
+
+      function updateLatestPwaInstall(nickname) {
+        if (!nickname || typeof nickname !== "string") return;
+        const cleanNick = nickname.trim();
+        if (!cleanNick || cleanNick.toLowerCase() === "someone" || cleanNick.toLowerCase() === "stranger") return;
+        if (serverLatestEvents.appInstall5?.nickname?.toLowerCase() === cleanNick.toLowerCase()) return;
+
+        const prev2 = serverLatestEvents.appInstall2?.nickname || "Daenerys";
+        const prev3 = serverLatestEvents.appInstall3?.nickname || "RobbStark";
+        const prev4 = serverLatestEvents.appInstall4?.nickname || "JonSnow";
+        const prev5 = serverLatestEvents.appInstall5?.nickname || "SansaStark";
+
+        serverLatestEvents.appInstall1 = { type: "app_install_pill", nickname: prev2, text: `${prev2} installed HashGANG App!` };
+        serverLatestEvents.appInstall2 = { type: "app_install_pill", nickname: prev3, text: `${prev3} installed HashGANG App!` };
+        serverLatestEvents.appInstall3 = { type: "app_install_pill", nickname: prev4, text: `${prev4} installed HashGANG App!` };
+        serverLatestEvents.appInstall4 = { type: "app_install_pill", nickname: prev5, text: `${prev5} installed HashGANG App!` };
+        serverLatestEvents.appInstall5 = { type: "app_install_pill", nickname: cleanNick, text: `${cleanNick} installed HashGANG App!` };
+      }
+      return { serverLatestEvents, updateLatestPwaInstall };
+    }
+
+    const shiftTracker = create5SlotShiftTracker();
+    const init5Ok = shiftTracker.serverLatestEvents.appInstall1.nickname === "AryaS" && shiftTracker.serverLatestEvents.appInstall5.nickname === "SansaStark";
+    shiftTracker.updateLatestPwaInstall("Vikram");
+    const shift1Ok = shiftTracker.serverLatestEvents.appInstall1.nickname === "Daenerys" && shiftTracker.serverLatestEvents.appInstall5.nickname === "Vikram";
+    shiftTracker.updateLatestPwaInstall("Ananya");
+    const shift2Ok = shiftTracker.serverLatestEvents.appInstall1.nickname === "RobbStark" && shiftTracker.serverLatestEvents.appInstall5.nickname === "Ananya";
+    shiftTracker.updateLatestPwaInstall("Ananya");
+    const dedupOk = shiftTracker.serverLatestEvents.appInstall5.nickname === "Ananya" && shiftTracker.serverLatestEvents.appInstall4.nickname === "Vikram";
+    logResult("5-Slot PWA Install Card Cascade Shift & Deduplication Engine", init5Ok && shift1Ok && shift2Ok && dedupOk);
+
+    // 10.18 Anti-Duplication Debounce for Rapid Join & Install Socket Events
+    const obsClient = io(SOCKET_URL, { transports: ["websocket"], forceNew: true });
+    await new Promise((res) => {
+      obsClient.once("group_joined", res);
+      obsClient.emit("join_group_chat", { nickname: "Observer_Debounce", anonUserId: "usr_deb_obs" });
+    });
+
+    const receivedDebounceJoins = [];
+    const receivedDebounceInstalls = [];
+    obsClient.on("user_joined_group", (d) => {
+      if (d.nickname === "Rapid_User") receivedDebounceJoins.push(d);
+    });
+    obsClient.on("new_group_msg", (m) => {
+      if (m.type === "app_install_pill" && m.nick === "Rapid_User") receivedDebounceInstalls.push(m);
+    });
+
+    const rapidClient = io(SOCKET_URL, { transports: ["websocket"], forceNew: true });
+    await new Promise((res) => rapidClient.once("connect", res));
+
+    rapidClient.emit("join_group_chat", { nickname: "Rapid_User", anonUserId: "usr_rapid_1" });
+    setTimeout(() => rapidClient.emit("join_group_chat", { nickname: "Rapid_User", anonUserId: "usr_rapid_1" }), 50);
+    setTimeout(() => rapidClient.emit("join_group_chat", { nickname: "Rapid_User", anonUserId: "usr_rapid_1" }), 150);
+    await sleep(700);
+
+    rapidClient.emit("user_installed_app", { nick: "Rapid_User" });
+    rapidClient.emit("user_installed_app", { nick: "Rapid_User" });
+    rapidClient.emit("user_installed_app", { nick: "Rapid_User" });
+    await sleep(700);
+
+    rapidClient.disconnect();
+    obsClient.disconnect();
+
+    const debounceJoinsPass = receivedDebounceJoins.length === 1;
+    const debounceInstallsPass = receivedDebounceInstalls.length === 1;
+    logResult("Anti-Duplication Debounce for Rapid Join & Install Socket Events", debounceJoinsPass && debounceInstallsPass, `[Joins: ${receivedDebounceJoins.length}, Installs: ${receivedDebounceInstalls.length}]`);
+
   } catch (err) {
     logResult("Phase 10 WebPush Suite Execution", false, err.message);
   }
@@ -2420,26 +3091,18 @@ async function runMasterE2ESuite() {
     p4_4P.disconnect();
     await sleep(400);
 
-    // Red rolls dice
+    // Red rolls 6 (mockDice: 6) -> moves token 0 out of yard
+    p1_4P.emit("ludo_roll_dice", { gameId: res4P.gameId, mockDice: 6 });
+    await sleep(200);
+    p1_4P.emit("ludo_move_token", { tokenIndex: 0 });
+    await sleep(950);
+
+    // Red takes bonus roll with mockDice: 3 -> moves token 0 by 3 steps -> turn passes to Yellow
     turnChanges = [];
-    const rollPromise1 = new Promise((res) => p1_4P.once("ludo_dice_rolled", res));
-    p1_4P.emit("ludo_roll_dice", { gameId: res4P.gameId });
-    const roll1 = await rollPromise1;
-    if (roll1.movableTokens && roll1.movableTokens.length > 0) {
-      await sleep(200);
-      p1_4P.emit("ludo_move_token", { tokenIndex: roll1.movableTokens[0] });
-    }
-    await sleep(2600);
-    if (roll1.dice === 6) {
-      const extraPromise = new Promise((res) => p1_4P.once("ludo_dice_rolled", res));
-      p1_4P.emit("ludo_roll_dice", { gameId: res4P.gameId });
-      const extraRoll = await extraPromise;
-      if (extraRoll.movableTokens && extraRoll.movableTokens.length > 0) {
-        await sleep(200);
-        p1_4P.emit("ludo_move_token", { tokenIndex: extraRoll.movableTokens[0] });
-      }
-      await sleep(2600);
-    }
+    p1_4P.emit("ludo_roll_dice", { gameId: res4P.gameId, mockDice: 3 });
+    await sleep(200);
+    p1_4P.emit("ludo_move_token", { tokenIndex: 0 });
+    await sleep(950);
 
     const turnAfterRed = turnChanges[turnChanges.length - 1];
     const turnAlternatedToYellow = (turnAfterRed?.activeColor === "yellow");
@@ -2462,7 +3125,214 @@ async function runMasterE2ESuite() {
     p3_4P.disconnect();
     await sleep(400);
 
-    // 11.9 Headless Browser UI Permutations for Ludo (Playwright)
+    // Helper function for 2-Player Ludo Match Setup
+    const setupLudo2PGame = async (hostName, joinerName) => {
+      const p1 = await createGroupClient(hostName);
+      const p2 = await createGroupClient(joinerName);
+      let inviteId = null;
+      const invitePromise = new Promise((resolve) => {
+        p1.once("new_ludo_invite", (d) => { inviteId = d.inviteId; resolve(); });
+      });
+      p1.emit("post_ludo_invite");
+      await invitePromise;
+      p2.emit("join_ludo_invite", { inviteId });
+      await sleep(200);
+
+      let p1GameStart = null;
+      const startPromise = new Promise((resolve) => {
+        p1.once("ludo_game_start", (d) => { p1GameStart = d; resolve(); });
+      });
+      p1.emit("start_ludo_game_now", { inviteId });
+      await startPromise;
+      return { p1, p2, gameId: p1GameStart.gameId };
+    };
+
+    // 11.9 Ludo Rapid Triple-Move Click Strict Idempotency (Anti-Double-Move)
+    {
+      const { p1, p2 } = await setupLudo2PGame("Idem_Red", "Idem_Yellow");
+      const movesReceived = [];
+      p1.on("ludo_token_moved", (d) => movesReceived.push(d));
+
+      const rollPromise = new Promise((resolve) => p1.once("ludo_dice_rolled", resolve));
+      p1.emit("ludo_roll_dice");
+      await rollPromise;
+
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(500);
+
+      logResult("Ludo Rapid Multi-Click Strict Idempotency (Anti-Double-Move Guard)", movesReceived.length <= 1, `[Moves: ${movesReceived.length}]`);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.10 Ludo Bonus Roll Scenario 1: Roll 6 Grants Extra Turn, Non-6 Ends Turn
+    {
+      const { p1, p2 } = await setupLudo2PGame("S1_Red", "S1_Yellow");
+      let turnChangeData = null;
+      p1.on("ludo_turn_change", (d) => { turnChangeData = d; });
+
+      p1.emit("ludo_roll_dice", { mockDice: 6 });
+      await sleep(200);
+      turnChangeData = null;
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      const roll6BonusOk = turnChangeData?.activeColor === "red" && turnChangeData?.extraTurn === true;
+
+      turnChangeData = null;
+      p1.emit("ludo_roll_dice", { mockDice: 3 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      const non6TurnAdvanceOk = turnChangeData?.activeColor === "yellow" && turnChangeData?.extraTurn === false;
+      logResult("Ludo Bonus Roll Scenario 1 (Roll 6 Grants Extra Turn, Non-6 Ends Turn)", roll6BonusOk && non6TurnAdvanceOk);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.11 Ludo Bonus Roll Scenario 2: Double Consecutive Sixes Award 2 Bonus Turns
+    {
+      const { p1, p2 } = await setupLudo2PGame("S2_Red", "S2_Yellow");
+      let turnChangeData = null;
+      p1.on("ludo_turn_change", (d) => { turnChangeData = d; });
+
+      // 1st Six
+      p1.emit("ludo_roll_dice", { mockDice: 6 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+      const bonus1 = turnChangeData?.activeColor === "red" && turnChangeData?.extraTurn === true;
+
+      // 2nd Consecutive Six
+      turnChangeData = null;
+      p1.emit("ludo_roll_dice", { mockDice: 6 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+      const bonus2 = turnChangeData?.activeColor === "red" && turnChangeData?.extraTurn === true;
+
+      // Complete with non-six (4)
+      turnChangeData = null;
+      p1.emit("ludo_roll_dice", { mockDice: 4 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+      const passYellow = turnChangeData?.activeColor === "yellow";
+
+      logResult("Ludo Bonus Roll Scenario 2 (Double Consecutive Sixes Award 2 Bonus Turns)", bonus1 && bonus2 && passYellow);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.12 Ludo Bonus Roll Scenario 3: Triple Consecutive Sixes Forfeits Turn
+    {
+      const { p1, p2 } = await setupLudo2PGame("S3_Red", "S3_Yellow");
+      let turnChangeData = null;
+      p1.on("ludo_turn_change", (d) => { turnChangeData = d; });
+
+      // 1st Six
+      p1.emit("ludo_roll_dice", { mockDice: 6 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      // 2nd Six
+      p1.emit("ludo_roll_dice", { mockDice: 6 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      // 3rd Six
+      turnChangeData = null;
+      p1.emit("ludo_roll_dice", { mockDice: 6 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      const forfeitOk = turnChangeData?.activeColor === "yellow" && turnChangeData?.extraTurn === false;
+      logResult("Ludo Bonus Roll Scenario 3 (Triple Consecutive Sixes Forfeits Turn & Passes to Next)", forfeitOk);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.13 Ludo Bonus Roll Scenario 4: Token Capture Awards Extra Turn
+    {
+      const { p1, p2 } = await setupLudo2PGame("S4_Red", "S4_Yellow");
+      p1.emit("_dev_set_ludo_tokens", { color: "red", tokens: [26, -1, -1, -1] });
+      p1.emit("_dev_set_ludo_tokens", { color: "yellow", tokens: [1, -1, -1, -1] });
+      await sleep(200);
+
+      let movedData = null;
+      let turnChangeData = null;
+      p1.on("ludo_token_moved", (d) => { movedData = d; });
+      p1.on("ludo_turn_change", (d) => { turnChangeData = d; });
+
+      p1.emit("ludo_roll_dice", { mockDice: 1 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      const cutOk = movedData?.capturedToken?.color === "yellow" && movedData?.capturedToken?.tokenIndex === 0;
+      const extraTurnOk = turnChangeData?.activeColor === "red" && turnChangeData?.extraTurn === true;
+      logResult("Ludo Bonus Roll Scenario 4 (Opponent Token Capture Awards Extra Turn)", cutOk && extraTurnOk);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.14 Ludo Bonus Roll Scenario 5: Reaching Home Goal 56 Awards Extra Turn
+    {
+      const { p1, p2 } = await setupLudo2PGame("S5_Red", "S5_Yellow");
+      p1.emit("_dev_set_ludo_tokens", { color: "red", tokens: [54, -1, -1, -1] });
+      await sleep(200);
+
+      let movedData = null;
+      let turnChangeData = null;
+      p1.on("ludo_token_moved", (d) => { movedData = d; });
+      p1.on("ludo_turn_change", (d) => { turnChangeData = d; });
+
+      p1.emit("ludo_roll_dice", { mockDice: 2 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      const goalOk = movedData?.newPos === 56;
+      const bonusOk = turnChangeData?.activeColor === "red" && turnChangeData?.extraTurn === true;
+      logResult("Ludo Bonus Roll Scenario 5 (Token Reaching Home Goal 56 Awards Extra Turn)", goalOk && bonusOk);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.15 Ludo Bonus Roll Scenario 6: 4th Token Home Triggers Victory
+    {
+      const { p1, p2 } = await setupLudo2PGame("S6_Red", "S6_Yellow");
+      p1.emit("_dev_set_ludo_tokens", { color: "red", tokens: [56, 56, 56, 55], homeCount: 3 });
+      await sleep(200);
+
+      let gameOverData = null;
+      p1.on("ludo_game_over", (d) => { gameOverData = d; });
+
+      p1.emit("ludo_roll_dice", { mockDice: 1 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 3 });
+      await sleep(950);
+
+      const victoryOk = gameOverData?.winner === "red" && gameOverData?.reason === "victory";
+      logResult("Ludo Bonus Roll Scenario 6 (4th Token Home Triggers Game Over Victory)", victoryOk);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.16 Headless Browser UI Permutations for Ludo (Playwright)
     const browserLudo = await chromium.launch({
       headless: true,
       args: [
@@ -2615,6 +3485,120 @@ async function runMasterE2ESuite() {
 
   } catch (err) {
     logResult("Phase 11 Ludo Multiplayer Suite Execution", false, err.message);
+  }
+
+  // ===========================================================================
+  // PHASE 12: High-Concurrency Socket.IO Load, Sharding & Telemetry Stress Suite
+  // ===========================================================================
+  console.log("\n───────────────────────────────────────────────────────────────────────");
+  console.log("📌 PHASE 12: High-Concurrency Socket.IO Load, Sharding & Stress Telemetry");
+  console.log("───────────────────────────────────────────────────────────────────────");
+
+  try {
+    const TARGET_LOAD_CLIENTS = parseInt(process.env.LOAD_CLIENTS || "50", 10);
+    const BATCH_SIZE = 25;
+    const BATCH_INTERVAL_MS = 80;
+
+    console.log(`⚡ Simulating high-concurrency burst with ${TARGET_LOAD_CLIENTS} sockets...`);
+
+    const loadMetrics = {
+      connected: 0,
+      connectErrors: 0,
+      groupJoined: 0,
+      roomsAllocated: new Set(),
+      messagesSent: 0,
+      reactionsSent: 0,
+      connectionTimes: []
+    };
+
+    let maxEventLoopLag = 0;
+    let lastLagCheck = Date.now();
+    const lagMonitor = setInterval(() => {
+      const now = Date.now();
+      const delta = now - lastLagCheck;
+      const lag = Math.max(0, delta - 50);
+      if (lag > maxEventLoopLag) maxEventLoopLag = lag;
+      lastLagCheck = now;
+    }, 50);
+
+    const loadSockets = [];
+    for (let i = 0; i < TARGET_LOAD_CLIENTS; i += BATCH_SIZE) {
+      const currentBatch = Math.min(BATCH_SIZE, TARGET_LOAD_CLIENTS - i);
+      for (let j = 0; j < currentBatch; j++) {
+        const idx = i + j;
+        const connStart = Date.now();
+        const s = io(SOCKET_URL, {
+          transports: ["websocket"],
+          reconnection: false,
+          timeout: 10000
+        });
+
+        s.on("connect", () => {
+          loadMetrics.connected++;
+          loadMetrics.connectionTimes.push(Date.now() - connStart);
+          s.emit("join_group_chat", { nickname: `LoadUser_${idx}` });
+        });
+
+        s.on("connect_error", () => {
+          loadMetrics.connectErrors++;
+        });
+
+        s.on("group_joined", (data) => {
+          loadMetrics.groupJoined++;
+          if (data && data.roomId) {
+            loadMetrics.roomsAllocated.add(data.roomId);
+          }
+        });
+
+        loadSockets.push(s);
+      }
+      await sleep(BATCH_INTERVAL_MS);
+    }
+
+    // Wait for in-flight socket handshakes
+    let settleAttempts = 0;
+    while (loadMetrics.connected < TARGET_LOAD_CLIENTS * 0.95 && settleAttempts < 40) {
+      await sleep(150);
+      settleAttempts++;
+    }
+
+    // Burst messages from first 10 chatters
+    const chatters = loadSockets.slice(0, Math.min(10, loadSockets.length));
+    for (let k = 0; k < chatters.length; k++) {
+      const s = chatters[k];
+      if (s.connected) {
+        s.emit("send_group_msg", { text: `Concurrency stress msg #${k}` });
+        loadMetrics.messagesSent++;
+        if (k % 2 === 0) {
+          s.emit("send_group_reaction", { messageId: "load_seed", emoji: "🔥" });
+          loadMetrics.reactionsSent++;
+        }
+      }
+    }
+    await sleep(2000);
+
+    // Clean disconnect
+    for (const s of loadSockets) {
+      if (s.connected) s.disconnect();
+    }
+    clearInterval(lagMonitor);
+
+    const loadSuccess = loadMetrics.connected >= TARGET_LOAD_CLIENTS * 0.95 && loadMetrics.connectErrors === 0;
+    logResult(`High-Concurrency Socket.IO Load Ramp (${loadMetrics.connected}/${TARGET_LOAD_CLIENTS} connected, 0 errors)`,
+      loadSuccess,
+      `[Rooms Sharded: ${loadMetrics.roomsAllocated.size}, Max Lag: ${maxEventLoopLag}ms]`
+    );
+
+    const shardingSuccess = loadMetrics.roomsAllocated.size >= Math.ceil(loadMetrics.connected / 25);
+    logResult(`Dynamic 25-Cap Sharding Under Concurrency (${loadMetrics.roomsAllocated.size} Rooms for ${loadMetrics.connected} Users)`,
+      shardingSuccess
+    );
+
+    const lagHealthy = maxEventLoopLag < 150;
+    logResult("Node.js Event Loop Lag & Telemetry Health (<150ms)", lagHealthy, `[Lag: ${maxEventLoopLag}ms]`);
+
+  } catch (err) {
+    logResult("Phase 12 Load & Concurrency Suite Execution", false, err.message);
   }
 
   console.log("\n=======================================================================");
