@@ -2018,6 +2018,392 @@ async function runMasterE2ESuite() {
     logResult("Frontend app.js Renders Message Text & Nicknames via escapeHtml() (XSS Immune)", usesEscapeHtmlInChat);
 
     sSec.disconnect();
+
+    // =========================================================================
+    // 9.4 - 9.9 MULTILINGUAL PROFANITY FILTER & MEDIA SHIELDING (Browser Suite)
+    // =========================================================================
+    const bProfanity = await chromium.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"]
+    });
+    const cProfanity = await bProfanity.newContext({
+      permissions: ["camera", "microphone"],
+      viewport: { width: 1280, height: 800 }
+    });
+    const pProfanity = await cProfanity.newPage();
+    await pProfanity.goto(APP_URL, { waitUntil: "networkidle" });
+
+    // 9.4 Multilingual Profanity Filter in Browser Context
+    const profanityResults = await pProfanity.evaluate(() => {
+      const fn = window.containsUnparliamentaryWords;
+      return {
+        suckAllowed: !fn("this game sucks"),
+        suckWordAllowed: !fn("suck"),
+        dengueAllowed: !fn("I have dengue fever"),
+        helloAllowed: !fn("Hello friend!"),
+        fuckBlocked: fn("what the fuck"),
+        fukSpacedBlocked: fn("f u c k this"),
+        bitchBlocked: fn("b.i.t.c.h"),
+        lanjaBlocked: fn("lanja"),
+        denguBlocked: fn("dengu"),
+        teluguScriptBlocked: fn("దెంగు"),
+        madarchodBlocked: fn("madarchod"),
+        chutiyaBlocked: fn("chutiya"),
+        hindiScriptBlocked: fn("मादरचोद"),
+        pendejoBlocked: fn("eres un pendejo"),
+        merdeBlocked: fn("merde")
+      };
+    });
+    const allProfanityPass = Object.values(profanityResults).every(v => v === true);
+    logResult("Multilingual Profanity Filter (English, Telugu, Hindi, Spanish, French)", allProfanityPass);
+
+    // 9.5 Silent Auto-Sanitization for Existing / Stored Nicknames
+    const oldNickSanitization = await pProfanity.evaluate(() => {
+      const sanitize = window.sanitizeStoredNickname;
+      const spaced = sanitize("Cool Gamer 99");
+      const multiSpaced = sanitize("  Hyper   Falcon  ");
+      const vulgarReset = sanitize("bad_fuck_guy");
+
+      localStorage.setItem("hg_user_nickname", "Old_Fuck_User");
+      window.checkAgeConfirmationOnLoad();
+      const storedAfterBad = localStorage.getItem("hg_user_nickname");
+
+      localStorage.setItem("hg_user_nickname", "Legend Warrior");
+      window.checkAgeConfirmationOnLoad();
+      const storedAfterSpaced = localStorage.getItem("hg_user_nickname");
+
+      return {
+        spacedMatches: spaced === "Cool_Gamer_99",
+        multiSpacedMatches: multiSpaced === "Hyper_Falcon",
+        vulgarResetSafe: !window.containsUnparliamentaryWords(vulgarReset) && vulgarReset !== "bad_fuck_guy",
+        storedAfterBadSafe: !window.containsUnparliamentaryWords(storedAfterBad) && storedAfterBad !== "Old_Fuck_User",
+        storedAfterSpacedMatches: storedAfterSpaced === "Legend_Warrior"
+      };
+    });
+    const allNickSanitizePass = Object.values(oldNickSanitization).every(v => v === true);
+    logResult("Silent Auto-Sanitization for Stored Nicknames (Spaces & Vulgar Reset)", allNickSanitizePass);
+
+    // 9.6 Nickname Modal Auto-Underscore & Unparliamentary Warning
+    await pProfanity.evaluate(() => {
+      window.__E2E_BYPASS_NICK_COOLDOWN__ = true;
+      window.promptEditNickname();
+    });
+    await pProfanity.waitForSelector("#v2-input-new-nick", { state: "visible" });
+
+    const nickInputEl = pProfanity.locator("#v2-input-new-nick");
+    await nickInputEl.fill("");
+    await nickInputEl.pressSequentially("Super Cool Guy", { delay: 10 });
+    const valWithUnderscores = await nickInputEl.inputValue();
+
+    await nickInputEl.fill("");
+    await nickInputEl.pressSequentially("bad_fuck_user", { delay: 10 });
+    const errorText = await pProfanity.evaluate(() => {
+      const err = document.getElementById("v2-nick-inline-error");
+      return err ? err.innerText : "";
+    });
+
+    await pProfanity.evaluate(() => window.saveNewNickname());
+    const errorTextAfterSave = await pProfanity.evaluate(() => {
+      const err = document.getElementById("v2-nick-inline-error");
+      return err ? err.innerText : "";
+    });
+    await pProfanity.evaluate(() => window.closeNicknameModal());
+
+    const modalValidationPass = valWithUnderscores === "Super_Cool_Guy" &&
+                                errorText.includes("unparliamentary") &&
+                                errorTextAfterSave.includes("unparliamentary");
+    logResult("Nickname Modal Space Auto-Replace & Unparliamentary Inline Warning", modalValidationPass);
+
+    // 9.7 Public Group Chat Profanity Blocking & Dock Hint
+    await pProfanity.evaluate(() => {
+      if (typeof window.switchMode === "function") window.switchMode("group");
+    });
+    await pProfanity.waitForTimeout(400);
+
+    const groupInputEl = pProfanity.locator("#v2-group-input-field");
+    await groupInputEl.fill("what the fuck is this");
+    await pProfanity.evaluate(() => window.sendGroupMessage());
+
+    const dockHint = await pProfanity.evaluate(() => {
+      const hint = document.getElementById("v2-group-dock-hint");
+      return hint ? hint.innerText : "";
+    });
+
+    // Allowed phrase: "this game sucks"
+    await groupInputEl.fill("this game sucks");
+    await pProfanity.evaluate(() => {
+      window.lastGroupMsgTime = 0;
+      if (window.socket) {
+        window.__emittedGroupMsgs = [];
+        const origEmit = window.socket.emit;
+        window.socket.emit = function(event, data) {
+          if (event === "send_group_msg") window.__emittedGroupMsgs.push(data);
+          return origEmit.apply(this, arguments);
+        };
+      }
+      window.sendGroupMessage();
+    });
+    const sucksEmitted = await pProfanity.evaluate(() => window.__emittedGroupMsgs && window.__emittedGroupMsgs.length > 0);
+    logResult("Public Lounge Profanity Blocking Dock Hint & Safe Word ('sucks') Allowance", dockHint.includes("Unparliamentary") && sucksEmitted);
+
+    // 9.8 1v1 Private Chat Unfiltered Communication (Freedom of Private Banter)
+    await pProfanity.evaluate(() => {
+      if (typeof window.switchMode === "function") window.switchMode("text");
+      window.currentMatchTargetId = "dummy-target-123";
+      window.__emittedPrivateSignals = [];
+      if (window.socket) {
+        const origEmit = window.socket.emit;
+        window.socket.emit = function(event, data) {
+          if (event === "signal") window.__emittedPrivateSignals.push(data);
+          return origEmit.apply(this, arguments);
+        };
+      }
+      const input = document.getElementById("chat-input");
+      if (input) input.value = "damn what the fuck bro";
+      window.sendChatMessage();
+    });
+    const privateSignalEmitted = await pProfanity.evaluate(() => {
+      return window.__emittedPrivateSignals && window.__emittedPrivateSignals.some(s => s.signal && s.signal.text === "damn what the fuck bro");
+    });
+    logResult("1v1 Private Chat Unfiltered Banter (Zero Arbitrary Censorship)", privateSignalEmitted);
+
+    // 9.9 Media Shielding: Certified Greeting Sticker Direct Display vs External GIF Shield
+    const mediaShieldingTest = await pProfanity.evaluate(() => {
+      localStorage.setItem("hg_media_display_mode", "tap_to_view");
+      const greetingRow = window.renderGroupMessageRow({
+        id: "grp-test-1",
+        senderNick: "Alice",
+        gif: { url: "/assets/stickers/greeting-wave.webp", type: "sticker", isGreeting: true },
+        text: "Hi 👋",
+        timestamp: Date.now()
+      }, false);
+      const gifRow = window.renderGroupMessageRow({
+        id: "grp-test-2",
+        senderNick: "Bob",
+        gif: { url: "https://media.giphy.com/media/test/giphy.gif", type: "gif" },
+        timestamp: Date.now()
+      }, false);
+      return {
+        greetingHasShield: greetingRow.outerHTML.includes("v2-media-privacy-card"),
+        gifHasShield: gifRow.outerHTML.includes("v2-media-privacy-card"),
+        gifHasTapToView: gifRow.outerHTML.includes("Tap to View")
+      };
+    });
+    logResult("Media Shielding: Greeting Sticker Direct Display vs External GIF Tap-to-View",
+      !mediaShieldingTest.greetingHasShield && mediaShieldingTest.gifHasShield && mediaShieldingTest.gifHasTapToView);
+
+    await bProfanity.close();
+
+    // =========================================================================
+    // 9.10 - 9.15 FORENSIC MEDIA SHIELD, MULTI-DEVICE VIEW-ONCE & WATERMARK
+    // =========================================================================
+    const sampleImgData = "data:image/png;base64,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";
+    const bForensic = await chromium.launch({
+      headless: true,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--use-fake-ui-for-media-stream"]
+    });
+
+    // 9.10 Multi-Device Forensic Lightbox Viewport & Hold Overlay Matrix
+    const devices = [
+      { name: "mobile_portrait", width: 412, height: 915 },
+      { name: "mobile_compact", width: 360, height: 740 },
+      { name: "tablet_ipad", width: 768, height: 1024 },
+      { name: "mobile_landscape", width: 844, height: 390 },
+      { name: "desktop_hd", width: 1280, height: 800 }
+    ];
+    let allDevicesFit = true;
+    for (const dev of devices) {
+      const ctxDev = await bForensic.newContext({ viewport: { width: dev.width, height: dev.height } });
+      const pDev = await ctxDev.newPage();
+      await pDev.goto(APP_URL, { waitUntil: "domcontentloaded" });
+      const ageBtn = pDev.locator("#v2-btn-age-confirm");
+      if (await ageBtn.isVisible()) await ageBtn.click();
+      await pDev.waitForTimeout(300);
+
+      await pDev.evaluate((imgData) => {
+        window.currentNickname = "CyberSamurai";
+        window.currentSessionTraceCode = "HGWPL5DJ";
+        window.openV2Lightbox("image", imgData, true);
+      }, sampleImgData);
+      await pDev.waitForTimeout(300);
+
+      const metrics = await pDev.evaluate(() => {
+        const modal = document.getElementById("v2-lightbox-modal");
+        const card = document.getElementById("v2-lightbox-card");
+        const holdOverlay = document.getElementById("v2-lightbox-hold-overlay");
+        const cardRect = card ? card.getBoundingClientRect() : { width: 0, height: 0 };
+        return {
+          modalVisible: modal && !modal.classList.contains("hidden"),
+          holdOverlayVisible: holdOverlay && !holdOverlay.classList.contains("hidden"),
+          fits: cardRect.width <= window.innerWidth && cardRect.height <= window.innerHeight
+        };
+      });
+
+      if (!metrics.modalVisible || !metrics.holdOverlayVisible || !metrics.fits) {
+        allDevicesFit = false;
+      }
+      await pDev.evaluate(() => window.closeV2Lightbox());
+      await ctxDev.close();
+    }
+    logResult("Multi-Device Forensic Lightbox Viewport & Hold Overlay Matrix (5 Devices)", allDevicesFit);
+
+    // 9.11 Strict View-Once Clean Settings & Attachment Menu UI
+    const cStrict = await bForensic.newContext({ viewport: { width: 412, height: 915 } });
+    const pStrict = await cStrict.newPage();
+    await pStrict.goto(APP_URL, { waitUntil: "domcontentloaded" });
+    const ageBtnStrict = pStrict.locator("#v2-btn-age-confirm");
+    if (await ageBtnStrict.isVisible()) await ageBtnStrict.click();
+    await pStrict.waitForTimeout(300);
+
+    // Clean Settings Check
+    await pStrict.evaluate(() => window.openV2SettingsModal());
+    await pStrict.waitForTimeout(300);
+    const settingsClean = await pStrict.evaluate(() => {
+      const card = document.querySelector(".v2-media-privacy-status-card");
+      const options = document.querySelector(".v2-media-privacy-options");
+      return !card && !options;
+    });
+    await pStrict.evaluate(() => window.closeV2SettingsModal());
+    await pStrict.waitForTimeout(200);
+
+    // Attachment Menu Tile Check
+    await pStrict.evaluate(() => window.openV2AttachmentMenu());
+    await pStrict.waitForTimeout(300);
+    const attachMenuCheck = await pStrict.evaluate(() => {
+      const modal = document.getElementById("v2-attachment-modal");
+      const mediaTile = modal ? (modal.querySelector(".view-once-tile") || modal.querySelector(".media-tile")) : null;
+      const hasTileIconBadge = mediaTile ? Boolean(mediaTile.querySelector(".v2-attach-tile-icon .v2-view-once-badge-icon")) : false;
+      const hasInlineOneInLabel = mediaTile ? Boolean(mediaTile.querySelector(".v2-attach-tile-label .v2-view-once-inline-icon")) : false;
+      const label = mediaTile ? mediaTile.querySelector(".v2-attach-tile-label")?.textContent.trim() : "";
+      return modal && !modal.classList.contains("hidden") && hasTileIconBadge && !hasInlineOneInLabel && label === "Photo / Video";
+    });
+    await pStrict.evaluate(() => window.closeV2AttachmentMenu());
+    logResult("Strict View-Once Clean Settings & Attachment Menu Tile Branding", settingsClean && attachMenuCheck);
+
+    // 9.12 In-Chat View-Once Card & Hold-to-Reveal Burning Engine
+    const chatBurnResult = await pStrict.evaluate((imgData) => {
+      window.currentChatMode = "text";
+      window.inCall = true;
+      window.currentMatchTargetId = "remote-test-peer";
+      const testMsgId = "msg-master-test-burn";
+      window.appendMediaMessage("Stranger", "image", imgData, "stranger", null, testMsgId, true);
+      const card = document.getElementById(`privacy-card-${testMsgId}`);
+      const badge = card ? card.querySelector(".v2-view-once-badge-icon") : null;
+      const revealBtn = card ? card.querySelector(".v2-media-reveal-btn") : null;
+      const initialOk = Boolean(card && badge && revealBtn && !card.textContent.includes("Confidential"));
+      return { initialOk, msgId: testMsgId };
+    }, sampleImgData);
+
+    await pStrict.evaluate((msgId) => window.revealMediaCard(msgId), chatBurnResult.msgId);
+    await pStrict.waitForTimeout(400);
+
+    // Hold down on overlay
+    await pStrict.evaluate(() => {
+      const overlay = document.getElementById("v2-lightbox-hold-overlay");
+      if (overlay && overlay.onmousedown) overlay.onmousedown({ type: "mousedown", button: 0 });
+    });
+    await pStrict.waitForTimeout(300);
+
+    // Release hold to burn media
+    await pStrict.evaluate(() => window.dispatchEvent(new MouseEvent("mouseup")));
+    await pStrict.waitForTimeout(400);
+
+    const postBurnCheck = await pStrict.evaluate((msgId) => {
+      const card = document.getElementById(`privacy-card-${msgId}`);
+      const isBurned = typeof window.v2PendingChatMedia[msgId] === "undefined";
+      const cardOpened = card && card.classList.contains("opened") && card.textContent.includes("Opened");
+      return isBurned && cardOpened;
+    }, chatBurnResult.msgId);
+    logResult("In-Chat View-Once Card Rendering & Hold-to-Reveal Instant Burn Engine", chatBurnResult.initialOk && postBurnCheck);
+
+    // 9.13 Multi-Touch Gesture Detection & Blackout Curtain
+    const multiTouchPass = await pStrict.evaluate((imgData) => {
+      window.openV2Lightbox("image", imgData, true);
+      const fakeTouchEvent = new Event("touchstart", { bubbles: true, cancelable: true });
+      Object.defineProperty(fakeTouchEvent, "touches", {
+        value: [{ clientX: 100, clientY: 100 }, { clientX: 200, clientY: 200 }]
+      });
+      window.dispatchEvent(fakeTouchEvent);
+      const blackout = document.getElementById("v2-lightbox-blackout");
+      return blackout && !blackout.classList.contains("hidden");
+    }, sampleImgData);
+    await pStrict.waitForTimeout(400);
+    logResult("Multi-Touch Gesture Anti-Screenshot Blackout Curtain", multiTouchPass);
+
+    // 9.14 Sticker Wave-Back Filtering (Only Greeting Stickers Have Wave Back)
+    const stickerWavePass = await pStrict.evaluate(() => {
+      const regId = "msg-stk-reg-e2e";
+      window.appendMediaMessage("Stranger", "sticker", "https://media.giphy.com/media/random/200.webp", "stranger", null, regId, false, false);
+      const regHasWave = Boolean(document.getElementById(regId)?.querySelector(".v2-wave-back-wrap"));
+
+      const greetId = "msg-stk-greet-e2e";
+      window.appendMediaMessage("Stranger", "sticker", "https://media1.giphy.com/media/w1OBpBd7kJqHrJnJ13/200.webp", "stranger", null, greetId, false, true);
+      const greetHasWave = Boolean(document.getElementById(greetId)?.querySelector(".v2-wave-back-wrap"));
+
+      return !regHasWave && greetHasWave;
+    });
+    logResult("Sticker Wave-Back Targeting (Greeting Stickers Only)", stickerWavePass);
+
+    // 9.15 Video View-Once Press & Hold Playback & Release Burn Engine
+    const pVideo = await cStrict.newPage();
+    await pVideo.goto(APP_URL, { waitUntil: "domcontentloaded" });
+    const ageBtnVideo = pVideo.locator("#v2-btn-age-confirm");
+    if (await ageBtnVideo.isVisible()) await ageBtnVideo.click();
+    await pVideo.waitForTimeout(400);
+
+    const sampleVideoUrl = "/assets/ads/vpn_ad.mp4";
+    await pVideo.evaluate((vidUrl) => {
+      window.openV2Lightbox("video", vidUrl, true, () => {
+        window._testVideoClosedCallbackFired = true;
+      });
+    }, sampleVideoUrl);
+    await pVideo.waitForTimeout(600);
+
+    const videoInitCheck = await pVideo.evaluate(() => {
+      const modal = document.getElementById("v2-lightbox-modal");
+      const holdOverlay = document.getElementById("v2-lightbox-hold-overlay");
+      const video = document.getElementById("v2-lightbox-hidden-video");
+      const canvas = document.getElementById("v2-lightbox-canvas");
+      return Boolean(modal && !modal.classList.contains("hidden") &&
+             holdOverlay && !holdOverlay.classList.contains("hidden") &&
+             video && video.paused &&
+             canvas && canvas.style.filter.includes("blur"));
+    });
+
+    // Trigger hold to play
+    await pVideo.evaluate(() => {
+      const pad = document.getElementById("v2-hold-touch-pad") || document.getElementById("v2-lightbox-hold-overlay");
+      if (pad && pad.onmousedown) pad.onmousedown({ type: "mousedown", button: 0 });
+    });
+    await pVideo.waitForTimeout(600);
+
+    const videoPlayCheck = await pVideo.evaluate(() => {
+      const holdOverlay = document.getElementById("v2-lightbox-hold-overlay");
+      const video = document.getElementById("v2-lightbox-hidden-video");
+      const canvas = document.getElementById("v2-lightbox-canvas");
+      return Boolean(holdOverlay && holdOverlay.classList.contains("hidden") &&
+             video && !video.paused &&
+             canvas && canvas.style.filter === "none");
+    });
+
+    // Release hold to burn video
+    await pVideo.evaluate(() => window.dispatchEvent(new MouseEvent("mouseup")));
+    await pVideo.waitForTimeout(600);
+
+    const videoBurnCheck = await pVideo.evaluate(() => {
+      const modal = document.getElementById("v2-lightbox-modal");
+      const video = document.getElementById("v2-lightbox-hidden-video");
+      return Boolean(modal && modal.classList.contains("hidden") &&
+             video && (video.paused || !video.src) &&
+             window._testVideoClosedCallbackFired);
+    });
+
+    logResult("Video View-Once Press & Hold Playback & Instant Release Burn", videoInitCheck && videoPlayCheck && videoBurnCheck);
+    await pVideo.close();
+
+    await cStrict.close();
+    await bForensic.close();
+
   } catch (err) {
     logResult("Phase 9 Security Audit Execution", false, err.message);
   }
@@ -2672,26 +3058,18 @@ async function runMasterE2ESuite() {
     p4_4P.disconnect();
     await sleep(400);
 
-    // Red rolls dice
+    // Red rolls 6 (mockDice: 6) -> moves token 0 out of yard
+    p1_4P.emit("ludo_roll_dice", { gameId: res4P.gameId, mockDice: 6 });
+    await sleep(200);
+    p1_4P.emit("ludo_move_token", { tokenIndex: 0 });
+    await sleep(950);
+
+    // Red takes bonus roll with mockDice: 3 -> moves token 0 by 3 steps -> turn passes to Yellow
     turnChanges = [];
-    const rollPromise1 = new Promise((res) => p1_4P.once("ludo_dice_rolled", res));
-    p1_4P.emit("ludo_roll_dice", { gameId: res4P.gameId });
-    const roll1 = await rollPromise1;
-    if (roll1.movableTokens && roll1.movableTokens.length > 0) {
-      await sleep(200);
-      p1_4P.emit("ludo_move_token", { tokenIndex: roll1.movableTokens[0] });
-    }
-    await sleep(2600);
-    if (roll1.dice === 6) {
-      const extraPromise = new Promise((res) => p1_4P.once("ludo_dice_rolled", res));
-      p1_4P.emit("ludo_roll_dice", { gameId: res4P.gameId });
-      const extraRoll = await extraPromise;
-      if (extraRoll.movableTokens && extraRoll.movableTokens.length > 0) {
-        await sleep(200);
-        p1_4P.emit("ludo_move_token", { tokenIndex: extraRoll.movableTokens[0] });
-      }
-      await sleep(2600);
-    }
+    p1_4P.emit("ludo_roll_dice", { gameId: res4P.gameId, mockDice: 3 });
+    await sleep(200);
+    p1_4P.emit("ludo_move_token", { tokenIndex: 0 });
+    await sleep(950);
 
     const turnAfterRed = turnChanges[turnChanges.length - 1];
     const turnAlternatedToYellow = (turnAfterRed?.activeColor === "yellow");
