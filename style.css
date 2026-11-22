@@ -3523,6 +3523,71 @@ html, body {
   border-radius: 4px;
 }
 
+/* Lounge Feed Skeleton Loader (Zero-Blank First-Visit Guard) */
+.v2-feed-skeleton-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 4px;
+  width: 100%;
+  animation: v2FadeIn 0.3s ease;
+}
+.v2-skeleton-pill {
+  align-self: center;
+  padding: 6px 14px;
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 9999px;
+  color: #e9d5ff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.v2-skeleton-pill .fa-spinner {
+  animation: fa-spin 1.2s linear infinite;
+  color: #c084fc;
+}
+.v2-skeleton-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+.v2-skeleton-row.other {
+  justify-content: flex-start;
+}
+.v2-skeleton-row.self {
+  justify-content: flex-end;
+}
+.v2-skeleton-bubble {
+  border-radius: 14px;
+  padding: 10px 14px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.04) 75%);
+  background-size: 200% 100%;
+  animation: v2SkeletonShimmer 1.5s infinite;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.v2-skeleton-bubble.w-large { width: 72%; }
+.v2-skeleton-bubble.w-med { width: 55%; }
+.v2-skeleton-bubble.w-small { width: 40%; }
+.v2-skeleton-line {
+  height: 10px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.v2-skeleton-line.h-title {
+  width: 45%;
+  height: 8px;
+  background: rgba(168, 85, 247, 0.25);
+}
+@keyframes v2SkeletonShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 /* Group Chat Join Notification Pill */
 .v2-group-join-pill {
   display: flex;
@@ -4629,7 +4694,7 @@ html, body {
   position: relative;
   z-index: 50;
   min-height: 48px;
-  padding-bottom: max(2px, env(safe-area-inset-bottom, 2px));
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
 }
 
 .v2-dock-call-trigger {
@@ -5473,9 +5538,22 @@ html, body {
 @media (max-width: 480px) {
   .v2-group-chat-stage {
     padding: 4px 8px 8px 8px;
-    padding-bottom: max(6px, env(safe-area-inset-bottom, 6px));
+    padding-bottom: max(14px, env(safe-area-inset-bottom, 14px));
     overscroll-behavior: none;
   }
+
+/* Standalone PWA & Fullscreen Display Bottom Nav Bar Inset Safety */
+@media all and (display-mode: standalone), (display-mode: fullscreen) {
+  .v2-app-container {
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+  }
+  .v2-group-chat-stage {
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 16px));
+  }
+  .v2-group-dock {
+    padding-bottom: max(10px, env(safe-area-inset-bottom, 10px));
+  }
+}
   .v2-top-bar {
     padding: 6px 10px;
     height: 54px;

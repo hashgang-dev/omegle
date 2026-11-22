@@ -47,19 +47,21 @@ function ensureInputFieldsVisibility() {
   if (viewportArea) viewportArea.scrollTop = 0;
   if (appContainer) appContainer.scrollTop = 0;
 
+  const searchStage = document.getElementById("v2-search-stage");
+  const isSearchingActive = (typeof isStoppedByUser !== "undefined" && !isStoppedByUser) ||
+                            (searchStage && !searchStage.classList.contains("hidden"));
+  const isInOneOnOneSession = (typeof inCall !== "undefined" && inCall) || !!currentMatchTargetId || isSearchingActive;
+
   const groupStage = document.getElementById("v2-group-chat-stage");
-  if (groupStage) {
+  if (groupStage && !isInOneOnOneSession) {
     groupStage.scrollTop = 0;
-    if (!(typeof inCall !== "undefined" && inCall) && !currentMatchTargetId) {
-      groupStage.classList.remove("hidden");
-    }
+    groupStage.classList.remove("hidden");
   }
 
   // Cleanly dismiss any dead overlays that could obscure group chat
-  if (!(typeof inCall !== "undefined" && inCall) && !currentMatchTargetId) {
+  if (!isInOneOnOneSession) {
     const chatDrawer = document.getElementById("v2-chat-drawer");
     if (chatDrawer) chatDrawer.classList.add("closed");
-    const searchStage = document.getElementById("v2-search-stage");
     if (searchStage) searchStage.classList.add("hidden");
   }
 
@@ -74,7 +76,31 @@ function ensureInputFieldsVisibility() {
     if (!groupInputEl || document.activeElement !== groupInputEl) {
       groupDock.style.transform = "";
     }
+
+    // Dynamic Standalone PWA Bottom Nav Bar Inset Guard
+    const isStandalone = (typeof isPwaStandalone === "function" && isPwaStandalone()) ||
+                         (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+                         (window.navigator && window.navigator.standalone);
+    if (isStandalone && window.visualViewport) {
+      const vHeight = window.visualViewport.height;
+      const wHeight = window.innerHeight;
+      const isTyping = groupInputEl && (document.activeElement === groupInputEl);
+      if (!isTyping) {
+        const bottomDiff = Math.max(0, wHeight - vHeight);
+        if (bottomDiff > 0 && bottomDiff < 100) {
+          groupDock.style.paddingBottom = `${bottomDiff + 8}px`;
+        }
+      }
+    }
   }
+
+  const groupPill = document.querySelector(".v2-group-input-pill");
+  if (groupPill) {
+    groupPill.style.display = "flex";
+    groupPill.style.visibility = "visible";
+    groupPill.style.opacity = "1";
+  }
+
   const groupInput = document.getElementById("v2-group-input-field");
   if (groupInput) {
     groupInput.style.display = "block";
@@ -84,21 +110,64 @@ function ensureInputFieldsVisibility() {
       groupInput.style.height = "36px";
     }
   }
+
+  const sendBtn = document.getElementById("v2-btn-group-send");
+  if (sendBtn) {
+    sendBtn.style.display = "flex";
+    sendBtn.style.visibility = "visible";
+    sendBtn.style.opacity = "1";
+  }
+
+  const attachBtn = document.getElementById("v2-btn-open-1v1-drawer");
+  if (attachBtn) {
+    attachBtn.style.display = "inline-flex";
+    attachBtn.style.visibility = "visible";
+  }
+
   const chatInputRow = document.getElementById("v2-chat-input-row");
   if (chatInputRow) {
     chatInputRow.style.display = "";
     chatInputRow.classList.remove("hidden");
   }
-
-  // Proactive socket connectivity guard for background resume
-  if (typeof socket !== "undefined" && socket && !socket.connected) {
-    try {
-      console.log("⚡ [Input Rescue] Socket disconnected on resume, triggering reconnect...");
-      socket.connect();
-    } catch (e) {}
-  }
 }
 window.ensureInputFieldsVisibility = ensureInputFieldsVisibility;
+
+function renderLoungeSkeletonLoader() {
+  const feed = document.getElementById("v2-group-messages-feed");
+  if (!feed) return;
+  // If feed already has loaded messages or cards (more than just the skeleton), don't overwrite
+  if (feed.children.length > 0 && !document.getElementById("v2-lounge-skeleton")) return;
+  if (!document.getElementById("v2-lounge-skeleton")) {
+    feed.innerHTML = `
+      <div class="v2-feed-skeleton-wrap" id="v2-lounge-skeleton">
+        <div class="v2-skeleton-pill">
+          <i class="fa-solid fa-spinner"></i>
+          <span>Connecting to Live Lounge...</span>
+        </div>
+        <div class="v2-skeleton-row other">
+          <div class="v2-skeleton-bubble w-large">
+            <div class="v2-skeleton-line h-title"></div>
+            <div class="v2-skeleton-line" style="width: 90%;"></div>
+            <div class="v2-skeleton-line" style="width: 65%;"></div>
+          </div>
+        </div>
+        <div class="v2-skeleton-row self">
+          <div class="v2-skeleton-bubble w-med">
+            <div class="v2-skeleton-line" style="width: 85%;"></div>
+            <div class="v2-skeleton-line" style="width: 50%;"></div>
+          </div>
+        </div>
+        <div class="v2-skeleton-row other">
+          <div class="v2-skeleton-bubble w-small">
+            <div class="v2-skeleton-line h-title"></div>
+            <div class="v2-skeleton-line" style="width: 75%;"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+}
+window.renderLoungeSkeletonLoader = renderLoungeSkeletonLoader;
 
 // Application State Variables
 let socket = null;
@@ -450,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v422";
+const APP_CLIENT_VERSION = "v426";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -1975,56 +2044,68 @@ function initSocketConnection() {
         let lastMsgTime = 0;
 
         messages.forEach((msg, idx) => {
-          if (msg.type === "call_invite") {
-            renderedInviteIds.add(msg.inviteId);
-            feed.appendChild(renderCallInviteCard(msg));
-            lastSenderId = null;
-          } else if (msg.type === "ludo_invite") {
-            renderedInviteIds.add(msg.inviteId);
-            feed.appendChild(renderLudoInviteCard(msg));
-            lastSenderId = null;
-          } else if (msg.type === "ludo_winner" || msg.isLudoWinner) {
-            feed.appendChild(renderLudoWinnerFeedCard(msg));
-            lastSenderId = null;
-          } else if (msg.type === "favorite_pill") {
-            feed.appendChild(renderFavoritePillRow(msg));
-            lastSenderId = null;
-          } else if (msg.type === "app_install_pill") {
-            feed.appendChild(renderAppInstallPillRow(msg));
-            lastSenderId = null;
-          } else if (msg.type === "old_messages_notice") {
-            feed.appendChild(renderOldMessagesNoticeRow(msg));
-            lastSenderId = null;
-          } else if (msg.type === "house_promo_card") {
-            feed.appendChild(renderHousePromoFeedCard());
-            lastSenderId = null;
-          } else {
-            const currentSender = msg.nickname || "Stranger";
-            const msgTime = msg.timestamp || msg.time || 0;
-            const isConsecutive = (
-              idx > 0 &&
-              lastSenderId !== null &&
-              lastSenderId === currentSender &&
-              !msg.replyTo &&
-              (msgTime === 0 || lastMsgTime === 0 || Math.abs(msgTime - lastMsgTime) < 120000)
-            );
-            feed.appendChild(renderGroupMessageRow(msg, isConsecutive));
-            lastSenderId = currentSender;
-            lastMsgTime = msgTime;
+          try {
+            if (msg.type === "call_invite") {
+              renderedInviteIds.add(msg.inviteId);
+              feed.appendChild(renderCallInviteCard(msg));
+              lastSenderId = null;
+            } else if (msg.type === "ludo_invite") {
+              renderedInviteIds.add(msg.inviteId);
+              feed.appendChild(renderLudoInviteCard(msg));
+              lastSenderId = null;
+            } else if (msg.type === "ludo_winner" || msg.isLudoWinner) {
+              feed.appendChild(renderLudoWinnerFeedCard(msg));
+              lastSenderId = null;
+            } else if (msg.type === "favorite_pill") {
+              feed.appendChild(renderFavoritePillRow(msg));
+              lastSenderId = null;
+            } else if (msg.type === "app_install_pill") {
+              feed.appendChild(renderAppInstallPillRow(msg));
+              lastSenderId = null;
+            } else if (msg.type === "old_messages_notice") {
+              feed.appendChild(renderOldMessagesNoticeRow(msg));
+              lastSenderId = null;
+            } else if (msg.type === "house_promo_card") {
+              feed.appendChild(renderHousePromoFeedCard());
+              lastSenderId = null;
+            } else {
+              const currentSender = msg.nickname || "Stranger";
+              const msgTime = msg.timestamp || msg.time || 0;
+              const isConsecutive = (
+                idx > 0 &&
+                lastSenderId !== null &&
+                lastSenderId === currentSender &&
+                !msg.replyTo &&
+                (msgTime === 0 || lastMsgTime === 0 || Math.abs(msgTime - lastMsgTime) < 120000)
+              );
+              feed.appendChild(renderGroupMessageRow(msg, isConsecutive));
+              lastSenderId = currentSender;
+              lastMsgTime = msgTime;
+            }
+          } catch (errItem) {
+            console.warn("⚠️ [Group Chat] Skipped item due to render error:", errItem);
           }
         });
 
         // 1. Render all active open invites right after the 50 messages + pills
         if (Array.isArray(data.activeInvites)) {
           data.activeInvites.forEach((inv) => {
-            if (!renderedInviteIds.has(inv.inviteId)) {
-              feed.appendChild(renderCallInviteCard(inv));
+            try {
+              if (!renderedInviteIds.has(inv.inviteId)) {
+                feed.appendChild(renderCallInviteCard(inv));
+              }
+            } catch (errInv) {
+              console.warn("⚠️ [Group Chat] Skipped invite render error:", errInv);
             }
           });
         }
 
         // 2. Inline Welcome Card placed at the VERY BOTTOM of feed!
-        feed.appendChild(renderWelcomeKnowledgeCard(activeGroupRoomNumber));
+        try {
+          feed.appendChild(renderWelcomeKnowledgeCard(activeGroupRoomNumber));
+        } catch (eCard) {
+          console.warn("⚠️ [Group Chat] Welcome card render notice:", eCard);
+        }
 
         // Auto-post invite if user requested upon return, now that room is 100% active
         if (window.pendingAutoInviteMode) {
@@ -2183,6 +2264,19 @@ function initSocketConnection() {
           }
         }
 
+        // Anti-Duplication Defense: Drop consecutive identical favorite pills
+        if (msg && msg.type === "favorite_pill") {
+          const targetNick = (msg.targetNick || msg.nickname || msg.nick || "").trim().toLowerCase();
+          const lastEl = feed.lastElementChild;
+          if (lastEl && lastEl.classList.contains("v2-group-favorite-pill-wrap")) {
+            const existingText = (lastEl.textContent || "").toLowerCase();
+            if (targetNick && existingText.includes(targetNick)) {
+              console.log(`🛡️ [Feed] Dropped duplicate incoming favorite pill for ${targetNick}`);
+              return;
+            }
+          }
+        }
+
         const isNearBottom = isGroupFeedNearBottom(180);
         const isSelf = (socket && socket.id && msg.senderId === socket.id) || (msg.nickname === currentNickname);
 
@@ -2206,11 +2300,20 @@ function initSocketConnection() {
 
         const row = renderGroupMessageRow(msg, isConsecutive);
         feed.appendChild(row);
-        if (!inCall) playAudioChime("msg");
-        liveGroupMsgCounter++;
-        console.log(`💬 [In-Feed Pacing] Message count: ${liveGroupMsgCounter}`);
-        if (liveGroupMsgCounter % 15 === 0) {
-          handleInFeedPacingInjection(feed, liveGroupMsgCounter);
+        if (!inCall) {
+          if (msg && msg.type === "favorite_pill") {
+            playAudioChime("star");
+            triggerHapticPulse([40, 60, 40]);
+          } else {
+            playAudioChime("msg");
+          }
+        }
+        if (!msg || (!msg.type || msg.type === "text" || msg.type === "sticker" || msg.type === "gif")) {
+          liveGroupMsgCounter++;
+          console.log(`💬 [In-Feed Pacing] Message count: ${liveGroupMsgCounter}`);
+          if (liveGroupMsgCounter % 15 === 0) {
+            handleInFeedPacingInjection(feed, liveGroupMsgCounter);
+          }
         }
 
         const scrollToLatest = (smooth = false) => {
@@ -5131,7 +5234,7 @@ function setupEventListeners() {
 
   // Continuous Input Rescue Watchdog for Standalone PWAs & Mobile Browsers
   window.addEventListener("pageshow", () => {
-    if (socket && !socket.connected) {
+    if (socket && !socket.connected && !socket.active) {
       console.log("🔄 [pageshow] Reconnecting socket...");
       try { socket.connect(); } catch (e) {}
     }
@@ -5139,10 +5242,23 @@ function setupEventListeners() {
     window.scrollTo(0, 0);
   });
   window.addEventListener("focus", () => {
-    if (socket && !socket.connected) {
+    if (socket && !socket.connected && !socket.active) {
       console.log("🔄 [focus] Reconnecting socket...");
       try { socket.connect(); } catch (e) {}
     }
+    ensureInputFieldsVisibility();
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      if (socket && !socket.connected && !socket.active) {
+        console.log("🔄 [visibilitychange] Reconnecting socket...");
+        try { socket.connect(); } catch (e) {}
+      }
+      ensureInputFieldsVisibility();
+      window.scrollTo(0, 0);
+    }
+  });
+  window.addEventListener("resize", () => {
     ensureInputFieldsVisibility();
   });
   window.addEventListener("orientationchange", () => {
@@ -5150,6 +5266,11 @@ function setupEventListeners() {
       ensureInputFieldsVisibility();
       window.scrollTo(0, 0);
     }, 150);
+  });
+
+  // Post-launch staggered watchdog: enforces dock visibility as Android splash screen and system insets settle
+  [100, 300, 600, 1200, 2500].forEach((delay) => {
+    setTimeout(ensureInputFieldsVisibility, delay);
   });
 }
 
@@ -5656,6 +5777,7 @@ function updateUIState(state) {
   if (state === "idle") {
     if (el.groupChatStage) el.groupChatStage.classList.remove("hidden");
     if (el.searchStage) el.searchStage.classList.add("hidden");
+    if (typeof renderLoungeSkeletonLoader === "function") renderLoungeSkeletonLoader();
     ensureInputFieldsVisibility();
     updateToolbarForMode("idle");
   }
@@ -6436,6 +6558,8 @@ function confirmAgeAndEnter() {
     }
     return;
   }
+  updateStatus("idle", "In Group Chat");
+  updateUIState("idle");
   ensureInputFieldsVisibility();
   joinGroupChatOnConnect();
 }
@@ -6494,11 +6618,24 @@ function joinGroupChatOnConnect() {
     console.log("🛡️ [Group Chat] Prevented auto-join: Already active in a 1-on-1 call.");
     return;
   }
+
+  // Ensure Lounge skeleton or content is displayed immediately so screen is never blank
+  if (typeof renderLoungeSkeletonLoader === "function") {
+    renderLoungeSkeletonLoader();
+  }
+
   if (!socket || !socket.connected) {
-    if (socket && typeof socket.connect === "function") {
+    console.log("⏳ [Group Chat] Socket not connected yet. Waiting for socket connect event...");
+    if (!socket) {
+      if (typeof initSocketConnection === "function") initSocketConnection();
+    } else if (!socket.connected && !socket.active) {
       try { socket.connect(); } catch (e) {}
     }
-    setTimeout(joinGroupChatOnConnect, 300);
+    // Listen for next connect event once instead of polling & hammering socket.connect() in a loop
+    if (socket && typeof socket.once === "function") {
+      if (typeof socket.off === "function") socket.off("connect", handlePendingGroupChatJoin);
+      socket.once("connect", handlePendingGroupChatJoin);
+    }
     return;
   }
 
@@ -6522,6 +6659,11 @@ function joinGroupChatOnConnect() {
     payload.requestedRoomNumber = window.pendingV2RequestedRoom;
   }
   socket.emit("join_group_chat", payload);
+}
+
+function handlePendingGroupChatJoin() {
+  console.log("⚡ [Group Chat] Pending join triggered on socket connect!");
+  joinGroupChatOnConnect();
 }
 
 function getNicknameCooldownRemainingMs() {
@@ -6989,7 +7131,7 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
   }
 
   const senderNick = escapeHtml(senderNickRaw);
-  const cleanText = escapeHtml(maskSocialKeywords(maskPhoneNumbers(msg.text || "")));
+  const cleanText = escapeHtml(isSelf ? (msg.text || "") : maskSocialKeywords(maskPhoneNumbers(msg.text || "")));
   const rawSnippet = isSticker ? "🏷️ [Sticker]" : (isGif ? "🎬 [GIF]" : (msg.text || "").slice(0, 60));
 
   let actionsHtml = "";
@@ -8441,27 +8583,6 @@ function sendGroupMessage() {
     return;
   }
 
-  // Watertight Global Phone Number Blocking: Reject completely if phone number detected
-  if (detectsPhoneNumber(text)) {
-    showDockHint("🛡️ Phone numbers or contacts from any country are strictly prohibited in lounge chat.", "warn", 4500);
-    v2ShowToast("🛡️ Phone numbers are not allowed in lounge chat.");
-    return;
-  }
-
-  // Phone number masking: Replace sensitive phone numbers with '*' to protect personal privacy and prevent doxxing
-  const maskedPhoneText = maskPhoneNumbers(text);
-  if (maskedPhoneText !== text) {
-    text = maskedPhoneText;
-    showDockHint("🛡️ Phone number masked with * to protect privacy.", "warn", 4000);
-  }
-
-  // Social media handles & words masking: Restrict instagram, insta, facebook, fb, snapchat, snap, telegram
-  const maskedSocialText = maskSocialKeywords(text);
-  if (maskedSocialText !== text) {
-    text = maskedSocialText;
-    showDockHint("🛡️ Social media handle masked with * to protect privacy.", "warn", 4000);
-  }
-
   // Explicit keywords masking: Restrict sex, s3x, $ex, etc. and replace with *
   const maskedExplicitText = maskExplicitKeywords(text);
   if (maskedExplicitText !== text) {
@@ -9881,8 +10002,11 @@ function scheduleBalloonGameAutoStart() {
   window.balloonGameAutoStarted = true;
 
   setTimeout(() => {
-    if (!window.balloonGameDismissed && !inCall && !currentMatchTargetId) {
+    const groupInput = document.getElementById("v2-group-input-field");
+    const isTyping = groupInput && (document.activeElement === groupInput || (groupInput.value && groupInput.value.trim().length > 0));
+    if (!window.balloonGameDismissed && !inCall && !currentMatchTargetId && !isTyping) {
       initBalloonGame();
+      ensureInputFieldsVisibility();
     }
   }, 6500);
 }
