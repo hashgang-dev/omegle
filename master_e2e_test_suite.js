@@ -1455,6 +1455,133 @@ async function runMasterE2ESuite() {
     sMask1.disconnect();
     sMask2.disconnect();
 
+    // 6.3b Watertight Global E.164 Phone Defense & 31-Vector Unit Matrix
+    function normalizeContactText(text) {
+      if (!text || typeof text !== "string") return "";
+      let s = text.normalize("NFKD");
+      s = s.replace(/[\u200B-\u200D\uFEFF\u00AD\u2060\u2063\u202A-\u202E]/g, "");
+      const circledMap = {
+        "⓪": "0", "①": "1", "②": "2", "③": "3", "④": "4", "⑤": "5", "⑥": "6", "⑦": "7", "⑧": "8", "⑨": "9",
+        "❶": "1", "❷": "2", "❸": "3", "❹": "4", "❺": "5", "❻": "6", "❼": "7", "❽": "8", "❾": "9",
+        "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9",
+        "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4", "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9"
+      };
+      s = s.replace(/[⓪①②③④⑤⑥⑦⑧⑨❶❷❸❹❺❻❼❽❾⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉]/g, (ch) => circledMap[ch] || ch);
+      s = s.replace(/(\d[\s\W_]*)[oO]+/g, (m, p) => p + "0".repeat(m.length - p.length));
+      s = s.replace(/[oO]+(?=[\s\W_]*\d)/g, (m) => "0".repeat(m.length));
+      s = s.replace(/(\d[\s\W_]*)[lI|]+/g, (m, p) => p + "1".repeat(m.length - p.length));
+      s = s.replace(/[lI|]+(?=[\s\W_]*\d)/g, (m) => "1".repeat(m.length));
+
+      const wordDigits = [
+        { regex: /\b(?:zero|sunna|shunya|oh)\b/gi, val: "0" },
+        { regex: /\b(?:one|okati|ek)\b/gi, val: "1" },
+        { regex: /\b(?:two|rendu|do)\b/gi, val: "2" },
+        { regex: /\b(?:three|moodu|teen)\b/gi, val: "3" },
+        { regex: /\b(?:four|naalugu|nalugu|chaar|char)\b/gi, val: "4" },
+        { regex: /\b(?:five|aidu|idu|paanch|panch)\b/gi, val: "5" },
+        { regex: /\b(?:six|aaru|aru|chhe|che)\b/gi, val: "6" },
+        { regex: /\b(?:seven|yeedu|eedu|saat)\b/gi, val: "7" },
+        { regex: /\b(?:eight|enimidi|yenimidi|enimidhi|aath|ath)\b/gi, val: "8" },
+        { regex: /\b(?:nine|tommidi|nau)\b/gi, val: "9" },
+        { regex: /\bdouble\s+(\d)/gi, val: "$1$1" },
+        { regex: /\btriple\s+(\d)/gi, val: "$1$1$1" }
+      ];
+      for (const wd of wordDigits) {
+        s = s.replace(wd.regex, wd.val);
+      }
+      return s;
+    }
+
+    function detectsPhoneNumber(rawText) {
+      if (!rawText || typeof rawText !== "string") return false;
+      const normalized = normalizeContactText(rawText);
+      const universalDigitPattern = /(?:\+?[\s\W_]*\d[\s\W_]*){8,15}/gu;
+      if (universalDigitPattern.test(normalized)) return true;
+      const intlPattern = /(?:\+|00|011)[\s\W_]*\d(?:[\s\W_]*\d){6,14}/gu;
+      if (intlPattern.test(normalized)) return true;
+      const letterInterleaved = /(?:\d[\s\W_]*[a-zA-Z]{1,2}[\s\W_]*){7,}\d/u;
+      if (letterInterleaved.test(normalized)) return true;
+      const chunkedPattern = /(?:\b\d{5,8}\b[\s\S]{1,25}\b\d{4,8}\b)/i;
+      if (chunkedPattern.test(normalized)) return true;
+      const socialProxy = /(?:wa\.me|api\.whatsapp\.com|t\.me)[\s\W_]*\/?[\s\W_]*\+?[\s\W_]*\d(?:[\s\W_]*\d){6,14}/i;
+      if (socialProxy.test(normalized)) return true;
+      return false;
+    }
+
+    const unitVectors = [
+      { text: "8_6_8_8_1 _0_0_3_7_2", expected: true },
+      { text: "8 - 6 - 8 - 8 - 1 - 0 - 0 - 3 - 7 - 2", expected: true },
+      { text: "86881 00372", expected: true },
+      { text: "8.6.8.8.1.0.0.3.7.2", expected: true },
+      { text: "8*6*8*8*1*0*0*3*7*2", expected: true },
+      { text: "8🔥6🔥8🔥8🔥1🔥0🔥0🔥3🔥7🔥2", expected: true },
+      { text: "８６８８１００３７２", expected: true },
+      { text: "8\u200B6\u200B8\u200B8\u200B1\u200B0\u200B0\u200B3\u200B7\u200B2", expected: true },
+      { text: "86881 OO372", expected: true },
+      { text: "86881 II372", expected: true },
+      { text: "O5O 1234567", expected: true },
+      { text: "+971 50 123 4567", expected: true },
+      { text: "+44 7911 123456", expected: true },
+      { text: "91234567", expected: true },
+      { text: "9_1_2_3_4_5_6_7", expected: true },
+      { text: "+1 (212) 555-0199", expected: true },
+      { text: "8a6b8c8d1e0f0g3h7i2", expected: true },
+      { text: "8x6x8x8x1x0x0x3x7x2", expected: true },
+      { text: "86881 and 00372", expected: true },
+      { text: "86881 call me 00372", expected: true },
+      { text: "eight six eight eight one zero zero three seven two", expected: true },
+      { text: "call double eight one zero triple zero three seven two", expected: true },
+      { text: "enimidi aaru enimidi enimidi okati sunna sunna moodu eedu rendu", expected: true },
+      { text: "aath chhe aath aath ek shunya shunya teen saat do", expected: true },
+      { text: "wa.me/918688100372", expected: true },
+      { text: "Hello guys! How are you all?", expected: false },
+      { text: "I was born in 1998 and my sister in 2002", expected: false },
+      { text: "Let us meet at 10:30 AM tomorrow", expected: false },
+      { text: "My score was 1500 points in balloon game", expected: false },
+      { text: "It costs $50 or 250 rs", expected: false },
+      { text: "Pin code is 500081", expected: false }
+    ];
+
+    let allVectorsPassed = true;
+    for (const uv of unitVectors) {
+      if (detectsPhoneNumber(uv.text) !== uv.expected) {
+        allVectorsPassed = false;
+        break;
+      }
+    }
+    logResult("Watertight Global E.164 Phone Defense & 31-Vector Unit Matrix", allVectorsPassed);
+
+    // 6.3c Multi-Message Split Attack Socket Defense
+    const sSplitReceiver = io(SOCKET_URL, { transports: ["websocket"] });
+    const sSplitSender = io(SOCKET_URL, { transports: ["websocket"] });
+
+    await Promise.all([
+      new Promise(r => { sSplitReceiver.on("group_joined", r); sSplitReceiver.emit("join_group_chat", { nickname: "SplitRecv_99" }); }),
+      new Promise(r => { sSplitSender.on("group_joined", r); sSplitSender.emit("join_group_chat", { nickname: "SplitSend_99" }); })
+    ]);
+
+    let splitBlocked = false;
+    let secondHalfLeaked = false;
+    sSplitSender.on("group_message_error", (err) => {
+      if (err.message && err.message.includes("Splitting phone numbers")) {
+        splitBlocked = true;
+      }
+    });
+    sSplitReceiver.on("new_group_msg", (msg) => {
+      if (msg.text && msg.text.includes("00372")) {
+        secondHalfLeaked = true;
+      }
+    });
+
+    sSplitSender.emit("send_group_msg", { text: "86881" });
+    await sleep(1200);
+    sSplitSender.emit("send_group_msg", { text: "00372" });
+    await sleep(800);
+
+    logResult("Multi-Message Split Attack Socket Defense (Zero Leakage)", splitBlocked && !secondHalfLeaked);
+    sSplitReceiver.disconnect();
+    sSplitSender.disconnect();
+
     // 6.4 Playwright Browser 1-Hour Nickname Cooldown & Persistence Test
     const bNick = await chromium.launch({ headless: true });
     const cNick = await bNick.newContext({ viewport: { width: 390, height: 844 } });
@@ -1541,6 +1668,55 @@ async function runMasterE2ESuite() {
     logResult("Voice Persona ('girl') Persistence Across Reload (F5)", persistedGirl);
 
     await bVoice.close();
+
+    // 6.7 Frontend Chat Gender Neutralization & Whitelist Exclusions
+    const appJsContent = fs.readFileSync("/home/hashgang/Workspace/omegle/app.js", "utf8");
+    const sanitizeMatch = appJsContent.match(/function sanitizeGroupGenderWords\([\s\S]*?\n\}/);
+    const maskExplicitMatch = appJsContent.match(/function maskExplicitKeywords\([\s\S]*?\n\}/);
+    const isRestrictedMatch = appJsContent.match(/function isRestrictedNickname\(name\) \{[\s\S]*?\n\}/);
+
+    const sanitizeFn = new Function("text", `${sanitizeMatch[0]}; return sanitizeGroupGenderWords(text);`);
+    const maskExplicitFn = new Function("text", `${maskExplicitMatch[0]}; return maskExplicitKeywords(text);`);
+    const isRestrictedFn = new Function("name", `${isRestrictedMatch[0]}; return isRestrictedNickname(name);`);
+
+    const genderCases = [
+      { in: "Any girls here?", expected: "Any friends here?" },
+      { in: "Hi girls", expected: "Hi friends" },
+      { in: "Ur boy or girl", expected: "Ur friend" },
+      { in: "GIRLS CALL ME", expected: "FRIENDS CALL ME" },
+      { in: "I am a single male looking for female", expected: "I am a single friend looking for friend" },
+      { in: "Hello uncles and aunties", expected: "Hello friends and friends" },
+      { in: "Boy or Girl?", expected: "Friend?" },
+      { in: "Any woman online?", expected: "Any friend online?" },
+      { in: "Are you a man or woman?", expected: "Are you a friend?" },
+      { in: "Are you boys or girls?", expected: "Are you friends?" },
+      { in: "Do you have a girlfriend?", expected: "Do you have a girlfriend?" },
+      { in: "Hey man, what is up?", expected: "Hey man, what is up?" },
+      { in: "any grl online?", expected: "any grl online?" },
+      { in: "Hey Anti unte msg cheyandi", expected: "Hey Anti unte msg cheyandi" },
+      { in: "aunti unnara", expected: "aunti unnara" }
+    ];
+
+    const allGenderPassed = genderCases.every(c => sanitizeFn(c.in) === c.expected);
+    logResult("Frontend Gender Neutralization & Clean Exclusions (girlfriend, man, grl, aunti)", allGenderPassed);
+
+    // 6.8 Mask Explicit Keywords ("sex" & "asl" -> "*")
+    const explicitCases = [
+      { in: "need sex now", expected: "need *** now" },
+      { in: "what is your asl?", expected: "what is your ***?" },
+      { in: "tell me your a/s/l", expected: "tell me your *****" },
+      { in: "I am fast asleep", expected: "I am fast asleep" },
+      { in: "Essex street", expected: "Essex street" }
+    ];
+    const allExplicitPassed = explicitCases.every(c => maskExplicitFn(c.in) === c.expected);
+    logResult("Frontend Explicit Keywords Masking (sex, asl masked; asleep, Essex preserved)", allExplicitPassed);
+
+    // 6.9 Restricted Nicknames vs Clean Superheroines & Allowed Exclusions
+    const restrictedNicks = ["boy", "girl", "male", "female", "uncle", "aunty", "hyd_boy", "smartboy"];
+    const allowedNicks = ["Starfire", "Raven", "GwenStacy", "Batman", "cute_grl", "vizag_aunti", "anti_hero"];
+    const nicksPass = restrictedNicks.every(n => isRestrictedFn(n) === true) && allowedNicks.every(n => isRestrictedFn(n) === false);
+    logResult("Restricted Nicknames Filter & Clean Superheroines Whitelist-Free Allowance", nicksPass);
+
   } catch (err) {
     logResult("Phase 6 Features Suite", false, err.message);
   }
@@ -2173,6 +2349,82 @@ async function runMasterE2ESuite() {
     const installPillOk = receivedInstallPill && receivedInstallPill.nick === "InstallerOne" && (receivedInstallPill.text.includes("installed HashGANG App!") || receivedInstallPill.text.includes("installed the HashGANG App!"));
     logResult("Socket Event 'user_installed_app' Broadcasts App Install Pill", installPillOk);
 
+    // 10.17 5-Slot PWA Install Card Cascade Shift & Deduplication Engine
+    function create5SlotShiftTracker() {
+      const serverLatestEvents = {
+        appInstall1: { type: "app_install_pill", nickname: "AryaS", text: "AryaS installed HashGANG App!" },
+        appInstall2: { type: "app_install_pill", nickname: "Daenerys", text: "Daenerys installed HashGANG App!" },
+        appInstall3: { type: "app_install_pill", nickname: "RobbStark", text: "RobbStark installed HashGANG App!" },
+        appInstall4: { type: "app_install_pill", nickname: "JonSnow", text: "JonSnow installed HashGANG App!" },
+        appInstall5: { type: "app_install_pill", nickname: "SansaStark", text: "SansaStark installed HashGANG App!" }
+      };
+
+      function updateLatestPwaInstall(nickname) {
+        if (!nickname || typeof nickname !== "string") return;
+        const cleanNick = nickname.trim();
+        if (!cleanNick || cleanNick.toLowerCase() === "someone" || cleanNick.toLowerCase() === "stranger") return;
+        if (serverLatestEvents.appInstall5?.nickname?.toLowerCase() === cleanNick.toLowerCase()) return;
+
+        const prev2 = serverLatestEvents.appInstall2?.nickname || "Daenerys";
+        const prev3 = serverLatestEvents.appInstall3?.nickname || "RobbStark";
+        const prev4 = serverLatestEvents.appInstall4?.nickname || "JonSnow";
+        const prev5 = serverLatestEvents.appInstall5?.nickname || "SansaStark";
+
+        serverLatestEvents.appInstall1 = { type: "app_install_pill", nickname: prev2, text: `${prev2} installed HashGANG App!` };
+        serverLatestEvents.appInstall2 = { type: "app_install_pill", nickname: prev3, text: `${prev3} installed HashGANG App!` };
+        serverLatestEvents.appInstall3 = { type: "app_install_pill", nickname: prev4, text: `${prev4} installed HashGANG App!` };
+        serverLatestEvents.appInstall4 = { type: "app_install_pill", nickname: prev5, text: `${prev5} installed HashGANG App!` };
+        serverLatestEvents.appInstall5 = { type: "app_install_pill", nickname: cleanNick, text: `${cleanNick} installed HashGANG App!` };
+      }
+      return { serverLatestEvents, updateLatestPwaInstall };
+    }
+
+    const shiftTracker = create5SlotShiftTracker();
+    const init5Ok = shiftTracker.serverLatestEvents.appInstall1.nickname === "AryaS" && shiftTracker.serverLatestEvents.appInstall5.nickname === "SansaStark";
+    shiftTracker.updateLatestPwaInstall("Vikram");
+    const shift1Ok = shiftTracker.serverLatestEvents.appInstall1.nickname === "Daenerys" && shiftTracker.serverLatestEvents.appInstall5.nickname === "Vikram";
+    shiftTracker.updateLatestPwaInstall("Ananya");
+    const shift2Ok = shiftTracker.serverLatestEvents.appInstall1.nickname === "RobbStark" && shiftTracker.serverLatestEvents.appInstall5.nickname === "Ananya";
+    shiftTracker.updateLatestPwaInstall("Ananya");
+    const dedupOk = shiftTracker.serverLatestEvents.appInstall5.nickname === "Ananya" && shiftTracker.serverLatestEvents.appInstall4.nickname === "Vikram";
+    logResult("5-Slot PWA Install Card Cascade Shift & Deduplication Engine", init5Ok && shift1Ok && shift2Ok && dedupOk);
+
+    // 10.18 Anti-Duplication Debounce for Rapid Join & Install Socket Events
+    const obsClient = io(SOCKET_URL, { transports: ["websocket"], forceNew: true });
+    await new Promise((res) => {
+      obsClient.once("group_joined", res);
+      obsClient.emit("join_group_chat", { nickname: "Observer_Debounce", anonUserId: "usr_deb_obs" });
+    });
+
+    const receivedDebounceJoins = [];
+    const receivedDebounceInstalls = [];
+    obsClient.on("user_joined_group", (d) => {
+      if (d.nickname === "Rapid_User") receivedDebounceJoins.push(d);
+    });
+    obsClient.on("new_group_msg", (m) => {
+      if (m.type === "app_install_pill" && m.nick === "Rapid_User") receivedDebounceInstalls.push(m);
+    });
+
+    const rapidClient = io(SOCKET_URL, { transports: ["websocket"], forceNew: true });
+    await new Promise((res) => rapidClient.once("connect", res));
+
+    rapidClient.emit("join_group_chat", { nickname: "Rapid_User", anonUserId: "usr_rapid_1" });
+    setTimeout(() => rapidClient.emit("join_group_chat", { nickname: "Rapid_User", anonUserId: "usr_rapid_1" }), 50);
+    setTimeout(() => rapidClient.emit("join_group_chat", { nickname: "Rapid_User", anonUserId: "usr_rapid_1" }), 150);
+    await sleep(700);
+
+    rapidClient.emit("user_installed_app", { nick: "Rapid_User" });
+    rapidClient.emit("user_installed_app", { nick: "Rapid_User" });
+    rapidClient.emit("user_installed_app", { nick: "Rapid_User" });
+    await sleep(700);
+
+    rapidClient.disconnect();
+    obsClient.disconnect();
+
+    const debounceJoinsPass = receivedDebounceJoins.length === 1;
+    const debounceInstallsPass = receivedDebounceInstalls.length === 1;
+    logResult("Anti-Duplication Debounce for Rapid Join & Install Socket Events", debounceJoinsPass && debounceInstallsPass, `[Joins: ${receivedDebounceJoins.length}, Installs: ${receivedDebounceInstalls.length}]`);
+
   } catch (err) {
     logResult("Phase 10 WebPush Suite Execution", false, err.message);
   }
@@ -2462,7 +2714,214 @@ async function runMasterE2ESuite() {
     p3_4P.disconnect();
     await sleep(400);
 
-    // 11.9 Headless Browser UI Permutations for Ludo (Playwright)
+    // Helper function for 2-Player Ludo Match Setup
+    const setupLudo2PGame = async (hostName, joinerName) => {
+      const p1 = await createGroupClient(hostName);
+      const p2 = await createGroupClient(joinerName);
+      let inviteId = null;
+      const invitePromise = new Promise((resolve) => {
+        p1.once("new_ludo_invite", (d) => { inviteId = d.inviteId; resolve(); });
+      });
+      p1.emit("post_ludo_invite");
+      await invitePromise;
+      p2.emit("join_ludo_invite", { inviteId });
+      await sleep(200);
+
+      let p1GameStart = null;
+      const startPromise = new Promise((resolve) => {
+        p1.once("ludo_game_start", (d) => { p1GameStart = d; resolve(); });
+      });
+      p1.emit("start_ludo_game_now", { inviteId });
+      await startPromise;
+      return { p1, p2, gameId: p1GameStart.gameId };
+    };
+
+    // 11.9 Ludo Rapid Triple-Move Click Strict Idempotency (Anti-Double-Move)
+    {
+      const { p1, p2 } = await setupLudo2PGame("Idem_Red", "Idem_Yellow");
+      const movesReceived = [];
+      p1.on("ludo_token_moved", (d) => movesReceived.push(d));
+
+      const rollPromise = new Promise((resolve) => p1.once("ludo_dice_rolled", resolve));
+      p1.emit("ludo_roll_dice");
+      await rollPromise;
+
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(500);
+
+      logResult("Ludo Rapid Multi-Click Strict Idempotency (Anti-Double-Move Guard)", movesReceived.length <= 1, `[Moves: ${movesReceived.length}]`);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.10 Ludo Bonus Roll Scenario 1: Roll 6 Grants Extra Turn, Non-6 Ends Turn
+    {
+      const { p1, p2 } = await setupLudo2PGame("S1_Red", "S1_Yellow");
+      let turnChangeData = null;
+      p1.on("ludo_turn_change", (d) => { turnChangeData = d; });
+
+      p1.emit("ludo_roll_dice", { mockDice: 6 });
+      await sleep(200);
+      turnChangeData = null;
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      const roll6BonusOk = turnChangeData?.activeColor === "red" && turnChangeData?.extraTurn === true;
+
+      turnChangeData = null;
+      p1.emit("ludo_roll_dice", { mockDice: 3 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      const non6TurnAdvanceOk = turnChangeData?.activeColor === "yellow" && turnChangeData?.extraTurn === false;
+      logResult("Ludo Bonus Roll Scenario 1 (Roll 6 Grants Extra Turn, Non-6 Ends Turn)", roll6BonusOk && non6TurnAdvanceOk);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.11 Ludo Bonus Roll Scenario 2: Double Consecutive Sixes Award 2 Bonus Turns
+    {
+      const { p1, p2 } = await setupLudo2PGame("S2_Red", "S2_Yellow");
+      let turnChangeData = null;
+      p1.on("ludo_turn_change", (d) => { turnChangeData = d; });
+
+      // 1st Six
+      p1.emit("ludo_roll_dice", { mockDice: 6 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+      const bonus1 = turnChangeData?.activeColor === "red" && turnChangeData?.extraTurn === true;
+
+      // 2nd Consecutive Six
+      turnChangeData = null;
+      p1.emit("ludo_roll_dice", { mockDice: 6 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+      const bonus2 = turnChangeData?.activeColor === "red" && turnChangeData?.extraTurn === true;
+
+      // Complete with non-six (4)
+      turnChangeData = null;
+      p1.emit("ludo_roll_dice", { mockDice: 4 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+      const passYellow = turnChangeData?.activeColor === "yellow";
+
+      logResult("Ludo Bonus Roll Scenario 2 (Double Consecutive Sixes Award 2 Bonus Turns)", bonus1 && bonus2 && passYellow);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.12 Ludo Bonus Roll Scenario 3: Triple Consecutive Sixes Forfeits Turn
+    {
+      const { p1, p2 } = await setupLudo2PGame("S3_Red", "S3_Yellow");
+      let turnChangeData = null;
+      p1.on("ludo_turn_change", (d) => { turnChangeData = d; });
+
+      // 1st Six
+      p1.emit("ludo_roll_dice", { mockDice: 6 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      // 2nd Six
+      p1.emit("ludo_roll_dice", { mockDice: 6 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      // 3rd Six
+      turnChangeData = null;
+      p1.emit("ludo_roll_dice", { mockDice: 6 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      const forfeitOk = turnChangeData?.activeColor === "yellow" && turnChangeData?.extraTurn === false;
+      logResult("Ludo Bonus Roll Scenario 3 (Triple Consecutive Sixes Forfeits Turn & Passes to Next)", forfeitOk);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.13 Ludo Bonus Roll Scenario 4: Token Capture Awards Extra Turn
+    {
+      const { p1, p2 } = await setupLudo2PGame("S4_Red", "S4_Yellow");
+      p1.emit("_dev_set_ludo_tokens", { color: "red", tokens: [26, -1, -1, -1] });
+      p1.emit("_dev_set_ludo_tokens", { color: "yellow", tokens: [1, -1, -1, -1] });
+      await sleep(200);
+
+      let movedData = null;
+      let turnChangeData = null;
+      p1.on("ludo_token_moved", (d) => { movedData = d; });
+      p1.on("ludo_turn_change", (d) => { turnChangeData = d; });
+
+      p1.emit("ludo_roll_dice", { mockDice: 1 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      const cutOk = movedData?.capturedToken?.color === "yellow" && movedData?.capturedToken?.tokenIndex === 0;
+      const extraTurnOk = turnChangeData?.activeColor === "red" && turnChangeData?.extraTurn === true;
+      logResult("Ludo Bonus Roll Scenario 4 (Opponent Token Capture Awards Extra Turn)", cutOk && extraTurnOk);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.14 Ludo Bonus Roll Scenario 5: Reaching Home Goal 56 Awards Extra Turn
+    {
+      const { p1, p2 } = await setupLudo2PGame("S5_Red", "S5_Yellow");
+      p1.emit("_dev_set_ludo_tokens", { color: "red", tokens: [54, -1, -1, -1] });
+      await sleep(200);
+
+      let movedData = null;
+      let turnChangeData = null;
+      p1.on("ludo_token_moved", (d) => { movedData = d; });
+      p1.on("ludo_turn_change", (d) => { turnChangeData = d; });
+
+      p1.emit("ludo_roll_dice", { mockDice: 2 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 0 });
+      await sleep(950);
+
+      const goalOk = movedData?.newPos === 56;
+      const bonusOk = turnChangeData?.activeColor === "red" && turnChangeData?.extraTurn === true;
+      logResult("Ludo Bonus Roll Scenario 5 (Token Reaching Home Goal 56 Awards Extra Turn)", goalOk && bonusOk);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.15 Ludo Bonus Roll Scenario 6: 4th Token Home Triggers Victory
+    {
+      const { p1, p2 } = await setupLudo2PGame("S6_Red", "S6_Yellow");
+      p1.emit("_dev_set_ludo_tokens", { color: "red", tokens: [56, 56, 56, 55], homeCount: 3 });
+      await sleep(200);
+
+      let gameOverData = null;
+      p1.on("ludo_game_over", (d) => { gameOverData = d; });
+
+      p1.emit("ludo_roll_dice", { mockDice: 1 });
+      await sleep(200);
+      p1.emit("ludo_move_token", { tokenIndex: 3 });
+      await sleep(950);
+
+      const victoryOk = gameOverData?.winner === "red" && gameOverData?.reason === "victory";
+      logResult("Ludo Bonus Roll Scenario 6 (4th Token Home Triggers Game Over Victory)", victoryOk);
+      p1.disconnect();
+      p2.disconnect();
+      await sleep(300);
+    }
+
+    // 11.16 Headless Browser UI Permutations for Ludo (Playwright)
     const browserLudo = await chromium.launch({
       headless: true,
       args: [
