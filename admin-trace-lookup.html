@@ -524,7 +524,12 @@
       <img src="logo-sm.webp" alt="HashGANG Logo" />
       <span>HashGANG Legal Audit</span>
     </a>
-    <span class="admin-badge"><i class="fa-solid fa-lock"></i> Confidential / Admin Only</span>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <a href="admin-forensic-investigation.html" style="background: rgba(168, 85, 247, 0.15); border: 1px solid rgba(168, 85, 247, 0.4); color: #c084fc; padding: 6px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 700; text-decoration: none; display: flex; align-items: center; gap: 6px;">
+        <i class="fa-solid fa-user-secret"></i> User Forensics Dossier Hub &rarr;
+      </a>
+      <span class="admin-badge"><i class="fa-solid fa-lock"></i> Confidential / Admin Only</span>
+    </div>
   </header>
 
   <main>
@@ -614,12 +619,16 @@
             <div class="value" id="valMode" style="color: #67e8f9;">VIDEO</div>
           </div>
           <div class="meta-card">
-            <div class="label">Timestamp (UTC)</div>
-            <div class="value" id="valTimestamp" style="font-size: 0.88rem;">2026-10-07 17:00:00</div>
+            <div class="label">Established Time (IST)</div>
+            <div class="value" id="valTimestamp" style="font-size: 0.88rem;">-</div>
+          </div>
+          <div class="meta-card">
+            <div class="label">Call Duration & Status</div>
+            <div class="value" id="valDuration" style="color: #facc15; font-size: 0.88rem;">-</div>
           </div>
           <div class="meta-card">
             <div class="label">Compliance Status</div>
-            <div class="value" id="valComplianceStatus" style="color: #4ade80;">VERIFIED (1-YEAR RETENTION)</div>
+            <div class="value" id="valComplianceStatus" style="color: #4ade80;">VERIFIED (1-YEAR ARCHIVE)</div>
           </div>
         </div>
 
@@ -631,16 +640,32 @@
               <i class="fa-solid fa-user"></i> Peer A (Initiator)
             </div>
             <div class="peer-info-row">
-              <div class="lbl">Socket Identifier</div>
-              <div class="val" id="valPeerASocket">-</div>
+              <div class="lbl">Account / Nickname</div>
+              <div class="val" id="valPeerANick" style="color: #38bdf8; font-weight: 700;">-</div>
             </div>
             <div class="peer-info-row">
-              <div class="lbl">Client IP Address</div>
+              <div class="lbl">Hardware UID</div>
+              <div class="val" id="valPeerAUid" style="font-family: monospace; font-size: 0.78rem;">-</div>
+            </div>
+            <div class="peer-info-row">
+              <div class="lbl">Client IP & ISP</div>
               <div class="val" id="valPeerAIP" style="color: #38bdf8; font-weight: 700;">-</div>
             </div>
             <div class="peer-info-row">
-              <div class="lbl">User Agent / Device</div>
-              <div class="val" id="valPeerAUA" style="font-size: 0.8rem;">-</div>
+              <div class="lbl">Geo Location & Region</div>
+              <div class="val" id="valPeerAGeo" style="font-size: 0.82rem;">-</div>
+            </div>
+            <div class="peer-info-row">
+              <div class="lbl">Hardware & Display</div>
+              <div class="val" id="valPeerAHw" style="font-size: 0.82rem;">-</div>
+            </div>
+            <div class="peer-info-row">
+              <div class="lbl">User Agent / Platform</div>
+              <div class="val" id="valPeerAUA" style="font-size: 0.78rem;">-</div>
+            </div>
+            <div class="peer-info-row">
+              <div class="lbl">Account Footprint</div>
+              <div class="val" id="valPeerAAudit" style="font-size: 0.82rem; color: #cbd5e1;">-</div>
             </div>
           </div>
 
@@ -650,16 +675,32 @@
               <i class="fa-solid fa-user-secret"></i> Peer B (Stranger)
             </div>
             <div class="peer-info-row">
-              <div class="lbl">Socket Identifier</div>
-              <div class="val" id="valPeerBSocket">-</div>
+              <div class="lbl">Account / Nickname</div>
+              <div class="val" id="valPeerBNick" style="color: #f43f5e; font-weight: 700;">-</div>
             </div>
             <div class="peer-info-row">
-              <div class="lbl">Client IP Address</div>
+              <div class="lbl">Hardware UID</div>
+              <div class="val" id="valPeerBUid" style="font-family: monospace; font-size: 0.78rem;">-</div>
+            </div>
+            <div class="peer-info-row">
+              <div class="lbl">Client IP & ISP</div>
               <div class="val" id="valPeerBIP" style="color: #f43f5e; font-weight: 700;">-</div>
             </div>
             <div class="peer-info-row">
-              <div class="lbl">User Agent / Device</div>
-              <div class="val" id="valPeerBUA" style="font-size: 0.8rem;">-</div>
+              <div class="lbl">Geo Location & Region</div>
+              <div class="val" id="valPeerBGeo" style="font-size: 0.82rem;">-</div>
+            </div>
+            <div class="peer-info-row">
+              <div class="lbl">Hardware & Display</div>
+              <div class="val" id="valPeerBHw" style="font-size: 0.82rem;">-</div>
+            </div>
+            <div class="peer-info-row">
+              <div class="lbl">User Agent / Platform</div>
+              <div class="val" id="valPeerBUA" style="font-size: 0.78rem;">-</div>
+            </div>
+            <div class="peer-info-row">
+              <div class="lbl">Account Footprint</div>
+              <div class="val" id="valPeerBAudit" style="font-size: 0.82rem; color: #cbd5e1;">-</div>
             </div>
           </div>
         </div>
@@ -702,7 +743,7 @@ Loading affidavit template...
 
   <script>
     // Detect Backend Host API Origin
-    const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    const API_BASE = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:")
       ? "http://localhost:5000/api/v1/strangerchat"
       : "https://api.hashgang.com/api/v1/strangerchat";
 
@@ -853,13 +894,27 @@ Loading affidavit template...
       const matchDateObj = rawTime ? new Date(rawTime) : null;
       const matchDateStr = matchDateObj ? matchDateObj.toLocaleString() + " (IST)" : "N/A";
 
+      const lifecycle = data.sessionLifecycle || {};
+      const durationSec = lifecycle.durationSeconds || 0;
+      const durMins = Math.floor(durationSec / 60);
+      const durSecs = durationSec % 60;
+      const isLegacyRecord = !data.sessionLifecycle && !(data.peerA && data.peerA.hardware) && !(data.peerB && data.peerB.hardware);
+
+      const durationText = durationSec > 0
+        ? `${durMins}m ${durSecs}s (${lifecycle.terminateReason || "ended"})`
+        : (lifecycle.terminateReason === "active"
+            ? "Active / In Progress"
+            : (isLegacyRecord ? "Not Logged (Legacy Archive Record)" : "Short / Skipped (<1s)"));
+
       document.getElementById("badgeTraceCode").textContent = data.traceCode;
       document.getElementById("valMode").textContent = (data.mode || "TEXT").toUpperCase();
       document.getElementById("valTimestamp").textContent = matchDateStr;
+      const durEl = document.getElementById("valDuration");
+      if (durEl) durEl.textContent = durationText;
 
       const statusEl = document.getElementById("valComplianceStatus");
       if (statusEl) {
-        statusEl.textContent = "VERIFIED (1-YEAR MONGODB ARCHIVE)";
+        statusEl.textContent = isLegacyRecord ? "VERIFIED (LEGACY 1-YEAR ARCHIVE)" : "VERIFIED (1-YEAR MONGODB ARCHIVE)";
         statusEl.style.color = "#4ade80";
       }
 
@@ -867,62 +922,129 @@ Loading affidavit template...
       const peerB = data.peerB || {};
       const telA = peerA.telemetry || {};
       const telB = peerB.telemetry || {};
+      const geoA = peerA.geo || {};
+      const geoB = peerB.geo || {};
+      const hwA = peerA.hardware || {};
+      const hwB = peerB.hardware || {};
+      const accA = peerA.accountSummary || {};
+      const accB = peerB.accountSummary || {};
+
+      const formatGeo = (geo, peer) => {
+        if (!geo || (!geo.city && !geo.region)) {
+          return `Country: ${peer.country || "IN (India)"} • City: Not Captured (Legacy Record)`;
+        }
+        if (geo.city === "Unknown" && geo.region === "Unknown") {
+          return `Country: ${geo.country || peer.country || "IN (India)"} • Standard Telecom Routing`;
+        }
+        return `${geo.city || "Unknown"}, ${geo.region || "Unknown"} • ${geo.country || peer.country || "IN (India)"} (${geo.timezone || "Asia/Kolkata"})`;
+      };
+
+      const formatHw = (hw) => {
+        if (!hw || !hw.screen) {
+          return "Not Captured (Legacy Record / Browser Security Restricted)";
+        }
+        return `Screen: ${hw.screen} (DPR: ${hw.dpr || 1}) • CPU: ${hw.cores ? hw.cores + " Cores" : "N/A"} • RAM: ${hw.memory ? hw.memory + " GB" : "N/A"}`;
+      };
+
+      const formatAudit = (acc) => {
+        if (!acc || !acc.firstSeen) {
+          return "Not Captured (Legacy Archive Record)";
+        }
+        return `First Seen: ${new Date(acc.firstSeen).toLocaleDateString()} • Known Aliases: ${acc.knownAliasCount || 1}`;
+      };
 
       // Peer A Rendering
-      document.getElementById("valPeerASocket").textContent = peerA.socketId || "N/A";
-      document.getElementById("valPeerAIP").textContent = peerA.ip || "127.0.0.1 (Localhost)";
-      document.getElementById("valPeerAUA").textContent = `${telA.device || "Desktop"} • ${telA.os || "OS"} • ${telA.browser || "Browser"}\nCountry: ${peerA.country || "IN (India)"}`;
+      document.getElementById("valPeerANick").textContent = peerA.nickname || "Stranger";
+      document.getElementById("valPeerAUid").textContent = peerA.anonUserId || "N/A";
+      document.getElementById("valPeerAIP").textContent = `${peerA.ip || "127.0.0.1"} ${geoA.asn ? "• (" + geoA.asn + ")" : ""}`;
+      document.getElementById("valPeerAGeo").textContent = formatGeo(geoA, peerA);
+      document.getElementById("valPeerAHw").textContent = formatHw(hwA);
+      document.getElementById("valPeerAUA").textContent = `${telA.device || "Mobile"} • ${telA.os || "OS"} • ${telA.browser || "Browser"} • Mode: ${hwA.isPwa ? "PWA Standalone App" : "Web Browser Tab"}`;
+      document.getElementById("valPeerAAudit").textContent = formatAudit(accA);
 
       // Peer B Rendering
-      document.getElementById("valPeerBSocket").textContent = peerB.socketId || "N/A";
-      document.getElementById("valPeerBIP").textContent = peerB.ip || "127.0.0.1 (Localhost)";
-      document.getElementById("valPeerBUA").textContent = `${telB.device || "Desktop"} • ${telB.os || "OS"} • ${telB.browser || "Browser"}\nCountry: ${peerB.country || "IN (India)"}`;
+      document.getElementById("valPeerBNick").textContent = peerB.nickname || "Stranger";
+      document.getElementById("valPeerBUid").textContent = peerB.anonUserId || "N/A";
+      document.getElementById("valPeerBIP").textContent = `${peerB.ip || "127.0.0.1"} ${geoB.asn ? "• (" + geoB.asn + ")" : ""}`;
+      document.getElementById("valPeerBGeo").textContent = formatGeo(geoB, peerB);
+      document.getElementById("valPeerBHw").textContent = formatHw(hwB);
+      document.getElementById("valPeerBUA").textContent = `${telB.device || "Mobile"} • ${telB.os || "OS"} • ${telB.browser || "Browser"} • Mode: ${hwB.isPwa ? "PWA Standalone App" : "Web Browser Tab"}`;
+      document.getElementById("valPeerBAudit").textContent = formatAudit(accB);
 
       // Generate Official Legal Affidavit Document
       const affidavit = `OFFICIAL LAW ENFORCEMENT AUDIT & COMPLIANCE AFFIDAVIT
+Under Section 65B Indian Evidence Act, 1872 / Section 63 Bharatiya Sakshya Adhiniyam, 2023
 In Response to Law Enforcement Notice / CrPC Section 91 Inquiry / Section 69A IT Act
 ========================================================================
-Platform Provider: HASHGANG SOLUTIONS PRIVATE LIMITED
-Service Web Application: HashGANG Chat (https://chat.hashgang.com)
-Grievance Officer: Chinta Ramohan Rao (info@hashgang.com)
-Registered Address: 21-10/2-239, Vijaya Durga Nagar, Vijayawada - 520003, AP, India
+Platform Intermediary: HASHGANG SOLUTIONS PRIVATE LIMITED
+Operating Web Service: HashGANG Chat (https://chat.hashgang.com)
+Statutory Compliance : Rule 3(1)(h) Information Technology (Intermediary Guidelines) Rules, 2021
+Grievance Officer   : Chinta Ramohan Rao (info@hashgang.com)
+Registered Office    : 21-10/2-239, Vijaya Durga Nagar, Vijayawada - 520003, Andhra Pradesh, India
 
-SESSION MATCH TELEMETRY RECORD:
+[SECTION 1: SESSION MATCH & LIFECYCLE AUDIT RECORD]
 ------------------------------------------------------------------------
-Session Trace Code : ${data.traceCode}
-Match Timestamp    : ${matchDateObj ? matchDateObj.toUTCString() + " (" + matchDateObj.toLocaleString() + " IST)" : "N/A"}
-Chat Mode          : ${(data.mode || "text").toUpperCase()}
+Session Trace Code   : ${data.traceCode}
+Established Timestamp: ${matchDateObj ? matchDateObj.toUTCString() + " (" + matchDateObj.toLocaleString() + " IST)" : "N/A"}
+Session Terminated At: ${lifecycle.endedAt ? new Date(lifecycle.endedAt).toUTCString() + " (" + new Date(lifecycle.endedAt).toLocaleString() + " IST)" : (isLegacyRecord ? "Not Logged (Legacy Archive Record)" : "Active / Session In Progress")}
+Total Call Duration  : ${durationSec > 0 ? durationSec + " Seconds (" + durMins + "m " + durSecs + "s)" : (isLegacyRecord ? "Not Logged (Legacy Archive Record)" : "Short / Skipped (<1s)")}
+Termination Reason   : ${lifecycle.terminateReason || (isLegacyRecord ? "Not Logged (Legacy Archive Record)" : "ended")} (Terminated by: ${lifecycle.terminatedBy || (isLegacyRecord ? "N/A" : "participant")})
+Communication Mode   : ${(data.mode || "text").toUpperCase()}
+MongoDB Retention ID : ${data._id || "AUTO_ARCHIVE_MATCH"}
 
-PEER A (INITIATOR PARTICIPANT):
-- Socket Identifier : ${peerA.socketId || "N/A"}
-- Network IP Address: ${peerA.ip || "127.0.0.1 (Localhost)"}
-- Country / Region  : ${peerA.country || "IN (India)"}
-- Device Telemetry  : ${telA.device || "Desktop"} | ${telA.os || "OS"} | ${telA.browser || "Browser"}
-- Raw User-Agent    : ${peerA.userAgent || "Unknown"}
-
-PEER B (STRANGER PARTICIPANT):
-- Socket Identifier : ${peerB.socketId || "N/A"}
-- Network IP Address: ${peerB.ip || "127.0.0.1 (Localhost)"}
-- Country / Region  : ${peerB.country || "IN (India)"}
-- Device Telemetry  : ${telB.device || "Desktop"} | ${telB.os || "OS"} | ${telB.browser || "Browser"}
-- Raw User-Agent    : ${peerB.userAgent || "Unknown"}
-
-STATEMENT OF ARCHITECTURAL & STATUTORY COMPLIANCE:
+[SECTION 2: PEER A FORENSIC METADATA MATRIX (INITIATOR)]
 ------------------------------------------------------------------------
-1. Decentralized Peer-to-Peer (P2P) WebRTC Architecture:
-   HashGANG Chat operates on a 100% decentralized Peer-to-Peer WebRTC framework.
-   Audio/video streams and real-time chat messages pass directly encrypted
-   between user endpoints and are NEVER recorded, intercepted, or archived on
-   central servers.
-2. Server Signaling Audit Trail (Volatile Memory Logging):
-   The connection telemetry logged above represents volatile server signaling
-   memory captured at the time of session establishment under Section 91 CrPC,
-   Information Technology Act, 2000, and Information Technology Rules, 2021.
-3. 1-Year Retention Verification:
-   This network connection audit log is retained for 365 days in an immutable
-   MongoDB database archive in accordance with statutory compliance guidelines.
+Account / Nickname   : ${peerA.nickname || "Stranger"}
+Hardware Device UID  : ${peerA.anonUserId || "N/A"}
+Telecom IP Address   : ${peerA.ip || "127.0.0.1 (Localhost)"}
+Geo City / Region    : ${(geoA.city && geoA.city !== "Unknown") ? (geoA.city + ", " + geoA.region) : (isLegacyRecord ? "Not Captured (Legacy Archive Record)" : "Standard Telecom Routing")}
+Country / Postal Code: ${geoA.country || peerA.country || "IN (India)"} | PIN: ${geoA.postalCode || "N/A"}
+ISP / Carrier (ASN)  : ${geoA.asn || "Standard Telecom Routing"} ${geoA.isp ? "• " + geoA.isp : ""}
+Local Timezone       : ${geoA.timezone || "Asia/Kolkata"}
+Display & Screen Res : ${hwA.screen ? (hwA.screen + " (DPR: " + (hwA.dpr || 1) + ")") : (isLegacyRecord ? "Not Captured (Legacy Archive Record)" : "Browser Restricted / Default")}
+Processor & Memory   : ${hwA.cores ? "CPU Cores: " + hwA.cores : "CPU Cores: N/A"} | ${hwA.memory ? "RAM: " + hwA.memory + " GB" : "RAM: N/A"}
+Client App Mode      : ${hwA.isPwa ? "PWA Standalone App (WebAPK)" : "Web Browser Tab"} (Touch Points: ${hwA.touchPoints || 0})
+Device OS & Browser  : ${telA.device || "Desktop"} | ${telA.os || "OS"} | ${telA.browser || "Browser"}
+Raw HTTP User-Agent  : ${peerA.userAgent || "Unknown"}
+Historical Footprint : First Seen: ${accA.firstSeen ? new Date(accA.firstSeen).toISOString() : (isLegacyRecord ? "Legacy Record" : "New Device")} | Known Nicknames: ${accA.knownAliasCount || 1}
+
+[SECTION 3: PEER B FORENSIC METADATA MATRIX (STRANGER / PARTICIPANT)]
+------------------------------------------------------------------------
+Account / Nickname   : ${peerB.nickname || "Stranger"}
+Hardware Device UID  : ${peerB.anonUserId || "N/A"}
+Telecom IP Address   : ${peerB.ip || "127.0.0.1 (Localhost)"}
+Geo City / Region    : ${(geoB.city && geoB.city !== "Unknown") ? (geoB.city + ", " + geoB.region) : (isLegacyRecord ? "Not Captured (Legacy Archive Record)" : "Standard Telecom Routing")}
+Country / Postal Code: ${geoB.country || peerB.country || "IN (India)"} | PIN: ${geoB.postalCode || "N/A"}
+ISP / Carrier (ASN)  : ${geoB.asn || "Standard Telecom Routing"} ${geoB.isp ? "• " + geoB.isp : ""}
+Local Timezone       : ${geoB.timezone || "Asia/Kolkata"}
+Display & Screen Res : ${hwB.screen ? (hwB.screen + " (DPR: " + (hwB.dpr || 1) + ")") : (isLegacyRecord ? "Not Captured (Legacy Archive Record)" : "Browser Restricted / Default")}
+Processor & Memory   : ${hwB.cores ? "CPU Cores: " + hwB.cores : "CPU Cores: N/A"} | ${hwB.memory ? "RAM: " + hwB.memory + " GB" : "RAM: N/A"}
+Client App Mode      : ${hwB.isPwa ? "PWA Standalone App (WebAPK)" : "Web Browser Tab"} (Touch Points: ${hwB.touchPoints || 0})
+Device OS & Browser  : ${telB.device || "Desktop"} | ${telB.os || "OS"} | ${telB.browser || "Browser"}
+Raw HTTP User-Agent  : ${peerB.userAgent || "Unknown"}
+Historical Footprint : First Seen: ${accB.firstSeen ? new Date(accB.firstSeen).toISOString() : (isLegacyRecord ? "Legacy Record" : "New Device")} | Known Nicknames: ${accB.knownAliasCount || 1}
+
+[SECTION 4: STATUTORY SAFE HARBOR & EVIDENCE CERTIFICATION]
+------------------------------------------------------------------------
+1. Section 79 IT Act 2000 Safe Harbor Protection:
+   HashGANG Chat is an intermediary as defined under Section 2(1)(w) of the Information
+   Technology Act, 2000. It does not initiate the transmission, select the receiver of the
+   transmission, or select or modify the information contained in the transmission.
+2. Decentralized Peer-to-Peer (P2P) WebRTC Architecture:
+   Communication takes place directly between participant devices via end-to-end encrypted
+   WebRTC P2P mesh. Voice, video, and text messages pass strictly peer-to-peer and are
+   NEVER recorded, intercepted, piped, or stored on central servers.
+3. Volatile Server Transport Audit Trail & 1-Year Retention:
+   The technical logs above represent system transport signaling metadata generated during
+   session establishment and retained for 365 days in an immutable MongoDB archive in strict
+   adherence to Rule 3(1)(h) of the IT (Intermediary Guidelines) Rules, 2021.
+4. Digital Integrity Certificate under Section 65B(4) Evidence Act / Section 63 BSA 2023:
+   The computer output contained in this document was produced by computer systems operating
+   properly in the ordinary course of lawful activities, and electronic data integrity has
+   remained uncompromised throughout its statutory retention period.
 ========================================================================
-Generated on: ${new Date().toLocaleString()} (IST)`;
+Generated on: ${new Date().toLocaleString()} (IST)
+Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
 
       document.getElementById("affidavitText").textContent = affidavit;
       document.getElementById("resultsSection").style.display = "block";
