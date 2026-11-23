@@ -519,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v439";
+const APP_CLIENT_VERSION = "v440";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -2081,6 +2081,9 @@ function initSocketConnection() {
             } else if (msg.type === "favorite_pill") {
               feed.appendChild(renderFavoritePillRow(msg));
               lastSenderId = null;
+            } else if (msg.type === "report_pill") {
+              feed.appendChild(renderCommunityReportPillRow(msg));
+              lastSenderId = null;
             } else if (msg.type === "app_install_pill") {
               feed.appendChild(renderAppInstallPillRow(msg));
               lastSenderId = null;
@@ -2187,6 +2190,8 @@ function initSocketConnection() {
             feed.appendChild(renderLudoWinnerFeedCard(msg));
           } else if (msg.type === "favorite_pill") {
             feed.appendChild(renderFavoritePillRow(msg));
+          } else if (msg.type === "report_pill") {
+            feed.appendChild(renderCommunityReportPillRow(msg));
           } else if (msg.type === "app_install_pill") {
             feed.appendChild(renderAppInstallPillRow(msg));
           } else if (msg.type === "old_messages_notice") {
@@ -2632,6 +2637,13 @@ function initSocketConnection() {
         btn.classList.add("reported");
         btn.title = "Reported";
       }
+    });
+
+    socket.on("group_report_warning", (data) => {
+      if (!data || !data.message) return;
+      v2ShowToast(data.message, 6000);
+      showDockHint(data.message, "danger", 7000);
+      updateGroupStrikeIndicator(data.strike || 1, data.maxStrikes || 3);
     });
   } catch (err) {
     console.error("Socket.io initialization error:", err);
@@ -7215,6 +7227,9 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
   if (msg && msg.type === "favorite_pill") {
     return renderFavoritePillRow(msg);
   }
+  if (msg && msg.type === "report_pill") {
+    return renderCommunityReportPillRow(msg);
+  }
   if (msg && msg.type === "app_install_pill") {
     return renderAppInstallPillRow(msg);
   }
@@ -7332,7 +7347,7 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
     // Negative moderation action on bottom left
     reportActionHtml = `
       <div class="v2-msg-report-action">
-        <button class="v2-ext-act-btn report" id="group-report-btn-${msg.id}" title="Report / Block Message" onclick="openGroupReportModal('${msg.id}', '${encodeURIComponent(senderNickRaw)}', '${encodeURIComponent(rawSnippet)}')">🚫</button>
+        <button class="v2-ext-act-btn report" id="group-report-btn-${msg.id}" title="Report Message" onclick="openGroupReportModal('${msg.id}', '${encodeURIComponent(senderNickRaw)}', '${encodeURIComponent(rawSnippet)}')">🚩</button>
       </div>
     `;
   }
@@ -7552,8 +7567,8 @@ function submitGroupReport() {
   }
 
   closeGroupReportModal();
-  v2ShowToast("🚫 Report submitted. Thank you for keeping HashGANG safe.");
-  showDockHint("🚫 Report submitted to community moderation", "info", 3500);
+  v2ShowToast("🚩 Report submitted. Thank you for keeping HashGANG safe.");
+  showDockHint("🚩 Report submitted to community moderation", "info", 3500);
 }
 
 function saveMyRecentInviteId(inviteId) {
@@ -9860,6 +9875,34 @@ function dismissFavoriteReinstallGate(fromCloseBtn = false) {
   v2ShowToast("🗑️ Saved favorites cleared. Install the app anytime to favorite friends!");
 }
 window.dismissFavoriteReinstallGate = dismissFavoriteReinstallGate;
+
+function renderCommunityReportPillRow(msg) {
+  const wrap = document.createElement("div");
+  wrap.className = "v2-group-favorite-pill-wrap v2-group-report-pill-wrap";
+  if (msg && msg.id) wrap.id = `msg-${msg.id}`;
+
+  const targetNick = msg.targetNick || msg.nickname || "Someone";
+  wrap.innerHTML = `
+    <div class="v2-group-favorite-pill v2-group-report-pill">
+      <span class="v2-fav-pill-text"><span class="report-pill-flag">🚩</span> Community Alert: <strong>${escapeHtml(targetNick)}</strong>'s message was reported by room members.</span>
+    </div>
+  `;
+  return wrap;
+}
+window.renderCommunityReportPillRow = renderCommunityReportPillRow;
+
+function updateGroupStrikeIndicator(strike, max = 3) {
+  const el = document.getElementById("v2-group-strike-indicator");
+  const txt = document.getElementById("v2-strike-text");
+  if (!el || !txt) return;
+  if (strike > 0) {
+    txt.textContent = `⚠️ Community Warning (Strike ${strike}/${max}): Keep conversations respectful or you will be muted.`;
+    el.classList.remove("hidden");
+  } else {
+    el.classList.add("hidden");
+  }
+}
+window.updateGroupStrikeIndicator = updateGroupStrikeIndicator;
 
 function renderFavoritePillRow(msg) {
   const wrap = document.createElement("div");
