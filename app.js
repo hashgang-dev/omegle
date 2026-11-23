@@ -519,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v426";
+const APP_CLIENT_VERSION = "v427";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -1781,6 +1781,7 @@ function initSocketConnection() {
           ? `🟢 Connected in Private ${currentChatMode.toUpperCase()} with ${escapeHtml(partnerName)}! Say Hi 👋`
           : "🟢 Connected with stranger! Say Hi 👋"
         );
+        appendSafetyWarningCard();
         updateToolbarForMode("active");
         playAudioChime("connect");
         triggerHapticPulse([100, 50, 100]);
@@ -2825,6 +2826,44 @@ function appendSystemCard(type, text) {
   setTimeout(() => {
     if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
   }, 30);
+}
+
+/**
+ * 1v1 Legal Advisory & Anti-Doxxing Warning Card
+ */
+function appendSafetyWarningCard() {
+  if (!el.chatMessages) initDOMElements();
+  if (!el.chatMessages) return;
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "v2-sys-msg-wrapper";
+
+  const card = document.createElement("div");
+  card.className = "v2-sys-card safety-warning";
+  card.setAttribute("role", "alert");
+  card.innerHTML = `
+    <div class="v2-safety-header">
+      <span class="v2-safety-badge">⚖️ LEGAL &amp; SAFETY ADVISORY</span>
+    </div>
+    <div class="v2-safety-body">
+      <p class="v2-safety-title">⚠️ Do Not Share or Solicit Phone Numbers</p>
+      <p class="v2-safety-desc">
+        Sharing personal or fake phone numbers of others without consent is strictly prohibited and constitutes a <strong>punishable cybercrime</strong> under Indian IT Act (Sec 66E) &amp; BNS. Perpetrators face <strong>immediate IP-based police prosecution</strong>.
+      </p>
+      <p class="v2-safety-telugu">
+        📌 ఇతరుల లేదా నకిలీ ఫోన్ నంబర్లు షేర్ చేయడం చట్టరీత్యా తీవ్రమైన నేరం. బాధితుల ఫిర్యాదు మేరకు నిందితుల ఐపీ అడ్రస్ ఆధారాలు పోలీసులకు సమర్పించబడతాయి.
+      </p>
+      <p class="v2-safety-disclaimer">
+        🛡️ <strong>Platform Disclaimer:</strong> HashGANG strictly prohibits contact sharing and takes <strong>zero responsibility</strong> for off-platform interactions or unauthorized contact sharing.
+      </p>
+    </div>
+  `;
+
+  wrapper.appendChild(card);
+  el.chatMessages.appendChild(wrapper);
+  setTimeout(() => {
+    if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+  }, 40);
 }
 
 let matchCount = 0;

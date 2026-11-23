@@ -2057,6 +2057,83 @@ html, body {
   color: #fb7185;
 }
 
+/* 1v1 Legal & Anti-Harassment Safety Warning Card */
+.v2-sys-card.safety-warning {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #f3f4f6;
+  text-align: left;
+  max-width: 94%;
+  padding: 12px 14px;
+  gap: 6px;
+  border-radius: var(--v2-radius-md, 12px);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.v2-safety-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.v2-safety-badge {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #fbbf24;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.v2-safety-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: #d1d5db;
+}
+
+.v2-safety-title {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fef3c7;
+}
+
+.v2-safety-desc {
+  margin: 0;
+  color: #e5e7eb;
+}
+
+.v2-safety-desc strong {
+  color: #fca5a5;
+}
+
+.v2-safety-telugu {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #fbbf24;
+  opacity: 0.95;
+  line-height: 1.4;
+}
+
+.v2-safety-disclaimer {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #9ca3af;
+  border-top: 1px dashed rgba(245, 158, 11, 0.25);
+  padding-top: 5px;
+  line-height: 1.35;
+}
+
+.v2-safety-disclaimer strong {
+  color: #f3f4f6;
+}
+
 /* Thumb-Zone Ergonomic Reconnect Action Button */
 .v2-reconnect-btn {
   background: linear-gradient(135deg, var(--v2-primary-purple), var(--v2-primary-magenta));
