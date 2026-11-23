@@ -2134,6 +2134,64 @@ html, body {
   color: #f3f4f6;
 }
 
+/* Group Chat Safety & Fraud Prevention Advisory Card */
+.v2-group-safety-card {
+  align-self: center;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #f3f4f6;
+  text-align: left;
+  width: 95%;
+  max-width: 580px;
+  margin: 10px auto;
+  padding: 10px 13px;
+  border-radius: var(--v2-radius-md, 12px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  animation: v2FadeIn 0.25s ease-out;
+}
+
+.v2-group-safety-card .v2-safety-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.v2-safety-legal-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #9ca3af;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.v2-group-safety-card .v2-safety-desc {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: #fef08a;
+}
+
+.v2-group-safety-card .v2-safety-desc strong {
+  color: #fbbf24;
+}
+
+.v2-group-safety-card .v2-safety-en-sub {
+  margin: 0;
+  font-size: 0.69rem;
+  line-height: 1.35;
+  color: #9ca3af;
+  border-top: 1px dashed rgba(245, 158, 11, 0.2);
+  padding-top: 4px;
+}
+
 /* Thumb-Zone Ergonomic Reconnect Action Button */
 .v2-reconnect-btn {
   background: linear-gradient(135deg, var(--v2-primary-purple), var(--v2-primary-magenta));
