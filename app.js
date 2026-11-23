@@ -519,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v436";
+const APP_CLIENT_VERSION = "v437";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -7908,11 +7908,11 @@ function renderWelcomeKnowledgeCard(roomNumber = 1) {
           </div>
           <div class="v2-motive-item">
             <span class="v2-motive-emoji">🚫</span>
-            <span>No Dating, No Abuse, No Judgment</span>
+            <span>No Dating, No Abuse, No Judgment, No Race</span>
           </div>
           <div class="v2-motive-item">
             <span class="v2-motive-emoji">🎭</span>
-            <span>Be 100% Anonymous, 100% Respectful, 100% Yourself</span>
+            <span>Be 100% Anonymous, 100% Respectful</span>
           </div>
         </div>
       </div>
