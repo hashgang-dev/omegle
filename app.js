@@ -519,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v428";
+const APP_CLIENT_VERSION = "v431";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -1529,6 +1529,16 @@ function initSocketConnection() {
       clearTimeout(clientGraceDisconnectTimeout);
       const prevSocketId = window.lastActiveSocketId;
       window.lastActiveSocketId = socket.id;
+
+      // Register Anonymous User Hardware Session with Backend Forensics Audit
+      try {
+        const myUid = getOrCreateAnonUserId();
+        socket.emit("register_user_session", {
+          anonUserId: myUid,
+          nickname: currentNickname || "Stranger",
+          hardware: (typeof getClientHardwareTelemetry === "function") ? getClientHardwareTelemetry() : null
+        });
+      } catch (e) {}
 
       // In-Call Session Resume: If reconnected during active 1v1 private chat, resume with server!
       if (inCall && currentMatchTargetId && prevSocketId && prevSocketId !== socket.id) {
@@ -6899,7 +6909,11 @@ function saveNewNickname() {
     localStorage.setItem("hg_nick_last_changed", Date.now().toString());
     updateNicknameDisplay(currentNickname);
     if (socket && socket.connected) {
-      socket.emit("update_nickname", { nickname: currentNickname });
+      socket.emit("update_nickname", {
+        nickname: currentNickname,
+        anonUserId: getOrCreateAnonUserId(),
+        hardware: (typeof getClientHardwareTelemetry === "function") ? getClientHardwareTelemetry() : null
+      });
     }
   }
   closeNicknameModal();
@@ -8994,6 +9008,63 @@ function getOrCreateAnonUserId() {
   return uid;
 }
 window.getOrCreateAnonUserId = getOrCreateAnonUserId;
+
+function getClientHardwareTelemetry() {
+  try {
+    let pwaState = false;
+    try {
+      pwaState = (typeof isPwaStandalone === "function")
+        ? isPwaStandalone()
+        : (typeof window !== "undefined" && window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+    } catch (e) {}
+
+    const nav = (typeof navigator !== "undefined") ? navigator : {};
+    const win = (typeof window !== "undefined") ? window : {};
+    const scr = win.screen || {};
+
+    let tz = "Asia/Kolkata";
+    try {
+      if (typeof Intl !== "undefined" && Intl.DateTimeFormat) {
+        tz = Intl.DateTimeFormat().resolvedOptions().timeZone || tz;
+      }
+    } catch (e) {}
+
+    const screenStr = (scr.width && scr.height) ? `${scr.width}x${scr.height}` : null;
+    const dprNum = win.devicePixelRatio || 1;
+    const coresNum = nav.hardwareConcurrency || null;
+    const memNum = nav.deviceMemory || null;
+    const platformStr = (nav.userAgentData && nav.userAgentData.platform) || nav.platform || null;
+    const touchNum = nav.maxTouchPoints || 0;
+    const langStr = nav.language || "en";
+
+    return {
+      screen: screenStr,
+      dpr: dprNum,
+      cores: coresNum,
+      memory: memNum,
+      platform: platformStr,
+      touchPoints: touchNum,
+      isPwa: Boolean(pwaState),
+      language: langStr,
+      timezone: tz,
+      appVersion: typeof APP_CLIENT_VERSION !== "undefined" ? APP_CLIENT_VERSION : "v430",
+    };
+  } catch (err) {
+    return {
+      screen: null,
+      dpr: 1,
+      cores: null,
+      memory: null,
+      platform: null,
+      touchPoints: 0,
+      isPwa: false,
+      language: "en",
+      timezone: "Asia/Kolkata",
+      appVersion: typeof APP_CLIENT_VERSION !== "undefined" ? APP_CLIENT_VERSION : "v430",
+    };
+  }
+}
+window.getClientHardwareTelemetry = getClientHardwareTelemetry;
 
 function loadFavoritesFromStorage() {
   try {
@@ -12482,7 +12553,11 @@ function saveSettingsNickname() {
     localStorage.setItem("hg_nick_last_changed", Date.now().toString());
     if (typeof updateNicknameDisplay === "function") updateNicknameDisplay(currentNickname);
     if (socket && socket.connected) {
-      socket.emit("update_nickname", { nickname: currentNickname });
+      socket.emit("update_nickname", {
+        nickname: currentNickname,
+        anonUserId: getOrCreateAnonUserId(),
+        hardware: (typeof getClientHardwareTelemetry === "function") ? getClientHardwareTelemetry() : null
+      });
     }
     showDockHint(`✨ Account Name saved as: ${currentNickname}`, "info", 3000);
     closeV2SettingsModal();
