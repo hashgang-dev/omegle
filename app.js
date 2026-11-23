@@ -519,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v438";
+const APP_CLIENT_VERSION = "v439";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -7313,6 +7313,7 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
   const rawSnippet = isSticker ? "🏷️ [Sticker]" : (isGif ? "🎬 [GIF]" : (msg.text || "").slice(0, 60));
 
   let actionsHtml = "";
+  let reportActionHtml = "";
   if (isSelf) {
     actionsHtml = `
       <div class="v2-msg-external-actions">
@@ -7321,11 +7322,17 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
       </div>
     `;
   } else {
+    // Positive actions on bottom right
     actionsHtml = `
       <div class="v2-msg-external-actions">
         <button class="v2-ext-act-btn" title="Reply" data-reply-id="${msg.id}" data-reply-nick="${encodeURIComponent(senderNickRaw)}" data-reply-snippet="${encodeURIComponent(rawSnippet)}" onclick="handleGroupReplyBtn(this)">↩️</button>
         <button class="v2-ext-act-btn" id="group-react-btn-${msg.id}" title="React" onclick="toggleGroupReactionPicker('${msg.id}', event)">😊</button>
-        <button class="v2-ext-act-btn report" id="group-report-btn-${msg.id}" title="Report Message" onclick="openGroupReportModal('${msg.id}', '${encodeURIComponent(senderNickRaw)}', '${encodeURIComponent(rawSnippet)}')">🚩</button>
+      </div>
+    `;
+    // Negative moderation action on bottom left
+    reportActionHtml = `
+      <div class="v2-msg-report-action">
+        <button class="v2-ext-act-btn report" id="group-report-btn-${msg.id}" title="Report / Block Message" onclick="openGroupReportModal('${msg.id}', '${encodeURIComponent(senderNickRaw)}', '${encodeURIComponent(rawSnippet)}')">🚫</button>
       </div>
     `;
   }
@@ -7439,6 +7446,7 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
     <div class="v2-msg-bubble" ${bubbleLeftBorder}>
       ${replyHtml}
       ${bubbleContentHtml}
+      ${reportActionHtml}
       ${actionsHtml}
     </div>
     ${reactionsHtml}
@@ -7544,8 +7552,8 @@ function submitGroupReport() {
   }
 
   closeGroupReportModal();
-  v2ShowToast("🚩 Report submitted. Thank you for keeping HashGANG safe.");
-  showDockHint("🚩 Report submitted to community moderation", "info", 3500);
+  v2ShowToast("🚫 Report submitted. Thank you for keeping HashGANG safe.");
+  showDockHint("🚫 Report submitted to community moderation", "info", 3500);
 }
 
 function saveMyRecentInviteId(inviteId) {
@@ -9077,7 +9085,7 @@ function toggleGroupReactionPicker(msgId, event) {
   picker.className = "v2-reaction-picker";
   picker.dataset.forMsgId = msgId;
 
-  const emojis = ["👍", "❤️", "🔥", "😂", "😮", "😭", "🙏", "👏"];
+  const emojis = ["👍", "❤️", "🔥", "😂", "😮", "😭", "👏", "👎"];
   emojis.forEach((emoji) => {
     const item = document.createElement("span");
     item.className = "v2-reaction-emoji-item";

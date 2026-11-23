@@ -11650,21 +11650,34 @@ html, body {
    Group Chat Community Moderation & Message Reporting Styles
    ========================================================================== */
 
+/* Report Action Icon (Dedicated Bottom-Left Negative Action Container) */
+.v2-group-msg-row.other .v2-msg-report-action {
+  position: absolute;
+  bottom: -13px;
+  left: -8px;
+  right: auto;
+  display: flex;
+  align-items: center;
+  z-index: 10;
+}
+
 /* Report Action Button */
 .v2-ext-act-btn.report {
-  font-size: 0.72rem;
-  color: rgba(244, 63, 94, 0.75);
+  font-size: 0.76rem;
+  color: rgba(244, 63, 94, 0.8);
+  border-color: rgba(244, 63, 94, 0.3);
 }
 
 .v2-ext-act-btn.report:hover {
-  background: rgba(239, 68, 68, 0.35);
-  border-color: rgba(248, 113, 113, 0.8);
-  color: #f87171;
-  transform: scale(1.15);
+  background: rgba(239, 68, 68, 0.4);
+  border-color: rgba(248, 113, 113, 0.9);
+  color: #ffffff;
+  transform: scale(1.18);
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
 }
 
 .v2-ext-act-btn.report.reported {
-  opacity: 0.35;
+  opacity: 0.3;
   pointer-events: none;
   cursor: default;
   filter: grayscale(1);
