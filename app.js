@@ -519,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v427";
+const APP_CLIENT_VERSION = "v428";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -2101,9 +2101,10 @@ function initSocketConnection() {
           });
         }
 
-        // 2. Inline Welcome Card placed at the VERY BOTTOM of feed!
+        // 2. Inline Welcome Card & Safety Advisory placed at the VERY BOTTOM of feed!
         try {
           feed.appendChild(renderWelcomeKnowledgeCard(activeGroupRoomNumber));
+          feed.appendChild(renderGroupSafetyCard());
         } catch (eCard) {
           console.warn("⚠️ [Group Chat] Welcome card render notice:", eCard);
         }
@@ -2186,6 +2187,7 @@ function initSocketConnection() {
         }
 
         feed.appendChild(renderWelcomeKnowledgeCard(activeGroupRoomNumber));
+        feed.appendChild(renderGroupSafetyCard());
         feed.scrollTop = feed.scrollHeight;
         hideGroupScrollBottomBtn();
         ensureInputFieldsVisibility();
@@ -2312,6 +2314,11 @@ function initSocketConnection() {
         if (!msg || (!msg.type || msg.type === "text" || msg.type === "sticker" || msg.type === "gif")) {
           liveGroupMsgCounter++;
           console.log(`💬 [In-Feed Pacing] Message count: ${liveGroupMsgCounter}`);
+          // Every 10 messages: Inject Safety & Fraud Advisory Card
+          if (liveGroupMsgCounter % 10 === 0) {
+            feed.appendChild(renderGroupSafetyCard());
+            console.log(`🛡️ [Group Feed Safety] Injected Safety Advisory at message ${liveGroupMsgCounter}`);
+          }
           if (liveGroupMsgCounter % 15 === 0) {
             handleInFeedPacingInjection(feed, liveGroupMsgCounter);
           }
@@ -7841,6 +7848,29 @@ function renderWelcomeKnowledgeCard(roomNumber = 1) {
   return card;
 }
 
+function renderGroupSafetyCard() {
+  const card = document.createElement("div");
+  card.className = "v2-group-safety-card";
+  card.innerHTML = `
+    <div class="v2-safety-header">
+      <div class="v2-safety-badge">
+        <i class="fa-solid fa-shield-halved text-amber-400"></i> Safety Advisory
+      </div>
+      <span class="v2-safety-legal-tag">Zero Platform Liability</span>
+    </div>
+    <div class="v2-safety-body">
+      <p class="v2-safety-desc">
+        ⚠️ <strong>నకిలీ నంబర్లు &amp; సోషల్ మీడియా ఖాతాలను నమ్మవద్దు:</strong> ఇక్కడ అపరిచితులు ఫేక్ ఫోన్ నంబర్లు లేదా నకిలీ సోషల్ మీడియా ఐడీలు షేర్ చేయవచ్చు. వాటిని ఎట్టిపరిస్థితుల్లోనూ నమ్మవద్దు. థర్డ్ పార్టీ కాంటాక్ట్‌లు లేదా ఇతర యూజర్ల ప్రవర్తనకు ప్లాట్‌ఫారమ్‌కు ఎటువంటి బాధ్యత ఉండదు.
+      </p>
+      <div class="v2-safety-en-sub">
+        Never trust, call, or share personal info with unverified numbers or social media accounts shared by strangers. The platform holds zero liability for external contacts or interactions.
+      </div>
+    </div>
+  `;
+  return card;
+}
+window.renderGroupSafetyCard = renderGroupSafetyCard;
+
 function render1v1DiscoveryFeedCard() {
   const card = document.createElement("div");
   card.className = "v2-feed-discovery-card";
@@ -8407,14 +8437,102 @@ function normalizeContactText(text) {
   // Strip invisible characters and directional overrides
   s = s.replace(/[\u200B-\u200D\uFEFF\u00AD\u2060\u2063\u202A-\u202E]/g, "");
 
-  // Circled digits and subscripts/superscripts to standard ASCII 0-9
+  // Native Telugu, Devanagari, Arabic-Indic digits
+  const nativeDigits = {
+    "౦": "0", "౧": "1", "౨": "2", "౩": "3", "౪": "4", "౫": "5", "౬": "6", "౭": "7", "౮": "8", "౯": "9",
+    "०": "0", "१": "1", "२": "2", "३": "3", "४": "4", "५": "5", "६": "6", "७": "7", "८": "8", "९": "9",
+    "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4", "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9"
+  };
+  s = s.replace(/[౦-౯०-९٠-٩]/gu, (ch) => nativeDigits[ch] || ch);
+
+  // Circled digits, subscripts, superscripts, negative circled
   const circledMap = {
     "⓪": "0", "①": "1", "②": "2", "③": "3", "④": "4", "⑤": "5", "⑥": "6", "⑦": "7", "⑧": "8", "⑨": "9",
     "❶": "1", "❷": "2", "❸": "3", "❹": "4", "❺": "5", "❻": "6", "❼": "7", "❽": "8", "❾": "9",
     "⁰": "0", "¹": "1", "²": "2", "³": "3", "⁴": "4", "⁵": "5", "⁶": "6", "⁷": "7", "⁸": "8", "⁹": "9",
-    "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4", "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9"
+    "₀": "0", "₁": "1", "₂": "2", "₃": "3", "₄": "4", "₅": "5", "₆": "6", "₇": "7", "₈": "8", "₉": "9",
+    "⓿": "0", "➀": "1", "➁": "2", "➂": "3", "➃": "4", "➄": "5", "➅": "6", "➆": "7", "➇": "8", "➈": "9",
+    "➊": "1", "➋": "2", "➌": "3", "➍": "4", "➎": "5", "➏": "6", "➐": "7", "➑": "8", "➒": "9"
   };
-  s = s.replace(/[⓪①②③④⑤⑥⑦⑧⑨❶❷❸❹❺❻❼❽❾⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉]/g, (ch) => circledMap[ch] || ch);
+  s = s.replace(/[⓪①②③④⑤⑥⑦⑧⑨❶❷❸❹❺❻❼❽❾⁰¹²³⁴⁵⁶⁷⁸⁹₀₁₂₃₄₅₆₇₈₉⓿➀➁➂➃➄➅➆➇➈➊➋➌➍➎➏➐➑➒]/gu, (ch) => circledMap[ch] || ch);
+
+  // 1. Split CamelCase / PascalCase concatenated words (e.g. SevenZeroThree -> Seven Zero Three)
+  s = s.replace(/([a-z\d])([A-Z])/g, "$1 $2");
+
+  // Native Telugu number words
+  const teluguWords = [
+    { regex: /(?:తొమ్మిది)/gu, val: "9" },
+    { regex: /(?:ఎనిమిది)/gu, val: "8" },
+    { regex: /(?:ఏడు|యేడు)/gu, val: "7" },
+    { regex: /(?:ఆరు)/gu, val: "6" },
+    { regex: /(?:ఐదు|అయిదు)/gu, val: "5" },
+    { regex: /(?:నాలుగు)/gu, val: "4" },
+    { regex: /(?:మూడు)/gu, val: "3" },
+    { regex: /(?:రెండు)/gu, val: "2" },
+    { regex: /(?:ఒకటి|ఒక్కటి)/gu, val: "1" },
+    { regex: /(?:సున్నా|శూన్యం)/gu, val: "0" }
+  ];
+  for (const tw of teluguWords) {
+    s = s.replace(tw.regex, tw.val);
+  }
+
+  // Native Hindi number words
+  const hindiWords = [
+    { regex: /(?:नौ)/gu, val: "9" },
+    { regex: /(?:आठ)/gu, val: "8" },
+    { regex: /(?:सात)/gu, val: "7" },
+    { regex: /(?:छह|छः)/gu, val: "6" },
+    { regex: /(?:पांच|पाँच)/gu, val: "5" },
+    { regex: /(?:चार)/gu, val: "4" },
+    { regex: /(?:तीन)/gu, val: "3" },
+    { regex: /(?:दो)/gu, val: "2" },
+    { regex: /(?:एक)/gu, val: "1" },
+    { regex: /(?:शून्य)/gu, val: "0" }
+  ];
+  for (const hw of hindiWords) {
+    s = s.replace(hw.regex, hw.val);
+  }
+
+  // Multilingual Number Words (English, Romanized Telugu, Romanized Hindi + Slang/Truncated tokens like nin, sev, sevn)
+  const wordDigits = [
+    { regex: /\b(?:zero|sunna|sunnam|shunya|shoonya|zeero|oh|sero|zro)\b/gi, val: "0" },
+    { regex: /\b(?:one|okati|okkati|okt|ek|wan|won)\b/gi, val: "1" },
+    { regex: /\b(?:two|rendu|rendo|rend|do|tu|too)\b/gi, val: "2" },
+    { regex: /\b(?:three|moodu|modu|teen|tin|thre|tre)\b/gi, val: "3" },
+    { regex: /\b(?:four|naalugu|nalugu|naalgu|nalgu|chaar|char|for)\b/gi, val: "4" },
+    { regex: /\b(?:five|aidu|ayidu|aidhu|ayidhu|idu|paanch|panch|fiv)\b/gi, val: "5" },
+    { regex: /\b(?:six|aaru|aru|chhe|che)\b/gi, val: "6" },
+    { regex: /\b(?:seven|yeedu|eedu|edu|yedu|saat|sat|sevn|sev)\b/gi, val: "7" },
+    { regex: /\b(?:eight|enimidi|yenimidi|enimidhi|yenimidhi|enmidi|yenmidi|aath|ath|eigh|eigt)\b/gi, val: "8" },
+    { regex: /\b(?:nine|tommidi|thommidi|tomidi|thomidi|nau|nin|nyn)\b/gi, val: "9" },
+    { regex: /\bdouble\s+(\d)/gi, val: "$1$1" },
+    { regex: /\btriple\s+(\d)/gi, val: "$1$1$1" }
+  ];
+  for (const wd of wordDigits) {
+    s = s.replace(wd.regex, wd.val);
+  }
+
+  // Handle concatenated lowercase number words like "sevenzerothreetwo..."
+  const tokenMap = [
+    { regex: /zero|zeero|sunna|shunya/gi, val: "0" },
+    { regex: /one|okati|wan|ek/gi, val: "1" },
+    { regex: /two|rendu|rendo/gi, val: "2" },
+    { regex: /three|moodu|teen/gi, val: "3" },
+    { regex: /four|naalugu|chaar/gi, val: "4" },
+    { regex: /five|aidu|panch|paanch/gi, val: "5" },
+    { regex: /six|aaru|chhe/gi, val: "6" },
+    { regex: /seven|yeedu|sevn|sev|saat/gi, val: "7" },
+    { regex: /eight|enimidi|aath|eigh/gi, val: "8" },
+    { regex: /nine|tommidi|nau|nin/gi, val: "9" }
+  ];
+  s = s.replace(/[a-zA-Z]{10,}/g, (longWord) => {
+    let replaced = longWord;
+    for (const t of tokenMap) {
+      replaced = replaced.replace(t.regex, t.val);
+    }
+    const digitCount = (replaced.match(/\d/g) || []).length;
+    return digitCount >= 3 ? replaced : longWord;
+  });
 
   // Contextual Leet-speak: O/o to 0 and l/I/| to 1 when directly bordered by digits
   s = s.replace(/(\d[\s\W_]*)[oO]+/g, (m, p) => p + "0".repeat(m.length - p.length));
@@ -8422,24 +8540,6 @@ function normalizeContactText(text) {
   s = s.replace(/(\d[\s\W_]*)[lI|]+/g, (m, p) => p + "1".repeat(m.length - p.length));
   s = s.replace(/[lI|]+(?=[\s\W_]*\d)/g, (m) => "1".repeat(m.length));
 
-  // Multilingual Number Words (English, Romanized Telugu, Romanized Hindi)
-  const wordDigits = [
-    { regex: /\b(?:zero|sunna|shunya|oh)\b/gi, val: "0" },
-    { regex: /\b(?:one|okati|ek)\b/gi, val: "1" },
-    { regex: /\b(?:two|rendu|do)\b/gi, val: "2" },
-    { regex: /\b(?:three|moodu|teen)\b/gi, val: "3" },
-    { regex: /\b(?:four|naalugu|nalugu|chaar|char)\b/gi, val: "4" },
-    { regex: /\b(?:five|aidu|idu|paanch|panch)\b/gi, val: "5" },
-    { regex: /\b(?:six|aaru|aru|chhe|che)\b/gi, val: "6" },
-    { regex: /\b(?:seven|yeedu|eedu|saat)\b/gi, val: "7" },
-    { regex: /\b(?:eight|enimidi|yenimidi|enimidhi|aath|ath)\b/gi, val: "8" },
-    { regex: /\b(?:nine|tommidi|nau)\b/gi, val: "9" },
-    { regex: /\bdouble\s+(\d)/gi, val: "$1$1" },
-    { regex: /\btriple\s+(\d)/gi, val: "$1$1$1" }
-  ];
-  for (const wd of wordDigits) {
-    s = s.replace(wd.regex, wd.val);
-  }
   return s;
 }
 
@@ -8448,13 +8548,13 @@ function detectsPhoneNumber(rawText) {
   const normalized = normalizeContactText(rawText);
 
   // 1. Universal E.164 8 to 15 digits separated by spaces, symbols, underscores, or emojis
-  const universalDigitPattern = /(?:\+?[\s\W_]*\d[\s\W_]*){8,15}/gu;
+  const universalDigitPattern = /(?:\+?[\s\W_]*\d[\s\W_]*){8,15}/u;
   if (universalDigitPattern.test(normalized)) {
     return true;
   }
 
-  // 2. International prefix (+, 00, 011) followed by 7+ digits
-  const intlPattern = /(?:\+|00|011)[\s\W_]*\d(?:[\s\W_]*\d){6,14}/gu;
+  // 2. International prefix (+, 00, 011, 91) followed by 7+ digits
+  const intlPattern = /(?:\+|00|011|(?:\b91))[\s\W_]*\d(?:[\s\W_]*\d){6,14}/u;
   if (intlPattern.test(normalized)) {
     return true;
   }
@@ -8465,13 +8565,27 @@ function detectsPhoneNumber(rawText) {
     return true;
   }
 
-  // 4. Chunked 5+5 or 5+4 numbers separated by words (e.g. 86881 and 00372, or 86881 call me 00372)
-  const chunkedPattern = /(?:\b\d{5,8}\b[\s\S]{1,25}\b\d{4,8}\b)/i;
+  // 4. Chunked digits separated by ANY words/text up to 60 characters
+  const chunkedPattern = /(?:\b\d{4,8}\b[\s\S]{1,60}\b\d{4,8}\b)/i;
   if (chunkedPattern.test(normalized)) {
     return true;
   }
 
-  // 5. Obfuscated WhatsApp / Telegram / Direct messaging links pointing to phone numbers
+  // 5. Total digit count density: If total extracted digits contains 10-digit Indian mobile or >= 10 digits
+  const digits = (normalized.match(/\d/g) || []).join("");
+  if (digits.length >= 8) {
+    if (
+      /(?:(?:^|\D)(?:(?:\+?91)|0)?[6-9]\d{9}(?:\D|$))/.test(digits) ||
+      /(?:^|\D)[6-9]\d{9}(?:\D|$)/.test(digits)
+    ) {
+      return true;
+    }
+    if (digits.length >= 10) {
+      return true;
+    }
+  }
+
+  // 6. Obfuscated WhatsApp / Telegram / Direct messaging links pointing to phone numbers
   const socialProxy = /(?:wa\.me|api\.whatsapp\.com|t\.me)[\s\W_]*\/?[\s\W_]*\+?[\s\W_]*\d(?:[\s\W_]*\d){6,14}/i;
   if (socialProxy.test(normalized)) {
     return true;
