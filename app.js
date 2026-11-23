@@ -2905,6 +2905,7 @@ function appendSafetyWarningCard() {
     if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
   }, 40);
 }
+window.appendSafetyWarningCard = appendSafetyWarningCard;
 
 let matchCount = 0;
 const ADSTERRA_TIMESTAMPS_KEY_V2 = "v2_adsterra_impression_timestamps";
@@ -11447,6 +11448,7 @@ function render1v1GamePromptCard(gameType) {
     if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
   }, 40);
 }
+window.appendSafetyWarningCard = appendSafetyWarningCard;
 
 function handle1v1TypingAutoDismiss() {
   // Retained as no-op so typing in chat input never hides the game prompt;
