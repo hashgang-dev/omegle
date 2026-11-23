@@ -72,25 +72,14 @@ function ensureInputFieldsVisibility() {
     groupDock.style.visibility = "visible";
     groupDock.style.opacity = "1";
     groupDock.style.zIndex = "50";
+    groupDock.style.transform = "";
     const groupInputEl = document.getElementById("v2-group-input-field");
-    if (!groupInputEl || document.activeElement !== groupInputEl) {
-      groupDock.style.transform = "";
-    }
-
-    // Dynamic Standalone PWA Bottom Nav Bar Inset Guard
-    const isStandalone = (typeof isPwaStandalone === "function" && isPwaStandalone()) ||
-                         (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
-                         (window.navigator && window.navigator.standalone);
-    if (isStandalone && window.visualViewport) {
-      const vHeight = window.visualViewport.height;
-      const wHeight = window.innerHeight;
-      const isTyping = groupInputEl && (document.activeElement === groupInputEl);
-      if (!isTyping) {
-        const bottomDiff = Math.max(0, wHeight - vHeight);
-        if (bottomDiff > 0 && bottomDiff < 100) {
-          groupDock.style.paddingBottom = `${bottomDiff + 8}px`;
-        }
-      }
+    const isTyping = groupInputEl && (document.activeElement === groupInputEl);
+    if (!isTyping) {
+      groupDock.classList.remove("keyboard-open");
+      groupDock.style.paddingBottom = "";
+      const groupStage = document.getElementById("v2-group-chat-stage");
+      if (groupStage) groupStage.style.bottom = "0px";
     }
   }
 
@@ -530,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v434";
+const APP_CLIENT_VERSION = "v435";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -5265,15 +5254,18 @@ function setupEventListeners() {
   // Mobile Virtual Keyboard Viewport Height Adjustment for Chat Drawer and Group Chat Dock
   if (window.visualViewport) {
     const handleVisualViewportChange = () => {
-      const keyboardHeight = Math.max(0, window.innerHeight - window.visualViewport.height);
+      const vHeight = window.visualViewport.height;
+      const wHeight = window.innerHeight;
       const groupInput = document.getElementById("v2-group-input-field");
       const isTypingInGroup = groupInput && (document.activeElement === groupInput);
       const isTypingInChat = el.chatInput && (document.activeElement === el.chatInput);
-      const isKeyboardOpen = (isTypingInGroup || isTypingInChat) && keyboardHeight > 100;
+      const groupStage = document.getElementById("v2-group-chat-stage");
+      const groupDock = document.getElementById("v2-group-dock");
 
       // 1. Private Chat Drawer Keyboard Adjust
       if (currentChatMode === "text" && el.chatDrawer && !el.chatDrawer.classList.contains("closed")) {
-        if (isKeyboardOpen && isTypingInChat) {
+        const keyboardHeight = Math.max(0, wHeight - vHeight);
+        if (keyboardHeight > 80 && isTypingInChat) {
           el.chatDrawer.style.paddingBottom = `${keyboardHeight}px`;
           if (el.chatMessages) el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
         } else {
@@ -5282,34 +5274,86 @@ function setupEventListeners() {
       }
 
       // 2. Group Chat Input Dock Keyboard Adjust
-      const groupStage = document.getElementById("v2-group-chat-stage");
-      const groupDock = document.getElementById("v2-group-dock");
       if (groupStage && !groupStage.classList.contains("hidden") && (!inCall || !currentMatchTargetId)) {
-        if (isKeyboardOpen && isTypingInGroup && groupDock) {
-          groupDock.style.transform = `translateY(-${keyboardHeight}px)`;
+        if (isTypingInGroup) {
+          if (groupDock) {
+            groupDock.classList.add("keyboard-open");
+            groupDock.style.transform = ""; // Never translateY! Pure flexbox layout
+          }
+          // Check if browser resized the layout viewport automatically (Android Chrome/WebAPK with resizes-content)
+          const isLayoutResized = Math.abs(wHeight - vHeight) < 25;
+          if (isLayoutResized) {
+            // Android Chrome / WebAPK with interactive-widget=resizes-content:
+            // Layout viewport is ALREADY resized by browser. Zero offset needed!
+            groupStage.style.bottom = "0px";
+          } else {
+            // iOS Safari or browsers where window.innerHeight does not resize:
+            // Constrain stage bottom to stop directly above virtual keyboard
+            const keyboardHeight = Math.max(0, wHeight - vHeight);
+            groupStage.style.bottom = `${keyboardHeight}px`;
+          }
           scrollGroupFeedToBottom(false);
-        } else if (groupDock) {
-          groupDock.style.transform = "";
-          window.scrollTo(0, 0);
+        } else {
+          // Keyboard closed
+          if (groupDock) {
+            groupDock.classList.remove("keyboard-open");
+            groupDock.style.transform = "";
+            groupDock.style.paddingBottom = "";
+          }
+          groupStage.style.bottom = "0px";
+          if (window.scrollY !== 0 || window.scrollX !== 0) {
+            window.scrollTo(0, 0);
+          }
         }
       }
     };
 
     window.visualViewport.addEventListener("resize", handleVisualViewportChange);
     window.visualViewport.addEventListener("scroll", () => {
-      if (window.scrollY !== 0) window.scrollTo(0, 0);
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+      }
     });
   }
 
-  // Bind blur listener on group input to guarantee transform reset when keyboard closes
+  // Bind focus & blur listeners on group input to guarantee clean transitions
   const groupInputCandidate = document.getElementById("v2-group-input-field");
   if (groupInputCandidate) {
-    groupInputCandidate.addEventListener("blur", () => {
+    groupInputCandidate.addEventListener("focus", () => {
       const dock = document.getElementById("v2-group-dock");
-      if (dock) dock.style.transform = "";
+      if (dock) dock.classList.add("keyboard-open");
+      requestAnimationFrame(() => {
+        if (window.scrollY !== 0 || window.scrollX !== 0) {
+          window.scrollTo(0, 0);
+        }
+        scrollGroupFeedToBottom(false);
+      });
+    });
+
+    groupInputCandidate.addEventListener("blur", () => {
+      const stage = document.getElementById("v2-group-chat-stage");
+      if (stage) stage.style.bottom = "0px";
+      const dock = document.getElementById("v2-group-dock");
+      if (dock) {
+        dock.style.transform = "";
+        dock.style.paddingBottom = "";
+        dock.classList.remove("keyboard-open");
+      }
       window.scrollTo(0, 0);
+      setTimeout(() => {
+        if (window.scrollY !== 0 || window.scrollX !== 0) {
+          window.scrollTo(0, 0);
+        }
+      }, 100);
     });
   }
+
+  // Prevent unwanted page scrolling across mobile browsers
+  window.addEventListener("scroll", () => {
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+      window.scrollTo(0, 0);
+    }
+  }, { passive: true });
 
   // Continuous Input Rescue Watchdog for Standalone PWAs & Mobile Browsers
   window.addEventListener("pageshow", () => {
