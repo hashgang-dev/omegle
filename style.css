@@ -4306,6 +4306,30 @@ html, body {
   text-overflow: ellipsis;
 }
 
+.v2-welcome-motive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 5px;
+  margin-bottom: 2px;
+}
+
+.v2-motive-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: clamp(0.74rem, 3.2vw, 0.84rem);
+  color: #f3e8ff;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.v2-motive-emoji {
+  font-size: 0.92rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
 .v2-welcome-dismiss {
   background: transparent;
   border: none;

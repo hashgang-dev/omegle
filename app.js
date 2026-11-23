@@ -519,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v435";
+const APP_CLIENT_VERSION = "v436";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -2623,7 +2623,7 @@ function startGroupLockCountdown(initialSec, isHardMute = false) {
   const input = document.getElementById("v2-group-input-field");
   const sendBtn = document.getElementById("v2-btn-group-send");
   const attachBtn = document.getElementById("v2-btn-open-1v1-drawer");
-  const defaultPlaceholder = "Say something nice to everyone...";
+  const defaultPlaceholder = "Share your thoughts, feelings or day...";
 
   let remaining = Math.max(1, Math.round(initialSec));
 
@@ -2673,7 +2673,7 @@ function clearGroupLock() {
   const input = document.getElementById("v2-group-input-field");
   const sendBtn = document.getElementById("v2-btn-group-send");
   const attachBtn = document.getElementById("v2-btn-open-1v1-drawer");
-  const defaultPlaceholder = "Say something nice to everyone...";
+  const defaultPlaceholder = "Share your thoughts, feelings or day...";
 
   if (input) {
     input.disabled = false;
@@ -7898,12 +7898,23 @@ function renderWelcomeKnowledgeCard(roomNumber = 1) {
     <div class="v2-welcome-top">
       <div class="v2-welcome-headings">
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-          <h4>👋 Welcome to HashGANG</h4>
+          <h4>👋 Welcome to HashGANG ✨</h4>
           <span class="v2-welcome-cooldown-badge ${remaining > 0 ? '' : 'hidden'}" id="v2-welcome-cooldown-indicator">${remaining > 0 ? '<i class="fa-solid fa-hourglass-half"></i> Wait ' + remaining + 's' : ''}</span>
         </div>
-        <p style="color: #e9d5ff; font-weight: 500; margin-top: 3px; line-height: 1.35;">
-          Nobody knows you. Talk freely &amp; share your heart 💜🫂✨
-        </p>
+        <div class="v2-welcome-motive-list">
+          <div class="v2-motive-item">
+            <span class="v2-motive-emoji">🫂</span>
+            <span>Pure Friendship, Genuine Conversations</span>
+          </div>
+          <div class="v2-motive-item">
+            <span class="v2-motive-emoji">🚫</span>
+            <span>No Dating, No Abuse, No Judgment</span>
+          </div>
+          <div class="v2-motive-item">
+            <span class="v2-motive-emoji">🎭</span>
+            <span>Be 100% Anonymous, 100% Respectful, 100% Yourself</span>
+          </div>
+        </div>
       </div>
     </div>
     <div class="v2-welcome-modes-strip">
