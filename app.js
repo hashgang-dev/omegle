@@ -530,7 +530,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v433";
+const APP_CLIENT_VERSION = "v434";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -2882,20 +2882,19 @@ function appendSafetyWarningCard() {
   card.setAttribute("role", "alert");
   card.innerHTML = `
     <div class="v2-safety-header">
-      <span class="v2-safety-badge">⚖️ LEGAL &amp; SAFETY ADVISORY</span>
-      <span class="v2-safety-legal-tag">Zero Platform Liability</span>
+      <div class="v2-safety-badge">
+        <i class="fa-solid fa-shield-halved text-amber-400"></i> Safety Notice
+      </div>
     </div>
     <div class="v2-safety-body">
-      <p class="v2-safety-title">⚠️ Do Not Trust External Contacts &amp; Social Handles</p>
-      <p class="v2-safety-desc">
-        Strangers may share fake, stolen, or unauthorized phone numbers and social media accounts. Never call, message, or trust external contacts.
-      </p>
-      <p class="v2-safety-legal-sub">
-        📌 <strong>Legal Prosecution Warning:</strong> Doxxing, distributing personal contacts without consent, or cyber harassment is a severe punishable crime under Cyber Laws. Offender digital footprints (IP, device headers, and timestamps) are documented and reported to law enforcement for criminal prosecution.
-      </p>
-      <p class="v2-safety-disclaimer">
-        🛡️ <strong>Platform Disclaimer:</strong> HashGANG strictly prohibits contact sharing and holds zero liability for external off-platform interactions.
-      </p>
+      <div class="v2-safety-notice-line">
+        <span class="v2-safety-bullet">•</span>
+        <span><strong>Do Not Trust:</strong> Phone numbers and social media IDs shared by strangers may be fake.</span>
+      </div>
+      <div class="v2-safety-notice-line">
+        <span class="v2-safety-bullet">•</span>
+        <span><strong>Stay Safe:</strong> Calling or messaging them can pull you into scams or police/legal trouble.</span>
+      </div>
     </div>
   `;
 
@@ -7892,21 +7891,18 @@ function renderGroupSafetyCard() {
   card.innerHTML = `
     <div class="v2-safety-header">
       <div class="v2-safety-badge">
-        <i class="fa-solid fa-shield-halved text-amber-400"></i> Safety Advisory
+        <i class="fa-solid fa-shield-halved text-amber-400"></i> Safety Notice
       </div>
-      <span class="v2-safety-legal-tag">Zero Platform Liability</span>
     </div>
     <div class="v2-safety-body">
-      <p class="v2-safety-title">⚠️ Do Not Trust External Contacts &amp; Social Handles</p>
-      <p class="v2-safety-desc">
-        Strangers may share fake, stolen, or unauthorized phone numbers and social media accounts. Never call, message, or trust external contacts.
-      </p>
-      <p class="v2-safety-legal-sub">
-        📌 <strong>Legal Prosecution Warning:</strong> Doxxing, distributing personal contacts without consent, or cyber harassment is a severe punishable crime under Cyber Laws. Offender digital footprints (IP, device headers, and timestamps) are documented and reported to law enforcement for criminal prosecution.
-      </p>
-      <p class="v2-safety-disclaimer">
-        🛡️ <strong>Platform Disclaimer:</strong> HashGANG strictly prohibits contact sharing and holds zero liability for external off-platform interactions.
-      </p>
+      <div class="v2-safety-notice-line">
+        <span class="v2-safety-bullet">•</span>
+        <span><strong>Do Not Trust:</strong> Phone numbers and social media IDs shared by strangers may be fake.</span>
+      </div>
+      <div class="v2-safety-notice-line">
+        <span class="v2-safety-bullet">•</span>
+        <span><strong>Stay Safe:</strong> Calling or messaging them can pull you into scams or police/legal trouble.</span>
+      </div>
     </div>
   `;
   return card;

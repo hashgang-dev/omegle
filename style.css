@@ -2129,6 +2129,27 @@ html, body {
   color: #fca5a5;
 }
 
+.v2-safety-notice-line {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: #e5e7eb;
+}
+
+.v2-safety-bullet {
+  color: #fbbf24;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.v2-safety-notice-line strong {
+  color: #fca5a5;
+  font-weight: 700;
+}
+
 .v2-safety-disclaimer {
   margin: 0;
   font-size: 0.72rem;
