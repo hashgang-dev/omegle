@@ -11654,7 +11654,7 @@ html, body {
 .v2-group-msg-row.other .v2-msg-report-action {
   position: absolute;
   bottom: -13px;
-  left: -8px;
+  left: -6px; /* Moved 2px to the right for clear visibility and alignment */
   right: auto;
   display: flex;
   align-items: center;
@@ -11663,20 +11663,21 @@ html, body {
 
 /* Report Action Button */
 .v2-ext-act-btn.report {
-  font-size: 0.74rem;
-  color: rgba(244, 63, 94, 0.75);
-  border-color: rgba(244, 63, 94, 0.25);
-  opacity: 0.45;
+  font-size: 0.78rem;
+  color: #fb7185;
+  border-color: rgba(244, 63, 94, 0.35);
+  background: rgba(24, 18, 30, 0.95);
+  opacity: 0.75;
   transition: all 0.2s ease;
 }
 
 .v2-ext-act-btn.report:hover {
   opacity: 1;
   background: rgba(239, 68, 68, 0.35);
-  border-color: rgba(248, 113, 113, 0.85);
+  border-color: rgba(248, 113, 113, 0.9);
   color: #ffffff;
   transform: scale(1.18);
-  box-shadow: 0 0 10px rgba(244, 63, 94, 0.45);
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
 }
 
 .v2-ext-act-btn.report.reported {
