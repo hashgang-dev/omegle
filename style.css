@@ -11645,3 +11645,209 @@ html, body {
     font-size: 0.76rem;
   }
 }
+
+/* ==========================================================================
+   Group Chat Community Moderation & Message Reporting Styles
+   ========================================================================== */
+
+/* Report Action Button */
+.v2-ext-act-btn.report {
+  font-size: 0.72rem;
+  color: rgba(244, 63, 94, 0.75);
+}
+
+.v2-ext-act-btn.report:hover {
+  background: rgba(239, 68, 68, 0.35);
+  border-color: rgba(248, 113, 113, 0.8);
+  color: #f87171;
+  transform: scale(1.15);
+}
+
+.v2-ext-act-btn.report.reported {
+  opacity: 0.35;
+  pointer-events: none;
+  cursor: default;
+  filter: grayscale(1);
+}
+
+/* Hidden Message Notice in Group Feed */
+.v2-msg-hidden-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.82rem;
+  font-style: italic;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.v2-msg-hidden-notice i {
+  color: #f87171;
+  font-size: 0.85rem;
+}
+
+/* Report Modal Card */
+.v2-report-modal-card {
+  max-width: 420px;
+  width: 92%;
+  background: #140d24;
+  border: 1px solid rgba(244, 63, 94, 0.3);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7), 0 0 25px rgba(244, 63, 94, 0.15);
+}
+
+.v2-timeout-badge.report-badge {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+.v2-report-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0 0 0;
+}
+
+.v2-report-target-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.v2-report-target-label {
+  color: #94a3b8;
+}
+
+.v2-report-target-nick {
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.v2-report-snippet-box {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 12px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+
+.v2-report-snippet-box p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-style: italic;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.v2-report-instruction {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.v2-report-reasons-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.v2-report-reason-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  color: #ffffff;
+}
+
+.v2-report-reason-btn:hover {
+  background: rgba(244, 63, 94, 0.1);
+  border-color: rgba(244, 63, 94, 0.4);
+}
+
+.v2-report-reason-btn.active {
+  background: rgba(244, 63, 94, 0.2);
+  border-color: #f43f5e;
+  box-shadow: 0 0 12px rgba(244, 63, 94, 0.3);
+}
+
+.v2-report-reason-btn .reason-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.v2-report-reason-btn .reason-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.v2-report-reason-btn .reason-text strong {
+  font-size: 0.85rem;
+  color: #ffffff;
+}
+
+.v2-report-reason-btn .reason-text small {
+  font-size: 0.73rem;
+  color: #94a3b8;
+}
+
+.v2-report-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.v2-btn-cancel-report {
+  flex: 1;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 10px;
+  color: #cbd5e1;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.v2-btn-cancel-report:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+.v2-btn-submit-report {
+  flex: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: linear-gradient(135deg, #e11d48, #be123c);
+  border: 1px solid #f43f5e;
+  border-radius: 10px;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.4);
+  transition: all 0.2s ease;
+}
+
+.v2-btn-submit-report:hover {
+  background: linear-gradient(135deg, #f43f5e, #e11d48);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(225, 29, 72, 0.6);
+}

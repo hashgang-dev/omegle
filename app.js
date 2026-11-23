@@ -519,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v437";
+const APP_CLIENT_VERSION = "v438";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -2233,6 +2233,9 @@ function initSocketConnection() {
         currentNickname = data.nickname;
         localStorage.setItem("hg_user_nickname", currentNickname);
         updateNicknameDisplay(currentNickname);
+        if (data.autoAdjusted) {
+          v2ShowToast(`ℹ️ "${data.originalNickname || 'Name'}" was taken, so your name was set to "${data.nickname}".`);
+        }
       }
     });
 
@@ -2600,7 +2603,35 @@ function initSocketConnection() {
     socket.on("group_muted", (data) => {
       const sec = data?.remainingSec || 120;
       window.__groupMutedUntil = Date.now() + (sec * 1000);
-      startGroupLockCountdown(sec, true);
+      const isCommunity = Boolean(data?.isCommunityMute);
+      startGroupLockCountdown(sec, true, isCommunity);
+      if (data?.message) {
+        showDockHint(data.message, "warn", 6000);
+        v2ShowToast(data.message);
+      }
+    });
+
+    socket.on("group_message_hidden", (data) => {
+      if (!data || !data.id) return;
+      const msgRow = document.getElementById(`msg-${data.id}`);
+      if (msgRow) {
+        const bubble = msgRow.querySelector(".v2-msg-bubble");
+        if (bubble) {
+          const reply = bubble.querySelector(".v2-bubble-reply-quote");
+          const replyHtml = reply ? reply.outerHTML : "";
+          bubble.innerHTML = `${replyHtml}<span class="v2-msg-hidden-notice"><i class="fa-solid fa-eye-slash"></i> Message removed by community reports</span>`;
+          bubble.style.opacity = "0.7";
+        }
+      }
+    });
+
+    socket.on("group_report_ack", (data) => {
+      if (!data || !data.messageId) return;
+      const btn = document.getElementById(`group-report-btn-${data.messageId}`);
+      if (btn) {
+        btn.classList.add("reported");
+        btn.title = "Reported";
+      }
     });
   } catch (err) {
     console.error("Socket.io initialization error:", err);
@@ -2610,15 +2641,29 @@ function initSocketConnection() {
   }
 }
 
+function formatRemainingLockTime(sec) {
+  if (sec >= 3600) {
+    const h = Math.floor(sec / 3600);
+    const m = Math.ceil((sec % 3600) / 60);
+    return `${h}h ${m}m`;
+  } else if (sec >= 60) {
+    return `${Math.ceil(sec / 60)}m`;
+  } else {
+    return `${sec}s`;
+  }
+}
+
 let groupLockTimer = null;
 let groupLockType = null; // 'mute' | 'consecutive'
+let groupIsCommunityMute = false;
 
-function startGroupLockCountdown(initialSec, isHardMute = false) {
+function startGroupLockCountdown(initialSec, isHardMute = false, isCommunityMute = false) {
   if (groupLockTimer) {
     clearInterval(groupLockTimer);
     groupLockTimer = null;
   }
   groupLockType = isHardMute ? "mute" : "consecutive";
+  groupIsCommunityMute = Boolean(isCommunityMute);
 
   const input = document.getElementById("v2-group-input-field");
   const sendBtn = document.getElementById("v2-btn-group-send");
@@ -2627,11 +2672,20 @@ function startGroupLockCountdown(initialSec, isHardMute = false) {
 
   let remaining = Math.max(1, Math.round(initialSec));
 
+  const updatePlaceholder = () => {
+    if (!input) return;
+    if (groupIsCommunityMute) {
+      input.placeholder = `🔇 Restricted by community (${formatRemainingLockTime(remaining)})...`;
+    } else if (isHardMute) {
+      input.placeholder = `🔇 Muted for spamming (${formatRemainingLockTime(remaining)})...`;
+    } else {
+      input.placeholder = `⏳ Please wait for reply (${remaining}s)...`;
+    }
+  };
+
   if (input) {
     input.disabled = true;
-    input.placeholder = isHardMute
-      ? `🔇 Muted for spamming (${remaining}s)...`
-      : `⏳ Please wait for reply (${remaining}s)...`;
+    updatePlaceholder();
   }
   if (sendBtn) {
     sendBtn.disabled = true;
@@ -2649,15 +2703,11 @@ function startGroupLockCountdown(initialSec, isHardMute = false) {
     remaining--;
     if (remaining <= 0) {
       clearGroupLock();
-      if (isHardMute) {
+      if (isHardMute || groupIsCommunityMute) {
         showDockHint("🔊 You are unmuted. Please chat politely!", "info", 3000);
       }
     } else {
-      if (input) {
-        input.placeholder = isHardMute
-          ? `🔇 Muted for spamming (${remaining}s)...`
-          : `⏳ Please wait for reply (${remaining}s)...`;
-      }
+      updatePlaceholder();
     }
   }, 1000);
 }
@@ -2668,6 +2718,7 @@ function clearGroupLock() {
     groupLockTimer = null;
   }
   groupLockType = null;
+  groupIsCommunityMute = false;
   window.__groupMutedUntil = 0;
 
   const input = document.getElementById("v2-group-input-field");
@@ -7274,6 +7325,7 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
       <div class="v2-msg-external-actions">
         <button class="v2-ext-act-btn" title="Reply" data-reply-id="${msg.id}" data-reply-nick="${encodeURIComponent(senderNickRaw)}" data-reply-snippet="${encodeURIComponent(rawSnippet)}" onclick="handleGroupReplyBtn(this)">↩️</button>
         <button class="v2-ext-act-btn" id="group-react-btn-${msg.id}" title="React" onclick="toggleGroupReactionPicker('${msg.id}', event)">😊</button>
+        <button class="v2-ext-act-btn report" id="group-report-btn-${msg.id}" title="Report Message" onclick="openGroupReportModal('${msg.id}', '${encodeURIComponent(senderNickRaw)}', '${encodeURIComponent(rawSnippet)}')">🚩</button>
       </div>
     `;
   }
@@ -7294,8 +7346,15 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
     ? `<span class="v2-msg-sender-name self"><span class="v2-you-pill">You</span> ${senderNick}</span>`
     : `<span class="v2-msg-sender-wrap"><span class="v2-msg-sender-name clickable-tag" style="color: ${senderColor};" onclick="tagUserInGroupInput('${encodeURIComponent(senderNickRaw)}')" title="Click to mention @${senderNick}">${senderNick}</span>${starIconHtml}</span>`);
 
+  const isMsgHidden = Boolean(
+    msg.isRemoved ||
+    (typeof msg.text === "string" && msg.text.includes("Message hidden due to community reports"))
+  );
+
   let bubbleContentHtml;
-  if (challengeInfo) {
+  if (isMsgHidden) {
+    bubbleContentHtml = `<span class="v2-msg-hidden-notice"><i class="fa-solid fa-eye-slash"></i> Message removed by community reports</span>`;
+  } else if (challengeInfo) {
     bubbleContentHtml = `
       <div class="v2-game-challenge-bubble">
         <div class="v2-challenge-header">
@@ -7386,6 +7445,107 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
   `;
 
   return row;
+}
+
+let pendingGroupReportMsgId = null;
+let selectedGroupReportReason = "abuse";
+
+function openGroupReportModal(msgId, senderNickRaw, rawSnippet) {
+  pendingGroupReportMsgId = msgId;
+  selectedGroupReportReason = "abuse";
+
+  const modal = document.getElementById("v2-group-report-modal");
+  const nickEl = document.getElementById("v2-report-target-nick");
+  const snippetEl = document.getElementById("v2-report-message-snippet");
+
+  let decodedNick = "Stranger";
+  let decodedSnippet = "...";
+  try {
+    decodedNick = decodeURIComponent(senderNickRaw || "Stranger");
+  } catch (e) {
+    decodedNick = senderNickRaw || "Stranger";
+  }
+  try {
+    decodedSnippet = decodeURIComponent(rawSnippet || "...");
+  } catch (e) {
+    decodedSnippet = rawSnippet || "...";
+  }
+
+  if (nickEl) nickEl.textContent = `@${decodedNick}`;
+  if (snippetEl) snippetEl.textContent = `"${decodedSnippet}"`;
+
+  // Reset reason buttons
+  const btns = document.querySelectorAll(".v2-report-reason-btn");
+  btns.forEach((b) => {
+    if (b.getAttribute("data-reason") === "abuse") {
+      b.classList.add("active");
+    } else {
+      b.classList.remove("active");
+    }
+  });
+
+  if (modal) {
+    modal.classList.remove("hidden");
+  }
+}
+
+function closeGroupReportModal(event) {
+  if (
+    event &&
+    event.target &&
+    event.target !== event.currentTarget &&
+    !event.target.classList.contains("v2-close-btn") &&
+    !event.target.classList.contains("v2-btn-cancel-report")
+  ) {
+    return;
+  }
+  const modal = document.getElementById("v2-group-report-modal");
+  if (modal) {
+    modal.classList.add("hidden");
+  }
+  pendingGroupReportMsgId = null;
+}
+
+function selectReportReason(buttonEl) {
+  if (!buttonEl) return;
+  const reason = buttonEl.getAttribute("data-reason") || "abuse";
+  selectedGroupReportReason = reason;
+
+  const btns = document.querySelectorAll(".v2-report-reason-btn");
+  btns.forEach((b) => b.classList.remove("active"));
+  buttonEl.classList.add("active");
+}
+
+function submitGroupReport() {
+  if (!pendingGroupReportMsgId) {
+    closeGroupReportModal();
+    return;
+  }
+
+  if (!socket || !socket.connected) {
+    v2ShowToast("⚠️ Cannot report: socket disconnected");
+    closeGroupReportModal();
+    return;
+  }
+
+  const msgId = pendingGroupReportMsgId;
+  const reason = selectedGroupReportReason || "abuse";
+
+  socket.emit("report_group_message", {
+    messageId: msgId,
+    reason: reason,
+  });
+
+  // Visually disable the report button on that message immediately
+  const btn = document.getElementById(`group-report-btn-${msgId}`);
+  if (btn) {
+    btn.classList.add("reported");
+    btn.title = "Reported";
+  }
+
+  closeGroupReportModal();
+  v2ShowToast("🚩 Report submitted. Thank you for keeping HashGANG safe.");
+  showDockHint("🚩 Report submitted to community moderation", "info", 3500);
 }
 
 function saveMyRecentInviteId(inviteId) {
@@ -13620,6 +13780,10 @@ window.renderGroupMessageRow = renderGroupMessageRow;
 window.checkForAppUpdates = checkForAppUpdates;
 window.clearAssetsAndMediaCache = clearAssetsAndMediaCache;
 window.triggerHapticPulse = triggerHapticPulse;
+window.openGroupReportModal = openGroupReportModal;
+window.closeGroupReportModal = closeGroupReportModal;
+window.selectReportReason = selectReportReason;
+window.submitGroupReport = submitGroupReport;
 
 
 

@@ -74,7 +74,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=437" />
+  <link rel="stylesheet" href="style.css?v=438" />
 
   <!-- Google AdSense Library (Ready for approval) -->
   <meta name="google-adsense-account" content="ca-pub-6927010746708408" />
@@ -1011,6 +1011,62 @@
       </div>
     </div>
 
+    <!-- Community Moderation Group Message Report Modal -->
+    <div class="v2-modal-overlay hidden" id="v2-group-report-modal" onclick="closeGroupReportModal(event)">
+      <div class="v2-modal-card v2-report-modal-card" onclick="event.stopPropagation()">
+        <div class="v2-timeout-header">
+          <span class="v2-timeout-badge report-badge"><i class="fa-solid fa-flag text-rose-500"></i> Report to Community</span>
+          <button class="v2-close-btn" onclick="closeGroupReportModal()">&times;</button>
+        </div>
+        <div class="v2-report-modal-body">
+          <div class="v2-report-target-info">
+            <span class="v2-report-target-label">Reporting message from:</span>
+            <span class="v2-report-target-nick" id="v2-report-target-nick">Stranger</span>
+          </div>
+          <div class="v2-report-snippet-box">
+            <p id="v2-report-message-snippet">"..."</p>
+          </div>
+          <p class="v2-report-instruction">Select a reason to flag this message for community moderation:</p>
+          <div class="v2-report-reasons-grid">
+            <button type="button" class="v2-report-reason-btn active" data-reason="abuse" onclick="selectReportReason(this)">
+              <span class="reason-icon">🚫</span>
+              <div class="reason-text">
+                <strong>Abuse / Harassment</strong>
+                <small>Hate speech, insults or bullying</small>
+              </div>
+            </button>
+            <button type="button" class="v2-report-reason-btn" data-reason="inappropriate" onclick="selectReportReason(this)">
+              <span class="reason-icon">🔞</span>
+              <div class="reason-text">
+                <strong>Inappropriate / Adult</strong>
+                <small>Sexually explicit or vulgar</small>
+              </div>
+            </button>
+            <button type="button" class="v2-report-reason-btn" data-reason="spam" onclick="selectReportReason(this)">
+              <span class="reason-icon">📢</span>
+              <div class="reason-text">
+                <strong>Spam or Links</strong>
+                <small>Scams, ads or promotional links</small>
+              </div>
+            </button>
+            <button type="button" class="v2-report-reason-btn" data-reason="impersonation" onclick="selectReportReason(this)">
+              <span class="reason-icon">🎭</span>
+              <div class="reason-text">
+                <strong>Impersonation / Fake Name</strong>
+                <small>Pretending to be someone else</small>
+              </div>
+            </button>
+          </div>
+          <div class="v2-report-actions">
+            <button type="button" class="v2-btn-cancel-report" onclick="closeGroupReportModal()">Cancel</button>
+            <button type="button" class="v2-btn-submit-report" id="v2-btn-submit-group-report" onclick="submitGroupReport()">
+              <i class="fa-solid fa-flag"></i> Submit Report
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Unified 1v1 Attachment Action Sheet Modal -->
     <div class="v2-modal-overlay hidden" id="v2-attachment-modal" onclick="closeV2AttachmentMenu(event)">
       <div class="v2-modal-card v2-attach-menu-card" onclick="event.stopPropagation()">
@@ -1600,8 +1656,8 @@
     <script src="ad_mediation_config.js?v=351" defer></script>
     <script src="socket.io.min.js?v=301"></script>
     <script src="bad_words_config.js?v=386" defer></script>
-    <script src="ludo_game.js?v=437" defer></script>
-    <script src="app.js?v=437" defer></script>
+    <script src="ludo_game.js?v=438" defer></script>
+    <script src="app.js?v=438" defer></script>
 </body>
 
 </html>
