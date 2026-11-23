@@ -480,6 +480,17 @@ var pendingStarTarget = null; // { targetUid, targetNick }
 
 // Initialize Application Engine on Page Load
 function initV2App() {
+  if (typeof checkDeviceBanStatus === "function") {
+    checkDeviceBanStatus().then((res) => {
+      if (res && res.isBanned) {
+        showPermanentLockoutUI(res.reason);
+      }
+    });
+  }
+  if (typeof isDevicePermanentlyBannedSync === "function" && isDevicePermanentlyBannedSync()) {
+    showPermanentLockoutUI(localStorage.getItem("hg_ban_reason"));
+    return;
+  }
   initDOMElements();
   initVoiceUI();
   loadFavoritesFromStorage();
@@ -519,7 +530,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v432";
+const APP_CLIENT_VERSION = "v433";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -1502,6 +1513,13 @@ function getBackendOrigin() {
  * Socket.io Connection to Signaling Server
  */
 function initSocketConnection() {
+  if (typeof isDevicePermanentlyBannedSync === "function" && isDevicePermanentlyBannedSync()) {
+    console.warn("⛔ [Security Vault] Device is permanently banned. Aborting socket connection.");
+    if (typeof showPermanentLockoutUI === "function") {
+      showPermanentLockoutUI(localStorage.getItem("hg_ban_reason"));
+    }
+    return;
+  }
   const hostOrigin = getBackendOrigin();
   const socketHost = window.SIGNALING_SERVER_URL || (hostOrigin + "/omegle");
   console.log("⚡ [v2 Socket Matchmaker] Connecting to signaling server:", socketHost);
@@ -1651,7 +1669,11 @@ function initSocketConnection() {
     socket.on("banned", (data) => {
       const reasonMsg = (data && data.reason) ? data.reason : "Access suspended due to multiple user reports.";
       console.warn("⛔ [Socket.io Ban Notice]", data);
-      alert(`🔴 Account Suspended\n\n${reasonMsg}`);
+      if (typeof markDevicePermanentlyBanned === "function") {
+        markDevicePermanentlyBanned(reasonMsg, getOrCreateAnonUserId());
+      } else {
+        alert(`🔴 Account Suspended\n\n${reasonMsg}`);
+      }
       v2ShowToast(`🔴 ${reasonMsg}`);
       updateStatus("idle", "Access Suspended");
       v2StopCall();
@@ -2861,17 +2883,18 @@ function appendSafetyWarningCard() {
   card.innerHTML = `
     <div class="v2-safety-header">
       <span class="v2-safety-badge">⚖️ LEGAL &amp; SAFETY ADVISORY</span>
+      <span class="v2-safety-legal-tag">Zero Platform Liability</span>
     </div>
     <div class="v2-safety-body">
-      <p class="v2-safety-title">⚠️ Do Not Share or Solicit Phone Numbers</p>
+      <p class="v2-safety-title">⚠️ Do Not Trust External Contacts &amp; Social Handles</p>
       <p class="v2-safety-desc">
-        Sharing personal or fake phone numbers of others without consent is strictly prohibited and constitutes a <strong>punishable cybercrime</strong> under Indian IT Act (Sec 66E) &amp; BNS. Perpetrators face <strong>immediate IP-based police prosecution</strong>.
+        Strangers may share fake, stolen, or unauthorized phone numbers and social media accounts. Never call, message, or trust external contacts.
       </p>
-      <p class="v2-safety-telugu">
-        📌 ఇతరుల లేదా నకిలీ ఫోన్ నంబర్లు షేర్ చేయడం చట్టరీత్యా తీవ్రమైన నేరం. బాధితుల ఫిర్యాదు మేరకు నిందితుల ఐపీ అడ్రస్ ఆధారాలు పోలీసులకు సమర్పించబడతాయి.
+      <p class="v2-safety-legal-sub">
+        📌 <strong>Legal Prosecution Warning:</strong> Doxxing, distributing personal contacts without consent, or cyber harassment is a severe punishable crime under Cyber Laws. Offender digital footprints (IP, device headers, and timestamps) are documented and reported to law enforcement for criminal prosecution.
       </p>
       <p class="v2-safety-disclaimer">
-        🛡️ <strong>Platform Disclaimer:</strong> HashGANG strictly prohibits contact sharing and takes <strong>zero responsibility</strong> for off-platform interactions or unauthorized contact sharing.
+        🛡️ <strong>Platform Disclaimer:</strong> HashGANG strictly prohibits contact sharing and holds zero liability for external off-platform interactions.
       </p>
     </div>
   `;
@@ -7873,12 +7896,16 @@ function renderGroupSafetyCard() {
       <span class="v2-safety-legal-tag">Zero Platform Liability</span>
     </div>
     <div class="v2-safety-body">
+      <p class="v2-safety-title">⚠️ Do Not Trust External Contacts &amp; Social Handles</p>
       <p class="v2-safety-desc">
-        ⚠️ <strong>నకిలీ నంబర్లు &amp; సోషల్ మీడియా ఖాతాలను నమ్మవద్దు:</strong> ఇక్కడ అపరిచితులు ఫేక్ ఫోన్ నంబర్లు లేదా నకిలీ సోషల్ మీడియా ఐడీలు షేర్ చేయవచ్చు. వాటిని ఎట్టిపరిస్థితుల్లోనూ నమ్మవద్దు. థర్డ్ పార్టీ కాంటాక్ట్‌లు లేదా ఇతర యూజర్ల ప్రవర్తనకు ప్లాట్‌ఫారమ్‌కు ఎటువంటి బాధ్యత ఉండదు.
+        Strangers may share fake, stolen, or unauthorized phone numbers and social media accounts. Never call, message, or trust external contacts.
       </p>
-      <div class="v2-safety-en-sub">
-        Never trust, call, or share personal info with unverified numbers or social media accounts shared by strangers. The platform holds zero liability for external contacts or interactions.
-      </div>
+      <p class="v2-safety-legal-sub">
+        📌 <strong>Legal Prosecution Warning:</strong> Doxxing, distributing personal contacts without consent, or cyber harassment is a severe punishable crime under Cyber Laws. Offender digital footprints (IP, device headers, and timestamps) are documented and reported to law enforcement for criminal prosecution.
+      </p>
+      <p class="v2-safety-disclaimer">
+        🛡️ <strong>Platform Disclaimer:</strong> HashGANG strictly prohibits contact sharing and holds zero liability for external off-platform interactions.
+      </p>
     </div>
   `;
   return card;
@@ -8991,18 +9018,162 @@ function isPwaStandalone() {
 window.isPwaStandalone = isPwaStandalone;
 
 // ==========================================
+// SECURITY VAULT & ZOMBIE LOCK (IndexedDB + Multi-Storage)
+// ==========================================
+const SEC_DB_NAME = "hg_sec_vault";
+const SEC_STORE_NAME = "security_flags";
+
+function openSecurityDB() {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined" || !window.indexedDB) return resolve(null);
+    try {
+      const req = indexedDB.open(SEC_DB_NAME, 1);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(SEC_STORE_NAME)) {
+          db.createObjectStore(SEC_STORE_NAME, { keyPath: "key" });
+        }
+      };
+      req.onsuccess = (e) => resolve(e.target.result);
+      req.onerror = () => resolve(null);
+    } catch (err) {
+      resolve(null);
+    }
+  });
+}
+
+function isDevicePermanentlyBannedSync() {
+  try {
+    if (localStorage.getItem("hg_device_banned") === "1") return true;
+    if (sessionStorage.getItem("hg_device_banned") === "1") return true;
+    if (document.cookie && document.cookie.includes("hg_sec_ban=1")) return true;
+  } catch (e) {}
+  return false;
+}
+window.isDevicePermanentlyBannedSync = isDevicePermanentlyBannedSync;
+
+async function markDevicePermanentlyBanned(reason, uid) {
+  const banReason = reason || "Your user account and device entity have been permanently revoked by platform administration.";
+  const banUid = uid || (typeof getOrCreateAnonUserId === "function" ? getOrCreateAnonUserId() : null);
+
+  // 1. LocalStorage
+  try {
+    localStorage.setItem("hg_device_banned", "1");
+    localStorage.setItem("hg_ban_reason", banReason);
+    if (banUid) localStorage.setItem("hg_banned_uid", banUid);
+  } catch (e) {}
+
+  // 2. SessionStorage
+  try {
+    sessionStorage.setItem("hg_device_banned", "1");
+    sessionStorage.setItem("hg_ban_reason", banReason);
+  } catch (e) {}
+
+  // 3. Persistent 10-Year Cookie
+  try {
+    document.cookie = "hg_sec_ban=1; max-age=315360000; path=/; SameSite=Strict";
+  } catch (e) {}
+
+  // 4. IndexedDB Vault
+  try {
+    const db = await openSecurityDB();
+    if (db) {
+      const tx = db.transaction(SEC_STORE_NAME, "readwrite");
+      tx.objectStore(SEC_STORE_NAME).put({
+        key: "device_ban",
+        val: { isBanned: true, reason: banReason, uid: banUid, bannedAt: Date.now() }
+      });
+    }
+  } catch (e) {}
+
+  showPermanentLockoutUI(banReason);
+}
+window.markDevicePermanentlyBanned = markDevicePermanentlyBanned;
+
+async function checkDeviceBanStatus() {
+  let isBanned = isDevicePermanentlyBannedSync();
+  let banReason = "";
+  let bannedUid = null;
+
+  try {
+    banReason = localStorage.getItem("hg_ban_reason") || sessionStorage.getItem("hg_ban_reason") || "";
+    bannedUid = localStorage.getItem("hg_banned_uid");
+  } catch (e) {}
+
+  if (!isBanned) {
+    try {
+      const db = await openSecurityDB();
+      if (db) {
+        const val = await new Promise((res) => {
+          const tx = db.transaction(SEC_STORE_NAME, "readonly");
+          const req = tx.objectStore(SEC_STORE_NAME).get("device_ban");
+          req.onsuccess = () => res(req.result ? req.result.val : null);
+          req.onerror = () => res(null);
+        });
+        if (val && val.isBanned) {
+          isBanned = true;
+          banReason = val.reason || banReason;
+          bannedUid = val.uid || bannedUid;
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (isBanned) {
+    markDevicePermanentlyBanned(banReason, bannedUid);
+    return { isBanned: true, reason: banReason, uid: bannedUid };
+  }
+  return { isBanned: false };
+}
+window.checkDeviceBanStatus = checkDeviceBanStatus;
+
+function showPermanentLockoutUI(reason) {
+  if (typeof document === "undefined") return;
+  const existing = document.getElementById("v2-perm-ban-overlay");
+  if (existing) return;
+
+  const overlay = document.createElement("div");
+  overlay.id = "v2-perm-ban-overlay";
+  overlay.style.cssText = "position:fixed;inset:0;background:#030712;z-index:99999999;display:flex;align-items:center;justify-content:center;padding:20px;font-family:system-ui,-apple-system,sans-serif;";
+  overlay.innerHTML = `
+    <div style="background:#111827;border:1px solid #ef4444;border-radius:16px;max-width:440px;width:100%;padding:28px 24px;text-align:center;box-shadow:0 25px 50px -12px rgba(0,0,0,0.85);">
+      <div style="font-size:3rem;margin-bottom:12px;">⛔</div>
+      <h2 style="color:#ef4444;font-size:1.35rem;font-weight:700;margin:0 0 10px 0;">Access Permanently Revoked</h2>
+      <p style="color:#d1d5db;font-size:0.88rem;line-height:1.5;margin:0 0 16px 0;">
+        \${reason || "Your device and account access have been permanently terminated by platform administration for cyber safety violations."}
+      </p>
+      <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px;color:#fca5a5;font-size:0.75rem;line-height:1.4;margin-bottom:16px;text-align:left;">
+        ⚖️ <strong>Legal Notice:</strong> Attempting to evade this suspension by rotating identifiers is documented in server forensics for law enforcement referral under IT Act &amp; Cyber Laws.
+      </div>
+      <div style="color:#6b7280;font-size:0.75rem;">
+        HashGANG Cyber Safety Enforcement Division
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  if (window.socket) {
+    try { window.socket.disconnect(true); } catch (e) {}
+  }
+}
+window.showPermanentLockoutUI = showPermanentLockoutUI;
+
+// ==========================================
 // SECRET STAR ⭐ FAVORITES & RETURN ENGINE
 // ==========================================
 
 function getOrCreateAnonUserId() {
   let uid = null;
   try {
-    uid = localStorage.getItem("hg_anon_uid");
+    const bannedUid = localStorage.getItem("hg_banned_uid");
+    if (bannedUid) return bannedUid;
+    uid = localStorage.getItem("hg_anon_uid") || sessionStorage.getItem("hg_anon_uid");
   } catch (e) {}
   if (!uid || typeof uid !== "string" || !uid.startsWith("hg_usr_")) {
     uid = "hg_usr_" + Math.random().toString(36).substring(2, 10) + Date.now().toString(36);
     try {
       localStorage.setItem("hg_anon_uid", uid);
+      sessionStorage.setItem("hg_anon_uid", uid);
     } catch (e) {}
   }
   return uid;

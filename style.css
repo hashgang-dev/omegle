@@ -2113,12 +2113,20 @@ html, body {
   color: #fca5a5;
 }
 
-.v2-safety-telugu {
+.v2-safety-legal-sub {
   margin: 0;
-  font-size: 0.72rem;
-  color: #fbbf24;
+  font-size: 0.73rem;
+  color: #fef08a;
   opacity: 0.95;
   line-height: 1.4;
+  background: rgba(239, 68, 68, 0.08);
+  border-left: 2px solid #ef4444;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.v2-safety-legal-sub strong {
+  color: #fca5a5;
 }
 
 .v2-safety-disclaimer {
