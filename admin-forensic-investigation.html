@@ -1352,10 +1352,10 @@
 
       const btn = document.getElementById("btnDownloadPdf");
       const origText = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Compiling Certified Section 65B PDF...`;
+      btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Compiling Official Section 65B Dossier...`;
       btn.disabled = true;
 
-      const secret = sessionStorage.getItem("hg_admin_trace_secret") || document.getElementById("inputAdminSecret").value.trim();
+      const secret = getAdminSecret();
       const victimId = document.getElementById("inputTargetPhone").value.trim() || "+91 70324 61997";
 
       try {
@@ -1377,18 +1377,56 @@
           throw new Error("Server returned status " + response.status);
         }
 
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = downloadUrl;
-        a.download = `Forensic_Incident_Report_${activeProfile.currentNickname}_${activeProfile.anonUserId}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(downloadUrl);
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/pdf")) {
+          const blob = await response.blob();
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = downloadUrl;
+          a.download = `Forensic_Incident_Report_${activeProfile.currentNickname}_${activeProfile.anonUserId}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(downloadUrl);
+        } else {
+          const data = await response.json();
+          if (data && data.success && data.html) {
+            // Open full 5-page official legal report in a dedicated preview tab & auto-trigger high-fidelity print
+            const reportWindow = window.open("", "_blank");
+            if (reportWindow) {
+              reportWindow.document.open();
+              reportWindow.document.write(data.html);
+              reportWindow.document.close();
+              setTimeout(() => {
+                reportWindow.focus();
+                reportWindow.print();
+              }, 600);
+            } else {
+              // Popup blocked: open via iframe
+              const iframe = document.createElement("iframe");
+              iframe.style.position = "fixed";
+              iframe.style.right = "0";
+              iframe.style.bottom = "0";
+              iframe.style.width = "0";
+              iframe.style.height = "0";
+              iframe.style.border = "none";
+              document.body.appendChild(iframe);
+              iframe.contentWindow.document.open();
+              iframe.contentWindow.document.write(data.html);
+              iframe.contentWindow.document.close();
+              setTimeout(() => {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+                setTimeout(() => iframe.remove(), 4000);
+              }, 600);
+            }
+          } else {
+            throw new Error((data && data.message) || "Failed to compile report.");
+          }
+        }
       } catch (err) {
         console.error("PDF download failed:", err);
-        alert("Failed to generate PDF. Ensure admin secret is valid and backend server is running.");
+        alert("Failed to generate PDF: " + err.message + "\n\nPlease ensure admin secret is valid.");
       } finally {
         btn.innerHTML = origText;
         btn.disabled = false;
