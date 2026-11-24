@@ -919,7 +919,7 @@
       </div>
     </header>
 
-    <!-- 5 Unified Tabs Navigation -->
+    <!-- 7 Unified Tabs Navigation -->
     <nav class="tabs-nav no-print">
       <button class="tab-btn active" onclick="switchTab('threatRadar')">
         <i class="fa-solid fa-radar"></i> 1. Threat Radar & Security Incidents
@@ -935,6 +935,12 @@
       </button>
       <button class="tab-btn" onclick="switchTab('loungeOps')">
         <i class="fa-solid fa-comments"></i> 5. Lounge & Operations
+      </button>
+      <button class="tab-btn" onclick="switchTab('userDirectory')">
+        <i class="fa-solid fa-users-gear"></i> 6. User Directory & Social Graph
+      </button>
+      <button class="tab-btn" onclick="switchTab('callOps')">
+        <i class="fa-solid fa-phone-volume"></i> 7. Call Traffic & Reports Queue
       </button>
     </nav>
 
@@ -1554,6 +1560,234 @@
           </div>
         </div>
       </section>
+
+      <!-- ==================== TAB 6: USER DIRECTORY & SOCIAL GRAPH ==================== -->
+      <section id="userDirectory" class="tab-content">
+        <!-- User Directory Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Total Audited Users</div>
+              <div class="val" id="statDirTotalUsers">--</div>
+            </div>
+            <i class="fa-solid fa-users stat-icon" style="color: #38bdf8;"></i>
+          </div>
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Alias Churners</div>
+              <div class="val" id="statDirChurners">--</div>
+            </div>
+            <i class="fa-solid fa-masks-theater stat-icon" style="color: #fbbf24;"></i>
+          </div>
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Active Past 24h</div>
+              <div class="val" id="statDirActive24h">--</div>
+            </div>
+            <i class="fa-solid fa-user-check stat-icon" style="color: #34d399;"></i>
+          </div>
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Social Connections</div>
+              <div class="val" id="statDirTotalFavorites">--</div>
+            </div>
+            <i class="fa-solid fa-heart stat-icon" style="color: #f43f5e;"></i>
+          </div>
+        </div>
+
+        <!-- Social Graph & Influencers Card -->
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fa-solid fa-heart-pulse" style="color: #f43f5e;"></i> Top Favorited Influencers & Fan Connections</span>
+            <button class="btn-secondary" onclick="loadFavoritesNetwork()">
+              <i class="fa-solid fa-rotate"></i> Refresh Graph
+            </button>
+          </div>
+          <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 14px;">
+            Identifies highly favorited users on the platform. Users who favorite peers can be re-matched or track status. Click any profile to filter directory.
+          </p>
+          <div id="topInfluencersContainer" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+            <p style="color: var(--text-dim); font-size: 0.85rem;">Loading top influencers...</p>
+          </div>
+          <details style="background: rgba(0,0,0,0.25); border-radius: 8px; padding: 12px; border: 1px solid var(--border-glass);">
+            <summary style="cursor: pointer; font-size: 0.85rem; font-weight: 700; color: #f066ff;">
+              <i class="fa-solid fa-circle-nodes"></i> View Recent Fan-Target Connection Pairings (<span id="pairingsCount">0</span>)
+            </summary>
+            <div class="table-responsive" style="margin-top: 12px; max-height: 250px; overflow-y: auto;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fan Nickname</th>
+                    <th>Fan Anon UID</th>
+                    <th>Target Nickname</th>
+                    <th>Target Anon UID</th>
+                    <th>Favorited At (IST)</th>
+                  </tr>
+                </thead>
+                <tbody id="pairingsTableBody">
+                  <tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 12px;">Loading pairings...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
+
+        <!-- Users Directory Table Card -->
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fa-solid fa-address-book"></i> User Identity Roster & Alias Churn Watchlist</span>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-secondary" onclick="loadUserDirectory(1)">
+                <i class="fa-solid fa-rotate"></i> Refresh Roster
+              </button>
+            </div>
+          </div>
+
+          <!-- Search & Filter Controls -->
+          <div class="search-bar" style="margin-bottom: 16px;">
+            <input type="text" id="userDirSearchInput" placeholder="Search by Nickname, Anon UID (hg_usr_...), or IP" style="max-width: 380px;" onkeydown="if(event.key==='Enter') loadUserDirectory(1)" />
+            <select id="userDirFilterSelect" onchange="loadUserDirectory(1)" style="padding: 10px 14px; background: rgba(0,0,0,0.5); border: 1px solid var(--border-glass); border-radius: 8px; color: #fff; font-size: 0.88rem;">
+              <option value="all">Filter: All Users</option>
+              <option value="churners">Filter: Alias Churners Only</option>
+              <option value="banned">Filter: Banned Users Only</option>
+              <option value="active24h">Filter: Active in Past 24h</option>
+            </select>
+            <button class="btn-primary" style="width: auto; padding: 10px 20px;" onclick="loadUserDirectory(1)">
+              <i class="fa-solid fa-magnifying-glass"></i> Search
+            </button>
+          </div>
+
+          <!-- Table -->
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>User Identity / UID</th>
+                  <th>Current Nickname</th>
+                  <th>Alias Churn History</th>
+                  <th>Device / Canvas Fingerprint</th>
+                  <th>Associated IPs</th>
+                  <th>Status & Reports</th>
+                  <th>Last Active (IST)</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="userDirTableBody">
+                <tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">Click to load User Directory data...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination Bar -->
+          <div class="pagination-bar" id="userDirPaginationBar" style="display: none; margin-top: 16px;">
+            <div class="pagination-info" id="userDirPaginationInfo">Showing page 1</div>
+            <div class="pagination-controls">
+              <button class="btn-page" id="btnUserDirPrev" onclick="changeUserDirPage(-1)"><i class="fa-solid fa-chevron-left"></i> Previous</button>
+              <span class="page-indicator" id="userDirPageIndicator">Page 1 of 1</span>
+              <button class="btn-page" id="btnUserDirNext" onclick="changeUserDirPage(1)">Next <i class="fa-solid fa-chevron-right"></i></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 7: CALL TRAFFIC & REPORTS QUEUE ==================== -->
+      <section id="callOps" class="tab-content">
+        <!-- Call Volume Stats Grid -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Total Call Volume</div>
+              <div class="val" id="statCallTotal">--</div>
+            </div>
+            <i class="fa-solid fa-phone-volume stat-icon" style="color: #38bdf8;"></i>
+          </div>
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Video Calls</div>
+              <div class="val" id="statCallVideo">--</div>
+            </div>
+            <i class="fa-solid fa-video stat-icon" style="color: #f066ff;"></i>
+          </div>
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Audio Calls</div>
+              <div class="val" id="statCallAudio">--</div>
+            </div>
+            <i class="fa-solid fa-microphone stat-icon" style="color: #34d399;"></i>
+          </div>
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Text Match Calls</div>
+              <div class="val" id="statCallText">--</div>
+            </div>
+            <i class="fa-solid fa-comment-dots stat-icon" style="color: #a78bfa;"></i>
+          </div>
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Flagged Abuse Reports</div>
+              <div class="val" id="statCallReported" style="color: #f87171;">--</div>
+            </div>
+            <i class="fa-solid fa-triangle-exclamation stat-icon" style="color: #f87171;"></i>
+          </div>
+        </div>
+
+        <!-- Flagged Abuse Reports Queue Card -->
+        <div class="card" style="border: 1px solid rgba(239, 68, 68, 0.35);">
+          <div class="card-title">
+            <span style="color: #f87171;">
+              <i class="fa-solid fa-flag"></i> Priority Flagged Abuse Reports Queue (<span id="reportedCallsCount">0</span> calls)
+            </span>
+            <button class="btn-secondary" onclick="loadCallOpsData()">
+              <i class="fa-solid fa-rotate"></i> Refresh Reports
+            </button>
+          </div>
+          <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 14px;">
+            1v1 calls where a peer clicked the report button. Trace codes link directly to Section 65B forensic archives and allow 1-click ban enforcement.
+          </p>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Trace Code</th>
+                  <th>Mode</th>
+                  <th>Report Details</th>
+                  <th>Peer A (Initiator)</th>
+                  <th>Peer B (Receiver)</th>
+                  <th>Call Time (IST)</th>
+                  <th style="text-align: right;">Forensic Actions</th>
+                </tr>
+              </thead>
+              <tbody id="reportedCallsTableBody">
+                <tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 20px;">Loading flagged abuse calls...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Recent Calls Stream Card -->
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fa-solid fa-timeline"></i> Recent Calls Stream (Audit Buffer)</span>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Trace Code</th>
+                  <th>Mode</th>
+                  <th>Peer A (Initiator)</th>
+                  <th>Peer B (Receiver)</th>
+                  <th>Call Established (IST)</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="recentCallsTableBody">
+                <tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 20px;">Loading recent calls...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -1655,6 +1889,8 @@
       else if (tabId === "banManager") loadBannedRegistry();
       else if (tabId === "pushSuite") loadPushSuiteData();
       else if (tabId === "loungeOps") loadLoungeRooms();
+      else if (tabId === "userDirectory") { loadUserDirectory(currentUserDirPage || 1); loadFavoritesNetwork(); }
+      else if (tabId === "callOps") loadCallOpsData();
     }
 
     // ==================== TAB 1: THREAT RADAR & PAGINATION ====================
@@ -2724,6 +2960,389 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
       } catch (err) {
         container.innerHTML = `<p style="color: var(--danger);">Failed to load lounge rooms.</p>`;
       }
+    }
+
+    // ==================== TAB 6: USER DIRECTORY & SOCIAL GRAPH ====================
+    let currentUserDirPage = 1;
+    const userDirPageSize = 25;
+    let totalUserDirCount = 0;
+
+    async function loadUserDirectory(page = 1) {
+      const secret = getAdminSecret();
+      if (!secret) return;
+      currentUserDirPage = page;
+
+      const tbody = document.getElementById("userDirTableBody");
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--info); padding: 24px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading User Directory (Page ${page})...</td></tr>`;
+
+      try {
+        const filter = document.getElementById("userDirFilterSelect") ? document.getElementById("userDirFilterSelect").value : "all";
+        const search = document.getElementById("userDirSearchInput") ? document.getElementById("userDirSearchInput").value.trim() : "";
+
+        let url = `${API_BASE}/admin/users-directory?page=${page}&limit=${userDirPageSize}&filter=${encodeURIComponent(filter)}`;
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+
+        const res = await fetch(url, { headers: { "x-admin-secret": secret } });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          const stats = data.stats || {};
+          if (stats.totalUsers !== undefined) document.getElementById("statDirTotalUsers").textContent = stats.totalUsers;
+          if (stats.churnersCount !== undefined) document.getElementById("statDirChurners").textContent = stats.churnersCount;
+          if (stats.active24hCount !== undefined) document.getElementById("statDirActive24h").textContent = stats.active24hCount;
+
+          totalUserDirCount = data.totalMatched || 0;
+          updateUserDirPagination(page, data.totalPages || 1, totalUserDirCount);
+
+          const users = data.users || [];
+          if (users.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">No users found matching query.</td></tr>`;
+            return;
+          }
+
+          tbody.innerHTML = users.map(u => {
+            const lastActiveStr = u.lastActive ? new Date(u.lastActive).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "-";
+            const isBanned = u.isBanned;
+            const statusBadge = isBanned
+              ? `<span class="badge badge-critical"><i class="fa-solid fa-ban"></i> BANNED</span>`
+              : (u.isMuted ? `<span class="badge badge-high"><i class="fa-solid fa-volume-xmark"></i> MUTED</span>` : `<span class="badge badge-success"><i class="fa-solid fa-check"></i> ACTIVE</span>`);
+
+            // Nickname history pill
+            const nickHistory = u.nicknameHistory || [];
+            let nickHistoryHtml = `<span style="color: var(--text-dim); font-size: 0.78rem;">Single Identity</span>`;
+            if (nickHistory.length > 0) {
+              const tooltipNicks = nickHistory.map(nh => `${escapeHtml(nh.nickname)} (${nh.changedAt ? new Date(nh.changedAt).toLocaleDateString("en-IN") : ''})`).join(" &#10;");
+              nickHistoryHtml = `<span class="badge badge-high" style="cursor: help;" title="${tooltipNicks}"><i class="fa-solid fa-masks-theater"></i> ${nickHistory.length} Churns</span>`;
+            }
+
+            // Hardware info
+            const hw = u.hardwareFingerprint || {};
+            const screenStr = hw.screenRes ? `${hw.screenRes}${hw.pixelRatio ? ' @' + hw.pixelRatio : ''}` : '-';
+            const memStr = hw.deviceMemory ? `${hw.deviceMemory}GB RAM` : '';
+            const canvasSnippet = hw.canvasHash ? `<code class="code-pill" style="font-size: 0.7rem; color: #a78bfa;" title="${hw.canvasHash}">${hw.canvasHash.slice(0, 10)}...</code>` : '-';
+
+            // IPs
+            const ips = u.ipAddresses || [];
+            const ipDisplay = ips.length > 0
+              ? ips.slice(0, 2).map(ip => `<div class="code-pill" style="font-size: 0.72rem; margin-bottom: 2px;">${escapeHtml(ip)}</div>`).join("") + (ips.length > 2 ? `<span style="font-size: 0.7rem; color: var(--text-dim);">+${ips.length - 2} more</span>` : '')
+              : `<span style="color: var(--text-dim);">-</span>`;
+
+            const reportsCount = u.totalReportsReceived || 0;
+            const reportsBadge = reportsCount > 0
+              ? `<span class="badge badge-critical" style="margin-top: 4px; display: inline-block;"><i class="fa-solid fa-triangle-exclamation"></i> ${reportsCount} reports</span>`
+              : '';
+
+            return `
+              <tr>
+                <td>
+                  <div style="display: flex; flex-direction: column; gap: 2px;">
+                    <span class="code-pill" style="color: #38bdf8; font-weight: 700; cursor: pointer;" onclick="inspectSuspectForensics('${escapeHtml(u.anonUserId)}')">${escapeHtml(u.anonUserId)}</span>
+                    <span style="font-size: 0.7rem; color: var(--text-dim);">Reg: ${u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-IN") : '-'}</span>
+                  </div>
+                </td>
+                <td>
+                  <span style="font-weight: 700; color: #fff; font-size: 0.92rem;">${escapeHtml(u.currentNickname || 'Anonymous')}</span>
+                </td>
+                <td>${nickHistoryHtml}</td>
+                <td>
+                  <div style="font-size: 0.76rem; line-height: 1.4;">
+                    <div>${screenStr} ${memStr ? '• ' + memStr : ''}</div>
+                    <div>Canvas: ${canvasSnippet}</div>
+                  </div>
+                </td>
+                <td>${ipDisplay}</td>
+                <td>
+                  <div>${statusBadge}</div>
+                  ${reportsBadge}
+                </td>
+                <td style="font-size: 0.78rem; color: var(--text-dim); white-space: nowrap;">${lastActiveStr}</td>
+                <td style="text-align: right; white-space: nowrap;">
+                  <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.75rem;" onclick="inspectSuspectForensics('${escapeHtml(u.anonUserId)}')" title="Inspect in Forensic Dossier">
+                    <i class="fa-solid fa-fingerprint"></i> Dossier
+                  </button>
+                  ${isBanned ? `
+                    <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.75rem; color: #34d399; margin-left: 4px;" onclick="quickUnbanUser('${escapeHtml(u.anonUserId)}', '${escapeHtml(u.currentNickname)}')">
+                      <i class="fa-solid fa-unlock"></i> Unban
+                    </button>
+                  ` : `
+                    <button class="btn-danger" style="padding: 5px 10px; font-size: 0.75rem; margin-left: 4px;" onclick="quickBanUser('${escapeHtml(u.anonUserId)}', '${escapeHtml(u.currentNickname)}', '${escapeHtml((ips[0] || ''))}')">
+                      <i class="fa-solid fa-ban"></i> Ban
+                    </button>
+                  `}
+                </td>
+              </tr>
+            `;
+          }).join("");
+        } else {
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 24px;">${data.message || 'Failed to load user directory.'}</td></tr>`;
+        }
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 24px;">Network error loading users.</td></tr>`;
+      }
+    }
+
+    function updateUserDirPagination(page, totalPages, totalCount) {
+      const bar = document.getElementById("userDirPaginationBar");
+      if (!bar) return;
+      bar.style.display = totalPages > 1 || totalCount > 0 ? "flex" : "none";
+      document.getElementById("userDirPaginationInfo").textContent = `Total: ${totalCount} users • Page ${page} of ${totalPages}`;
+      document.getElementById("userDirPageIndicator").textContent = `Page ${page} of ${totalPages}`;
+      document.getElementById("btnUserDirPrev").disabled = page <= 1;
+      document.getElementById("btnUserDirNext").disabled = page >= totalPages;
+    }
+
+    function changeUserDirPage(delta) {
+      const targetPage = currentUserDirPage + delta;
+      if (targetPage >= 1) {
+        loadUserDirectory(targetPage);
+      }
+    }
+
+    function searchUserDir(nickOrUid) {
+      document.getElementById("userDirSearchInput").value = nickOrUid;
+      document.getElementById("userDirFilterSelect").value = "all";
+      loadUserDirectory(1);
+    }
+
+    function inspectSuspectForensics(uidOrNick) {
+      document.getElementById("forensicQueryInput").value = uidOrNick;
+      switchTab("legalTrace");
+      lookupForensics();
+    }
+
+    async function quickBanUser(uid, nick, ip) {
+      const reason = prompt(`Enforce permanent ban on ${nick} (${uid})?\nEnter reason:`, "Direct moderation ban from User Directory");
+      if (!reason) return;
+      const secret = getAdminSecret();
+      try {
+        const res = await fetch(`${API_BASE}/admin/ban-user`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+          body: JSON.stringify({ anonUserId: uid, ipAddress: ip, banReason: reason })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert(`Successfully banned ${nick}.`);
+          loadUserDirectory(currentUserDirPage);
+        } else {
+          alert(data.message || "Failed to ban user.");
+        }
+      } catch (e) {
+        alert("Error executing ban.");
+      }
+    }
+
+    async function quickUnbanUser(uid, nick) {
+      if (!confirm(`Lift permanent ban on ${nick} (${uid})?`)) return;
+      const secret = getAdminSecret();
+      try {
+        const res = await fetch(`${API_BASE}/admin/unban-user`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+          body: JSON.stringify({ anonUserId: uid })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert(`Successfully unbanned ${nick}.`);
+          loadUserDirectory(currentUserDirPage);
+        } else {
+          alert(data.message || "Failed to unban user.");
+        }
+      } catch (e) {
+        alert("Error unbanning user.");
+      }
+    }
+
+    async function loadFavoritesNetwork() {
+      const secret = getAdminSecret();
+      if (!secret) return;
+      try {
+        const res = await fetch(`${API_BASE}/admin/favorites-network`, { headers: { "x-admin-secret": secret } });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          document.getElementById("statDirTotalFavorites").textContent = data.totalFavorites || 0;
+          document.getElementById("pairingsCount").textContent = (data.recentPairings || []).length;
+
+          // Top Influencers Cards
+          const influencers = data.topInfluencers || [];
+          const container = document.getElementById("topInfluencersContainer");
+          if (influencers.length === 0) {
+            container.innerHTML = `<span style="color: var(--text-dim); font-size: 0.85rem;">No favorite connections recorded yet.</span>`;
+          } else {
+            container.innerHTML = influencers.map(inf => `
+              <div onclick="searchUserDir('${escapeHtml(inf.nickname)}')" style="background: rgba(240, 102, 255, 0.08); border: 1px solid rgba(240, 102, 255, 0.25); border-radius: 10px; padding: 10px 16px; display: inline-flex; align-items: center; gap: 10px; cursor: pointer; transition: transform 0.15s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                <i class="fa-solid fa-star" style="color: #fbbf24; font-size: 1.1rem;"></i>
+                <div>
+                  <div style="font-weight: 800; color: #fff; font-size: 0.95rem;">${escapeHtml(inf.nickname)}</div>
+                  <div style="font-size: 0.74rem; color: #f43f5e; font-weight: 600;"><i class="fa-solid fa-heart"></i> ${inf.fanCount} Fans favorited</div>
+                </div>
+              </div>
+            `).join("");
+          }
+
+          // Pairings Table
+          const pairings = data.recentPairings || [];
+          const pairingsTbody = document.getElementById("pairingsTableBody");
+          if (pairings.length === 0) {
+            pairingsTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 12px;">No recent pairings recorded.</td></tr>`;
+          } else {
+            pairingsTbody.innerHTML = pairings.map(p => `
+              <tr>
+                <td><span style="font-weight: 600; color: #38bdf8;">${escapeHtml(p.fanNick || 'Anon')}</span></td>
+                <td><span class="code-pill" style="font-size: 0.72rem; cursor: pointer;" onclick="inspectSuspectForensics('${escapeHtml(p.fanUid)}')">${escapeHtml(p.fanUid)}</span></td>
+                <td><span style="font-weight: 600; color: #f066ff;">${escapeHtml(p.targetNick || 'Peer')}</span></td>
+                <td><span class="code-pill" style="font-size: 0.72rem; cursor: pointer;" onclick="inspectSuspectForensics('${escapeHtml(p.targetUid)}')">${escapeHtml(p.targetUid)}</span></td>
+                <td style="font-size: 0.76rem; color: var(--text-dim);">${p.createdAt ? new Date(p.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : '-'}</td>
+              </tr>
+            `).join("");
+          }
+        }
+      } catch (e) {}
+    }
+
+    // ==================== TAB 7: CALL TRAFFIC & REPORTS QUEUE ====================
+    async function loadCallOpsData() {
+      const secret = getAdminSecret();
+      if (!secret) return;
+
+      const reportedTbody = document.getElementById("reportedCallsTableBody");
+      const recentTbody = document.getElementById("recentCallsTableBody");
+
+      reportedTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--info); padding: 20px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Fetching flagged calls queue...</td></tr>`;
+      recentTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--info); padding: 20px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Fetching recent call stream...</td></tr>`;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/call-analytics`, { headers: { "x-admin-secret": secret } });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          const stats = data.stats || {};
+          document.getElementById("statCallTotal").textContent = (stats.totalCalls || 0).toLocaleString();
+          document.getElementById("statCallReported").textContent = (stats.reportedCount || 0).toLocaleString();
+          document.getElementById("reportedCallsCount").textContent = (stats.reportedCount || 0).toLocaleString();
+
+          const mm = stats.modeMap || {};
+          document.getElementById("statCallVideo").textContent = (mm.video || 0).toLocaleString();
+          document.getElementById("statCallAudio").textContent = (mm.audio || 0).toLocaleString();
+          document.getElementById("statCallText").textContent = (mm.text || 0).toLocaleString();
+
+          // Render Flagged Reports Queue
+          const reports = data.reportedCalls || [];
+          if (reports.length === 0) {
+            reportedTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--success); padding: 20px;"><i class="fa-solid fa-check-double"></i> Clean slate! No pending flagged abuse reports.</td></tr>`;
+          } else {
+            reportedTbody.innerHTML = reports.map(call => {
+              const establishedTime = call.createdAt ? new Date(call.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "-";
+              const modeClass = call.mode === "video" ? "badge-critical" : call.mode === "audio" ? "badge-success" : "badge-medium";
+              const callReports = call.reports || [];
+              const reportReasons = callReports.map(r => `<div style="font-size: 0.75rem; color: #f87171;"><i class="fa-solid fa-triangle-exclamation"></i> <strong>${escapeHtml(r.reason || 'Abuse')}</strong> <span style="color: var(--text-dim);">by ${escapeHtml(r.reportedBy || 'Peer')}</span></div>`).join("") || '<span style="color: var(--text-dim);">-</span>';
+
+              const peerA = call.peerA || {};
+              const peerB = call.peerB || {};
+              const pATel = peerA.telemetry || {};
+              const pBTel = peerB.telemetry || {};
+
+              return `
+                <tr>
+                  <td>
+                    <span class="code-pill" style="color: #34d399; font-weight: 700; cursor: pointer;" onclick="inspectSuspectTrace('${escapeHtml(call.traceCode)}')">
+                      <i class="fa-solid fa-link"></i> ${escapeHtml(call.traceCode)}
+                    </span>
+                  </td>
+                  <td><span class="badge ${modeClass}">${escapeHtml(call.mode || 'text')}</span></td>
+                  <td>${reportReasons}</td>
+                  <td>
+                    <div style="font-size: 0.78rem;">
+                      <div class="code-pill" style="font-size: 0.72rem; color: #38bdf8;">${escapeHtml(peerA.ip || 'Unknown')}</div>
+                      <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 2px;">${escapeHtml(pATel.device || 'Peer A')} (${escapeHtml(peerA.country || 'IN')})</div>
+                    </div>
+                  </td>
+                  <td>
+                    <div style="font-size: 0.78rem;">
+                      <div class="code-pill" style="font-size: 0.72rem; color: #f066ff;">${escapeHtml(peerB.ip || 'Unknown')}</div>
+                      <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 2px;">${escapeHtml(pBTel.device || 'Peer B')} (${escapeHtml(peerB.country || 'IN')})</div>
+                    </div>
+                  </td>
+                  <td style="font-size: 0.78rem; color: var(--text-dim); white-space: nowrap;">${establishedTime}</td>
+                  <td style="text-align: right; white-space: nowrap;">
+                    <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.75rem;" onclick="inspectSuspectTrace('${escapeHtml(call.traceCode)}')">
+                      <i class="fa-solid fa-scale-balanced"></i> Sec 65B Trace
+                    </button>
+                    <button class="btn-danger" style="padding: 5px 10px; font-size: 0.75rem; margin-left: 4px;" onclick="promptBanFromReport('${escapeHtml(peerA.ip)}', '${escapeHtml(peerB.ip)}', '${escapeHtml(call.traceCode)}')">
+                      <i class="fa-solid fa-ban"></i> Ban Peer
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join("");
+          }
+
+          // Render Recent Calls
+          const recentCalls = data.recentCalls || [];
+          if (recentCalls.length === 0) {
+            recentTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 20px;">No recent calls in database.</td></tr>`;
+          } else {
+            recentTbody.innerHTML = recentCalls.map(c => {
+              const timeStr = c.createdAt ? new Date(c.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "-";
+              const modeClass = c.mode === "video" ? "badge-critical" : c.mode === "audio" ? "badge-success" : "badge-medium";
+              const peerA = c.peerA || {};
+              const peerB = c.peerB || {};
+              return `
+                <tr>
+                  <td>
+                    <span class="code-pill" style="color: #34d399; font-weight: 700; cursor: pointer;" onclick="inspectSuspectTrace('${escapeHtml(c.traceCode)}')">
+                      ${escapeHtml(c.traceCode)}
+                    </span>
+                  </td>
+                  <td><span class="badge ${modeClass}">${escapeHtml(c.mode || 'text')}</span></td>
+                  <td>
+                    <div style="font-size: 0.78rem;">
+                      <span class="code-pill" style="font-size: 0.72rem;">${escapeHtml(peerA.ip || '-')}</span>
+                      <span style="font-size: 0.72rem; color: var(--text-dim); margin-left: 4px;">${escapeHtml((peerA.telemetry && peerA.telemetry.device) || '')}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div style="font-size: 0.78rem;">
+                      <span class="code-pill" style="font-size: 0.72rem;">${escapeHtml(peerB.ip || '-')}</span>
+                      <span style="font-size: 0.72rem; color: var(--text-dim); margin-left: 4px;">${escapeHtml((peerB.telemetry && peerB.telemetry.device) || '')}</span>
+                    </div>
+                  </td>
+                  <td style="font-size: 0.78rem; color: var(--text-dim); white-space: nowrap;">${timeStr}</td>
+                  <td style="text-align: right; white-space: nowrap;">
+                    <button class="btn-secondary" style="padding: 5px 10px; font-size: 0.75rem;" onclick="inspectSuspectTrace('${escapeHtml(c.traceCode)}')">
+                      <i class="fa-solid fa-file-shield"></i> Dossier
+                    </button>
+                  </td>
+                </tr>
+              `;
+            }).join("");
+          }
+        }
+      } catch (err) {
+        reportedTbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Error loading call reports.</td></tr>`;
+        recentTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 20px;">Error loading calls stream.</td></tr>`;
+      }
+    }
+
+    function promptBanFromReport(ipA, ipB, traceCode) {
+      const choice = prompt(`Select peer to ban for Reported Call [${traceCode}]:\n1: Peer A (${ipA})\n2: Peer B (${ipB})\nEnter 1 or 2:`, "1");
+      if (!choice) return;
+      const targetIp = choice === "2" ? ipB : ipA;
+      const reason = prompt(`Enter ban reason for IP [${targetIp}]:`, `Reported violation in Call Session ${traceCode}`);
+      if (!reason) return;
+      const secret = getAdminSecret();
+      fetch(`${API_BASE}/admin/ban-user`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+        body: JSON.stringify({ ipAddress: targetIp, banReason: reason })
+      }).then(r => r.json()).then(data => {
+        if (data.success) {
+          alert(`Successfully banned ${targetIp}.`);
+          loadCallOpsData();
+        } else {
+          alert(data.message || "Failed to ban peer.");
+        }
+      }).catch(() => alert("Error executing ban."));
     }
   </script>
 
