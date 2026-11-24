@@ -614,6 +614,182 @@
       background: rgba(240, 102, 255, 0.25);
     }
 
+    
+    /* Push Notification Suite - Advanced Styles & Validation */
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .char-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.74rem;
+      color: #94a3b8;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 2px 7px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .char-count.warning {
+      color: var(--warning);
+      border-color: rgba(245, 158, 11, 0.3);
+      background: rgba(245, 158, 11, 0.1);
+    }
+    .char-count.maxed {
+      color: var(--danger);
+      border-color: rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.1);
+    }
+    .input-helper {
+      display: block;
+      font-size: 0.74rem;
+      color: var(--text-dim);
+      margin-top: 5px;
+      line-height: 1.4;
+    }
+
+    /* Field Level Validation */
+    input.is-invalid, textarea.is-invalid, select.is-invalid {
+      border-color: #ef4444 !important;
+      background: rgba(239, 68, 68, 0.08) !important;
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.35) !important;
+    }
+    input.is-valid, textarea.is-valid, select.is-valid {
+      border-color: rgba(16, 185, 129, 0.6) !important;
+    }
+    .field-error-msg {
+      display: none;
+      color: #f87171;
+      font-size: 0.76rem;
+      margin-top: 5px;
+      font-weight: 500;
+      align-items: center;
+      gap: 6px;
+    }
+    .field-error-msg.visible {
+      display: flex;
+    }
+
+    /* Terminal Output Box */
+    .terminal-box {
+      margin-top: 18px;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      color: #e2e8f0;
+      min-height: 85px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .log-line {
+      margin-bottom: 4px;
+      line-height: 1.45;
+    }
+    .log-success { color: #34d399; }
+    .log-error { color: #f87171; }
+    .log-info { color: #60a5fa; }
+
+    /* Review & Confirm Glassmorphic Modal */
+    .confirm-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.82);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 20px;
+    }
+    .confirm-modal-overlay.active {
+      display: flex;
+    }
+    .confirm-modal-box {
+      background: #150d24;
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
+      border-radius: 20px;
+      max-width: 480px;
+      width: 100%;
+      padding: 24px;
+      color: #fff;
+    }
+    .confirm-modal-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #e9d5ff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .confirm-modal-body {
+      font-size: 0.85rem;
+      color: #cbd5e1;
+      line-height: 1.55;
+      margin-bottom: 18px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .confirm-modal-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.82rem;
+    }
+    .confirm-modal-item:last-child {
+      border-bottom: none;
+    }
+    .confirm-modal-label {
+      color: #94a3b8;
+      font-weight: 500;
+    }
+    .confirm-modal-value {
+      color: #f1f5f9;
+      font-weight: 600;
+      text-align: right;
+      max-width: 60%;
+      word-break: break-all;
+    }
+    .confirm-modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+    .btn-modal-cancel {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #cbd5e1;
+      padding: 10px 18px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 0.88rem;
+      cursor: pointer;
+    }
+    .btn-modal-cancel:hover { background: rgba(255, 255, 255, 0.15); }
+    .btn-modal-confirm {
+      background: linear-gradient(135deg, var(--primary), #7928ca);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-modal-confirm:hover {
+      background: linear-gradient(135deg, var(--primary-hover), #9333ea);
+    }
+
     /* Print Specific Headers & Footers (Hidden on Screen) */
     .print-only-header, .print-only-footer {
       display: none;
@@ -1220,7 +1396,7 @@
         <div class="stats-grid">
           <div class="stat-card">
             <div>
-              <div class="lbl">Active Push Subscribers</div>
+              <div class="lbl">Active Reachable Subscribers</div>
               <div class="val" id="statPushSubscribers" style="color: var(--accent);">--</div>
             </div>
             <i class="fa-solid fa-bell stat-icon" style="color: var(--accent);"></i>
@@ -1231,49 +1407,95 @@
           <!-- Notification Composer -->
           <div class="card">
             <div class="card-title">
-              <span><i class="fa-solid fa-pen-to-square"></i> Compose WebPush Broadcast</span>
+              <span><i class="fa-solid fa-paper-plane"></i> Compose WebPush Broadcast</span>
             </div>
-            <form id="pushBroadcastForm" onsubmit="handlePushBroadcast(event)">
+            <form id="pushBroadcastForm" onsubmit="handlePushBroadcast(event)" novalidate>
+              <!-- Field 1: Title with Counter -->
               <div class="form-group">
-                <label>Notification Title <span style="color: var(--accent);">*</span></label>
-                <input type="text" id="pushTitleInput" placeholder="e.g. Someone wants to chat with you!" required maxlength="60" oninput="updatePushPreview()" />
-              </div>
-              <div class="form-group">
-                <label>Notification Body <span style="color: var(--accent);">*</span></label>
-                <textarea id="pushBodyInput" rows="3" placeholder="e.g. Hop on HashGANG Chat now. New users waiting in Lounge!" required maxlength="150" oninput="updatePushPreview()"></textarea>
-              </div>
-              <div class="form-group">
-                <label>Banner Media Image URL (Optional)</label>
-                <input type="text" id="pushMediaInput" placeholder="https://chat.hashgang.com/og-image.webp" oninput="updatePushPreview()" />
-                <div>
-                  <span class="quick-chip" onclick="setPushPresetMedia('https://chat.hashgang.com/og-image.webp')"><i class="fa-solid fa-image"></i> #GANG Banner</span>
-                  <span class="quick-chip" onclick="setPushPresetMedia('')"><i class="fa-solid fa-xmark"></i> Clear Media</span>
+                <div class="label-row">
+                  <label class="form-label" for="pushTitleInput">Notification Title <span style="color: var(--accent);">*</span></label>
+                  <span class="char-count" id="pushTitleCounter">5 / 50</span>
+                </div>
+                <input type="text" id="pushTitleInput" value="#GANG" maxlength="50" required placeholder="e.g. #GANG" oninput="updatePushPreview()" onblur="validatePushTitle(true)" />
+                <div class="field-error-msg" id="pushTitleError">
+                  <i class="fa-solid fa-circle-exclamation"></i> <span></span>
                 </div>
               </div>
+
+              <!-- Field 2: Body with Counter -->
               <div class="form-group">
-                <label>Target Action URL</label>
-                <input type="text" id="pushUrlInput" value="https://chat.hashgang.com/" placeholder="https://chat.hashgang.com/" />
+                <div class="label-row">
+                  <label class="form-label" for="pushBodyInput">Notification Message <span style="color: var(--accent);">*</span></label>
+                  <span class="char-count" id="pushBodyCounter">59 / 140</span>
+                </div>
+                <textarea id="pushBodyInput" rows="3" maxlength="140" required placeholder="Type the notification alert message here..." oninput="updatePushPreview()" onblur="validatePushBody(true)">Active chats are buzzing! Tap to connect with a stranger now.</textarea>
+                <div class="field-error-msg" id="pushBodyError">
+                  <i class="fa-solid fa-circle-exclamation"></i> <span></span>
+                </div>
               </div>
+
+              <!-- Field 3: Media Banner Image -->
+              <div class="form-group">
+                <div class="label-row">
+                  <label class="form-label" for="pushMediaInput">Media Banner Image (Optional - Rich Push)</label>
+                  <span class="char-count">Big Picture</span>
+                </div>
+                <input type="text" id="pushMediaInput" placeholder="e.g. /og-image.webp or https://chat.hashgang.com/og-image.webp" oninput="updatePushPreview()" onblur="validatePushImage(true)" />
+                <div class="field-error-msg" id="pushMediaError">
+                  <i class="fa-solid fa-circle-exclamation"></i> <span></span>
+                </div>
+                <span class="input-helper">Displays an expansive high-definition banner below text on Android & Desktop lock screens.</span>
+                <div style="margin-top: 6px;">
+                  <button type="button" class="quick-chip" onclick="setPushPresetMedia('/og-image.webp')">
+                    <i class="fa-solid fa-image"></i> #GANG Banner
+                  </button>
+                  <button type="button" class="quick-chip" onclick="setPushPresetMedia('')">
+                    <i class="fa-solid fa-xmark"></i> Clear Media
+                  </button>
+                </div>
+              </div>
+
+              <!-- Field 4: Target URL -->
+              <div class="form-group">
+                <div class="label-row">
+                  <label class="form-label" for="pushUrlInput">Target URL (On Click) <span style="color: var(--accent);">*</span></label>
+                </div>
+                <input type="text" id="pushUrlInput" value="/?source=push_notification" placeholder="e.g. /?source=push_notification" required onblur="validatePushUrl(true)" />
+                <div class="field-error-msg" id="pushUrlError">
+                  <i class="fa-solid fa-circle-exclamation"></i> <span></span>
+                </div>
+                <span class="input-helper">💡 Relative paths like <code>/</code>, <code>/?source=push</code>, or <code>/website.html</code> resolve automatically on both local & production domains. Full URLs like <code>https://chat.hashgang.com/</code> are also fully supported!</span>
+              </div>
+
+              <!-- Field 5: Notification Tag / Topic -->
               <div class="form-group">
                 <label>Notification Tag / Topic</label>
                 <select id="pushTagInput">
-                  <option value="general">general (Standard broadcast)</option>
+                  <option value="general" selected>general (Standard broadcast)</option>
                   <option value="announcement">announcement (High priority announcement)</option>
                   <option value="call_alert">call_alert (New call waiting alert)</option>
                 </select>
               </div>
+
               <button type="submit" class="btn-primary" id="btnPushSubmit">
                 <i class="fa-solid fa-bolt"></i> Send Broadcast Notification
               </button>
             </form>
-            <div id="pushDeliveryLog" style="margin-top: 14px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;"></div>
+
+            <!-- Terminal Execution Logs -->
+            <div class="terminal-box" id="pushTerminalBox">
+              <div class="log-line log-info">ℹ️ Ready to broadcast. Live subscriber count fetched from MongoDB.</div>
+            </div>
           </div>
 
           <!-- Live Phone Mockup Preview -->
-          <div class="card" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <div class="card" style="display: flex; flex-direction: column; align-items: center; justify-content: flex-start;">
             <div class="card-title" style="width: 100%;">
               <span><i class="fa-solid fa-mobile-screen"></i> Live Phone Push Preview</span>
             </div>
+            <p style="font-size: 0.78rem; color: var(--text-dim); margin-bottom: 14px; width: 100%;">
+              How this notification appears on Android & iOS lock screens:
+            </p>
             <div class="phone-mockup">
               <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #94a3b8; margin-bottom: 12px; font-family: 'JetBrains Mono', monospace;">
                 <span>12:00</span>
@@ -1282,19 +1504,22 @@
               <div class="push-card-preview">
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
                   <img src="../favicon-32x32.png" style="width: 18px; height: 18px; border-radius: 4px;" alt="Logo" />
-                  <strong style="font-size: 0.76rem; color: #cbd5e1;">HashGANG Chat</strong>
+                  <strong style="font-size: 0.76rem; color: #cbd5e1;">#GANG</strong>
                   <span style="font-size: 0.65rem; color: var(--text-dim); margin-left: auto;">now</span>
                 </div>
                 <div id="previewPushTitle" style="font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 2px;">
-                  Someone wants to chat with you!
+                  #GANG
                 </div>
                 <div id="previewPushBody" style="font-size: 0.78rem; color: #cbd5e1; line-height: 1.35;">
-                  Hop on HashGANG Chat now. Live users waiting in Lounge!
+                  Active chats are buzzing! Tap to connect with a stranger now.
                 </div>
                 <div id="previewPushMediaContainer" style="margin-top: 8px; display: none;">
                   <img id="previewPushMediaImg" src="" style="width: 100%; border-radius: 8px; max-height: 120px; object-fit: cover;" alt="Preview" />
                 </div>
               </div>
+            </div>
+            <div style="margin-top: 20px; font-size: 0.76rem; color: var(--text-dim); line-height: 1.5; width: 100%;">
+              🔒 <strong>Security & Delivery:</strong> Includes official <strong>#GANG logo</strong> and <strong>badge icon</strong>. Dead tokens (HTTP 410) are pruned automatically.
             </div>
           </div>
         </div>
@@ -2170,6 +2395,17 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
     }
 
     // ==================== TAB 4: WEB PUSH NOTIFICATION SUITE ====================
+    function appendPushLog(text, type = "info") {
+      const box = document.getElementById("pushTerminalBox");
+      if (!box) return;
+      const time = new Date().toLocaleTimeString("en-IN");
+      const div = document.createElement("div");
+      div.className = `log-line log-${type}`;
+      div.textContent = `[${time}] ${text}`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
     async function loadPushSuiteData() {
       const secret = getAdminSecret();
       if (!secret) return;
@@ -2177,25 +2413,149 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
         const res = await fetch(`${API_BASE}/push-stats`, { headers: { "x-admin-secret": secret } });
         if (res.ok) {
           const data = await res.json();
-          document.getElementById("statPushSubscribers").textContent = data.activeSubscribers || 0;
+          const count = data.activeSubscribers || 0;
+          document.getElementById("statPushSubscribers").textContent = `${count} Reachable Devices`;
+          appendPushLog(`Active WebPush subscribers in database: ${count}`, "info");
+        } else {
+          document.getElementById("statPushSubscribers").textContent = "Stats unavailable";
         }
-      } catch (e) {}
+      } catch (e) {
+        document.getElementById("statPushSubscribers").textContent = "Backend offline";
+        appendPushLog(`Failed to connect to backend push stats: ${e.message}`, "error");
+      }
+    }
+
+    function setPushFieldError(fieldId, errorMsg) {
+      const field = document.getElementById(fieldId);
+      const errBox = document.getElementById(`${fieldId}Error`);
+      if (errorMsg) {
+        field.classList.add("is-invalid");
+        field.classList.remove("is-valid");
+        if (errBox) {
+          errBox.querySelector("span").textContent = errorMsg;
+          errBox.classList.add("visible");
+        }
+        return false;
+      } else {
+        field.classList.remove("is-invalid");
+        field.classList.add("is-valid");
+        if (errBox) {
+          errBox.classList.remove("visible");
+        }
+        return true;
+      }
+    }
+
+    function clearPushFieldError(fieldId) {
+      const field = document.getElementById(fieldId);
+      const errBox = document.getElementById(`${fieldId}Error`);
+      if (field) field.classList.remove("is-invalid", "is-valid");
+      if (errBox) errBox.classList.remove("visible");
+    }
+
+    function validatePushTitle(showError = true) {
+      const val = document.getElementById("pushTitleInput").value.trim();
+      if (!val) {
+        return showError ? setPushFieldError("pushTitleInput", "Notification title is required. Cannot be blank.") : false;
+      }
+      if (val.length < 2) {
+        return showError ? setPushFieldError("pushTitleInput", "Title must be at least 2 characters long.") : false;
+      }
+      if (val.length > 50) {
+        return showError ? setPushFieldError("pushTitleInput", "Title cannot exceed 50 characters.") : false;
+      }
+      return setPushFieldError("pushTitleInput", "");
+    }
+
+    function validatePushBody(showError = true) {
+      const val = document.getElementById("pushBodyInput").value.trim();
+      if (!val) {
+        return showError ? setPushFieldError("pushBodyInput", "Notification message is required. Cannot be blank.") : false;
+      }
+      if (val.length < 5) {
+        return showError ? setPushFieldError("pushBodyInput", "Message must be at least 5 characters long to prevent accidental spam.") : false;
+      }
+      if (val.length > 140) {
+        return showError ? setPushFieldError("pushBodyInput", "Message cannot exceed 140 characters.") : false;
+      }
+      return setPushFieldError("pushBodyInput", "");
+    }
+
+    function validatePushImage(showError = true) {
+      const rawVal = document.getElementById("pushMediaInput").value.trim();
+      if (!rawVal) {
+        clearPushFieldError("pushMediaInput");
+        return true;
+      }
+      const isValidFormat = rawVal.startsWith("/") || /^https?:\/\/[^\s]+$/i.test(rawVal);
+      if (!isValidFormat) {
+        return showError ? setPushFieldError("pushMediaInput", "Image URL must start with '/' (e.g. /og-image.webp) or 'https://'.") : false;
+      }
+      return setPushFieldError("pushMediaInput", "");
+    }
+
+    function validatePushUrl(showError = true) {
+      const rawVal = document.getElementById("pushUrlInput").value.trim();
+      if (!rawVal) {
+        return showError ? setPushFieldError("pushUrlInput", "Target click URL is required (e.g. /?source=push_notification).") : false;
+      }
+      const isValidFormat = rawVal.startsWith("/") || /^https?:\/\/[^\s]+$/i.test(rawVal);
+      if (!isValidFormat) {
+        return showError ? setPushFieldError("pushUrlInput", "Target URL must start with '/' (e.g. /?source=push) or 'https://'.") : false;
+      }
+      return setPushFieldError("pushUrlInput", "");
+    }
+
+    function validateAllPushFields(showErrors = true) {
+      const vTitle = validatePushTitle(showErrors);
+      const vBody = validatePushBody(showErrors);
+      const vImage = validatePushImage(showErrors);
+      const vUrl = validatePushUrl(showErrors);
+
+      const isValid = vTitle && vBody && vImage && vUrl;
+      let firstInvalidId = null;
+      if (!vTitle) firstInvalidId = "pushTitleInput";
+      else if (!vBody) firstInvalidId = "pushBodyInput";
+      else if (!vImage) firstInvalidId = "pushMediaInput";
+      else if (!vUrl) firstInvalidId = "pushUrlInput";
+
+      return { isValid, firstInvalidId };
     }
 
     function updatePushPreview() {
-      const title = document.getElementById("pushTitleInput").value.trim() || "Someone wants to chat with you!";
-      const body = document.getElementById("pushBodyInput").value.trim() || "Hop on HashGANG Chat now. Live users waiting in Lounge!";
-      const media = document.getElementById("pushMediaInput").value.trim();
+      const titleInput = document.getElementById("pushTitleInput").value || "#GANG";
+      const bodyInput = document.getElementById("pushBodyInput").value || "Active chats are buzzing! Tap to connect with a stranger now.";
+      const imageInput = (document.getElementById("pushMediaInput").value || "").trim();
 
-      document.getElementById("previewPushTitle").textContent = title;
-      document.getElementById("previewPushBody").textContent = body;
+      // Update Preview Text
+      document.getElementById("previewPushTitle").textContent = titleInput;
+      document.getElementById("previewPushBody").textContent = bodyInput;
 
+      // Update Character Counters
+      const titleLen = titleInput.length;
+      const titleCounter = document.getElementById("pushTitleCounter");
+      if (titleCounter) {
+        titleCounter.textContent = `${titleLen} / 50`;
+        titleCounter.classList.toggle("warning", titleLen >= 40 && titleLen < 50);
+        titleCounter.classList.toggle("maxed", titleLen >= 50);
+      }
+
+      const bodyLen = bodyInput.length;
+      const bodyCounter = document.getElementById("pushBodyCounter");
+      if (bodyCounter) {
+        bodyCounter.textContent = `${bodyLen} / 140`;
+        bodyCounter.classList.toggle("warning", bodyLen >= 120 && bodyLen < 140);
+        bodyCounter.classList.toggle("maxed", bodyLen >= 140);
+      }
+
+      // Update Rich Media Banner in Preview
       const mediaContainer = document.getElementById("previewPushMediaContainer");
       const mediaImg = document.getElementById("previewPushMediaImg");
-      if (media) {
-        mediaImg.src = media;
+      if (imageInput) {
+        mediaImg.src = imageInput;
         mediaContainer.style.display = "block";
       } else {
+        mediaImg.src = "";
         mediaContainer.style.display = "none";
       }
     }
@@ -2203,26 +2563,64 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
     function setPushPresetMedia(url) {
       document.getElementById("pushMediaInput").value = url;
       updatePushPreview();
+      validatePushImage(false);
+    }
+
+    function openPushConfirmModal() {
+      const title = document.getElementById("pushTitleInput").value.trim();
+      const body = document.getElementById("pushBodyInput").value.trim();
+      const media = document.getElementById("pushMediaInput").value.trim();
+      const url = document.getElementById("pushUrlInput").value.trim() || "/";
+      const audience = document.getElementById("statPushSubscribers").textContent || "Active Devices";
+
+      document.getElementById("modalValTitle").textContent = title;
+      document.getElementById("modalValBody").textContent = body;
+      document.getElementById("modalValMedia").textContent = media || "None (Default Icon)";
+      document.getElementById("modalValUrl").textContent = url;
+      document.getElementById("modalValAudience").textContent = audience;
+
+      document.getElementById("confirmPushModalOverlay").classList.add("active");
+    }
+
+    function closePushConfirmModal() {
+      document.getElementById("confirmPushModalOverlay").classList.remove("active");
     }
 
     async function handlePushBroadcast(e) {
       if (e) e.preventDefault();
+
+      const { isValid, firstInvalidId } = validateAllPushFields(true);
+      if (!isValid) {
+        appendPushLog("⚠️ API Blocked: Form has field-level validation errors. Backend was NOT contacted.", "error");
+        if (firstInvalidId) {
+          const el = document.getElementById(firstInvalidId);
+          if (el) {
+            el.focus();
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }
+        return false;
+      }
+
+      openPushConfirmModal();
+    }
+
+    async function executePushBroadcast() {
+      closePushConfirmModal();
+
       const secret = getAdminSecret();
       const title = document.getElementById("pushTitleInput").value.trim();
       const body = document.getElementById("pushBodyInput").value.trim();
       const media = document.getElementById("pushMediaInput").value.trim();
-      const actionUrl = document.getElementById("pushUrlInput").value.trim() || "https://chat.hashgang.com/";
+      const actionUrl = document.getElementById("pushUrlInput").value.trim() || "/";
       const tag = document.getElementById("pushTagInput").value;
-      const logEl = document.getElementById("pushDeliveryLog");
       const submitBtn = document.getElementById("btnPushSubmit");
-
-      if (!title || !body) return;
-      if (!confirm(`Trigger WebPush broadcast to all subscribers now?\n\nTitle: "${title}"`)) return;
 
       submitBtn.disabled = true;
       submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Broadcasting to devices...`;
-      logEl.innerHTML = `<span style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Dispatching push payload across active WebPush subscriber pool...</span>`;
+      appendPushLog(`Validated payload. Initiating remote WebPush dispatch...`, "info");
 
+      const startTime = Date.now();
       try {
         const res = await fetch(`${API_BASE}/broadcast-push`, {
           method: "POST",
@@ -2236,21 +2634,22 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
             tag: tag
           })
         });
-        const data = await res.json();
 
-        if (res.ok && data.success) {
-          logEl.innerHTML = `
-            <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 12px; color: #34d399;">
-              <strong>✅ Broadcast Dispatched Successfully!</strong><br>
-              Total Subscribers: ${data.totalSubscribers || 0} | Delivered: ${data.sentCount || 0} | Pruned/Expired: ${data.prunedCount || 0}
-            </div>
-          `;
+        const data = await res.json();
+        const duration = Date.now() - startTime;
+
+        if (res.status === 200 && data.success) {
+          const r = data.result || data;
+          appendPushLog(`✅ Broadcast Dispatched Successfully! (${duration}ms)`, "success");
+          appendPushLog(`📊 Total: ${r.totalSubscribers || data.totalSubscribers || 0} | Delivered: ${r.sentCount || data.sentCount || 0} | Pruned/Expired: ${r.prunedCount || data.prunedCount || 0}`, "success");
           loadPushSuiteData();
+        } else if (res.status === 403) {
+          appendPushLog(`⛔ Forbidden: Incorrect Admin Password. Access Denied.`, "error");
         } else {
-          logEl.innerHTML = `<span style="color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> ${data.message || "Broadcast dispatch failed."}</span>`;
+          appendPushLog(`❌ Broadcast failed: ${data.message || "Unknown error"}`, "error");
         }
       } catch (err) {
-        logEl.innerHTML = `<span style="color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Network error during broadcast.</span>`;
+        appendPushLog(`❌ Network error while broadcasting: ${err.message}`, "error");
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = `<i class="fa-solid fa-bolt"></i> Send Broadcast Notification`;
@@ -2294,5 +2693,48 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
       }
     }
   </script>
+
+  <!-- Review & Confirm Glassmorphic Modal -->
+  <div class="confirm-modal-overlay" id="confirmPushModalOverlay">
+    <div class="confirm-modal-box">
+      <div class="confirm-modal-title">
+        <i class="fa-solid fa-shield-halved" style="color: #c084fc;"></i> Review & Confirm Broadcast
+      </div>
+      <p style="font-size: 0.82rem; color: #94a3b8; margin-bottom: 14px;">
+        All frontend field-level validations passed. Please review the broadcast payload before triggering the backend dispatch:
+      </p>
+      <div class="confirm-modal-body">
+        <div class="confirm-modal-item">
+          <span class="confirm-modal-label">Title</span>
+          <span class="confirm-modal-value" id="modalValTitle">#GANG</span>
+        </div>
+        <div class="confirm-modal-item">
+          <span class="confirm-modal-label">Message</span>
+          <span class="confirm-modal-value" id="modalValBody">Active chats are buzzing!</span>
+        </div>
+        <div class="confirm-modal-item">
+          <span class="confirm-modal-label">Media Banner</span>
+          <span class="confirm-modal-value" id="modalValMedia">None</span>
+        </div>
+        <div class="confirm-modal-item">
+          <span class="confirm-modal-label">Target URL</span>
+          <span class="confirm-modal-value" id="modalValUrl">/?source=push_notification</span>
+        </div>
+        <div class="confirm-modal-item">
+          <span class="confirm-modal-label">Target Audience</span>
+          <span class="confirm-modal-value" id="modalValAudience" style="color: #34d399;">Active Devices</span>
+        </div>
+      </div>
+      <div class="confirm-modal-actions">
+        <button type="button" class="btn-modal-cancel" onclick="closePushConfirmModal()">
+          <i class="fa-solid fa-xmark"></i> Cancel
+        </button>
+        <button type="button" class="btn-modal-confirm" id="btnPushModalConfirm" onclick="executePushBroadcast()">
+          <i class="fa-solid fa-paper-plane"></i> Confirm & Send Now
+        </button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
