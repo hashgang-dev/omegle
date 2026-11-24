@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hashgang-v441';
+const CACHE_NAME = 'hashgang-v442';
 
 const ASSETS_TO_CACHE = [
   '/',
@@ -16,8 +16,6 @@ const ASSETS_TO_CACHE = [
   '/ad_mediation_config.js',
   '/website.html',
   '/press.html',
-  '/admin-trace-lookup.html',
-  '/admin-forensic-investigation.html',
   '/terms-of-service.html',
   '/privacy-policy.html',
   '/favicon.ico',

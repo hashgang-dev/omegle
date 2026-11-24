@@ -1,0 +1,1075 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HashGANG Chat - Unified Admin & Cyber Forensics Portal</title>
+  <meta name="robots" content="noindex, nofollow, noarchive" />
+  <link rel="icon" type="image/x-icon" href="../favicon.ico?v=101" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+
+  <style>
+    :root {
+      --primary: #9911ee;
+      --primary-hover: #b026ff;
+      --accent: #f066ff;
+      --bg-dark: #0a0512;
+      --bg-card: rgba(22, 11, 36, 0.95);
+      --border-glass: rgba(255, 255, 255, 0.12);
+      --text-main: #ffffff;
+      --text-muted: #cbd5e1;
+      --text-dim: #94a3b8;
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.15);
+      --warning: #f59e0b;
+      --success: #10b981;
+      --info: #38bdf8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 50% 0%, rgba(153, 17, 238, 0.18), transparent 70%);
+      color: var(--text-main);
+      line-height: 1.5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Auth Gate Fullscreen */
+    #authGate {
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 5, 18, 0.98);
+      backdrop-filter: blur(20px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .auth-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: 20px;
+      padding: 36px;
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+    }
+    .auth-box i.fa-shield-halved {
+      font-size: 3.2rem;
+      color: var(--accent);
+      margin-bottom: 16px;
+    }
+    .auth-box h2 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+    .auth-box p {
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      margin-bottom: 24px;
+    }
+
+    .form-group {
+      text-align: left;
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    input, select, textarea {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid var(--border-glass);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.92rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(240, 102, 255, 0.25);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), #7928ca);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, var(--primary-hover), #9333ea);
+      transform: translateY(-1px);
+    }
+
+    /* Top Navigation Bar */
+    header {
+      background: rgba(10, 5, 18, 0.92);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border-glass);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 1.15rem;
+      font-weight: 800;
+    }
+    .brand-tag {
+      background: rgba(240, 102, 255, 0.15);
+      border: 1px solid rgba(240, 102, 255, 0.35);
+      color: var(--accent);
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .btn-logout {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #f87171;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-logout:hover { background: rgba(239, 68, 68, 0.25); }
+
+    /* Tabs Bar */
+    .tabs-nav {
+      background: rgba(15, 7, 28, 0.95);
+      border-bottom: 1px solid var(--border-glass);
+      padding: 0 28px;
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--text-dim);
+      padding: 14px 20px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .tab-btn:hover { color: #fff; }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background: rgba(240, 102, 255, 0.05);
+    }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1300px;
+      width: 100%;
+      margin: 24px auto;
+      padding: 0 20px;
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Stat Cards Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .stat-card .val {
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #fff;
+      font-family: "JetBrains Mono", monospace;
+    }
+    .stat-card .lbl {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stat-icon {
+      font-size: 2rem;
+      opacity: 0.85;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-glass);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.35);
+    }
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Table */
+    .table-responsive {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    th {
+      text-align: left;
+      padding: 12px 14px;
+      background: rgba(0, 0, 0, 0.3);
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border-glass);
+    }
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      vertical-align: middle;
+    }
+    tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-critical { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+    .badge-high { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .badge-medium { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
+    .badge-low { background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.4); }
+
+    .code-pill {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.78rem;
+      background: rgba(0, 0, 0, 0.4);
+      padding: 3px 6px;
+      border-radius: 4px;
+      color: #38bdf8;
+    }
+
+    .search-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-glass);
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.14); }
+
+    .btn-danger {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.5);
+      color: #f87171;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.35); }
+
+    .btn-success {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.5);
+      color: #34d399;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-success:hover { background: rgba(16, 185, 129, 0.35); }
+
+    /* Alert */
+    .alert {
+      padding: 14px 18px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 0.9rem;
+      display: none;
+    }
+    .alert-danger { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; }
+    .alert-success { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; }
+  </style>
+</head>
+<body>
+
+  <!-- Fullscreen Zero-Leak Auth Gate -->
+  <div id="authGate">
+    <div class="auth-box">
+      <i class="fa-solid fa-shield-halved"></i>
+      <h2>Admin Authentication</h2>
+      <p>Enter the master security secret key to access forensic intelligence and moderation controls.</p>
+      
+      <div id="authAlert" class="alert alert-danger"></div>
+
+      <form id="authForm" onsubmit="handleAuthSubmit(event)">
+        <div class="form-group">
+          <label>Admin Secret Key</label>
+          <input type="password" id="authKeyInput" placeholder="••••••••••••••••" required autocomplete="current-password" autofocus />
+        </div>
+        <button type="submit" class="btn-primary" id="authSubmitBtn">
+          <i class="fa-solid fa-lock-open"></i> Unlock Admin Portal
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Authenticated Admin Interface (Initially Hidden) -->
+  <div id="portalContainer" style="display: none;">
+    <header>
+      <div class="brand">
+        <i class="fa-solid fa-fingerprint" style="color: var(--accent);"></i>
+        <span>HashGANG Admin Portal</span>
+        <span class="brand-tag">SEC-OPS LEVEL 4</span>
+      </div>
+      <div class="header-actions">
+        <span style="font-size: 0.82rem; color: var(--text-dim);" id="sessionIndicator">Authenticated</span>
+        <button class="btn-logout" onclick="handleLogout()">
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Lock & Logout
+        </button>
+      </div>
+    </header>
+
+    <!-- Tabs Navigation -->
+    <nav class="tabs-nav">
+      <button class="tab-btn active" onclick="switchTab('threatRadar')">
+        <i class="fa-solid fa-radar"></i> 1. Threat Radar & Security Incidents
+      </button>
+      <button class="tab-btn" onclick="switchTab('legalTrace')">
+        <i class="fa-solid fa-scale-balanced"></i> 2. Legal Trace & Forensics
+      </button>
+      <button class="tab-btn" onclick="switchTab('banManager')">
+        <i class="fa-solid fa-gavel"></i> 3. Ban & Moderation Registry
+      </button>
+      <button class="tab-btn" onclick="switchTab('loungeOps')">
+        <i class="fa-solid fa-comments"></i> 4. Lounge & Operations
+      </button>
+    </nav>
+
+    <main>
+      <!-- ==================== TAB 1: THREAT RADAR & INCIDENTS ==================== -->
+      <section id="threatRadar" class="tab-content active">
+        <!-- Stat Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Total Incidents</div>
+              <div class="val" id="statTotalIncidents">--</div>
+            </div>
+            <i class="fa-solid fa-shield-virus stat-icon" style="color: #f87171;"></i>
+          </div>
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Phone Leaks Blocked</div>
+              <div class="val" id="statPhoneLeaks">--</div>
+            </div>
+            <i class="fa-solid fa-phone-slash stat-icon" style="color: #fbbf24;"></i>
+          </div>
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Ban Guard Intercepts</div>
+              <div class="val" id="statBanGuard">--</div>
+            </div>
+            <i class="fa-solid fa-user-lock stat-icon" style="color: #38bdf8;"></i>
+          </div>
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Critical Auto-Bans</div>
+              <div class="val" id="statCriticalBans">--</div>
+            </div>
+            <i class="fa-solid fa-skull-crossbones stat-icon" style="color: #f066ff;"></i>
+          </div>
+        </div>
+
+        <!-- Phone Doxx Fast Search Card -->
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fa-solid fa-magnifying-glass"></i> Phone Number Doxx Lookup</span>
+            <button class="btn-secondary" onclick="loadSecurityIncidents()">
+              <i class="fa-solid fa-rotate"></i> Refresh Feed
+            </button>
+          </div>
+          <div class="search-bar">
+            <input type="text" id="phoneSearchInput" placeholder="Enter 10-digit number (e.g. 7032461997 or 6303186606)" />
+            <button class="btn-primary" style="width: auto; padding: 10px 24px;" onclick="searchByPhone()">
+              <i class="fa-solid fa-search"></i> Search Number
+            </button>
+            <button class="btn-secondary" onclick="clearPhoneSearch()">Reset</button>
+          </div>
+          <div id="phoneSearchResultSummary" style="font-size: 0.85rem; color: var(--text-dim); margin-top: 6px;"></div>
+        </div>
+
+        <!-- Incidents Stream Table Card -->
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fa-solid fa-list-check"></i> Security Incidents Audit Stream (365-Day IT Act Log)</span>
+            <div style="display: flex; gap: 8px;">
+              <select id="typeFilterSelect" onchange="loadSecurityIncidents()" style="width: auto; padding: 6px 12px; font-size: 0.82rem;">
+                <option value="">All Incident Types</option>
+                <option value="PHONE_LEAK_BLOCKED">Phone Leak Blocked</option>
+                <option value="CRITICAL_AUTO_BAN">Critical Auto-Ban</option>
+                <option value="BAN_GUARD_INTERCEPT">Ban Guard Intercept</option>
+                <option value="GROUP_MUTE_ENFORCED">Group Mute Enforced</option>
+                <option value="SHADOW_DROP">Shadow Drop</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Timestamp (IST)</th>
+                  <th>Incident Type</th>
+                  <th>Severity</th>
+                  <th>Channel</th>
+                  <th>Target Number</th>
+                  <th>Offender & IP</th>
+                  <th>Blocked Payload</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="incidentsTableBody">
+                <tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">Loading security audit stream...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 2: LEGAL TRACE & FORENSICS ==================== -->
+      <section id="legalTrace" class="tab-content">
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fa-solid fa-scale-balanced"></i> Law Enforcement / Sec 65B Trace Lookup</span>
+          </div>
+          <p style="font-size: 0.88rem; color: var(--text-dim); margin-bottom: 16px;">
+            Enter an 8-character Trace Code from user report or police requisition to extract both peer IPs, telecom telemetry, and session lifecycle.
+          </p>
+          <div class="search-bar">
+            <input type="text" id="traceInput" placeholder="Enter 8-digit Trace Code (e.g. HGSVEB9T)" maxlength="16" />
+            <button class="btn-primary" style="width: auto; padding: 10px 24px;" onclick="lookupTrace()">
+              <i class="fa-solid fa-search"></i> Inspect Trace
+            </button>
+          </div>
+          <div id="traceResult"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fa-solid fa-fingerprint"></i> Suspect Hardware Canvas & UID Timeline Forensics</span>
+          </div>
+          <p style="font-size: 0.88rem; color: var(--text-dim); margin-bottom: 16px;">
+            Search any Anonymous UID, Nickname, or IP to reconstruct cross-device alias history.
+          </p>
+          <div class="search-bar">
+            <input type="text" id="forensicQueryInput" placeholder="Enter UID (hg_usr_...), Nickname, or IP address" />
+            <button class="btn-primary" style="width: auto; padding: 10px 24px;" onclick="lookupForensics()">
+              <i class="fa-solid fa-search"></i> Disambiguate User
+            </button>
+          </div>
+          <div id="forensicResult"></div>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 3: BAN & MODERATION ==================== -->
+      <section id="banManager" class="tab-content">
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fa-solid fa-shield-slash"></i> Direct Ban / Eviction Enforcer</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end;">
+            <div class="form-group" style="margin: 0;">
+              <label>Suspect UID or IP</label>
+              <input type="text" id="manualBanTarget" placeholder="hg_usr_... or IPv4/IPv6" />
+            </div>
+            <div class="form-group" style="margin: 0;">
+              <label>Reason for Ban</label>
+              <input type="text" id="manualBanReason" placeholder="e.g. Serial doxxing / harassment" />
+            </div>
+            <button class="btn-danger" style="padding: 12px 20px; font-size: 0.88rem;" onclick="executeManualBan()">
+              <i class="fa-solid fa-gavel"></i> Enforce Lifetime Ban
+            </button>
+          </div>
+          <div id="manualBanFeedback" style="margin-top: 10px;"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fa-solid fa-book-skull"></i> Lifetime Banned Users Registry</span>
+            <button class="btn-secondary" onclick="loadBannedRegistry()">
+              <i class="fa-solid fa-rotate"></i> Refresh Registry
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Anon User ID</th>
+                  <th>Current Alias</th>
+                  <th>Last Client IP</th>
+                  <th>Ban Reason</th>
+                  <th>Banned At (IST)</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="bannedTableBody">
+                <tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 24px;">Loading banned entities...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 4: LOUNGE & OPERATIONS ==================== -->
+      <section id="loungeOps" class="tab-content">
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fa-solid fa-bullhorn"></i> Emergency Platform Pinned Broadcast</span>
+          </div>
+          <p style="font-size: 0.88rem; color: var(--text-dim); margin-bottom: 14px;">
+            Broadcast a high-priority system announcement banner across all live online users or send WebPush notifications to subscribers.
+          </p>
+          <div class="form-group">
+            <label>Announcement Title</label>
+            <input type="text" id="broadcastTitle" placeholder="e.g. Scheduled Maintenance Notice" />
+          </div>
+          <div class="form-group">
+            <label>Announcement Body</label>
+            <textarea id="broadcastBody" rows="2" placeholder="e.g. Platform update scheduled at 2:00 AM IST."></textarea>
+          </div>
+          <button class="btn-primary" style="width: auto; padding: 12px 28px;" onclick="sendBroadcastPush()">
+            <i class="fa-solid fa-paper-plane"></i> Send System Broadcast
+          </button>
+          <div id="broadcastFeedback" style="margin-top: 10px;"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span><i class="fa-solid fa-users"></i> Live Public Lounge Rooms & Recent Messages</span>
+            <button class="btn-secondary" onclick="loadLoungeRooms()">
+              <i class="fa-solid fa-rotate"></i> Refresh Rooms
+            </button>
+          </div>
+          <div id="loungeRoomsContainer">
+            <p style="color: var(--text-dim);">Loading lounge rooms state...</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // Configuration & Auth Key Handling
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+      ? 'http://localhost:5000/api/v1/strangerchat' 
+      : 'https://chat.hashgang.com/api/v1/strangerchat';
+
+    function getAdminSecret() {
+      return sessionStorage.getItem("hg_admin_master_secret") || "";
+    }
+
+    function setAdminSecret(secret) {
+      sessionStorage.setItem("hg_admin_master_secret", secret);
+    }
+
+    // Auth Submission & Verification
+    async function handleAuthSubmit(e) {
+      if (e) e.preventDefault();
+      const input = document.getElementById("authKeyInput");
+      const alertEl = document.getElementById("authAlert");
+      const submitBtn = document.getElementById("authSubmitBtn");
+      const secret = input.value.trim();
+
+      if (!secret) return;
+      alertEl.style.display = "none";
+      submitBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Verifying Secret...`;
+      submitBtn.disabled = true;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/verify-auth`, {
+          headers: { "x-admin-secret": secret }
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          setAdminSecret(secret);
+          unlockPortalUI();
+        } else {
+          alertEl.textContent = data.message || "Invalid Admin Secret Key.";
+          alertEl.style.display = "block";
+          input.value = "";
+          input.focus();
+        }
+      } catch (err) {
+        alertEl.textContent = "Server unreachable. Please check connection.";
+        alertEl.style.display = "block";
+      } finally {
+        submitBtn.innerHTML = `<i class="fa-solid fa-lock-open"></i> Unlock Admin Portal`;
+        submitBtn.disabled = false;
+      }
+    }
+
+    function unlockPortalUI() {
+      document.getElementById("authGate").style.display = "none";
+      document.getElementById("portalContainer").style.display = "block";
+      loadThreatRadarData();
+    }
+
+    function handleLogout() {
+      sessionStorage.removeItem("hg_admin_master_secret");
+      document.getElementById("portalContainer").style.display = "none";
+      document.getElementById("authGate").style.display = "flex";
+      document.getElementById("authKeyInput").value = "";
+      document.getElementById("authKeyInput").focus();
+    }
+
+    // Auto-login check on page load
+    window.addEventListener("DOMContentLoaded", async () => {
+      const existingSecret = getAdminSecret();
+      if (existingSecret) {
+        try {
+          const res = await fetch(`${API_BASE}/admin/verify-auth`, {
+            headers: { "x-admin-secret": existingSecret }
+          });
+          if (res.ok) {
+            unlockPortalUI();
+            return;
+          }
+        } catch (e) {}
+      }
+      document.getElementById("authGate").style.display = "flex";
+    });
+
+    // Tab Switching
+    function switchTab(tabId) {
+      document.querySelectorAll(".tab-btn").forEach(btn => btn.classList.remove("active"));
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+
+      const targetBtn = Array.from(document.querySelectorAll(".tab-btn")).find(b => b.getAttribute("onclick").includes(tabId));
+      if (targetBtn) targetBtn.classList.add("active");
+      const targetContent = document.getElementById(tabId);
+      if (targetContent) targetContent.classList.add("active");
+
+      if (tabId === "threatRadar") loadThreatRadarData();
+      else if (tabId === "banManager") loadBannedRegistry();
+      else if (tabId === "loungeOps") loadLoungeRooms();
+    }
+
+    // ==================== TAB 1: THREAT RADAR ====================
+    async function loadThreatRadarData() {
+      await Promise.all([loadSecurityStats(), loadSecurityIncidents()]);
+    }
+
+    async function loadSecurityStats() {
+      const secret = getAdminSecret();
+      if (!secret) return;
+      try {
+        const res = await fetch(`${API_BASE}/admin/security-stats`, { headers: { "x-admin-secret": secret } });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && data.stats) {
+            document.getElementById("statTotalIncidents").textContent = data.stats.totalIncidents || 0;
+            document.getElementById("statPhoneLeaks").textContent = data.stats.byType?.PHONE_LEAK_BLOCKED || 0;
+            document.getElementById("statBanGuard").textContent = data.stats.byType?.BAN_GUARD_INTERCEPT || 0;
+            document.getElementById("statCriticalBans").textContent = data.stats.byType?.CRITICAL_AUTO_BAN || 0;
+          }
+        }
+      } catch (err) {
+        console.error("Stats load error:", err);
+      }
+    }
+
+    async function loadSecurityIncidents(filterPhone = "") {
+      const secret = getAdminSecret();
+      if (!secret) return;
+      const tbody = document.getElementById("incidentsTableBody");
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--info); padding: 24px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Querying security audit logs...</td></tr>`;
+
+      try {
+        const typeFilter = document.getElementById("typeFilterSelect").value;
+        let url = `${API_BASE}/admin/security-incidents?limit=100`;
+        if (filterPhone) url += `&phone=${encodeURIComponent(filterPhone)}`;
+        if (typeFilter) url += `&type=${encodeURIComponent(typeFilter)}`;
+
+        const res = await fetch(url, { headers: { "x-admin-secret": secret } });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          const incidents = data.incidents || [];
+          if (incidents.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">No security incidents matched the criteria.</td></tr>`;
+            return;
+          }
+          tbody.innerHTML = incidents.map(inc => {
+            const time = new Date(inc.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+            const sevClass = inc.severity === "CRITICAL" ? "badge-critical" : (inc.severity === "HIGH" ? "badge-high" : (inc.severity === "MEDIUM" ? "badge-medium" : "badge-low"));
+            const phonePill = inc.targetPhoneNumber ? `<span class="code-pill" style="color: #f87171; font-weight: 700;">${inc.targetPhoneNumber}</span>` : `<span style="color: var(--text-dim);">-</span>`;
+            const content = (inc.rawContent || "").substring(0, 70);
+
+            return `
+              <tr>
+                <td style="font-size: 0.78rem; color: var(--text-dim);">${time}</td>
+                <td><span class="badge ${sevClass}">${inc.incidentType}</span></td>
+                <td><span class="badge ${sevClass}">${inc.severity}</span></td>
+                <td style="font-size: 0.8rem;">${inc.channel}</td>
+                <td>${phonePill}</td>
+                <td>
+                  <div style="font-weight: 600;">${inc.nickname || "Anonymous"}</div>
+                  <div class="code-pill" style="font-size: 0.7rem; color: var(--text-dim);">${inc.clientIp || "Unknown IP"}</div>
+                </td>
+                <td style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--text-muted); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${inc.rawContent || ''}">
+                  "${content}"
+                </td>
+                <td><span class="code-pill" style="color: #34d399;">${inc.actionTaken}</span></td>
+              </tr>
+            `;
+          }).join("");
+        } else {
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 24px;">${data.message || "Failed to load incidents."}</td></tr>`;
+        }
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 24px;">Network error loading incidents.</td></tr>`;
+      }
+    }
+
+    function searchByPhone() {
+      const phone = document.getElementById("phoneSearchInput").value.trim();
+      const summary = document.getElementById("phoneSearchResultSummary");
+      if (!phone) {
+        summary.textContent = "Please enter a valid phone number.";
+        return;
+      }
+      summary.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Filtering timeline for number: <strong>${phone}</strong>...`;
+      loadSecurityIncidents(phone);
+    }
+
+    function clearPhoneSearch() {
+      document.getElementById("phoneSearchInput").value = "";
+      document.getElementById("phoneSearchResultSummary").textContent = "";
+      loadSecurityIncidents();
+    }
+
+    // ==================== TAB 2: LEGAL TRACE & FORENSICS ====================
+    async function lookupTrace() {
+      const secret = getAdminSecret();
+      const code = document.getElementById("traceInput").value.trim().toUpperCase();
+      const container = document.getElementById("traceResult");
+      if (!code) return;
+      container.innerHTML = `<p style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Searching trace session ${code}...</p>`;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/trace-lookup?traceCode=${encodeURIComponent(code)}`, {
+          headers: { "x-admin-secret": secret }
+        });
+        const data = await res.json();
+        if (res.ok && data.success && data.traceLog) {
+          const t = data.traceLog;
+          container.innerHTML = `
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: 12px; padding: 18px; margin-top: 14px;">
+              <h4 style="color: var(--accent); margin-bottom: 8px;">Trace Code: ${t.traceCode} [Mode: ${t.mode}]</h4>
+              <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 12px;">Duration: ${t.sessionLifecycle?.durationSeconds || 0}s | Terminate Reason: ${t.sessionLifecycle?.terminateReason}</p>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px;">
+                  <strong style="color: #38bdf8;">Peer A:</strong> ${t.peerA?.nickname || "Stranger"}<br>
+                  <span class="code-pill">UID: ${t.peerA?.anonUserId || "N/A"}</span><br>
+                  <span class="code-pill">IP: ${t.peerA?.ip || "N/A"}</span><br>
+                  <span style="font-size: 0.8rem; color: var(--text-dim);">${t.peerA?.geo?.city || ""}, ${t.peerA?.geo?.region || ""} (${t.peerA?.geo?.isp || ""})</span>
+                </div>
+                <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px;">
+                  <strong style="color: #38bdf8;">Peer B:</strong> ${t.peerB?.nickname || "Stranger"}<br>
+                  <span class="code-pill">UID: ${t.peerB?.anonUserId || "N/A"}</span><br>
+                  <span class="code-pill">IP: ${t.peerB?.ip || "N/A"}</span><br>
+                  <span style="font-size: 0.8rem; color: var(--text-dim);">${t.peerB?.geo?.city || ""}, ${t.peerB?.geo?.region || ""} (${t.peerB?.geo?.isp || ""})</span>
+                </div>
+              </div>
+            </div>
+          `;
+        } else {
+          container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">${data.message || "Trace code not found."}</p>`;
+        }
+      } catch (err) {
+        container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">Network error during lookup.</p>`;
+      }
+    }
+
+    async function lookupForensics() {
+      const secret = getAdminSecret();
+      const query = document.getElementById("forensicQueryInput").value.trim();
+      const container = document.getElementById("forensicResult");
+      if (!query) return;
+      container.innerHTML = `<p style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Disambiguating suspect timeline...</p>`;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/user-forensics?q=${encodeURIComponent(query)}`, {
+          headers: { "x-admin-secret": secret }
+        });
+        const data = await res.json();
+        if (res.ok && data.success && data.matches && data.matches.length > 0) {
+          container.innerHTML = data.matches.map(u => `
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: 12px; padding: 18px; margin-top: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h4 style="color: var(--accent);">UID: ${u.anonUserId}</h4>
+                <span class="badge ${u.isBanned ? 'badge-critical' : 'badge-low'}">${u.isBanned ? 'PERMANENTLY BANNED' : 'ACTIVE'}</span>
+              </div>
+              <p style="font-size: 0.85rem;"><strong>Current Nickname:</strong> ${u.currentNickname} | <strong>Last IP:</strong> <span class="code-pill">${u.lastClientIp}</span></p>
+              <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 4px;"><strong>Hardware:</strong> ${u.hardware?.screen || ''} DPR:${u.hardware?.dpr || ''} OS:${u.hardware?.platform || ''} (App: ${u.hardware?.appVersion || ''})</p>
+              <div style="margin-top: 8px; font-size: 0.82rem; color: var(--text-muted);">
+                <strong>Known Nicknames (${u.nicknameHistory?.length || 0}):</strong>
+                ${(u.nicknameHistory || []).map(n => `<span class="code-pill" style="margin-right: 4px;">${n.nickname}</span>`).join("")}
+              </div>
+            </div>
+          `).join("");
+        } else {
+          container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">${data.message || "No forensic records found."}</p>`;
+        }
+      } catch (err) {
+        container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">Error performing forensic lookup.</p>`;
+      }
+    }
+
+    // ==================== TAB 3: BAN REGISTRY ====================
+    async function loadBannedRegistry() {
+      const secret = getAdminSecret();
+      if (!secret) return;
+      const tbody = document.getElementById("bannedTableBody");
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--info); padding: 24px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Fetching banned abusers list...</td></tr>`;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/banned-users`, { headers: { "x-admin-secret": secret } });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const list = data.bannedUsers || [];
+          if (list.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 24px;">No users currently banned.</td></tr>`;
+            return;
+          }
+          tbody.innerHTML = list.map(u => {
+            const time = u.bannedAt ? new Date(u.bannedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "-";
+            return `
+              <tr>
+                <td><span class="code-pill">${u.anonUserId}</span></td>
+                <td><strong>${u.currentNickname || "Stranger"}</strong></td>
+                <td><span class="code-pill">${u.lastClientIp || "N/A"}</span></td>
+                <td style="font-size: 0.8rem; color: #f87171;">${u.banReason || "Terms violation"}</td>
+                <td style="font-size: 0.78rem; color: var(--text-dim);">${time}</td>
+                <td>
+                  <button class="btn-success" onclick="executeUnban('${u.anonUserId}')">Unban</button>
+                </td>
+              </tr>
+            `;
+          }).join("");
+        }
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--danger); padding: 24px;">Failed to load banned registry.</td></tr>`;
+      }
+    }
+
+    async function executeManualBan() {
+      const secret = getAdminSecret();
+      const target = document.getElementById("manualBanTarget").value.trim();
+      const reason = document.getElementById("manualBanReason").value.trim() || "Administrative Ban";
+      const fb = document.getElementById("manualBanFeedback");
+      if (!target) return;
+
+      fb.innerHTML = `<span style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Enforcing ban on ${target}...</span>`;
+      try {
+        const res = await fetch(`${API_BASE}/admin/ban-user`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+          body: JSON.stringify({ anonUserId: target.startsWith("hg_") ? target : undefined, ipAddress: !target.startsWith("hg_") ? target : undefined, banReason: reason })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          fb.innerHTML = `<span style="color: var(--success);"><i class="fa-solid fa-check"></i> ${data.message || "Ban enforced successfully!"}</span>`;
+          document.getElementById("manualBanTarget").value = "";
+          loadBannedRegistry();
+        } else {
+          fb.innerHTML = `<span style="color: var(--danger);">${data.message || "Ban execution failed."}</span>`;
+        }
+      } catch (e) {
+        fb.innerHTML = `<span style="color: var(--danger);">Network error executing ban.</span>`;
+      }
+    }
+
+    async function executeUnban(anonUserId) {
+      if (!confirm(`Are you sure you want to lift the permanent ban on ${anonUserId}?`)) return;
+      const secret = getAdminSecret();
+      try {
+        const res = await fetch(`${API_BASE}/admin/unban-user`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+          body: JSON.stringify({ anonUserId })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          alert("User unbanned successfully.");
+          loadBannedRegistry();
+        } else {
+          alert(data.message || "Failed to unban user.");
+        }
+      } catch (e) {
+        alert("Error executing unban.");
+      }
+    }
+
+    // ==================== TAB 4: LOUNGE & OPERATIONS ====================
+    async function loadLoungeRooms() {
+      const secret = getAdminSecret();
+      if (!secret) return;
+      const container = document.getElementById("loungeRoomsContainer");
+      container.innerHTML = `<p style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Fetching active lounge rooms state...</p>`;
+
+      try {
+        const res = await fetch(`${API_BASE}/admin/group-rooms`, { headers: { "x-admin-secret": secret } });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          const rooms = data.rooms || [];
+          if (rooms.length === 0) {
+            container.innerHTML = `<p style="color: var(--text-dim);">No active group lounge rooms found in database.</p>`;
+            return;
+          }
+          container.innerHTML = rooms.map(r => `
+            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: 12px; padding: 18px; margin-bottom: 16px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="color: var(--accent);"><i class="fa-solid fa-door-open"></i> Room: ${r.roomId}</h4>
+                <span class="badge badge-medium">Active: ${r.activeMembersCount}/25 | Buffer: ${r.messagesCount} msgs</span>
+              </div>
+              <div style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.5); border-radius: 8px; padding: 10px; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace;">
+                ${(r.messages || []).map(m => `
+                  <div style="padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
+                    <span style="color: #38bdf8;">[${m.nickname || 'Anon'}]</span>: ${m.text || ''}
+                  </div>
+                `).join("") || '<p style="color: var(--text-dim);">No recent messages in buffer.</p>'}
+              </div>
+            </div>
+          `).join("");
+        }
+      } catch (err) {
+        container.innerHTML = `<p style="color: var(--danger);">Failed to load lounge rooms.</p>`;
+      }
+    }
+
+    async function sendBroadcastPush() {
+      const secret = getAdminSecret();
+      const title = document.getElementById("broadcastTitle").value.trim();
+      const body = document.getElementById("broadcastBody").value.trim();
+      const fb = document.getElementById("broadcastFeedback");
+      if (!title || !body) {
+        fb.innerHTML = `<span style="color: var(--danger);">Please fill in both title and body.</span>`;
+        return;
+      }
+      fb.innerHTML = `<span style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Broadcasting notification to all subscribers...</span>`;
+
+      try {
+        const res = await fetch(`${API_BASE}/broadcast-push`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ adminSecretKey: secret, title, body })
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          fb.innerHTML = `<span style="color: var(--success);"><i class="fa-solid fa-check"></i> Broadcast dispatched successfully! (Sent: ${data.sentCount || 0})</span>`;
+          document.getElementById("broadcastTitle").value = "";
+          document.getElementById("broadcastBody").value = "";
+        } else {
+          fb.innerHTML = `<span style="color: var(--danger);">${data.message || "Broadcast failed."}</span>`;
+        }
+      } catch (e) {
+        fb.innerHTML = `<span style="color: var(--danger);">Error sending broadcast.</span>`;
+      }
+    }
+  </script>
+</body>
+</html>
