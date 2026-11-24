@@ -194,8 +194,8 @@
       border: none;
       border-bottom: 3px solid transparent;
       color: var(--text-dim);
-      padding: 14px 20px;
-      font-size: 0.9rem;
+      padding: 14px 18px;
+      font-size: 0.88rem;
       font-weight: 600;
       cursor: pointer;
       display: flex;
@@ -214,7 +214,7 @@
     /* Main Container */
     main {
       flex: 1;
-      max-width: 1300px;
+      max-width: 1350px;
       width: 100%;
       margin: 24px auto;
       padding: 0 20px;
@@ -274,7 +274,7 @@
       justify-content: space-between;
     }
 
-    /* Table */
+    /* Table with Word-Wrap & Word-Break */
     .table-responsive {
       overflow-x: auto;
     }
@@ -293,6 +293,7 @@
       font-size: 0.72rem;
       letter-spacing: 0.5px;
       border-bottom: 1px solid var(--border-glass);
+      white-space: nowrap;
     }
     td {
       padding: 12px 14px;
@@ -303,6 +304,22 @@
       background: rgba(255, 255, 255, 0.02);
     }
 
+    /* Word-wrapped payload box */
+    .payload-wrap {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.82rem;
+      color: #f1f5f9;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 8px 12px;
+      border-radius: 6px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-width: 380px;
+      min-width: 200px;
+      line-height: 1.45;
+    }
+
     .badge {
       display: inline-block;
       padding: 3px 8px;
@@ -311,6 +328,7 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      white-space: nowrap;
     }
     .badge-critical { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
     .badge-high { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
@@ -324,12 +342,14 @@
       padding: 3px 6px;
       border-radius: 4px;
       color: #38bdf8;
+      word-break: break-all;
     }
 
     .search-bar {
       display: flex;
       gap: 10px;
       margin-bottom: 16px;
+      flex-wrap: wrap;
     }
     .btn-secondary {
       background: rgba(255, 255, 255, 0.08);
@@ -370,6 +390,82 @@
       cursor: pointer;
     }
     .btn-success:hover { background: rgba(16, 185, 129, 0.35); }
+
+    /* Pagination Bar */
+    .pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 18px;
+      border-top: 1px solid var(--border-glass);
+      margin-top: 14px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .pagination-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .pagination-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-glass);
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .pagination-btn:hover:not(:disabled) {
+      background: rgba(240, 102, 255, 0.2);
+      border-color: var(--accent);
+    }
+    .pagination-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Push Preview Mobile Widget */
+    .push-suite-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 24px;
+    }
+    @media (max-width: 900px) {
+      .push-suite-grid { grid-template-columns: 1fr; }
+    }
+    .phone-mockup {
+      background: #000;
+      border: 3px solid #334155;
+      border-radius: 28px;
+      padding: 16px;
+      max-width: 340px;
+      margin: 0 auto;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.7);
+    }
+    .push-card-preview {
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      padding: 12px;
+      color: #fff;
+    }
+    .quick-chip {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border-glass);
+      color: var(--text-dim);
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-right: 6px;
+      margin-top: 6px;
+    }
+    .quick-chip:hover { color: #fff; border-color: var(--accent); }
 
     /* Alert */
     .alert {
@@ -422,7 +518,7 @@
       </div>
     </header>
 
-    <!-- Tabs Navigation -->
+    <!-- 5 Unified Tabs Navigation -->
     <nav class="tabs-nav">
       <button class="tab-btn active" onclick="switchTab('threatRadar')">
         <i class="fa-solid fa-radar"></i> 1. Threat Radar & Security Incidents
@@ -433,8 +529,11 @@
       <button class="tab-btn" onclick="switchTab('banManager')">
         <i class="fa-solid fa-gavel"></i> 3. Ban & Moderation Registry
       </button>
+      <button class="tab-btn" onclick="switchTab('pushSuite')">
+        <i class="fa-solid fa-paper-plane"></i> 4. Web Push Notifications
+      </button>
       <button class="tab-btn" onclick="switchTab('loungeOps')">
-        <i class="fa-solid fa-comments"></i> 4. Lounge & Operations
+        <i class="fa-solid fa-comments"></i> 5. Lounge & Operations
       </button>
     </nav>
 
@@ -477,12 +576,12 @@
         <div class="card">
           <div class="card-title">
             <span><i class="fa-solid fa-magnifying-glass"></i> Phone Number Doxx Lookup</span>
-            <button class="btn-secondary" onclick="loadSecurityIncidents()">
+            <button class="btn-secondary" onclick="loadSecurityIncidents(1)">
               <i class="fa-solid fa-rotate"></i> Refresh Feed
             </button>
           </div>
           <div class="search-bar">
-            <input type="text" id="phoneSearchInput" placeholder="Enter 10-digit number (e.g. 7032461997 or 6303186606)" />
+            <input type="text" id="phoneSearchInput" placeholder="Enter 10-digit number (e.g. 7032461997 or 6303186606)" style="max-width: 360px;" />
             <button class="btn-primary" style="width: auto; padding: 10px 24px;" onclick="searchByPhone()">
               <i class="fa-solid fa-search"></i> Search Number
             </button>
@@ -491,12 +590,12 @@
           <div id="phoneSearchResultSummary" style="font-size: 0.85rem; color: var(--text-dim); margin-top: 6px;"></div>
         </div>
 
-        <!-- Incidents Stream Table Card -->
+        <!-- Incidents Stream Table Card with Word-Wrap & Pagination -->
         <div class="card">
           <div class="card-title">
             <span><i class="fa-solid fa-list-check"></i> Security Incidents Audit Stream (365-Day IT Act Log)</span>
-            <div style="display: flex; gap: 8px;">
-              <select id="typeFilterSelect" onchange="loadSecurityIncidents()" style="width: auto; padding: 6px 12px; font-size: 0.82rem;">
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <select id="typeFilterSelect" onchange="loadSecurityIncidents(1)" style="width: auto; padding: 6px 12px; font-size: 0.82rem;">
                 <option value="">All Incident Types</option>
                 <option value="PHONE_LEAK_BLOCKED">Phone Leak Blocked</option>
                 <option value="CRITICAL_AUTO_BAN">Critical Auto-Ban</option>
@@ -516,7 +615,7 @@
                   <th>Channel</th>
                   <th>Target Number</th>
                   <th>Offender & IP</th>
-                  <th>Blocked Payload</th>
+                  <th style="min-width: 250px;">Blocked Payload (Full Wrap)</th>
                   <th>Action</th>
                 </tr>
               </thead>
@@ -524,6 +623,29 @@
                 <tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">Loading security audit stream...</td></tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- Server-side Pagination Bar -->
+          <div class="pagination-bar">
+            <div style="font-size: 0.82rem; color: var(--text-dim);" id="paginationSummary">
+              Showing 0 - 0 of 0 incidents
+            </div>
+            <div class="pagination-controls">
+              <label style="font-size: 0.78rem; color: var(--text-dim); margin-right: 4px;">Rows per page:</label>
+              <select id="pageSizeSelect" onchange="changePageSize()" style="width: auto; padding: 4px 8px; font-size: 0.8rem; margin-right: 12px;">
+                <option value="15">15</option>
+                <option value="25" selected>25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <button class="pagination-btn" id="btnPrevPage" onclick="prevIncidentPage()" disabled>
+                <i class="fa-solid fa-chevron-left"></i> Previous
+              </button>
+              <span style="font-size: 0.82rem; color: #fff; font-weight: 600; padding: 0 6px;" id="pageIndicator">Page 1 of 1</span>
+              <button class="pagination-btn" id="btnNextPage" onclick="nextIncidentPage()" disabled>
+                Next <i class="fa-solid fa-chevron-right"></i>
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -535,10 +657,10 @@
             <span><i class="fa-solid fa-scale-balanced"></i> Law Enforcement / Sec 65B Trace Lookup</span>
           </div>
           <p style="font-size: 0.88rem; color: var(--text-dim); margin-bottom: 16px;">
-            Enter an 8-character Trace Code from user report or police requisition to extract both peer IPs, telecom telemetry, and session lifecycle.
+            Enter an 8-character Trace Code from user report or police notice (e.g. <code>HGAPTSLY</code> or <code>HGSVEB9T</code>), or an IP Address to extract both peer telecom records.
           </p>
           <div class="search-bar">
-            <input type="text" id="traceInput" placeholder="Enter 8-digit Trace Code (e.g. HGSVEB9T)" maxlength="16" />
+            <input type="text" id="traceInput" placeholder="Enter 8-digit Trace Code (e.g. HGAPTSLY)" maxlength="32" style="max-width: 360px;" />
             <button class="btn-primary" style="width: auto; padding: 10px 24px;" onclick="lookupTrace()">
               <i class="fa-solid fa-search"></i> Inspect Trace
             </button>
@@ -551,10 +673,10 @@
             <span><i class="fa-solid fa-fingerprint"></i> Suspect Hardware Canvas & UID Timeline Forensics</span>
           </div>
           <p style="font-size: 0.88rem; color: var(--text-dim); margin-bottom: 16px;">
-            Search any Anonymous UID, Nickname, or IP to reconstruct cross-device alias history.
+            Search any Nickname (e.g. <code>Anu_bharat</code>, <code>JamesBond_52</code>), UID (<code>hg_usr_...</code>), or IP address to cross-match physical device canvas fingerprints.
           </p>
           <div class="search-bar">
-            <input type="text" id="forensicQueryInput" placeholder="Enter UID (hg_usr_...), Nickname, or IP address" />
+            <input type="text" id="forensicQueryInput" placeholder="Enter Nickname (e.g. Anu_bharat), UID, or IP" style="max-width: 360px;" />
             <button class="btn-primary" style="width: auto; padding: 10px 24px;" onclick="lookupForensics()">
               <i class="fa-solid fa-search"></i> Disambiguate User
             </button>
@@ -612,32 +734,104 @@
         </div>
       </section>
 
-      <!-- ==================== TAB 4: LOUNGE & OPERATIONS ==================== -->
+      <!-- ==================== TAB 4: WEB PUSH NOTIFICATION SUITE ==================== -->
+      <section id="pushSuite" class="tab-content">
+        <!-- Subscriber Metrics -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Active WebPush Subscribers</div>
+              <div class="val" id="statPushSubscribers">--</div>
+            </div>
+            <i class="fa-solid fa-bell stat-icon" style="color: var(--accent);"></i>
+          </div>
+          <div class="stat-card">
+            <div>
+              <div class="lbl">Delivery Engine</div>
+              <div class="val" style="font-size: 1.15rem; color: #34d399;">VAPID RFC 8292</div>
+            </div>
+            <i class="fa-solid fa-tower-broadcast stat-icon" style="color: #34d399;"></i>
+          </div>
+        </div>
+
+        <div class="push-suite-grid">
+          <!-- Composer Form -->
+          <div class="card">
+            <div class="card-title">
+              <span><i class="fa-solid fa-paper-plane"></i> Compose Notification Broadcast</span>
+            </div>
+            <form id="pushBroadcastForm" onsubmit="handlePushBroadcast(event)">
+              <div class="form-group">
+                <label>Notification Title <span style="color: var(--accent);">*</span></label>
+                <input type="text" id="pushTitleInput" placeholder="e.g. Someone wants to chat with you!" required maxlength="60" oninput="updatePushPreview()" />
+              </div>
+              <div class="form-group">
+                <label>Notification Body <span style="color: var(--accent);">*</span></label>
+                <textarea id="pushBodyInput" rows="3" placeholder="e.g. Hop on HashGANG Chat now. New users waiting in Lounge!" required maxlength="150" oninput="updatePushPreview()"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Banner Media Image URL (Optional)</label>
+                <input type="text" id="pushMediaInput" placeholder="https://chat.hashgang.com/og-image.webp" oninput="updatePushPreview()" />
+                <div>
+                  <span class="quick-chip" onclick="setPushPresetMedia('https://chat.hashgang.com/og-image.webp')"><i class="fa-solid fa-image"></i> #GANG Banner</span>
+                  <span class="quick-chip" onclick="setPushPresetMedia('')"><i class="fa-solid fa-xmark"></i> Clear Media</span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Target Action URL</label>
+                <input type="text" id="pushUrlInput" value="https://chat.hashgang.com/" placeholder="https://chat.hashgang.com/" />
+              </div>
+              <div class="form-group">
+                <label>Notification Tag / Topic</label>
+                <select id="pushTagInput">
+                  <option value="general">general (Standard broadcast)</option>
+                  <option value="announcement">announcement (High priority announcement)</option>
+                  <option value="call_alert">call_alert (New call waiting alert)</option>
+                </select>
+              </div>
+              <button type="submit" class="btn-primary" id="btnPushSubmit">
+                <i class="fa-solid fa-bolt"></i> Send Broadcast Notification
+              </button>
+            </form>
+            <div id="pushDeliveryLog" style="margin-top: 14px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;"></div>
+          </div>
+
+          <!-- Live Phone Mockup Preview -->
+          <div class="card" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+            <div class="card-title" style="width: 100%;">
+              <span><i class="fa-solid fa-mobile-screen"></i> Live Phone Push Preview</span>
+            </div>
+            <div class="phone-mockup">
+              <div style="display: flex; justify-content: space-between; font-size: 0.68rem; color: #94a3b8; margin-bottom: 12px; font-family: 'JetBrains Mono', monospace;">
+                <span>12:00</span>
+                <span>5G 📶 100% 🔋</span>
+              </div>
+              <div class="push-card-preview">
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                  <img src="../favicon-32x32.png" style="width: 18px; height: 18px; border-radius: 4px;" alt="Logo" />
+                  <strong style="font-size: 0.76rem; color: #cbd5e1;">HashGANG Chat</strong>
+                  <span style="font-size: 0.65rem; color: var(--text-dim); margin-left: auto;">now</span>
+                </div>
+                <div id="previewPushTitle" style="font-size: 0.85rem; font-weight: 700; color: #fff; margin-bottom: 2px;">
+                  Someone wants to chat with you!
+                </div>
+                <div id="previewPushBody" style="font-size: 0.78rem; color: #cbd5e1; line-height: 1.35;">
+                  Hop on HashGANG Chat now. Live users waiting in Lounge!
+                </div>
+                <div id="previewPushMediaContainer" style="margin-top: 8px; display: none;">
+                  <img id="previewPushMediaImg" src="" style="width: 100%; border-radius: 8px; max-height: 120px; object-fit: cover;" alt="Preview" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 5: LOUNGE & OPERATIONS ==================== -->
       <section id="loungeOps" class="tab-content">
         <div class="card">
           <div class="card-title">
-            <span><i class="fa-solid fa-bullhorn"></i> Emergency Platform Pinned Broadcast</span>
-          </div>
-          <p style="font-size: 0.88rem; color: var(--text-dim); margin-bottom: 14px;">
-            Broadcast a high-priority system announcement banner across all live online users or send WebPush notifications to subscribers.
-          </p>
-          <div class="form-group">
-            <label>Announcement Title</label>
-            <input type="text" id="broadcastTitle" placeholder="e.g. Scheduled Maintenance Notice" />
-          </div>
-          <div class="form-group">
-            <label>Announcement Body</label>
-            <textarea id="broadcastBody" rows="2" placeholder="e.g. Platform update scheduled at 2:00 AM IST."></textarea>
-          </div>
-          <button class="btn-primary" style="width: auto; padding: 12px 28px;" onclick="sendBroadcastPush()">
-            <i class="fa-solid fa-paper-plane"></i> Send System Broadcast
-          </button>
-          <div id="broadcastFeedback" style="margin-top: 10px;"></div>
-        </div>
-
-        <div class="card">
-          <div class="card-title">
-            <span><i class="fa-solid fa-users"></i> Live Public Lounge Rooms & Recent Messages</span>
+            <span><i class="fa-solid fa-users"></i> Live Public Lounge Rooms & Rolling Messages Buffer</span>
             <button class="btn-secondary" onclick="loadLoungeRooms()">
               <i class="fa-solid fa-rotate"></i> Refresh Rooms
             </button>
@@ -746,12 +940,18 @@
 
       if (tabId === "threatRadar") loadThreatRadarData();
       else if (tabId === "banManager") loadBannedRegistry();
+      else if (tabId === "pushSuite") loadPushSuiteData();
       else if (tabId === "loungeOps") loadLoungeRooms();
     }
 
-    // ==================== TAB 1: THREAT RADAR ====================
+    // ==================== TAB 1: THREAT RADAR & PAGINATION ====================
+    let currentIncidentPage = 1;
+    let incidentPageSize = 25;
+    let totalIncidentsCount = 0;
+    let activePhoneFilter = "";
+
     async function loadThreatRadarData() {
-      await Promise.all([loadSecurityStats(), loadSecurityIncidents()]);
+      await Promise.all([loadSecurityStats(), loadSecurityIncidents(1)]);
     }
 
     async function loadSecurityStats() {
@@ -773,16 +973,18 @@
       }
     }
 
-    async function loadSecurityIncidents(filterPhone = "") {
+    async function loadSecurityIncidents(page = 1) {
+      currentIncidentPage = page;
       const secret = getAdminSecret();
       if (!secret) return;
       const tbody = document.getElementById("incidentsTableBody");
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--info); padding: 24px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Querying security audit logs...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--info); padding: 24px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Querying security audit logs (Page ${page})...</td></tr>`;
 
       try {
         const typeFilter = document.getElementById("typeFilterSelect").value;
-        let url = `${API_BASE}/admin/security-incidents?limit=100`;
-        if (filterPhone) url += `&phone=${encodeURIComponent(filterPhone)}`;
+        const skip = (page - 1) * incidentPageSize;
+        let url = `${API_BASE}/admin/security-incidents?limit=${incidentPageSize}&skip=${skip}`;
+        if (activePhoneFilter) url += `&phone=${encodeURIComponent(activePhoneFilter)}`;
         if (typeFilter) url += `&type=${encodeURIComponent(typeFilter)}`;
 
         const res = await fetch(url, { headers: { "x-admin-secret": secret } });
@@ -790,29 +992,33 @@
 
         if (res.ok && data.success) {
           const incidents = data.incidents || [];
+          totalIncidentsCount = data.total || 0;
+          updatePaginationUI(page, incidentPageSize, totalIncidentsCount);
+
           if (incidents.length === 0) {
             tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">No security incidents matched the criteria.</td></tr>`;
             return;
           }
+
           tbody.innerHTML = incidents.map(inc => {
             const time = new Date(inc.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
             const sevClass = inc.severity === "CRITICAL" ? "badge-critical" : (inc.severity === "HIGH" ? "badge-high" : (inc.severity === "MEDIUM" ? "badge-medium" : "badge-low"));
             const phonePill = inc.targetPhoneNumber ? `<span class="code-pill" style="color: #f87171; font-weight: 700;">${inc.targetPhoneNumber}</span>` : `<span style="color: var(--text-dim);">-</span>`;
-            const content = (inc.rawContent || "").substring(0, 70);
+            const content = inc.rawContent || "-";
 
             return `
               <tr>
-                <td style="font-size: 0.78rem; color: var(--text-dim);">${time}</td>
+                <td style="font-size: 0.78rem; color: var(--text-dim); white-space: nowrap;">${time}</td>
                 <td><span class="badge ${sevClass}">${inc.incidentType}</span></td>
                 <td><span class="badge ${sevClass}">${inc.severity}</span></td>
-                <td style="font-size: 0.8rem;">${inc.channel}</td>
+                <td style="font-size: 0.8rem; white-space: nowrap;">${inc.channel}</td>
                 <td>${phonePill}</td>
                 <td>
                   <div style="font-weight: 600;">${inc.nickname || "Anonymous"}</div>
                   <div class="code-pill" style="font-size: 0.7rem; color: var(--text-dim);">${inc.clientIp || "Unknown IP"}</div>
                 </td>
-                <td style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--text-muted); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${inc.rawContent || ''}">
-                  "${content}"
+                <td>
+                  <div class="payload-wrap">${escapeHtml(content)}</div>
                 </td>
                 <td><span class="code-pill" style="color: #34d399;">${inc.actionTaken}</span></td>
               </tr>
@@ -826,6 +1032,36 @@
       }
     }
 
+    function updatePaginationUI(page, limit, total) {
+      const totalPages = Math.ceil(total / limit) || 1;
+      const startItem = total === 0 ? 0 : (page - 1) * limit + 1;
+      const endItem = Math.min(page * limit, total);
+
+      document.getElementById("paginationSummary").textContent = `Showing ${startItem} - ${endItem} of ${total} incidents`;
+      document.getElementById("pageIndicator").textContent = `Page ${page} of ${totalPages}`;
+
+      document.getElementById("btnPrevPage").disabled = page <= 1;
+      document.getElementById("btnNextPage").disabled = page >= totalPages;
+    }
+
+    function prevIncidentPage() {
+      if (currentIncidentPage > 1) {
+        loadSecurityIncidents(currentIncidentPage - 1);
+      }
+    }
+
+    function nextIncidentPage() {
+      const totalPages = Math.ceil(totalIncidentsCount / incidentPageSize) || 1;
+      if (currentIncidentPage < totalPages) {
+        loadSecurityIncidents(currentIncidentPage + 1);
+      }
+    }
+
+    function changePageSize() {
+      incidentPageSize = parseInt(document.getElementById("pageSizeSelect").value, 10) || 25;
+      loadSecurityIncidents(1);
+    }
+
     function searchByPhone() {
       const phone = document.getElementById("phoneSearchInput").value.trim();
       const summary = document.getElementById("phoneSearchResultSummary");
@@ -833,56 +1069,77 @@
         summary.textContent = "Please enter a valid phone number.";
         return;
       }
-      summary.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Filtering timeline for number: <strong>${phone}</strong>...`;
-      loadSecurityIncidents(phone);
+      activePhoneFilter = phone;
+      summary.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Filtering audit timeline for: <strong>${phone}</strong>...`;
+      loadSecurityIncidents(1);
     }
 
     function clearPhoneSearch() {
+      activePhoneFilter = "";
       document.getElementById("phoneSearchInput").value = "";
       document.getElementById("phoneSearchResultSummary").textContent = "";
-      loadSecurityIncidents();
+      loadSecurityIncidents(1);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
     }
 
     // ==================== TAB 2: LEGAL TRACE & FORENSICS ====================
     async function lookupTrace() {
       const secret = getAdminSecret();
-      const code = document.getElementById("traceInput").value.trim().toUpperCase();
+      const raw = document.getElementById("traceInput").value.trim();
       const container = document.getElementById("traceResult");
-      if (!code) return;
-      container.innerHTML = `<p style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Searching trace session ${code}...</p>`;
+      if (!raw) return;
+      container.innerHTML = `<p style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Searching trace session ${raw}...</p>`;
 
       try {
-        const res = await fetch(`${API_BASE}/admin/trace-lookup?traceCode=${encodeURIComponent(code)}`, {
+        const isIp = raw.includes(".") || raw.includes(":");
+        const param = isIp ? `ip=${encodeURIComponent(raw)}` : `code=${encodeURIComponent(raw)}&traceCode=${encodeURIComponent(raw)}`;
+
+        const res = await fetch(`${API_BASE}/admin/trace-lookup?${param}`, {
           headers: { "x-admin-secret": secret }
         });
         const data = await res.json();
-        if (res.ok && data.success && data.traceLog) {
-          const t = data.traceLog;
+        const trace = data.data || data.traceLog;
+
+        if (res.ok && data.success && trace) {
           container.innerHTML = `
-            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: 12px; padding: 18px; margin-top: 14px;">
-              <h4 style="color: var(--accent); margin-bottom: 8px;">Trace Code: ${t.traceCode} [Mode: ${t.mode}]</h4>
-              <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 12px;">Duration: ${t.sessionLifecycle?.durationSeconds || 0}s | Terminate Reason: ${t.sessionLifecycle?.terminateReason}</p>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px;">
-                  <strong style="color: #38bdf8;">Peer A:</strong> ${t.peerA?.nickname || "Stranger"}<br>
-                  <span class="code-pill">UID: ${t.peerA?.anonUserId || "N/A"}</span><br>
-                  <span class="code-pill">IP: ${t.peerA?.ip || "N/A"}</span><br>
-                  <span style="font-size: 0.8rem; color: var(--text-dim);">${t.peerA?.geo?.city || ""}, ${t.peerA?.geo?.region || ""} (${t.peerA?.geo?.isp || ""})</span>
+            <div style="background: rgba(0,0,0,0.35); border: 1px solid var(--border-glass); border-radius: 12px; padding: 20px; margin-top: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h4 style="color: var(--accent);"><i class="fa-solid fa-link"></i> Trace Code: ${trace.traceCode} [Mode: ${trace.mode}]</h4>
+                <span class="badge badge-medium">Duration: ${trace.sessionLifecycle?.durationSeconds || 0}s</span>
+              </div>
+              <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 14px;">
+                Established: ${new Date(trace.sessionLifecycle?.establishedAt || trace.createdAt).toLocaleString("en-IN")} | Terminate Reason: <strong>${trace.sessionLifecycle?.terminateReason || 'N/A'}</strong>
+              </p>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;">
+                <div style="background: rgba(255,255,255,0.03); padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                  <strong style="color: #38bdf8;"><i class="fa-solid fa-user"></i> Peer A:</strong> ${trace.peerA?.nickname || "Stranger"}<br>
+                  <span class="code-pill">UID: ${trace.peerA?.anonUserId || "N/A"}</span><br>
+                  <span class="code-pill">IP: ${trace.peerA?.ip || "N/A"}</span><br>
+                  <span style="font-size: 0.8rem; color: var(--text-dim);">${trace.peerA?.geo?.city || ""}, ${trace.peerA?.geo?.region || ""} (${trace.peerA?.geo?.isp || "ISP Unknown"})</span>
                 </div>
-                <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px;">
-                  <strong style="color: #38bdf8;">Peer B:</strong> ${t.peerB?.nickname || "Stranger"}<br>
-                  <span class="code-pill">UID: ${t.peerB?.anonUserId || "N/A"}</span><br>
-                  <span class="code-pill">IP: ${t.peerB?.ip || "N/A"}</span><br>
-                  <span style="font-size: 0.8rem; color: var(--text-dim);">${t.peerB?.geo?.city || ""}, ${t.peerB?.geo?.region || ""} (${t.peerB?.geo?.isp || ""})</span>
+                <div style="background: rgba(255,255,255,0.03); padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+                  <strong style="color: #38bdf8;"><i class="fa-solid fa-user"></i> Peer B:</strong> ${trace.peerB?.nickname || "Stranger"}<br>
+                  <span class="code-pill">UID: ${trace.peerB?.anonUserId || "N/A"}</span><br>
+                  <span class="code-pill">IP: ${trace.peerB?.ip || "N/A"}</span><br>
+                  <span style="font-size: 0.8rem; color: var(--text-dim);">${trace.peerB?.geo?.city || ""}, ${trace.peerB?.geo?.region || ""} (${trace.peerB?.geo?.isp || "ISP Unknown"})</span>
                 </div>
               </div>
             </div>
           `;
         } else {
-          container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">${data.message || "Trace code not found."}</p>`;
+          container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">${data.message || "Trace code not found in 1-Year archive."}</p>`;
         }
       } catch (err) {
-        container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">Network error during lookup.</p>`;
+        container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">Network error during trace lookup.</p>`;
       }
     }
 
@@ -891,30 +1148,40 @@
       const query = document.getElementById("forensicQueryInput").value.trim();
       const container = document.getElementById("forensicResult");
       if (!query) return;
-      container.innerHTML = `<p style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Disambiguating suspect timeline...</p>`;
+      container.innerHTML = `<p style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Disambiguating suspect timeline for "${query}"...</p>`;
 
       try {
-        const res = await fetch(`${API_BASE}/admin/user-forensics?q=${encodeURIComponent(query)}`, {
+        const res = await fetch(`${API_BASE}/admin/user-forensics?query=${encodeURIComponent(query)}&q=${encodeURIComponent(query)}`, {
           headers: { "x-admin-secret": secret }
         });
         const data = await res.json();
-        if (res.ok && data.success && data.matches && data.matches.length > 0) {
-          container.innerHTML = data.matches.map(u => `
-            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: 12px; padding: 18px; margin-top: 14px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h4 style="color: var(--accent);">UID: ${u.anonUserId}</h4>
+        const profiles = data.profiles || data.matches || [];
+
+        if (res.ok && data.success && profiles.length > 0) {
+          container.innerHTML = profiles.map(u => `
+            <div style="background: rgba(0,0,0,0.35); border: 1px solid var(--border-glass); border-radius: 12px; padding: 18px; margin-top: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                <h4 style="color: var(--accent);"><i class="fa-solid fa-id-badge"></i> UID: ${u.anonUserId}</h4>
                 <span class="badge ${u.isBanned ? 'badge-critical' : 'badge-low'}">${u.isBanned ? 'PERMANENTLY BANNED' : 'ACTIVE'}</span>
               </div>
-              <p style="font-size: 0.85rem;"><strong>Current Nickname:</strong> ${u.currentNickname} | <strong>Last IP:</strong> <span class="code-pill">${u.lastClientIp}</span></p>
-              <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 4px;"><strong>Hardware:</strong> ${u.hardware?.screen || ''} DPR:${u.hardware?.dpr || ''} OS:${u.hardware?.platform || ''} (App: ${u.hardware?.appVersion || ''})</p>
-              <div style="margin-top: 8px; font-size: 0.82rem; color: var(--text-muted);">
-                <strong>Known Nicknames (${u.nicknameHistory?.length || 0}):</strong>
-                ${(u.nicknameHistory || []).map(n => `<span class="code-pill" style="margin-right: 4px;">${n.nickname}</span>`).join("")}
+              <p style="font-size: 0.88rem;"><strong>Current Alias:</strong> ${u.currentNickname} | <strong>Last IP:</strong> <span class="code-pill">${u.lastClientIp}</span></p>
+              <p style="font-size: 0.82rem; color: var(--text-dim); margin-top: 4px;">
+                <strong>Device Canvas:</strong> Screen: ${u.hardware?.screen || 'N/A'} | DPR: ${u.hardware?.dpr || 'N/A'} | OS: ${u.hardware?.platform || 'N/A'} | App: ${u.hardware?.appVersion || 'N/A'}
+              </p>
+              <div style="margin-top: 10px; font-size: 0.82rem; color: var(--text-muted);">
+                <strong>Alias History (${u.nicknameHistory?.length || 0}):</strong>
+                ${(u.nicknameHistory || []).map(n => `<span class="code-pill" style="margin-right: 4px; margin-top: 4px; display: inline-block;">${n.nickname}</span>`).join("")}
               </div>
+              ${u.ipHistory && u.ipHistory.length > 0 ? `
+                <div style="margin-top: 10px; font-size: 0.82rem; color: var(--text-muted);">
+                  <strong>Known IPs (${u.ipHistory.length}):</strong>
+                  ${u.ipHistory.map(h => `<span class="code-pill" style="margin-right: 4px; margin-top: 4px; display: inline-block;">${h.ip}</span>`).join("")}
+                </div>
+              ` : ''}
             </div>
           `).join("");
         } else {
-          container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">${data.message || "No forensic records found."}</p>`;
+          container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">${data.message || "No forensic suspect profiles found matching query."}</p>`;
         }
       } catch (err) {
         container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">Error performing forensic lookup.</p>`;
@@ -926,7 +1193,7 @@
       const secret = getAdminSecret();
       if (!secret) return;
       const tbody = document.getElementById("bannedTableBody");
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--info); padding: 24px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Fetching banned abusers list...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--info); padding: 24px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Fetching banned abusers registry...</td></tr>`;
 
       try {
         const res = await fetch(`${API_BASE}/admin/banned-users`, { headers: { "x-admin-secret": secret } });
@@ -1006,7 +1273,95 @@
       }
     }
 
-    // ==================== TAB 4: LOUNGE & OPERATIONS ====================
+    // ==================== TAB 4: WEB PUSH NOTIFICATION SUITE ====================
+    async function loadPushSuiteData() {
+      const secret = getAdminSecret();
+      if (!secret) return;
+      try {
+        const res = await fetch(`${API_BASE}/push-stats`, { headers: { "x-admin-secret": secret } });
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById("statPushSubscribers").textContent = data.activeSubscribers || 0;
+        }
+      } catch (e) {}
+    }
+
+    function updatePushPreview() {
+      const title = document.getElementById("pushTitleInput").value.trim() || "Someone wants to chat with you!";
+      const body = document.getElementById("pushBodyInput").value.trim() || "Hop on HashGANG Chat now. Live users waiting in Lounge!";
+      const media = document.getElementById("pushMediaInput").value.trim();
+
+      document.getElementById("previewPushTitle").textContent = title;
+      document.getElementById("previewPushBody").textContent = body;
+
+      const mediaContainer = document.getElementById("previewPushMediaContainer");
+      const mediaImg = document.getElementById("previewPushMediaImg");
+      if (media) {
+        mediaImg.src = media;
+        mediaContainer.style.display = "block";
+      } else {
+        mediaContainer.style.display = "none";
+      }
+    }
+
+    function setPushPresetMedia(url) {
+      document.getElementById("pushMediaInput").value = url;
+      updatePushPreview();
+    }
+
+    async function handlePushBroadcast(e) {
+      if (e) e.preventDefault();
+      const secret = getAdminSecret();
+      const title = document.getElementById("pushTitleInput").value.trim();
+      const body = document.getElementById("pushBodyInput").value.trim();
+      const media = document.getElementById("pushMediaInput").value.trim();
+      const actionUrl = document.getElementById("pushUrlInput").value.trim() || "https://chat.hashgang.com/";
+      const tag = document.getElementById("pushTagInput").value;
+      const logEl = document.getElementById("pushDeliveryLog");
+      const submitBtn = document.getElementById("btnPushSubmit");
+
+      if (!title || !body) return;
+      if (!confirm(`Trigger WebPush broadcast to all subscribers now?\n\nTitle: "${title}"`)) return;
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Broadcasting to devices...`;
+      logEl.innerHTML = `<span style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Dispatching push payload across active WebPush subscriber pool...</span>`;
+
+      try {
+        const res = await fetch(`${API_BASE}/broadcast-push`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+          body: JSON.stringify({
+            adminSecretKey: secret,
+            title,
+            body,
+            url: actionUrl,
+            image: media || undefined,
+            tag: tag
+          })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.success) {
+          logEl.innerHTML = `
+            <div style="background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.4); border-radius: 8px; padding: 12px; color: #34d399;">
+              <strong>✅ Broadcast Dispatched Successfully!</strong><br>
+              Total Subscribers: ${data.totalSubscribers || 0} | Delivered: ${data.sentCount || 0} | Pruned/Expired: ${data.prunedCount || 0}
+            </div>
+          `;
+          loadPushSuiteData();
+        } else {
+          logEl.innerHTML = `<span style="color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> ${data.message || "Broadcast dispatch failed."}</span>`;
+        }
+      } catch (err) {
+        logEl.innerHTML = `<span style="color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Network error during broadcast.</span>`;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `<i class="fa-solid fa-bolt"></i> Send Broadcast Notification`;
+      }
+    }
+
+    // ==================== TAB 5: LOUNGE & OPERATIONS ====================
     async function loadLoungeRooms() {
       const secret = getAdminSecret();
       if (!secret) return;
@@ -1023,15 +1378,15 @@
             return;
           }
           container.innerHTML = rooms.map(r => `
-            <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-glass); border-radius: 12px; padding: 18px; margin-bottom: 16px;">
+            <div style="background: rgba(0,0,0,0.35); border: 1px solid var(--border-glass); border-radius: 12px; padding: 18px; margin-bottom: 16px;">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <h4 style="color: var(--accent);"><i class="fa-solid fa-door-open"></i> Room: ${r.roomId}</h4>
                 <span class="badge badge-medium">Active: ${r.activeMembersCount}/25 | Buffer: ${r.messagesCount} msgs</span>
               </div>
-              <div style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.5); border-radius: 8px; padding: 10px; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace;">
+              <div style="max-height: 240px; overflow-y: auto; background: rgba(0,0,0,0.5); border-radius: 8px; padding: 12px; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace;">
                 ${(r.messages || []).map(m => `
-                  <div style="padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
-                    <span style="color: #38bdf8;">[${m.nickname || 'Anon'}]</span>: ${m.text || ''}
+                  <div style="padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); word-break: break-word;">
+                    <span style="color: #38bdf8; font-weight: 600;">[${escapeHtml(m.nickname || 'Anon')}]</span>: ${escapeHtml(m.text || '')}
                   </div>
                 `).join("") || '<p style="color: var(--text-dim);">No recent messages in buffer.</p>'}
               </div>
@@ -1042,37 +1397,6 @@
         container.innerHTML = `<p style="color: var(--danger);">Failed to load lounge rooms.</p>`;
       }
     }
-
-    async function sendBroadcastPush() {
-      const secret = getAdminSecret();
-      const title = document.getElementById("broadcastTitle").value.trim();
-      const body = document.getElementById("broadcastBody").value.trim();
-      const fb = document.getElementById("broadcastFeedback");
-      if (!title || !body) {
-        fb.innerHTML = `<span style="color: var(--danger);">Please fill in both title and body.</span>`;
-        return;
-      }
-      fb.innerHTML = `<span style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Broadcasting notification to all subscribers...</span>`;
-
-      try {
-        const res = await fetch(`${API_BASE}/broadcast-push`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ adminSecretKey: secret, title, body })
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          fb.innerHTML = `<span style="color: var(--success);"><i class="fa-solid fa-check"></i> Broadcast dispatched successfully! (Sent: ${data.sentCount || 0})</span>`;
-          document.getElementById("broadcastTitle").value = "";
-          document.getElementById("broadcastBody").value = "";
-        } else {
-          fb.innerHTML = `<span style="color: var(--danger);">${data.message || "Broadcast failed."}</span>`;
-        }
-      } catch (e) {
-        fb.innerHTML = `<span style="color: var(--danger);">Error sending broadcast.</span>`;
-      }
-    }
   </script>
 </body>
 </html>
-
