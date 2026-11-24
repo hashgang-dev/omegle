@@ -1013,6 +1013,11 @@
                 <option value="severity">Sort: Critical Severity First</option>
                 <option value="type">Sort: By Incident Type</option>
               </select>
+
+              <!-- On-Demand Refresh / Fetch Stream Button -->
+              <button class="btn-primary" onclick="loadSecurityIncidents(currentIncidentPage || 1)" style="width: auto; padding: 6px 14px; font-size: 0.82rem; display: inline-flex; align-items: center; gap: 6px;">
+                <i class="fa-solid fa-arrows-rotate"></i> Refresh Stream
+              </button>
             </div>
           </div>
           <div class="table-responsive">
@@ -1030,7 +1035,17 @@
                 </tr>
               </thead>
               <tbody id="incidentsTableBody">
-                <tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">Loading security audit stream...</td></tr>
+                <tr>
+                  <td colspan="8" style="text-align: center; color: var(--text-dim); padding: 36px 16px;">
+                    <div style="font-size: 1.05rem; font-weight: 600; color: #f1f5f9; margin-bottom: 6px;">
+                      <i class="fa-solid fa-shield-halved" style="color: var(--accent);"></i> Audit Stream on Standby
+                    </div>
+                    <p style="font-size: 0.82rem; margin-bottom: 16px; color: var(--text-dim);">High-level threat stats are loaded above. Fetch the full audit stream on demand to preserve database bandwidth.</p>
+                    <button class="btn-primary" onclick="loadSecurityIncidents(1)" style="padding: 8px 20px; font-size: 0.85rem; width: auto; display: inline-flex; align-items: center; gap: 8px;">
+                      <i class="fa-solid fa-cloud-arrow-down"></i> Load Security Incidents Stream
+                    </button>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -1598,7 +1613,7 @@
     function unlockPortalUI() {
       document.getElementById("authGate").style.display = "none";
       document.getElementById("portalContainer").style.display = "block";
-      loadThreatRadarData();
+      loadThreatRadarData(false);
     }
 
     function handleLogout() {
@@ -1636,7 +1651,7 @@
       const targetContent = document.getElementById(tabId);
       if (targetContent) targetContent.classList.add("active");
 
-      if (tabId === "threatRadar") loadThreatRadarData();
+      if (tabId === "threatRadar") loadThreatRadarData(false);
       else if (tabId === "banManager") loadBannedRegistry();
       else if (tabId === "pushSuite") loadPushSuiteData();
       else if (tabId === "loungeOps") loadLoungeRooms();
@@ -1647,10 +1662,13 @@
     let incidentPageSize = 25;
     let totalIncidentsCount = 0;
     let activePhoneFilter = "";
+    let hasLoadedIncidentsOnce = false;
 
-    async function loadThreatRadarData() {
+    async function loadThreatRadarData(forceFetchTable = false) {
       loadSecurityStats();
-      loadSecurityIncidents(1);
+      if (forceFetchTable || hasLoadedIncidentsOnce) {
+        loadSecurityIncidents(currentIncidentPage || 1);
+      }
     }
 
     async function loadSecurityStats() {
@@ -1673,6 +1691,7 @@
     async function loadSecurityIncidents(page = 1) {
       const secret = getAdminSecret();
       if (!secret) return;
+      hasLoadedIncidentsOnce = true;
       currentIncidentPage = page;
       const tbody = document.getElementById("incidentsTableBody");
       tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--info); padding: 24px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading security incidents (Page ${page})...</td></tr>`;
@@ -2674,10 +2693,24 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
           }
           container.innerHTML = rooms.map(r => `
             <div style="background: rgba(0,0,0,0.35); border: 1px solid var(--border-glass); border-radius: 12px; padding: 18px; margin-bottom: 16px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
                 <h4 style="color: var(--accent);"><i class="fa-solid fa-door-open"></i> Room: ${r.roomId}</h4>
-                <span class="badge badge-medium">Active: ${r.activeMembersCount}/25 | Buffer: ${r.messagesCount} msgs</span>
+                <span class="badge ${r.activeMembersCount > 0 ? 'badge-success' : 'badge-medium'}">
+                  <i class="fa-solid fa-users" style="margin-right: 4px;"></i> Active: ${r.activeMembersCount}/25 | Buffer: ${r.messagesCount} msgs
+                </span>
               </div>
+              ${(r.activeMembers && r.activeMembers.length > 0) ? `
+                <div style="margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; background: rgba(16, 185, 129, 0.08); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                  <span style="font-size: 0.76rem; font-weight: 700; color: #10b981; margin-right: 4px;">Live Online (${r.activeMembers.length}):</span>
+                  ${r.activeMembers.map(m => `
+                    <span class="code-pill" style="font-size: 0.72rem; color: #38bdf8; display: inline-flex; align-items: center; gap: 4px;">
+                      <i class="fa-solid fa-circle" style="color: #10b981; font-size: 0.45rem;"></i>
+                      ${escapeHtml(m.nickname || 'Member')}
+                      ${m.uid ? `<span style="opacity: 0.55; font-size: 0.65rem;">(${m.uid.slice(0, 10)}...)</span>` : ''}
+                    </span>
+                  `).join("")}
+                </div>
+              ` : ''}
               <div style="max-height: 240px; overflow-y: auto; background: rgba(0,0,0,0.5); border-radius: 8px; padding: 12px; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace;">
                 ${(r.messages || []).map(m => `
                   <div style="padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); word-break: break-word;">
