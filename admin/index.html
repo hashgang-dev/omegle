@@ -652,9 +652,11 @@
 
   <script>
     // Configuration & Auth Key Handling
-    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-      ? 'http://localhost:5000/api/v1/strangerchat' 
-      : 'https://chat.hashgang.com/api/v1/strangerchat';
+    const API_BASE = (typeof BACKEND_API_BASE !== "undefined" && BACKEND_API_BASE)
+      ? BACKEND_API_BASE
+      : (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" || window.location.protocol === "file:")
+        ? "http://localhost:5000/api/v1/strangerchat"
+        : "https://api.hashgang.com/api/v1/strangerchat";
 
     function getAdminSecret() {
       return sessionStorage.getItem("hg_admin_master_secret") || "";
