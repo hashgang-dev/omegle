@@ -519,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v442";
+const APP_CLIENT_VERSION = "v443";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -7353,10 +7353,12 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
   }
 
   const targetUid = msg.senderUid || ("usr_" + String(senderNickRaw).toLowerCase().replace(/[^a-z0-9]/g, ""));
+  const targetDeviceHash = msg.senderDeviceHash || "";
   const isFavorited = isUserFavorited(targetUid, senderNickRaw);
   const starIconHtml = (!isSelf && targetUid) ? `
     <button type="button" class="v2-msg-star-btn ${isFavorited ? 'favorited' : ''}" 
             data-target-uid="${escapeHtml(targetUid)}" 
+            data-target-device-hash="${escapeHtml(targetDeviceHash)}" 
             data-target-nick="${escapeHtml(senderNickRaw)}" 
             onclick="handleStarBtnClick(event, this)" 
             title="${isFavorited ? 'Favorited (Click to remove)' : 'Add to Favorites'}">
@@ -9443,6 +9445,38 @@ function getClientHardwareTelemetry() {
     const touchNum = nav.maxTouchPoints || 0;
     const langStr = nav.language || "en";
 
+    let canvasFp = null;
+    try {
+      const c = document.createElement("canvas");
+      c.width = 160;
+      c.height = 40;
+      const ctx = c.getContext("2d");
+      if (ctx) {
+        ctx.fillStyle = "#f60";
+        ctx.fillRect(100, 1, 50, 15);
+        ctx.fillStyle = "#069";
+        ctx.font = "12px sans-serif";
+        ctx.fillText("#GANG_2026", 2, 15);
+        const data = c.toDataURL();
+        let h = 0;
+        for (let i = 0; i < data.length; i++) {
+          h = (h << 5) - h + data.charCodeAt(i);
+          h |= 0;
+        }
+        canvasFp = (h >>> 0).toString(16);
+      }
+    } catch (e) {}
+
+    let glRenderer = null;
+    try {
+      const c = document.createElement("canvas");
+      const gl = c.getContext("webgl") || c.getContext("experimental-webgl");
+      if (gl) {
+        const dbg = gl.getExtension("WEBGL_debug_renderer_info");
+        if (dbg) glRenderer = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL);
+      }
+    } catch (e) {}
+
     return {
       screen: screenStr,
       dpr: dprNum,
@@ -9453,6 +9487,8 @@ function getClientHardwareTelemetry() {
       isPwa: Boolean(pwaState),
       language: langStr,
       timezone: tz,
+      canvasFingerprint: canvasFp,
+      webglRenderer: glRenderer,
       appVersion: typeof APP_CLIENT_VERSION !== "undefined" ? APP_CLIENT_VERSION : "v430",
     };
   } catch (err) {
@@ -9565,6 +9601,7 @@ function handleStarBtnClick(event, btn) {
   }
   const targetUid = btn.getAttribute("data-target-uid");
   const targetNick = btn.getAttribute("data-target-nick") || "Stranger";
+  const targetDeviceHash = btn.getAttribute("data-target-device-hash") || null;
   if (!targetUid) return;
 
   const myUid = getOrCreateAnonUserId();
@@ -9587,7 +9624,7 @@ function handleStarBtnClick(event, btn) {
 
     // Enforce PWA installation & notifications permission for adding favorites
     if (!isPwaAndPushEnabled()) {
-      openStarInstallModal(targetUid, targetNick);
+      openStarInstallModal(targetUid, targetNick, targetDeviceHash);
     } else {
       try {
         localStorage.setItem("hg_push_enabled", "true");
@@ -9595,14 +9632,14 @@ function handleStarBtnClick(event, btn) {
           registerWebPushSubscription(true);
         }
       } catch (e) {}
-      addFavorite(targetUid, targetNick);
+      addFavorite(targetUid, targetNick, targetDeviceHash);
     }
   }
 }
 window.handleStarBtnClick = handleStarBtnClick;
 
-function openStarInstallModal(targetUid, targetNick) {
-  pendingStarTarget = { targetUid, targetNick };
+function openStarInstallModal(targetUid, targetNick, targetDeviceHash = null) {
+  pendingStarTarget = { targetUid, targetNick, targetDeviceHash };
   const modal = document.getElementById("v2-star-install-modal");
   const titleEl = document.getElementById("v2-star-modal-title");
   const targetNameEl = document.getElementById("v2-star-target-name");
@@ -9686,11 +9723,11 @@ async function handleStarInstallAndNotify() {
   } catch (e) {}
 
   // 4. Add favorite only when both conditions are verified!
-  addFavorite(target.targetUid, target.targetNick);
+  addFavorite(target.targetUid, target.targetNick, target.targetDeviceHash);
 }
 window.handleStarInstallAndNotify = handleStarInstallAndNotify;
 
-function addFavorite(targetUid, targetNick) {
+function addFavorite(targetUid, targetNick, targetDeviceHash = null) {
   if (!targetUid) return;
   const myUid = getOrCreateAnonUserId();
   if (myUid && targetUid === myUid) {
@@ -9706,7 +9743,7 @@ function addFavorite(targetUid, targetNick) {
   saveFavoritesToStorage();
 
   if (socket && socket.connected) {
-    socket.emit("favorite_user", { targetUid, targetNick, anonUserId: myUid });
+    socket.emit("favorite_user", { targetUid, targetNick, targetDeviceHash, anonUserId: myUid });
   }
 
   if (typeof trackV2Event === "function") {

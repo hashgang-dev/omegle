@@ -1621,11 +1621,12 @@
                     <th>Fan Anon UID</th>
                     <th>Target Nickname</th>
                     <th>Target Anon UID</th>
+                    <th>Hardware Device Anchor</th>
                     <th>Favorited At (IST)</th>
                   </tr>
                 </thead>
                 <tbody id="pairingsTableBody">
-                  <tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 12px;">Loading pairings...</td></tr>
+                  <tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 12px;">Loading pairings...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -3192,6 +3193,9 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
                 <td><span class="code-pill" style="font-size: 0.72rem; cursor: pointer;" onclick="inspectSuspectForensics('${escapeHtml(p.fanUid)}')">${escapeHtml(p.fanUid)}</span></td>
                 <td><span style="font-weight: 600; color: #f066ff;">${escapeHtml(p.targetNick || 'Peer')}</span></td>
                 <td><span class="code-pill" style="font-size: 0.72rem; cursor: pointer;" onclick="inspectSuspectForensics('${escapeHtml(p.targetUid)}')">${escapeHtml(p.targetUid)}</span></td>
+                <td>
+                  ${p.targetDeviceHash ? `<code class="code-pill" style="color: #c084fc; font-size: 0.7rem;"><i class="fa-solid fa-anchor"></i> ${escapeHtml(p.targetDeviceHash)}</code>` : '<span style="color: var(--text-dim); font-size: 0.72rem;">Pending Reconnect</span>'}
+                </td>
                 <td style="font-size: 0.76rem; color: var(--text-dim);">${p.createdAt ? new Date(p.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : '-'}</td>
               </tr>
             `).join("");
