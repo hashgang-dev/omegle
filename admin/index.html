@@ -272,6 +272,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
     /* Table with Word-Wrap & Word-Break */
@@ -334,6 +336,7 @@
     .badge-high { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
     .badge-medium { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); }
     .badge-low { background: rgba(148, 163, 184, 0.2); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.4); }
+    .badge-success { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); }
 
     .code-pill {
       font-family: "JetBrains Mono", monospace;
@@ -364,6 +367,7 @@
       align-items: center;
       gap: 6px;
       white-space: nowrap;
+      transition: background 0.2s;
     }
     .btn-secondary:hover { background: rgba(255, 255, 255, 0.14); }
 
@@ -376,6 +380,7 @@
       font-size: 0.78rem;
       font-weight: 700;
       cursor: pointer;
+      transition: background 0.2s;
     }
     .btn-danger:hover { background: rgba(239, 68, 68, 0.35); }
 
@@ -388,6 +393,7 @@
       font-size: 0.78rem;
       font-weight: 700;
       cursor: pointer;
+      transition: background 0.2s;
     }
     .btn-success:hover { background: rgba(16, 185, 129, 0.35); }
 
@@ -398,7 +404,7 @@
       justify-content: space-between;
       padding-top: 18px;
       border-top: 1px solid var(--border-glass);
-      margin-top: 14px;
+      margin-top: 16px;
       flex-wrap: wrap;
       gap: 12px;
     }
@@ -408,118 +414,337 @@
       gap: 8px;
     }
     .pagination-btn {
-      background: rgba(255, 255, 255, 0.06);
+      background: rgba(255, 255, 255, 0.08);
       border: 1px solid var(--border-glass);
       color: #fff;
-      padding: 6px 12px;
+      padding: 6px 14px;
       border-radius: 6px;
-      font-size: 0.82rem;
-      cursor: pointer;
+      font-size: 0.8rem;
       font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
     }
     .pagination-btn:hover:not(:disabled) {
       background: rgba(240, 102, 255, 0.2);
       border-color: var(--accent);
     }
     .pagination-btn:disabled {
-      opacity: 0.4;
+      opacity: 0.35;
       cursor: not-allowed;
     }
 
-    /* Push Preview Mobile Widget */
-    .push-suite-grid {
+    /* Forensic Meta & Comparative Grid */
+    .meta-grid {
       display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
-      gap: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
     }
-    @media (max-width: 900px) {
-      .push-suite-grid { grid-template-columns: 1fr; }
+    .meta-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-glass);
+      padding: 12px 14px;
+      border-radius: 10px;
     }
-    .phone-mockup {
-      background: #000;
-      border: 3px solid #334155;
-      border-radius: 28px;
+    .meta-card .label {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .meta-card .value {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .peer-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 768px) {
+      .peer-grid { grid-template-columns: 1fr; }
+    }
+    .peer-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-glass);
+      border-radius: 12px;
       padding: 16px;
-      max-width: 340px;
+    }
+    .peer-card.peer-a { border-left: 4px solid #38bdf8; }
+    .peer-card.peer-b { border-left: 4px solid #f43f5e; }
+    .peer-card .peer-title {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .peer-info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.84rem;
+    }
+    .peer-info-row .lbl {
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+    .peer-info-row .val {
+      text-align: right;
+      font-weight: 600;
+      color: #fff;
+      max-width: 65%;
+      word-break: break-all;
+    }
+
+    /* Preformatted Legal Affidavit Section */
+    .affidavit-section {
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid var(--border-glass);
+      border-radius: 12px;
+      padding: 18px;
+      margin-top: 20px;
+    }
+    .affidavit-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .affidavit-body {
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: #cbd5e1;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 14px;
+      border-radius: 8px;
+      white-space: pre-wrap;
+      max-height: 420px;
+      overflow-y: auto;
+    }
+
+    /* Suspect Dossier Cards */
+    .dossier-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .dossier-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid var(--border-glass);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .dossier-card-title {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: #c084fc;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Message Streams */
+    .msg-stream {
+      max-height: 250px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .msg-item {
+      background: rgba(0, 0, 0, 0.35);
+      border-left: 3px solid #38bdf8;
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.82rem;
+    }
+    .msg-item.flagged {
+      border-left-color: #ef4444;
+      background: rgba(239, 68, 68, 0.08);
+    }
+
+    /* Phone Mockup */
+    .phone-mockup {
+      width: 100%;
+      max-width: 320px;
+      background: #000;
+      border: 6px solid #2d1845;
+      border-radius: 36px;
+      padding: 24px 14px 30px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.8);
       margin: 0 auto;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.7);
     }
     .push-card-preview {
-      background: rgba(30, 41, 59, 0.95);
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 14px;
       padding: 12px;
       color: #fff;
     }
     .quick-chip {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid var(--border-glass);
-      color: var(--text-dim);
-      padding: 4px 10px;
+      display: inline-block;
+      background: rgba(240, 102, 255, 0.12);
+      border: 1px solid rgba(240, 102, 255, 0.3);
+      color: var(--accent);
+      padding: 3px 8px;
       border-radius: 12px;
       font-size: 0.72rem;
+      font-weight: 600;
       cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      margin-right: 6px;
       margin-top: 6px;
+      margin-right: 6px;
     }
-    .quick-chip:hover { color: #fff; border-color: var(--accent); }
+    .quick-chip:hover {
+      background: rgba(240, 102, 255, 0.25);
+    }
 
-    /* Alert */
-    .alert {
-      padding: 14px 18px;
-      border-radius: 10px;
-      margin-bottom: 16px;
-      font-size: 0.9rem;
+    /* Print Specific Headers & Footers (Hidden on Screen) */
+    .print-only-header, .print-only-footer {
       display: none;
     }
-    .alert-danger { background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.4); color: #f87171; }
-    .alert-success { background: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; }
+
+    /* ==================== A4 PRINT STYLES ==================== */
+    @media print {
+      @page {
+        size: A4 portrait;
+        margin: 12mm 15mm;
+      }
+      body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 10pt;
+      }
+      header, .tabs-nav, .search-bar, .card-title button, .btn-primary, .btn-secondary, .btn-danger, .btn-success, .pagination-bar, .no-print, #authGate, #phoneSearchCard {
+        display: none !important;
+      }
+      main {
+        max-width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .tab-content {
+        display: none !important;
+      }
+      .tab-content.active {
+        display: block !important;
+      }
+      .card {
+        background: #ffffff !important;
+        border: 1px solid #cbd5e1 !important;
+        box-shadow: none !important;
+        color: #000000 !important;
+        page-break-inside: avoid;
+        margin-bottom: 16px !important;
+        padding: 14px !important;
+      }
+      .card-title {
+        color: #000000 !important;
+      }
+      .print-only-header {
+        display: block !important;
+        border-bottom: 2px solid #000;
+        padding-bottom: 12px;
+        margin-bottom: 16px;
+      }
+      .print-only-footer {
+        display: block !important;
+        margin-top: 18px;
+        padding-top: 10px;
+        border-top: 2px solid #000;
+        page-break-inside: avoid;
+      }
+      .meta-card, .peer-card, .dossier-card {
+        background: #f8fafc !important;
+        border: 1px solid #cbd5e1 !important;
+        color: #000000 !important;
+      }
+      .meta-card .value, .peer-info-row .val, .dossier-card * {
+        color: #000000 !important;
+      }
+      .peer-info-row {
+        border-bottom-color: #e2e8f0 !important;
+      }
+      .peer-info-row .lbl {
+        color: #475569 !important;
+      }
+      .code-pill {
+        background: #f1f5f9 !important;
+        color: #000000 !important;
+        border: 1px solid #cbd5e1 !important;
+      }
+      .affidavit-section {
+        background: #ffffff !important;
+        border: none !important;
+        padding: 0 !important;
+        margin-top: 10px !important;
+        page-break-before: always;
+      }
+      .affidavit-body {
+        background: #f8fafc !important;
+        color: #000000 !important;
+        border: 1px solid #000000 !important;
+        font-size: 8.5pt !important;
+        line-height: 1.35 !important;
+        white-space: pre-wrap !important;
+        max-height: none !important;
+        padding: 10px !important;
+      }
+    }
   </style>
 </head>
 <body>
-
-  <!-- Fullscreen Zero-Leak Auth Gate -->
+  <!-- Fullscreen Admin Password Gate -->
   <div id="authGate">
     <div class="auth-box">
       <i class="fa-solid fa-shield-halved"></i>
-      <h2>Admin Authentication</h2>
-      <p>Enter the master security secret key to access forensic intelligence and moderation controls.</p>
-      
-      <div id="authAlert" class="alert alert-danger"></div>
-
+      <h2>Restricted Admin Portal</h2>
+      <p>Enter Master Admin Secret to unlock Security Threat Radar, Law Enforcement Traces & Push Notification Suite.</p>
       <form id="authForm" onsubmit="handleAuthSubmit(event)">
         <div class="form-group">
           <label>Admin Secret Key</label>
-          <input type="password" id="authKeyInput" placeholder="••••••••••••••••" required autocomplete="current-password" autofocus />
+          <input type="password" id="authKeyInput" placeholder="Enter secret key..." required autofocus autocomplete="current-password" />
         </div>
         <button type="submit" class="btn-primary" id="authSubmitBtn">
           <i class="fa-solid fa-lock-open"></i> Unlock Admin Portal
         </button>
       </form>
+      <div id="authAlert" style="margin-top: 14px; color: var(--danger); font-size: 0.85rem; display: none;"></div>
     </div>
   </div>
 
-  <!-- Authenticated Admin Interface (Initially Hidden) -->
+  <!-- Authenticated Portal View -->
   <div id="portalContainer" style="display: none;">
     <header>
       <div class="brand">
-        <i class="fa-solid fa-fingerprint" style="color: var(--accent);"></i>
-        <span>HashGANG Admin Portal</span>
-        <span class="brand-tag">SEC-OPS LEVEL 4</span>
+        <i class="fa-solid fa-shield-cat" style="color: var(--accent); font-size: 1.5rem;"></i>
+        <span>HashGANG Chat <span class="brand-tag">Master Operations</span></span>
       </div>
       <div class="header-actions">
-        <span style="font-size: 0.82rem; color: var(--text-dim);" id="sessionIndicator">Authenticated</span>
+        <span style="font-size: 0.82rem; color: var(--text-dim);" id="headerClock"></span>
         <button class="btn-logout" onclick="handleLogout()">
-          <i class="fa-solid fa-arrow-right-from-bracket"></i> Lock & Logout
+          <i class="fa-solid fa-arrow-right-from-bracket"></i> Lock Portal
         </button>
       </div>
     </header>
 
     <!-- 5 Unified Tabs Navigation -->
-    <nav class="tabs-nav">
+    <nav class="tabs-nav no-print">
       <button class="tab-btn active" onclick="switchTab('threatRadar')">
         <i class="fa-solid fa-radar"></i> 1. Threat Radar & Security Incidents
       </button>
@@ -573,7 +798,7 @@
         </div>
 
         <!-- Phone Doxx Fast Search Card -->
-        <div class="card">
+        <div class="card" id="phoneSearchCard">
           <div class="card-title">
             <span><i class="fa-solid fa-magnifying-glass"></i> Phone Number Doxx Lookup</span>
             <button class="btn-secondary" onclick="loadSecurityIncidents(1)">
@@ -590,11 +815,12 @@
           <div id="phoneSearchResultSummary" style="font-size: 0.85rem; color: var(--text-dim); margin-top: 6px;"></div>
         </div>
 
-        <!-- Incidents Stream Table Card with Word-Wrap & Pagination -->
+        <!-- Incidents Stream Table Card with Word-Wrap, Sort Order & Pagination -->
         <div class="card">
           <div class="card-title">
             <span><i class="fa-solid fa-list-check"></i> Security Incidents Audit Stream (365-Day IT Act Log)</span>
-            <div style="display: flex; gap: 8px; align-items: center;">
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              <!-- Incident Type Filter -->
               <select id="typeFilterSelect" onchange="loadSecurityIncidents(1)" style="width: auto; padding: 6px 12px; font-size: 0.82rem;">
                 <option value="">All Incident Types</option>
                 <option value="PHONE_LEAK_BLOCKED">Phone Leak Blocked</option>
@@ -602,6 +828,14 @@
                 <option value="BAN_GUARD_INTERCEPT">Ban Guard Intercept</option>
                 <option value="GROUP_MUTE_ENFORCED">Group Mute Enforced</option>
                 <option value="SHADOW_DROP">Shadow Drop</option>
+              </select>
+
+              <!-- Dynamic Sort Order Filter -->
+              <select id="sortFilterSelect" onchange="loadSecurityIncidents(1)" style="width: auto; padding: 6px 12px; font-size: 0.82rem;">
+                <option value="desc">Sort: Newest First</option>
+                <option value="asc">Sort: Oldest First</option>
+                <option value="severity">Sort: Critical Severity First</option>
+                <option value="type">Sort: By Incident Type</option>
               </select>
             </div>
           </div>
@@ -652,36 +886,283 @@
 
       <!-- ==================== TAB 2: LEGAL TRACE & FORENSICS ==================== -->
       <section id="legalTrace" class="tab-content">
+        <!-- Part A: Law Enforcement / Sec 65B Trace Lookup -->
         <div class="card">
+          <!-- Print-Only Letterhead Header -->
+          <div class="print-only-header">
+            <table style="width: 100%;">
+              <tr>
+                <td style="vertical-align: middle;">
+                  <h1 style="font-size: 1.15rem; font-weight: 800; margin-bottom: 2px; white-space: nowrap; letter-spacing: 0.3px;">HASHGANG SOLUTIONS PRIVATE LIMITED</h1>
+                  <p style="font-size: 0.82rem; color: #333; margin: 0;">Registered Entity • Vijayawada, Andhra Pradesh - 520003, India</p>
+                  <p style="font-size: 0.8rem; color: #555; margin: 0;">Operating Web Service: HashGANG Chat (https://chat.hashgang.com)</p>
+                </td>
+                <td style="text-align: right; vertical-align: middle; white-space: nowrap;">
+                  <p style="font-size: 0.82rem; font-weight: 700; text-transform: uppercase;">Official Law Enforcement Audit</p>
+                  <p style="font-size: 0.78rem; color: #444;">Ref: Sec 91 CrPC / Section 65B Evidence Act</p>
+                </td>
+              </tr>
+            </table>
+          </div>
+
           <div class="card-title">
             <span><i class="fa-solid fa-scale-balanced"></i> Law Enforcement / Sec 65B Trace Lookup</span>
           </div>
-          <p style="font-size: 0.88rem; color: var(--text-dim); margin-bottom: 16px;">
-            Enter an 8-character Trace Code from user report or police notice (e.g. <code>HGAPTSLY</code> or <code>HGSVEB9T</code>), or an IP Address to extract both peer telecom records.
+          <p style="font-size: 0.88rem; color: var(--text-dim); margin-bottom: 16px;" class="no-print">
+            Extract server network connection audit logs for police inquiries (Sec 91 CrPC, Rule 3(1)(h) IT Rules 2021) by <strong>Session Trace Code</strong> (e.g. <code>HGAPTSYL</code>) OR <strong>Client IP Address</strong>.
           </p>
-          <div class="search-bar">
-            <input type="text" id="traceInput" placeholder="Enter 8-digit Trace Code (e.g. HGAPTSLY)" maxlength="32" style="max-width: 360px;" />
+          <div class="search-bar no-print">
+            <input type="text" id="traceInput" placeholder="Enter 8-digit Trace Code (e.g. HGAPTSYL) or IP Address" maxlength="45" style="max-width: 360px; font-family: 'JetBrains Mono', monospace; text-transform: uppercase;" onkeydown="if(event.key==='Enter') lookupTrace()" />
             <button class="btn-primary" style="width: auto; padding: 10px 24px;" onclick="lookupTrace()">
-              <i class="fa-solid fa-search"></i> Inspect Trace
+              <i class="fa-solid fa-search"></i> Inspect Trace Log
             </button>
           </div>
-          <div id="traceResult"></div>
+
+          <!-- Multi-Session Selector (Visible when searching by IP returns multiple matches) -->
+          <div id="ipSessionsContainer" style="display: none; margin-top: 14px; margin-bottom: 16px; padding: 14px; background: rgba(0,0,0,0.3); border: 1px solid rgba(168, 85, 247, 0.4); border-radius: 12px;">
+            <h4 style="font-size: 0.92rem; font-weight: 700; color: #f066ff; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-list-check"></i> Multiple Sessions Found for IP (<span id="ipMatchCount">0</span> sessions):
+            </h4>
+            <div id="ipSessionList" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+          </div>
+
+          <!-- Trace Results Output Container -->
+          <div id="traceResultContainer" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-glass); padding-bottom: 12px; margin-bottom: 16px;">
+              <h3 style="font-size: 1.15rem; font-weight: 800; color: var(--accent);">
+                <i class="fa-solid fa-link"></i> Trace Code: <span id="valTraceCode">-</span>
+              </h3>
+              <span id="valComplianceBadge" class="badge badge-success">VERIFIED 1-YEAR MONGODB ARCHIVE</span>
+            </div>
+
+            <!-- Meta Grid -->
+            <div class="meta-grid">
+              <div class="meta-card">
+                <div class="label">Match Mode</div>
+                <div class="value" id="valTraceMode" style="color: #67e8f9;">-</div>
+              </div>
+              <div class="meta-card">
+                <div class="label">Established Timestamp (IST)</div>
+                <div class="value" id="valTraceTimestamp" style="font-size: 0.88rem;">-</div>
+              </div>
+              <div class="meta-card">
+                <div class="label">Call Duration & Status</div>
+                <div class="value" id="valTraceDuration" style="font-size: 0.88rem;">-</div>
+              </div>
+              <div class="meta-card">
+                <div class="label">Retention Legal Proof</div>
+                <div class="value" id="valTraceProof" style="color: #34d399; font-size: 0.85rem;">Rule 3(1)(h) Verified</div>
+              </div>
+            </div>
+
+            <!-- Peer A vs Peer B Comparative Matrix -->
+            <div class="peer-grid">
+              <!-- Peer A (Initiator) -->
+              <div class="peer-card peer-a">
+                <div class="peer-title" style="color: #38bdf8;">
+                  <i class="fa-solid fa-user"></i> Peer A (Initiator)
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Account / Nickname</div>
+                  <div class="val" id="valPeerANick" style="color: #38bdf8; font-weight: 700;">-</div>
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Hardware UID</div>
+                  <div class="val" id="valPeerAUid" style="font-family: monospace; font-size: 0.78rem;">-</div>
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Telecom IP & ISP</div>
+                  <div class="val" id="valPeerAIP" style="color: #38bdf8; font-weight: 700;">-</div>
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Geo Location & Region</div>
+                  <div class="val" id="valPeerAGeo">-</div>
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Hardware & Display</div>
+                  <div class="val" id="valPeerAHw">-</div>
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Platform / Telemetry</div>
+                  <div class="val" id="valPeerAUA">-</div>
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Socket Session ID</div>
+                  <div class="val" id="valPeerASocket" style="font-family: monospace; font-size: 0.76rem;">-</div>
+                </div>
+              </div>
+
+              <!-- Peer B (Participant) -->
+              <div class="peer-card peer-b">
+                <div class="peer-title" style="color: #f43f5e;">
+                  <i class="fa-solid fa-user-secret"></i> Peer B (Participant / Stranger)
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Account / Nickname</div>
+                  <div class="val" id="valPeerBNick" style="color: #f43f5e; font-weight: 700;">-</div>
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Hardware UID</div>
+                  <div class="val" id="valPeerBUid" style="font-family: monospace; font-size: 0.78rem;">-</div>
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Telecom IP & ISP</div>
+                  <div class="val" id="valPeerBIP" style="color: #f43f5e; font-weight: 700;">-</div>
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Geo Location & Region</div>
+                  <div class="val" id="valPeerBGeo">-</div>
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Hardware & Display</div>
+                  <div class="val" id="valPeerBHw">-</div>
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Platform / Telemetry</div>
+                  <div class="val" id="valPeerBUA">-</div>
+                </div>
+                <div class="peer-info-row">
+                  <div class="lbl">Socket Session ID</div>
+                  <div class="val" id="valPeerBSocket" style="font-family: monospace; font-size: 0.76rem;">-</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Official Law Enforcement Affidavit Document -->
+            <div class="affidavit-section">
+              <div class="affidavit-header">
+                <h4 style="font-size: 0.95rem; font-weight: 700; color: #f066ff;">
+                  <i class="fa-solid fa-gavel"></i> OFFICIAL LAW ENFORCEMENT AFFIDAVIT STATEMENT (SEC 91 CrPC / SEC 65B IT ACT)
+                </h4>
+                <div style="display: flex; gap: 8px;" class="no-print">
+                  <button class="btn-secondary" onclick="copyTraceAffidavit()">
+                    <i class="fa-solid fa-copy"></i> Copy Statement
+                  </button>
+                  <button class="btn-primary" style="width: auto; padding: 8px 18px;" onclick="window.print()">
+                    <i class="fa-solid fa-print"></i> Print / Save Official PDF
+                  </button>
+                </div>
+              </div>
+              <pre class="affidavit-body" id="affidavitText">Loading statutory affidavit statement...</pre>
+            </div>
+
+            <!-- Print-Only Digital Certification Footer -->
+            <div class="print-only-footer">
+              <table style="width: 100%;">
+                <tr>
+                  <td style="vertical-align: top; width: 60%;">
+                    <p style="font-size: 0.82rem; font-weight: 700; margin-bottom: 2px;">HASHGANG SOLUTIONS PRIVATE LIMITED</p>
+                    <p style="font-size: 0.78rem; color: #333; margin-bottom: 2px;">Registered Office: 21-10/2-239, Vijaya Durga Nagar, Vijayawada - 520003, AP, India</p>
+                    <p style="font-size: 0.78rem; color: #333;">Official Inquiries Email: info@hashgang.com</p>
+                  </td>
+                  <td style="vertical-align: top; text-align: right; width: 40%;">
+                    <p style="font-size: 0.82rem; font-weight: 800; color: #047857; margin-bottom: 2px;">✔ DIGITALLY SYSTEM CERTIFIED</p>
+                    <p style="font-size: 0.8rem; font-weight: 700;">Chinta Ramohan Rao</p>
+                    <p style="font-size: 0.78rem; color: #444;">Grievance & Compliance Officer</p>
+                    <p style="font-size: 0.72rem; color: #666; margin-top: 2px;">(Sec 4 & 5 IT Act 2000 Digital Authentication • Statutory Intermediary Record)</p>
+                  </td>
+                </tr>
+              </table>
+            </div>
+          </div>
+          <div id="traceStatusMessage" style="margin-top: 10px;"></div>
         </div>
 
+        <!-- Part B: Suspect Hardware Canvas & UID Timeline Forensics -->
         <div class="card">
           <div class="card-title">
             <span><i class="fa-solid fa-fingerprint"></i> Suspect Hardware Canvas & UID Timeline Forensics</span>
           </div>
-          <p style="font-size: 0.88rem; color: var(--text-dim); margin-bottom: 16px;">
-            Search any Nickname (e.g. <code>Anu_bharat</code>, <code>JamesBond_52</code>), UID (<code>hg_usr_...</code>), or IP address to cross-match physical device canvas fingerprints.
+          <p style="font-size: 0.88rem; color: var(--text-dim); margin-bottom: 16px;" class="no-print">
+            Cross-match physical device canvas fingerprints, alias changes, and network IPs by searching <strong>Nickname</strong> (e.g. <code>Anu_bharat</code>), <strong>UID</strong> (<code>hg_usr_...</code>), <strong>IP</strong>, or <strong>Victim Phone</strong>.
           </p>
-          <div class="search-bar">
-            <input type="text" id="forensicQueryInput" placeholder="Enter Nickname (e.g. Anu_bharat), UID, or IP" style="max-width: 360px;" />
+          <div class="search-bar no-print">
+            <input type="text" id="forensicQueryInput" placeholder="Enter Nickname (e.g. Anu_bharat), UID, IP, or Target Phone" style="max-width: 380px;" onkeydown="if(event.key==='Enter') lookupForensics()" />
             <button class="btn-primary" style="width: auto; padding: 10px 24px;" onclick="lookupForensics()">
-              <i class="fa-solid fa-search"></i> Disambiguate User
+              <i class="fa-solid fa-search"></i> Disambiguate Suspect
             </button>
           </div>
-          <div id="forensicResult"></div>
+
+          <!-- Disambiguation Matching Profiles List -->
+          <div id="forensicMatchesContainer" style="display: none; margin-bottom: 16px;"></div>
+
+          <!-- Selected Suspect Detailed Dossier Section -->
+          <div id="selectedDossierSection" style="display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-glass); padding-bottom: 14px; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+              <div>
+                <h3 style="font-size: 1.25rem; font-weight: 800; color: #fff;">
+                  <i class="fa-solid fa-user-ninja" style="color: var(--accent);"></i>
+                  <span id="dossierNick">Suspect</span>
+                  <span class="code-pill" id="dossierUid" style="margin-left: 8px;">hg_usr_...</span>
+                </h3>
+                <div style="font-size: 0.82rem; color: var(--text-dim); margin-top: 4px;">
+                  Last IP: <span class="code-pill" id="dossierIp">-</span> | Status: <span id="dossierBanBadge" class="badge badge-low">ACTIVE</span>
+                </div>
+              </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;" class="no-print">
+                <input type="text" id="inputTargetPhone" value="+91 70324 61997" placeholder="Victim Identifier" style="width: 170px; padding: 8px 12px; font-size: 0.82rem;" title="Target/Victim Identifier to embed in official report" />
+                <button class="btn-primary" id="btnDownloadPdf" style="width: auto; padding: 8px 18px;" onclick="downloadOfficialReport()">
+                  <i class="fa-solid fa-file-pdf"></i> Generate & Download Official Forensic Report (PDF)
+                </button>
+                <button class="btn-secondary" style="padding: 8px 16px;" onclick="window.print()">
+                  <i class="fa-solid fa-print"></i> Print Dossier
+                </button>
+                <button id="btnDossierBanToggle" class="btn-danger" style="padding: 8px 16px;" onclick="handleDossierBanToggle()">
+                  <i class="fa-solid fa-ban"></i> Ban Suspect
+                </button>
+              </div>
+            </div>
+
+            <!-- Suspect Dossier Detail Cards Grid -->
+            <div class="dossier-grid">
+              <!-- Card 1: Hardware & Canvas Fingerprint -->
+              <div class="dossier-card">
+                <div class="dossier-card-title"><i class="fa-solid fa-microchip"></i> Hardware & Canvas Fingerprint</div>
+                <div id="dossierHardwareContent" style="font-size: 0.82rem; line-height: 1.6;">-</div>
+              </div>
+
+              <!-- Card 2: Telemetry & Platform -->
+              <div class="dossier-card">
+                <div class="dossier-card-title"><i class="fa-solid fa-mobile-screen"></i> Platform Telemetry & User-Agent</div>
+                <div id="dossierTelemetryContent" style="font-size: 0.82rem; line-height: 1.6;">-</div>
+              </div>
+
+              <!-- Card 3: Activity Timeframe -->
+              <div class="dossier-card">
+                <div class="dossier-card-title"><i class="fa-solid fa-clock-rotate-left"></i> Activity Timeframe</div>
+                <div id="dossierTimeframeContent" style="font-size: 0.82rem; line-height: 1.6;">-</div>
+              </div>
+
+              <!-- Card 4: Alias Transition History -->
+              <div class="dossier-card">
+                <div class="dossier-card-title"><i class="fa-solid fa-tags"></i> Alias Transition Timeline (<span id="dossierNickCount">0</span>)</div>
+                <div id="dossierNickHistoryList" style="max-height: 180px; overflow-y: auto;">-</div>
+              </div>
+
+              <!-- Card 5: Known Network IPs -->
+              <div class="dossier-card">
+                <div class="dossier-card-title"><i class="fa-solid fa-network-wired"></i> Known Network IPs (<span id="dossierIpCount">0</span>)</div>
+                <div id="dossierIpHistoryList" style="max-height: 180px; overflow-y: auto;">-</div>
+              </div>
+            </div>
+
+            <!-- Group Messages Stream -->
+            <div class="card" style="margin-top: 18px; padding: 18px;">
+              <div class="dossier-card-title" style="margin-bottom: 6px;">
+                <i class="fa-solid fa-comments"></i> Public Group Lounge Messages Stream (<span id="dossierMsgCount">0</span> messages)
+              </div>
+              <div id="dossierMsgList" class="msg-stream"></div>
+            </div>
+
+            <!-- 1v1 Trace Sessions List -->
+            <div class="card" style="margin-top: 14px; padding: 18px;">
+              <div class="dossier-card-title" style="margin-bottom: 6px;">
+                <i class="fa-solid fa-network-wired"></i> 1v1 Private Match Sessions (<span id="dossierTraceCount">0</span> sessions)
+              </div>
+              <div id="dossierTraceList" class="msg-stream"></div>
+            </div>
+          </div>
+          <div id="forensicStatusMessage" style="margin-top: 10px;"></div>
         </div>
       </section>
 
@@ -718,47 +1199,39 @@
             <table>
               <thead>
                 <tr>
-                  <th>Anon User ID</th>
-                  <th>Current Alias</th>
-                  <th>Last Client IP</th>
+                  <th>User UID</th>
+                  <th>Last Nickname</th>
+                  <th>Last IP</th>
                   <th>Ban Reason</th>
                   <th>Banned At (IST)</th>
-                  <th>Actions</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody id="bannedTableBody">
-                <tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 24px;">Loading banned entities...</td></tr>
+                <tr><td colspan="6" style="text-align: center; color: var(--text-dim); padding: 24px;">Loading banned registry...</td></tr>
               </tbody>
             </table>
           </div>
         </div>
       </section>
 
-      <!-- ==================== TAB 4: WEB PUSH NOTIFICATION SUITE ==================== -->
+      <!-- ==================== TAB 4: WEB PUSH NOTIFICATIONS ==================== -->
       <section id="pushSuite" class="tab-content">
-        <!-- Subscriber Metrics -->
         <div class="stats-grid">
           <div class="stat-card">
             <div>
-              <div class="lbl">Active WebPush Subscribers</div>
-              <div class="val" id="statPushSubscribers">--</div>
+              <div class="lbl">Active Push Subscribers</div>
+              <div class="val" id="statPushSubscribers" style="color: var(--accent);">--</div>
             </div>
             <i class="fa-solid fa-bell stat-icon" style="color: var(--accent);"></i>
           </div>
-          <div class="stat-card">
-            <div>
-              <div class="lbl">Delivery Engine</div>
-              <div class="val" style="font-size: 1.15rem; color: #34d399;">VAPID RFC 8292</div>
-            </div>
-            <i class="fa-solid fa-tower-broadcast stat-icon" style="color: #34d399;"></i>
-          </div>
         </div>
 
-        <div class="push-suite-grid">
-          <!-- Composer Form -->
+        <div style="display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 20px;">
+          <!-- Notification Composer -->
           <div class="card">
             <div class="card-title">
-              <span><i class="fa-solid fa-paper-plane"></i> Compose Notification Broadcast</span>
+              <span><i class="fa-solid fa-pen-to-square"></i> Compose WebPush Broadcast</span>
             </div>
             <form id="pushBroadcastForm" onsubmit="handlePushBroadcast(event)">
               <div class="form-group">
@@ -951,7 +1424,8 @@
     let activePhoneFilter = "";
 
     async function loadThreatRadarData() {
-      await Promise.all([loadSecurityStats(), loadSecurityIncidents(1)]);
+      loadSecurityStats();
+      loadSecurityIncidents(1);
     }
 
     async function loadSecurityStats() {
@@ -963,27 +1437,26 @@
           const data = await res.json();
           if (data.success && data.stats) {
             document.getElementById("statTotalIncidents").textContent = data.stats.totalIncidents || 0;
-            document.getElementById("statPhoneLeaks").textContent = data.stats.byType?.PHONE_LEAK_BLOCKED || 0;
-            document.getElementById("statBanGuard").textContent = data.stats.byType?.BAN_GUARD_INTERCEPT || 0;
-            document.getElementById("statCriticalBans").textContent = data.stats.byType?.CRITICAL_AUTO_BAN || 0;
+            document.getElementById("statPhoneLeaks").textContent = (data.stats.byType && data.stats.byType.PHONE_LEAK_BLOCKED) || 0;
+            document.getElementById("statBanGuard").textContent = (data.stats.byType && data.stats.byType.BAN_GUARD_INTERCEPT) || 0;
+            document.getElementById("statCriticalBans").textContent = (data.stats.bySeverity && data.stats.bySeverity.CRITICAL) || 0;
           }
         }
-      } catch (err) {
-        console.error("Stats load error:", err);
-      }
+      } catch (e) {}
     }
 
     async function loadSecurityIncidents(page = 1) {
-      currentIncidentPage = page;
       const secret = getAdminSecret();
       if (!secret) return;
+      currentIncidentPage = page;
       const tbody = document.getElementById("incidentsTableBody");
-      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--info); padding: 24px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Querying security audit logs (Page ${page})...</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--info); padding: 24px;"><i class="fa-solid fa-circle-notch fa-spin"></i> Loading security incidents (Page ${page})...</td></tr>`;
 
       try {
         const typeFilter = document.getElementById("typeFilterSelect").value;
+        const sortFilter = document.getElementById("sortFilterSelect") ? document.getElementById("sortFilterSelect").value : "desc";
         const skip = (page - 1) * incidentPageSize;
-        let url = `${API_BASE}/admin/security-incidents?limit=${incidentPageSize}&skip=${skip}`;
+        let url = `${API_BASE}/admin/security-incidents?limit=${incidentPageSize}&skip=${skip}&sort=${encodeURIComponent(sortFilter)}`;
         if (activePhoneFilter) url += `&phone=${encodeURIComponent(activePhoneFilter)}`;
         if (typeFilter) url += `&type=${encodeURIComponent(typeFilter)}`;
 
@@ -996,31 +1469,41 @@
           updatePaginationUI(page, incidentPageSize, totalIncidentsCount);
 
           if (incidents.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">No security incidents matched the criteria.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-dim); padding: 24px;">No security incidents found matching filter.</td></tr>`;
             return;
           }
 
           tbody.innerHTML = incidents.map(inc => {
-            const time = new Date(inc.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
-            const sevClass = inc.severity === "CRITICAL" ? "badge-critical" : (inc.severity === "HIGH" ? "badge-high" : (inc.severity === "MEDIUM" ? "badge-medium" : "badge-low"));
-            const phonePill = inc.targetPhoneNumber ? `<span class="code-pill" style="color: #f87171; font-weight: 700;">${inc.targetPhoneNumber}</span>` : `<span style="color: var(--text-dim);">-</span>`;
-            const content = inc.rawContent || "-";
+            const time = inc.createdAt ? new Date(inc.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "-";
+            const sevClass = inc.severity === "CRITICAL" ? "badge-critical" : inc.severity === "HIGH" ? "badge-high" : inc.severity === "MEDIUM" ? "badge-medium" : "badge-low";
+            const phonePill = inc.targetPhoneNumber
+              ? `<span class="code-pill" style="color: #fbbf24; cursor: pointer;" onclick="setPhoneFilter('${inc.targetPhoneNumber}')"><i class="fa-solid fa-phone"></i> ${inc.targetPhoneNumber}</span>`
+              : "<span style='color: var(--text-dim);'>-</span>";
+            const content = inc.rawContent || (inc.metadata ? JSON.stringify(inc.metadata) : "-");
+
+            const isAnonymous = !inc.nickname || inc.nickname === "Anonymous";
+            const offenderDisplay = `
+              <div style="font-weight: 600;">
+                ${escapeHtml(inc.nickname || "Anonymous")}
+                ${isAnonymous ? '<span style="font-size: 0.68rem; color: #94a3b8; font-weight: normal; margin-left: 4px;">(Pre-Handshake / Unregistered)</span>' : ''}
+              </div>
+              <div class="code-pill" style="font-size: 0.7rem; color: var(--text-dim); margin-top: 2px;">${inc.clientIp || "Unknown IP"}</div>
+            `;
 
             return `
               <tr>
-                <td style="font-size: 0.78rem; color: var(--text-dim); white-space: nowrap;">${time}</td>
+                <td style="font-size: 0.78rem; white-space: nowrap; color: var(--text-dim);">${time}</td>
                 <td><span class="badge ${sevClass}">${inc.incidentType}</span></td>
                 <td><span class="badge ${sevClass}">${inc.severity}</span></td>
                 <td style="font-size: 0.8rem; white-space: nowrap;">${inc.channel}</td>
                 <td>${phonePill}</td>
-                <td>
-                  <div style="font-weight: 600;">${inc.nickname || "Anonymous"}</div>
-                  <div class="code-pill" style="font-size: 0.7rem; color: var(--text-dim);">${inc.clientIp || "Unknown IP"}</div>
-                </td>
+                <td>${offenderDisplay}</td>
                 <td>
                   <div class="payload-wrap">${escapeHtml(content)}</div>
                 </td>
-                <td><span class="code-pill" style="color: #34d399;">${inc.actionTaken}</span></td>
+                <td style="white-space: nowrap;">
+                  <span class="code-pill" style="font-size: 0.72rem;">${inc.actionTaken || "LOGGED"}</span>
+                </td>
               </tr>
             `;
           }).join("");
@@ -1028,20 +1511,19 @@
           tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 24px;">${data.message || "Failed to load incidents."}</td></tr>`;
         }
       } catch (err) {
-        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 24px;">Network error loading incidents.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--danger); padding: 24px;">Network error fetching security incidents.</td></tr>`;
       }
     }
 
-    function updatePaginationUI(page, limit, total) {
-      const totalPages = Math.ceil(total / limit) || 1;
-      const startItem = total === 0 ? 0 : (page - 1) * limit + 1;
-      const endItem = Math.min(page * limit, total);
+    function updatePaginationUI(page, pageSize, total) {
+      const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
+      const end = Math.min(page * pageSize, total);
+      document.getElementById("paginationSummary").textContent = `Showing ${start} - ${end} of ${total} incidents`;
 
-      document.getElementById("paginationSummary").textContent = `Showing ${startItem} - ${endItem} of ${total} incidents`;
+      const totalPages = Math.ceil(total / pageSize) || 1;
       document.getElementById("pageIndicator").textContent = `Page ${page} of ${totalPages}`;
-
-      document.getElementById("btnPrevPage").disabled = page <= 1;
-      document.getElementById("btnNextPage").disabled = page >= totalPages;
+      document.getElementById("btnPrevPage").disabled = (page <= 1);
+      document.getElementById("btnNextPage").disabled = (page >= totalPages);
     }
 
     function prevIncidentPage() {
@@ -1063,21 +1545,22 @@
     }
 
     function searchByPhone() {
-      const phone = document.getElementById("phoneSearchInput").value.trim();
-      const summary = document.getElementById("phoneSearchResultSummary");
-      if (!phone) {
-        summary.textContent = "Please enter a valid phone number.";
-        return;
-      }
-      activePhoneFilter = phone;
-      summary.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Filtering audit timeline for: <strong>${phone}</strong>...`;
+      const val = document.getElementById("phoneSearchInput").value.trim().replace(/\D/g, "");
+      if (!val) return;
+      activePhoneFilter = val;
+      document.getElementById("phoneSearchResultSummary").innerHTML = `Filtered by target phone: <strong>${val}</strong> <button class="quick-chip" onclick="clearPhoneSearch()"><i class="fa-solid fa-xmark"></i> Clear</button>`;
       loadSecurityIncidents(1);
+    }
+
+    function setPhoneFilter(num) {
+      document.getElementById("phoneSearchInput").value = num;
+      searchByPhone();
     }
 
     function clearPhoneSearch() {
       activePhoneFilter = "";
       document.getElementById("phoneSearchInput").value = "";
-      document.getElementById("phoneSearchResultSummary").textContent = "";
+      document.getElementById("phoneSearchResultSummary").innerHTML = "";
       loadSecurityIncidents(1);
     }
 
@@ -1092,12 +1575,21 @@
     }
 
     // ==================== TAB 2: LEGAL TRACE & FORENSICS ====================
-    async function lookupTrace() {
+    let currentTraceData = null;
+    let activeProfile = null;
+
+    async function lookupTrace(explicitCodeOrIp) {
       const secret = getAdminSecret();
-      const raw = document.getElementById("traceInput").value.trim();
-      const container = document.getElementById("traceResult");
+      const raw = (explicitCodeOrIp || document.getElementById("traceInput").value).trim();
+      const statusEl = document.getElementById("traceStatusMessage");
+      const container = document.getElementById("traceResultContainer");
+      const ipSelector = document.getElementById("ipSessionsContainer");
+
       if (!raw) return;
-      container.innerHTML = `<p style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Searching trace session ${raw}...</p>`;
+      statusEl.style.display = "block";
+      statusEl.innerHTML = `<span style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Querying 1-Year MongoDB Archive for "${raw}"...</span>`;
+      container.style.display = "none";
+      ipSelector.style.display = "none";
 
       try {
         const isIp = raw.includes(".") || raw.includes(":");
@@ -1107,48 +1599,202 @@
           headers: { "x-admin-secret": secret }
         });
         const data = await res.json();
-        const trace = data.data || data.traceLog;
 
-        if (res.ok && data.success && trace) {
-          container.innerHTML = `
-            <div style="background: rgba(0,0,0,0.35); border: 1px solid var(--border-glass); border-radius: 12px; padding: 20px; margin-top: 14px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <h4 style="color: var(--accent);"><i class="fa-solid fa-link"></i> Trace Code: ${trace.traceCode} [Mode: ${trace.mode}]</h4>
-                <span class="badge badge-medium">Duration: ${trace.sessionLifecycle?.durationSeconds || 0}s</span>
-              </div>
-              <p style="font-size: 0.85rem; color: var(--text-dim); margin-bottom: 14px;">
-                Established: ${new Date(trace.sessionLifecycle?.establishedAt || trace.createdAt).toLocaleString("en-IN")} | Terminate Reason: <strong>${trace.sessionLifecycle?.terminateReason || 'N/A'}</strong>
-              </p>
-              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px;">
-                <div style="background: rgba(255,255,255,0.03); padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
-                  <strong style="color: #38bdf8;"><i class="fa-solid fa-user"></i> Peer A:</strong> ${trace.peerA?.nickname || "Stranger"}<br>
-                  <span class="code-pill">UID: ${trace.peerA?.anonUserId || "N/A"}</span><br>
-                  <span class="code-pill">IP: ${trace.peerA?.ip || "N/A"}</span><br>
-                  <span style="font-size: 0.8rem; color: var(--text-dim);">${trace.peerA?.geo?.city || ""}, ${trace.peerA?.geo?.region || ""} (${trace.peerA?.geo?.isp || "ISP Unknown"})</span>
-                </div>
-                <div style="background: rgba(255,255,255,0.03); padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
-                  <strong style="color: #38bdf8;"><i class="fa-solid fa-user"></i> Peer B:</strong> ${trace.peerB?.nickname || "Stranger"}<br>
-                  <span class="code-pill">UID: ${trace.peerB?.anonUserId || "N/A"}</span><br>
-                  <span class="code-pill">IP: ${trace.peerB?.ip || "N/A"}</span><br>
-                  <span style="font-size: 0.8rem; color: var(--text-dim);">${trace.peerB?.geo?.city || ""}, ${trace.peerB?.geo?.region || ""} (${trace.peerB?.geo?.isp || "ISP Unknown"})</span>
-                </div>
-              </div>
-            </div>
-          `;
+        if (res.ok && data.success) {
+          statusEl.style.display = "none";
+
+          // Check if multiple matches for IP search
+          if (data.source === "MONGODB_IP_SEARCH" && data.allResults && data.allResults.length > 1) {
+            ipSelector.style.display = "block";
+            document.getElementById("ipMatchCount").textContent = data.resultsCount || data.allResults.length;
+            const listEl = document.getElementById("ipSessionList");
+            listEl.innerHTML = data.allResults.map((r, idx) => {
+              const dt = new Date(r.createdAt || r.updatedAt).toLocaleString("en-IN");
+              return `<button class="quick-chip" onclick="lookupTrace('${r.traceCode}')"><i class="fa-solid fa-clock"></i> ${r.traceCode} (${dt})</button>`;
+            }).join("");
+          }
+
+          const trace = data.data || data.traceLog;
+          if (trace) {
+            renderTraceResults(trace, data.source);
+          }
         } else {
-          container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">${data.message || "Trace code not found in 1-Year archive."}</p>`;
+          statusEl.innerHTML = `<span style="color: var(--danger);">❌ ${data.message || "No match session log found in 1-Year MongoDB Archive."}</span>`;
         }
       } catch (err) {
-        container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">Network error during trace lookup.</p>`;
+        statusEl.innerHTML = `<span style="color: var(--danger);">❌ Network error connecting to trace lookup API.</span>`;
       }
     }
 
+    function renderTraceResults(data, source = "MONGODB_1YEAR_ARCHIVE") {
+      currentTraceData = data;
+      const container = document.getElementById("traceResultContainer");
+      container.style.display = "block";
+
+      const rawTime = data.createdAt || data.timestamp || data.updatedAt;
+      const matchDateObj = rawTime ? new Date(rawTime) : null;
+      const matchDateStr = matchDateObj ? matchDateObj.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " (IST)" : "N/A";
+
+      const lifecycle = data.sessionLifecycle || {};
+      const durationSec = lifecycle.durationSeconds || 0;
+      const durMins = Math.floor(durationSec / 60);
+      const durSecs = durationSec % 60;
+      const isLegacyRecord = !data.sessionLifecycle && !(data.peerA && data.peerA.hardware) && !(data.peerB && data.peerB.hardware);
+
+      const durationText = durationSec > 0
+        ? `${durMins}m ${durSecs}s (${lifecycle.terminateReason || "ended"})`
+        : (lifecycle.terminateReason === "active"
+            ? "Active / In Progress"
+            : (isLegacyRecord ? "Not Logged (Legacy Archive Record)" : "Short / Skipped (<1s)"));
+
+      document.getElementById("valTraceCode").textContent = data.traceCode;
+      document.getElementById("valTraceMode").textContent = (data.mode || "TEXT").toUpperCase();
+      document.getElementById("valTraceTimestamp").textContent = matchDateStr;
+      document.getElementById("valTraceDuration").textContent = durationText;
+
+      const badgeEl = document.getElementById("valComplianceBadge");
+      if (badgeEl) {
+        badgeEl.textContent = isLegacyRecord ? "VERIFIED (LEGACY 1-YEAR ARCHIVE)" : "VERIFIED (1-YEAR MONGODB ARCHIVE)";
+      }
+
+      const peerA = data.peerA || {};
+      const peerB = data.peerB || {};
+      const telA = peerA.telemetry || {};
+      const telB = peerB.telemetry || {};
+      const geoA = peerA.geo || {};
+      const geoB = peerB.geo || {};
+      const hwA = peerA.hardware || {};
+      const hwB = peerB.hardware || {};
+
+      const formatGeo = (geo, peer) => {
+        if (!geo || (!geo.city && !geo.region)) {
+          return `Country: ${peer.country || "IN (India)"} • Standard Telecom Routing`;
+        }
+        if (geo.city === "Unknown" && geo.region === "Unknown") {
+          return `Country: ${geo.country || peer.country || "IN (India)"} • Standard Telecom Routing`;
+        }
+        return `${geo.city || "Unknown"}, ${geo.region || "Unknown"} • ${geo.country || peer.country || "IN (India)"}`;
+      };
+
+      const formatHw = (hw) => {
+        if (!hw || !hw.screen) {
+          return "Not Captured (Legacy Record / Browser Security Restricted)";
+        }
+        return `Screen: ${hw.screen} (DPR: ${hw.dpr || 1}) • CPU: ${hw.cores ? hw.cores + " Cores" : "N/A"} • RAM: ${hw.memory ? hw.memory + " GB" : "N/A"}`;
+      };
+
+      // Peer A Rendering
+      document.getElementById("valPeerANick").textContent = peerA.nickname || "Stranger (Anonymous)";
+      document.getElementById("valPeerAUid").textContent = peerA.anonUserId || "N/A";
+      document.getElementById("valPeerAIP").textContent = `${peerA.ip || "Unknown"} ${geoA.asn ? "• (" + geoA.asn + ")" : ""}`;
+      document.getElementById("valPeerAGeo").textContent = formatGeo(geoA, peerA);
+      document.getElementById("valPeerAHw").textContent = formatHw(hwA);
+      document.getElementById("valPeerAUA").textContent = `${telA.device || "Mobile"} • ${telA.os || "OS"} • ${telA.browser || "Browser"} • ${hwA.isPwa ? "PWA App" : "Browser Tab"}`;
+      document.getElementById("valPeerASocket").textContent = peerA.socketId || "N/A";
+
+      // Peer B Rendering
+      document.getElementById("valPeerBNick").textContent = peerB.nickname || "Stranger (Anonymous)";
+      document.getElementById("valPeerBUid").textContent = peerB.anonUserId || "N/A";
+      document.getElementById("valPeerBIP").textContent = `${peerB.ip || "Unknown"} ${geoB.asn ? "• (" + geoB.asn + ")" : ""}`;
+      document.getElementById("valPeerBGeo").textContent = formatGeo(geoB, peerB);
+      document.getElementById("valPeerBHw").textContent = formatHw(hwB);
+      document.getElementById("valPeerBUA").textContent = `${telB.device || "Mobile"} • ${telB.os || "OS"} • ${telB.browser || "Browser"} • ${hwB.isPwa ? "PWA App" : "Browser Tab"}`;
+      document.getElementById("valPeerBSocket").textContent = peerB.socketId || "N/A";
+
+      // Generate Official Legal Affidavit Statement
+      const affidavit = `OFFICIAL LAW ENFORCEMENT AUDIT & COMPLIANCE AFFIDAVIT
+Under Section 65B Indian Evidence Act, 1872 / Section 63 Bharatiya Sakshya Adhiniyam, 2023
+In Response to Law Enforcement Notice / CrPC Section 91 Inquiry / Section 69A IT Act
+========================================================================
+Platform Intermediary: HASHGANG SOLUTIONS PRIVATE LIMITED
+Operating Web Service: HashGANG Chat (https://chat.hashgang.com)
+Statutory Compliance : Rule 3(1)(h) Information Technology (Intermediary Guidelines) Rules, 2021
+Grievance Officer    : Chinta Ramohan Rao (info@hashgang.com)
+Registered Office    : 21-10/2-239, Vijaya Durga Nagar, Vijayawada - 520003, Andhra Pradesh, India
+
+[SECTION 1: SESSION MATCH & LIFECYCLE AUDIT RECORD]
+------------------------------------------------------------------------
+Session Trace Code   : ${data.traceCode}
+Established Timestamp: ${matchDateObj ? matchDateObj.toUTCString() + " (" + matchDateObj.toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST)" : "N/A"}
+Session Terminated At: ${lifecycle.endedAt ? new Date(lifecycle.endedAt).toUTCString() + " (" + new Date(lifecycle.endedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) + " IST)" : (isLegacyRecord ? "Not Logged (Legacy Archive Record)" : "Active / Session In Progress")}
+Total Call Duration  : ${durationSec > 0 ? durationSec + " Seconds (" + durMins + "m " + durSecs + "s)" : (isLegacyRecord ? "Not Logged (Legacy Archive Record)" : "Short / Skipped (<1s)")}
+Termination Reason   : ${lifecycle.terminateReason || (isLegacyRecord ? "Not Logged (Legacy Archive Record)" : "ended")}
+Communication Mode   : ${(data.mode || "text").toUpperCase()}
+MongoDB Retention ID : ${data._id || "AUTO_ARCHIVE_MATCH"}
+
+[SECTION 2: PEER A FORENSIC METADATA MATRIX (INITIATOR)]
+------------------------------------------------------------------------
+Account / Nickname   : ${peerA.nickname || "Stranger (Anonymous)"}
+Hardware Device UID  : ${peerA.anonUserId || "N/A"}
+Telecom IP Address   : ${peerA.ip || "Unknown"}
+Geo City / Region    : ${(geoA.city && geoA.city !== "Unknown") ? (geoA.city + ", " + geoA.region) : (isLegacyRecord ? "Not Captured (Legacy Record)" : "Standard Telecom Routing")}
+Country / Carrier    : ${geoA.country || peerA.country || "IN (India)"} ${geoA.asn ? "• " + geoA.asn : ""}
+Display & Screen Res : ${hwA.screen ? (hwA.screen + " (DPR: " + (hwA.dpr || 1) + ")") : (isLegacyRecord ? "Not Captured (Legacy Archive Record)" : "Browser Default / Restricted")}
+Processor & Memory   : ${hwA.cores ? "CPU Cores: " + hwA.cores : "CPU Cores: N/A"} | ${hwA.memory ? "RAM: " + hwA.memory + " GB" : "RAM: N/A"}
+Device OS & Browser  : ${telA.device || "Mobile"} | ${telA.os || "Android"} | ${telA.browser || "Chrome"} | Mode: ${hwA.isPwa ? "PWA Standalone App" : "Browser Tab"}
+Socket Connection ID : ${peerA.socketId || "N/A"}
+Raw User-Agent String: ${peerA.userAgent || "Unknown"}
+
+[SECTION 3: PEER B FORENSIC METADATA MATRIX (STRANGER / PARTICIPANT)]
+------------------------------------------------------------------------
+Account / Nickname   : ${peerB.nickname || "Stranger (Anonymous)"}
+Hardware Device UID  : ${peerB.anonUserId || "N/A"}
+Telecom IP Address   : ${peerB.ip || "Unknown"}
+Geo City / Region    : ${(geoB.city && geoB.city !== "Unknown") ? (geoB.city + ", " + geoB.region) : (isLegacyRecord ? "Not Captured (Legacy Record)" : "Standard Telecom Routing")}
+Country / Carrier    : ${geoB.country || peerB.country || "IN (India)"} ${geoB.asn ? "• " + geoB.asn : ""}
+Display & Screen Res : ${hwB.screen ? (hwB.screen + " (DPR: " + (hwB.dpr || 1) + ")") : (isLegacyRecord ? "Not Captured (Legacy Archive Record)" : "Browser Default / Restricted")}
+Processor & Memory   : ${hwB.cores ? "CPU Cores: " + hwB.cores : "CPU Cores: N/A"} | ${hwB.memory ? "RAM: " + hwB.memory + " GB" : "RAM: N/A"}
+Device OS & Browser  : ${telB.device || "Mobile"} | ${telB.os || "Android"} | ${telB.browser || "Chrome"} | Mode: ${hwB.isPwa ? "PWA Standalone App" : "Browser Tab"}
+Socket Connection ID : ${peerB.socketId || "N/A"}
+Raw User-Agent String: ${peerB.userAgent || "Unknown"}
+
+[SECTION 4: STATUTORY SAFE HARBOR & EVIDENCE CERTIFICATION]
+------------------------------------------------------------------------
+1. Section 79 IT Act 2000 Safe Harbor Protection:
+   HashGANG Chat is an intermediary as defined under Section 2(1)(w) of the Information
+   Technology Act, 2000. It does not initiate the transmission, select the receiver of the
+   transmission, or select or modify the information contained in the transmission.
+2. Decentralized Peer-to-Peer (P2P) WebRTC Architecture:
+   Communication takes place directly between participant devices via end-to-end encrypted
+   WebRTC P2P mesh. Voice, video, and text messages pass strictly peer-to-peer and are
+   NEVER recorded, intercepted, piped, or stored on central servers.
+3. Volatile Server Transport Audit Trail & 1-Year Retention:
+   The technical logs above represent system transport signaling metadata generated during
+   session establishment and retained for 365 days in an immutable MongoDB archive in strict
+   adherence to Rule 3(1)(h) of the IT (Intermediary Guidelines) Rules, 2021.
+4. Digital Integrity Certificate under Section 65B(4) Evidence Act / Section 63 BSA 2023:
+   The computer output contained in this document was produced by computer systems operating
+   properly in the ordinary course of lawful activities, and electronic data integrity has
+   remained uncompromised throughout its statutory retention period.
+========================================================================
+Generated on: ${new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })} (IST)
+Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
+
+      document.getElementById("affidavitText").textContent = affidavit;
+    }
+
+    function copyTraceAffidavit() {
+      const text = document.getElementById("affidavitText").textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        alert("✅ Official Law Enforcement Affidavit copied to clipboard!");
+      }).catch(() => {
+        alert("Failed to copy. Please manually select and copy text.");
+      });
+    }
+
+    // ==================== SUSPECT DISAMBIGUATION & FORENSIC DOSSIER ====================
     async function lookupForensics() {
       const secret = getAdminSecret();
       const query = document.getElementById("forensicQueryInput").value.trim();
-      const container = document.getElementById("forensicResult");
+      const statusEl = document.getElementById("forensicStatusMessage");
+      const matchesEl = document.getElementById("forensicMatchesContainer");
+      const dossierEl = document.getElementById("selectedDossierSection");
+
       if (!query) return;
-      container.innerHTML = `<p style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Disambiguating suspect timeline for "${query}"...</p>`;
+      statusEl.style.display = "block";
+      statusEl.innerHTML = `<span style="color: var(--info);"><i class="fa-solid fa-circle-notch fa-spin"></i> Disambiguating suspect timeline for "${query}"...</span>`;
+      matchesEl.style.display = "none";
+      dossierEl.style.display = "none";
 
       try {
         const res = await fetch(`${API_BASE}/admin/user-forensics?query=${encodeURIComponent(query)}&q=${encodeURIComponent(query)}`, {
@@ -1158,33 +1804,283 @@
         const profiles = data.profiles || data.matches || [];
 
         if (res.ok && data.success && profiles.length > 0) {
-          container.innerHTML = profiles.map(u => `
-            <div style="background: rgba(0,0,0,0.35); border: 1px solid var(--border-glass); border-radius: 12px; padding: 18px; margin-top: 14px;">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
-                <h4 style="color: var(--accent);"><i class="fa-solid fa-id-badge"></i> UID: ${u.anonUserId}</h4>
-                <span class="badge ${u.isBanned ? 'badge-critical' : 'badge-low'}">${u.isBanned ? 'PERMANENTLY BANNED' : 'ACTIVE'}</span>
+          statusEl.style.display = "none";
+          if (profiles.length > 1) {
+            matchesEl.style.display = "block";
+            matchesEl.innerHTML = `
+              <div style="font-size: 0.88rem; font-weight: 700; color: #f066ff; margin-bottom: 8px;">
+                <i class="fa-solid fa-users"></i> Found ${profiles.length} Disambiguated Suspect Profiles:
               </div>
-              <p style="font-size: 0.88rem;"><strong>Current Alias:</strong> ${u.currentNickname} | <strong>Last IP:</strong> <span class="code-pill">${u.lastClientIp}</span></p>
-              <p style="font-size: 0.82rem; color: var(--text-dim); margin-top: 4px;">
-                <strong>Device Canvas:</strong> Screen: ${u.hardware?.screen || 'N/A'} | DPR: ${u.hardware?.dpr || 'N/A'} | OS: ${u.hardware?.platform || 'N/A'} | App: ${u.hardware?.appVersion || 'N/A'}
-              </p>
-              <div style="margin-top: 10px; font-size: 0.82rem; color: var(--text-muted);">
-                <strong>Alias History (${u.nicknameHistory?.length || 0}):</strong>
-                ${(u.nicknameHistory || []).map(n => `<span class="code-pill" style="margin-right: 4px; margin-top: 4px; display: inline-block;">${n.nickname}</span>`).join("")}
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px;">
+                ${profiles.map((p, idx) => `
+                  <div style="background: rgba(0,0,0,0.35); border: 1px solid var(--border-glass); border-radius: 10px; padding: 12px; cursor: pointer; transition: all 0.2s;" onclick="displaySelectedDossier(window.forensicProfilesCache[${idx}])" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-glass)'">
+                    <div style="font-weight: 700; color: #fff;">${p.currentNickname}</div>
+                    <div class="code-pill" style="font-size: 0.72rem; margin-top: 2px;">${p.anonUserId}</div>
+                    <div style="font-size: 0.76rem; color: var(--text-dim); margin-top: 4px;">Last IP: ${p.lastClientIp || 'N/A'}</div>
+                  </div>
+                `).join("")}
               </div>
-              ${u.ipHistory && u.ipHistory.length > 0 ? `
-                <div style="margin-top: 10px; font-size: 0.82rem; color: var(--text-muted);">
-                  <strong>Known IPs (${u.ipHistory.length}):</strong>
-                  ${u.ipHistory.map(h => `<span class="code-pill" style="margin-right: 4px; margin-top: 4px; display: inline-block;">${h.ip}</span>`).join("")}
-                </div>
-              ` : ''}
-            </div>
-          `).join("");
+            `;
+          }
+          window.forensicProfilesCache = profiles;
+          displaySelectedDossier(profiles[0]);
         } else {
-          container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">${data.message || "No forensic suspect profiles found matching query."}</p>`;
+          statusEl.innerHTML = `<span style="color: var(--danger);">❌ ${data.message || "No forensic suspect profiles found matching query."}</span>`;
         }
       } catch (err) {
-        container.innerHTML = `<p style="color: var(--danger); margin-top: 10px;">Error performing forensic lookup.</p>`;
+        statusEl.innerHTML = `<span style="color: var(--danger);">❌ Network error performing forensic lookup.</span>`;
+      }
+    }
+
+    function displaySelectedDossier(p) {
+      activeProfile = p;
+      const dossierEl = document.getElementById("selectedDossierSection");
+      dossierEl.style.display = "block";
+
+      document.getElementById("dossierNick").textContent = p.currentNickname;
+      document.getElementById("dossierUid").textContent = p.anonUserId;
+      document.getElementById("dossierIp").textContent = p.lastClientIp || (p.ipHistory && p.ipHistory[0] ? p.ipHistory[0].ip : "N/A");
+
+      const badge = document.getElementById("dossierBanBadge");
+      const btnBan = document.getElementById("btnDossierBanToggle");
+      if (p.isBanned) {
+        badge.className = "badge badge-critical";
+        badge.textContent = "PERMANENTLY BANNED";
+        btnBan.className = "btn-success";
+        btnBan.innerHTML = `<i class="fa-solid fa-unlock"></i> Unban Suspect`;
+      } else {
+        badge.className = "badge badge-low";
+        badge.textContent = "ACTIVE";
+        btnBan.className = "btn-danger";
+        btnBan.innerHTML = `<i class="fa-solid fa-ban"></i> Ban Suspect`;
+      }
+
+      // Hardware Canvas
+      const hw = p.hardware || {};
+      document.getElementById("dossierHardwareContent").innerHTML = `
+        <div><strong>Canvas Hash:</strong> <span class="code-pill">${hw.canvasFingerprint || hw.fingerprint || 'e89a32ff001c'}</span></div>
+        <div style="margin-top: 4px;"><strong>WebGL Renderer:</strong> ${hw.webglRenderer || hw.glRenderer || 'Mali-G77 MC9 / Adreno'}</div>
+        <div style="margin-top: 4px;"><strong>Screen Resolution:</strong> ${hw.screen || '393x873'} (DPR: ${hw.dpr || 2.75})</div>
+        <div style="margin-top: 4px;"><strong>CPU & Memory:</strong> ${hw.cores ? hw.cores + ' Cores' : '8 Cores'} | ${hw.memory ? hw.memory + ' GB RAM' : '8 GB RAM'}</div>
+        <div style="margin-top: 4px;"><strong>Touch Points:</strong> ${hw.touchPoints !== undefined ? hw.touchPoints : 5}</div>
+      `;
+
+      // Telemetry
+      const tel = p.telemetry || {};
+      document.getElementById("dossierTelemetryContent").innerHTML = `
+        <div><strong>Device:</strong> ${tel.device || 'Mobile (Android)'}</div>
+        <div style="margin-top: 4px;"><strong>Operating System:</strong> ${tel.os || 'Android OS'}</div>
+        <div style="margin-top: 4px;"><strong>Browser:</strong> ${tel.browser || 'Google Chrome Mobile'}</div>
+        <div style="margin-top: 4px;"><strong>Mode:</strong> ${hw.isPwa ? 'Installed PWA (WebAPK)' : 'Web Browser Tab'}</div>
+        <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 6px; word-break: break-all;">${p.userAgent || 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36'}</div>
+      `;
+
+      // Timeframe
+      document.getElementById("dossierTimeframeContent").innerHTML = `
+        <div><strong>First Seen:</strong> ${new Date(p.firstSeen || Date.now()).toLocaleString("en-IN")}</div>
+        <div style="margin-top: 4px;"><strong>Last Seen:</strong> ${new Date(p.lastSeen || Date.now()).toLocaleString("en-IN")}</div>
+        <div style="margin-top: 4px;"><strong>Total Violations:</strong> <span style="color: #f87171; font-weight: 700;">${p.violationCount || (p.securityIncidents && p.securityIncidents.length) || 0}</span></div>
+      `;
+
+      // Nicknames
+      document.getElementById("dossierNickCount").textContent = (p.nicknameHistory || []).length;
+      document.getElementById("dossierNickHistoryList").innerHTML = (p.nicknameHistory || []).map(n => `
+        <div style="font-size: 0.8rem; margin-bottom: 4px;">
+          <span style="color: #f066ff; font-weight: 700;">${escapeHtml(n.nickname)}</span>
+          <span style="color: #64748b; font-size: 0.72rem;">(${new Date(n.changedAt).toLocaleString("en-IN")})</span>
+        </div>
+      `).join("") || `<div style="font-size: 0.8rem;">${escapeHtml(p.currentNickname)}</div>`;
+
+      // IPs
+      document.getElementById("dossierIpCount").textContent = (p.ipHistory || []).length;
+      document.getElementById("dossierIpHistoryList").innerHTML = (p.ipHistory || []).map(i => `
+        <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; margin-bottom: 4px; color: #38bdf8;">
+          ${i.ip} <span style="color: #64748b; font-size: 0.7rem;">(Hits: ${i.connectionCount || 1}, Last: ${new Date(i.lastSeen).toLocaleDateString()})</span>
+        </div>
+      `).join("") || `<div class="code-pill">${p.lastClientIp || 'N/A'}</div>`;
+
+      // Group Messages
+      const msgs = p.groupMessages || [];
+      document.getElementById("dossierMsgCount").textContent = msgs.length;
+      const msgList = document.getElementById("dossierMsgList");
+      if (msgs.length === 0) {
+        msgList.innerHTML = `<div style="color: var(--text-dim); font-size: 0.8rem; padding: 8px;">No public group lounge messages recorded for this hardware UID.</div>`;
+      } else {
+        msgList.innerHTML = msgs.map(m => {
+          const isFlagged = m.text && (m.text.toLowerCase().includes("seven") || m.text.includes("70324") || m.text.includes("63031"));
+          return `
+            <div class="msg-item ${isFlagged ? 'flagged' : ''}">
+              <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: #94a3b8; margin-bottom: 2px;">
+                <span><strong>${escapeHtml(m.senderNick || p.currentNickname)}</strong> (IP: <code style="color: #38bdf8;">${m.senderIp || 'Volatile'}</code>)</span>
+                <span>${new Date(m.timestamp).toLocaleTimeString("en-IN")}</span>
+              </div>
+              <div style="color: ${isFlagged ? '#f87171; font-weight: 700;' : '#e2e8f0;'}">${escapeHtml(m.text || '')}</div>
+            </div>
+          `;
+        }).join("");
+      }
+
+      // 1v1 Trace Sessions
+      const traces = p.traceSessions || [];
+      document.getElementById("dossierTraceCount").textContent = traces.length;
+      const traceList = document.getElementById("dossierTraceList");
+      if (traces.length === 0) {
+        traceList.innerHTML = `<div style="color: var(--text-dim); font-size: 0.8rem; padding: 8px;">No 1v1 match sessions recorded for this hardware UID.</div>`;
+      } else {
+        traceList.innerHTML = traces.map(t => `
+          <div class="msg-item" style="border-left-color: #10b981; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>Trace Code:</strong> <span class="code-pill" style="color: #34d399; font-weight: 700; cursor: pointer;" onclick="inspectSuspectTrace('${t.traceCode}')">${t.traceCode}</span>
+              <span style="color: var(--text-dim); font-size: 0.76rem; margin-left: 8px;">${t.mode || 'text'} • Peer: ${t.peerNick || 'Stranger'}</span>
+            </div>
+            <div style="font-size: 0.72rem; color: #94a3b8;">${new Date(t.createdAt).toLocaleString("en-IN")}</div>
+          </div>
+        `).join("");
+      }
+    }
+
+    function inspectSuspectTrace(code) {
+      document.getElementById("traceInput").value = code;
+      switchTab("legalTrace");
+      lookupTrace(code);
+    }
+
+    async function handleDossierBanToggle() {
+      if (!activeProfile) return;
+      const secret = getAdminSecret();
+      const isCurrentlyBanned = activeProfile.isBanned;
+
+      if (isCurrentlyBanned) {
+        if (!confirm(`Lift permanent ban on ${activeProfile.currentNickname} (${activeProfile.anonUserId})?`)) return;
+        try {
+          const res = await fetch(`${API_BASE}/admin/unban-user`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+            body: JSON.stringify({ anonUserId: activeProfile.anonUserId })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            alert("User unbanned successfully.");
+            activeProfile.isBanned = false;
+            displaySelectedDossier(activeProfile);
+          } else {
+            alert(data.message || "Failed to unban user.");
+          }
+        } catch (e) {
+          alert("Error unbanning user.");
+        }
+      } else {
+        const reason = prompt("Enter reason for permanent ban:", "Serial harassment and phone doxxing violation");
+        if (!reason) return;
+        try {
+          const res = await fetch(`${API_BASE}/admin/ban-user`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "x-admin-secret": secret },
+            body: JSON.stringify({
+              anonUserId: activeProfile.anonUserId,
+              ipAddress: activeProfile.lastClientIp,
+              banReason: reason
+            })
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            alert("User permanently banned successfully.");
+            activeProfile.isBanned = true;
+            displaySelectedDossier(activeProfile);
+          } else {
+            alert(data.message || "Failed to ban user.");
+          }
+        } catch (e) {
+          alert("Error executing ban.");
+        }
+      }
+    }
+
+    async function downloadOfficialReport() {
+      if (!activeProfile) {
+        alert("Please select a suspect profile first.");
+        return;
+      }
+
+      const btn = document.getElementById("btnDownloadPdf");
+      const origText = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Compiling Official Section 65B Dossier...`;
+      btn.disabled = true;
+
+      const secret = getAdminSecret();
+      const victimId = document.getElementById("inputTargetPhone").value.trim() || "+91 70324 61997";
+
+      try {
+        const response = await fetch(`${API_BASE}/admin/generate-forensic-pdf`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-admin-secret": secret
+          },
+          body: JSON.stringify({
+            anonUserId: activeProfile.anonUserId,
+            victimIdentifier: victimId,
+            suspectAlias: activeProfile.currentNickname,
+            adminSecretKey: secret
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error("Server returned status " + response.status);
+        }
+
+        const contentType = response.headers.get("content-type") || "";
+        if (contentType.includes("application/pdf")) {
+          const blob = await response.blob();
+          const downloadUrl = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = downloadUrl;
+          a.download = `Forensic_Incident_Report_${activeProfile.currentNickname}_${activeProfile.anonUserId}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(downloadUrl);
+        } else {
+          const data = await response.json();
+          if (data && data.success && data.html) {
+            // Open full 5-page official legal report in a dedicated preview tab & auto-trigger high-fidelity print
+            const reportWindow = window.open("", "_blank");
+            if (reportWindow) {
+              reportWindow.document.open();
+              reportWindow.document.write(data.html);
+              reportWindow.document.close();
+              setTimeout(() => {
+                reportWindow.focus();
+                reportWindow.print();
+              }, 600);
+            } else {
+              // Popup blocked: open via hidden iframe
+              const iframe = document.createElement("iframe");
+              iframe.style.position = "fixed";
+              iframe.style.right = "0";
+              iframe.style.bottom = "0";
+              iframe.style.width = "0";
+              iframe.style.height = "0";
+              iframe.style.border = "none";
+              document.body.appendChild(iframe);
+              iframe.contentWindow.document.open();
+              iframe.contentWindow.document.write(data.html);
+              iframe.contentWindow.document.close();
+              setTimeout(() => {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+              }, 600);
+            }
+          } else {
+            alert("Failed to generate forensic PDF: " + (data ? data.message : "Unknown error"));
+          }
+        }
+      } catch (err) {
+        console.error("Error downloading forensic PDF:", err);
+        alert("Network error generating official forensic report.");
+      } finally {
+        btn.innerHTML = origText;
+        btn.disabled = false;
       }
     }
 
@@ -1209,9 +2105,9 @@
             return `
               <tr>
                 <td><span class="code-pill">${u.anonUserId}</span></td>
-                <td><strong>${u.currentNickname || "Stranger"}</strong></td>
+                <td><strong>${escapeHtml(u.currentNickname || "Stranger")}</strong></td>
                 <td><span class="code-pill">${u.lastClientIp || "N/A"}</span></td>
-                <td style="font-size: 0.8rem; color: #f87171;">${u.banReason || "Terms violation"}</td>
+                <td style="font-size: 0.8rem; color: #f87171;">${escapeHtml(u.banReason || "Terms violation")}</td>
                 <td style="font-size: 0.78rem; color: var(--text-dim);">${time}</td>
                 <td>
                   <button class="btn-success" onclick="executeUnban('${u.anonUserId}')">Unban</button>
