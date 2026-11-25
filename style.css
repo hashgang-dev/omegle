@@ -1632,6 +1632,35 @@ html, body {
   border-radius: 16px 16px 16px 4px;
 }
 
+/* Inline Safety Shield Pill (Educational alert for receiver) */
+.v2-chat-safety-pill {
+  align-self: center !important;
+  margin: 10px auto !important;
+  max-width: 90%;
+  width: fit-content;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #fde68a;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: v2BubbleSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  pointer-events: auto;
+}
+.v2-chat-safety-pill i {
+  color: #fbbf24;
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+
 @keyframes v2BubbleSlideIn {
   from {
     opacity: 0;

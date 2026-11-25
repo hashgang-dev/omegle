@@ -519,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v443";
+const APP_CLIENT_VERSION = "v444";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -2013,6 +2013,13 @@ function initSocketConnection() {
     socket.on("peer_disconnected", () => {
       console.log("❌ [Socket.io v2] Stranger disconnected.");
       handleStrangerDisconnected();
+    });
+
+    socket.on("safety_notice", (data) => {
+      if (data && data.noticeText) {
+        appendSafetyPillMessage(data.noticeText);
+        if (el.chatDrawer) el.chatDrawer.classList.remove("closed");
+      }
     });
 
     // ==========================================
@@ -5709,6 +5716,26 @@ function appendChatMessage(sender, text, type, replyTo = null, msgId = null) {
   }, 30);
 }
 
+function appendSafetyPillMessage(noticeText) {
+  if (!el.chatMessages) initDOMElements();
+  if (!el.chatMessages) el.chatMessages = document.getElementById("v2-chat-messages") || document.getElementById("chat-messages");
+  if (!el.chatMessages) return;
+
+  const pillDiv = document.createElement("div");
+  pillDiv.className = "v2-chat-safety-pill";
+  pillDiv.innerHTML = `<i class="fa-solid fa-shield-halved"></i> <span>${escapeHtml(noticeText)}</span>`;
+
+  const isNearBottom = el.chatMessages ? ((el.chatMessages.scrollHeight - el.chatMessages.scrollTop - el.chatMessages.clientHeight) <= 120) : true;
+  el.chatMessages.appendChild(pillDiv);
+
+  setTimeout(() => {
+    if (el.chatMessages && isNearBottom) {
+      el.chatMessages.scrollTop = el.chatMessages.scrollHeight;
+    }
+  }, 30);
+}
+window.appendSafetyPillMessage = appendSafetyPillMessage;
+
 const v2PendingChatMedia = {};
 window.v2PendingChatMedia = v2PendingChatMedia;
 
@@ -6640,27 +6667,55 @@ function sanitizeStoredNickname(storedNick) {
   if (!storedNick || typeof storedNick !== "string") {
     return generateCoolNickname();
   }
-  // 1. Silent space auto-replace: spaces converted to underscores
-  let clean = storedNick.trim().replace(/\s+/g, "_").slice(0, 20);
+  let clean = storedNick.trim();
 
-  // 2. Validate format: letters, numbers, _, -, . (2 to 20 chars, at least one alphanumeric)
-  const nickRegex = /^[a-zA-Z0-9_\-\.]{2,20}$/;
-  if (!nickRegex.test(clean) || !/[a-zA-Z0-9]/.test(clean)) {
-    return generateCoolNickname();
+  // 1. Strip duplicate suffix loop (e.g. Hanu_2_2_2_2_2_2 -> Hanu)
+  clean = clean.replace(/(?:_\d+){2,}$/, "");
+
+  // 2. Replace non [a-zA-Z0-9_] with underscore
+  clean = clean.replace(/[^a-zA-Z0-9_]/g, "_");
+
+  // 3. Collapse multiple underscores to single underscore
+  clean = clean.replace(/_+/g, "_");
+
+  // 4. Strip leading and trailing underscores
+  clean = clean.replace(/^_+|_+$/g, "");
+
+  // 5. Must start with an alphabet letter: strip leading non-letters
+  if (/^[^a-zA-Z]/.test(clean)) {
+    clean = clean.replace(/^[^a-zA-Z]+/, "");
   }
 
-  // 3. Prevent phone numbers / long digit sequences
-  if (/\d{5,}/.test(clean) || (clean.match(/\d/g) || []).length > 6) {
-    return generateCoolNickname();
+  // 6. Max 4 digits allowed total across entire nickname
+  const digits = clean.match(/\d/g) || [];
+  if (digits.length > 4) {
+    let count = 0;
+    let allowedChars = [];
+    for (const char of clean) {
+      if (/\d/.test(char)) {
+        count++;
+        if (count <= 4) allowedChars.push(char);
+      } else {
+        allowedChars.push(char);
+      }
+    }
+    clean = allowedChars.join("").replace(/_+/g, "_").replace(/^_+|_+$/g, "");
   }
 
-  // 4. Check for unparliamentary / abusive words (Silent auto-reset to cool name, no toast)
-  if (typeof containsUnparliamentaryWords === "function" && containsUnparliamentaryWords(clean)) {
-    return generateCoolNickname();
+  // 7. Enforce maximum length 15
+  if (clean.length > 15) {
+    clean = clean.slice(0, 15).replace(/_+$/, "");
   }
 
-  // 5. Check restricted keywords & reserved handles
-  if (typeof isRestrictedNickname === "function" && isRestrictedNickname(clean)) {
+  // 8. Standard regex validation: 3-15 chars, start with alphabet, single underscore, not restricted
+  const standardPattern = /^[a-zA-Z][a-zA-Z0-9]*(?:_[a-zA-Z0-9]+)*$/;
+  if (
+    clean.length < 3 ||
+    clean.length > 15 ||
+    !standardPattern.test(clean) ||
+    (typeof containsUnparliamentaryWords === "function" && containsUnparliamentaryWords(clean)) ||
+    (typeof isRestrictedNickname === "function" && isRestrictedNickname(clean))
+  ) {
     return generateCoolNickname();
   }
 
@@ -6791,7 +6846,7 @@ function generateCoolNickname() {
   const allCharacters = [...maleCharacters, ...femaleCharacters, ...neutralCharacters];
   const chosen = allCharacters[Math.floor(Math.random() * allCharacters.length)];
   const num = Math.floor(10 + Math.random() * 90);
-  return `${chosen}_${num}`;
+  return `${chosen.slice(0, 12)}_${num}`;
 }
 
 let lastGroupJoinEmitTime = 0;
@@ -6950,12 +7005,22 @@ function isRestrictedNickname(name) {
   const clean = name.trim().toLowerCase();
   const normalized = clean.replace(/[_\-\. ]/g, "");
 
-  // Phone number / excessive digit protection:
-  // 1. Max 4 consecutive digits (allows 4-digit birth years, blocks 5+ digits)
-  if (/\d{5,}/.test(clean)) return true;
-  // 2. Max 6 total digits across the nickname
+  // 1. Length rule: 3 to 15 characters
+  if (clean.length < 3 || clean.length > 15) return true;
+
+  // 2. Strict character whitelist: only a-z, 0-9, and single underscore.
+  // Must start with an alphabet [a-z], cannot end with underscore, no consecutive __
+  if (!/^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/i.test(clean)) return true;
+
+  // 3. Digit limit: Maximum 4 digits allowed total across entire nickname
   const digitCount = (clean.match(/\d/g) || []).length;
-  if (digitCount > 6) return true;
+  if (digitCount > 4) return true;
+
+  // 4. Max 4 consecutive digits (allows 4-digit birth years, blocks 5+ digits)
+  if (/\d{5,}/.test(clean)) return true;
+
+  // 5. Social media handle prefixes (e.g. insta_, ig_, tg_, snap_, wa_, fb_, call_)
+  if (/^(?:insta|instagram|ig|tg|tele|telegram|snap|snapchat|wa|whatsapp|fb|call|dm)_[a-z0-9_]+/i.test(clean)) return true;
 
   // Exact reserved UI tokens (Stranger itself is reserved, but Stranger99 is allowed)
   if (/^(you|stranger|anonymous|null|undefined)$/i.test(clean)) return true;
@@ -7001,27 +7066,23 @@ function saveNewNickname() {
   const input = document.getElementById("v2-input-new-nick");
   if (!input) return;
   const raw = input.value.trim().slice(0, 20);
-  if (!raw || raw.length < 2) {
-    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Name must be at least 2 characters long.");
+  if (!raw || raw.length < 3) {
+    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Name must be 3-15 characters long.");
     return;
   }
   const clean = raw.replace(/\s+/g, "_");
-  const nickRegex = /^[a-zA-Z0-9_\-\.]{2,20}$/;
-  if (!nickRegex.test(clean)) {
-    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Only letters, numbers, and ( _ - . ) are allowed.");
+  const nickRegex = /^[a-zA-Z][a-zA-Z0-9]*(?:_[a-zA-Z0-9]+)*$/;
+  if (!nickRegex.test(clean) || clean.length > 15) {
+    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ 3-15 chars (letters, numbers, single _), must start with a letter.");
     return;
   }
-  if (!/[a-zA-Z0-9]/.test(clean)) {
-    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Name must include at least one letter or number.");
+  const digitCount = (clean.match(/\d/g) || []).length;
+  if (digitCount > 4) {
+    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Maximum 4 numbers allowed in nickname.");
     return;
   }
   if (/\d{5,}/.test(clean)) {
     setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Names cannot contain 5 or more consecutive numbers.");
-    return;
-  }
-  const digitCount = (clean.match(/\d/g) || []).length;
-  if (digitCount > 6) {
-    setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", "⚠️ Names cannot contain more than 6 digits (No phone numbers).");
     return;
   }
   if (typeof containsUnparliamentaryWords === "function" && containsUnparliamentaryWords(clean)) {
@@ -12990,27 +13051,27 @@ function saveSettingsNickname() {
   }
 
   const raw = input.value.trim().slice(0, 20);
-  if (!raw || raw.length < 2) {
-    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ Name must be at least 2 characters long.");
+  if (!raw || raw.length < 3) {
+    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ Name must be 3-15 characters long.");
     return;
   }
-  const nickRegex = /^[a-zA-Z0-9_\-\. ]{2,20}$/;
-  if (!nickRegex.test(raw)) {
-    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ Only letters, numbers, spaces, and ( _ - . ) are allowed.");
+  const clean = raw.replace(/\s+/g, "_");
+  const nickRegex = /^[a-zA-Z][a-zA-Z0-9]*(?:_[a-zA-Z0-9]+)*$/;
+  if (!nickRegex.test(clean) || clean.length > 15) {
+    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ 3-15 chars (letters, numbers, single _), must start with a letter.");
     return;
   }
-  if (!/[a-zA-Z0-9]/.test(raw)) {
-    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ Name must include at least one letter or number.");
+  const digitCount = (clean.match(/\d/g) || []).length;
+  if (digitCount > 4) {
+    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ Maximum 4 numbers allowed in nickname.");
     return;
   }
-  const clean = raw.replace(/\s+/g, " ");
   if (/\d{5,}/.test(clean)) {
     setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ Names cannot contain 5 or more consecutive numbers.");
     return;
   }
-  const digitCount = (clean.match(/\d/g) || []).length;
-  if (digitCount > 6) {
-    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ Names cannot contain more than 6 digits (No phone numbers).");
+  if (typeof containsUnparliamentaryWords === "function" && containsUnparliamentaryWords(clean)) {
+    setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", "⚠️ Nickname contains unparliamentary words. Please choose another.");
     return;
   }
   if (isRestrictedNickname(clean)) {
