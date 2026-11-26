@@ -3001,29 +3001,44 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
             return;
           }
 
-          tbody.innerHTML = users.map(u => {
-            const lastActiveStr = u.lastActive ? new Date(u.lastActive).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "-";
+          tbody.innerHTML = users.map((u, idx) => {
+            const lastSeenTs = u.lastSeen || u.lastActive;
+            const firstSeenTs = u.firstSeen || u.createdAt;
+            const lastActiveStr = lastSeenTs ? new Date(lastSeenTs).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "-";
             const isBanned = u.isBanned;
             const statusBadge = isBanned
               ? `<span class="badge badge-critical"><i class="fa-solid fa-ban"></i> BANNED</span>`
               : (u.isMuted ? `<span class="badge badge-high"><i class="fa-solid fa-volume-xmark"></i> MUTED</span>` : `<span class="badge badge-success"><i class="fa-solid fa-check"></i> ACTIVE</span>`);
 
-            // Nickname history pill
+            // Nickname history expandable toggle (Date + Time IST)
             const nickHistory = u.nicknameHistory || [];
             let nickHistoryHtml = `<span style="color: var(--text-dim); font-size: 0.78rem;">Single Identity</span>`;
             if (nickHistory.length > 0) {
-              const tooltipNicks = nickHistory.map(nh => `${escapeHtml(nh.nickname)} (${nh.changedAt ? new Date(nh.changedAt).toLocaleDateString("en-IN") : ''})`).join(" &#10;");
-              nickHistoryHtml = `<span class="badge badge-high" style="cursor: help;" title="${tooltipNicks}"><i class="fa-solid fa-masks-theater"></i> ${nickHistory.length} Churns</span>`;
+              const churnPanelId = `nick-churn-list-${idx}`;
+              const labelHtml = nickHistory.length > 1
+                ? `<span class="badge badge-high" style="cursor: pointer; user-select: none;" onclick="const el=document.getElementById('${churnPanelId}'); if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';" title="Click to view/hide alias history"><i class="fa-solid fa-masks-theater"></i> ${nickHistory.length} Churns <i class="fa-solid fa-chevron-down" style="font-size:0.65rem; margin-left:3px;"></i></span>`
+                : `<span style="color: var(--text-dim); font-size: 0.78rem; cursor: pointer; text-decoration: underline dotted;" onclick="const el=document.getElementById('${churnPanelId}'); if(el) el.style.display = el.style.display === 'none' ? 'block' : 'none';" title="Click to view/hide timestamp">Single Identity</span>`;
+              const listItems = nickHistory.map(nh => {
+                const ts = nh.changedAt ? new Date(nh.changedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : "-";
+                return `<div style="display:flex; justify-content:space-between; gap:8px; padding:2px 0; border-bottom:1px solid rgba(255,255,255,0.06);"><strong style="color:#f8fafc;">${escapeHtml(nh.nickname || '-')}</strong><span style="color:var(--text-dim); white-space:nowrap;">${ts}</span></div>`;
+              }).join("");
+              nickHistoryHtml = `${labelHtml}<div id="${churnPanelId}" style="display:none; margin-top:6px; padding:6px 8px; background:rgba(15,23,42,0.85); border:1px solid rgba(255,255,255,0.12); border-radius:6px; font-size:0.72rem; max-width:260px;">${listItems}</div>`;
             }
 
-            // Hardware info
-            const hw = u.hardwareFingerprint || {};
-            const screenStr = hw.screenRes ? `${hw.screenRes}${hw.pixelRatio ? ' @' + hw.pixelRatio : ''}` : '-';
-            const memStr = hw.deviceMemory ? `${hw.deviceMemory}GB RAM` : '';
-            const canvasSnippet = hw.canvasHash ? `<code class="code-pill" style="font-size: 0.7rem; color: #a78bfa;" title="${hw.canvasHash}">${hw.canvasHash.slice(0, 10)}...</code>` : '-';
+            // Hardware info (supports both backend hardware and legacy hardwareFingerprint)
+            const hw = u.hardware || u.hardwareFingerprint || {};
+            const screenVal = hw.screen || hw.screenRes;
+            const dprVal = hw.dpr || hw.pixelRatio;
+            const memVal = hw.memory || hw.deviceMemory;
+            const canvasVal = hw.canvasFingerprint || hw.canvasHash;
+            const screenStr = screenVal ? `${screenVal}${dprVal ? ' @' + dprVal : ''}` : '-';
+            const memStr = memVal ? `${memVal}GB RAM` : '';
+            const canvasSnippet = canvasVal ? `<code class="code-pill" style="font-size: 0.7rem; color: #a78bfa;" title="${escapeHtml(canvasVal)}">${escapeHtml(String(canvasVal).slice(0, 10))}...</code>` : '-';
 
             // IPs
-            const ips = u.ipAddresses || [];
+            const ips = (Array.isArray(u.ipAddresses) && u.ipAddresses.length > 0)
+              ? u.ipAddresses
+              : (u.lastClientIp ? [u.lastClientIp] : []);
             const ipDisplay = ips.length > 0
               ? ips.slice(0, 2).map(ip => `<div class="code-pill" style="font-size: 0.72rem; margin-bottom: 2px;">${escapeHtml(ip)}</div>`).join("") + (ips.length > 2 ? `<span style="font-size: 0.7rem; color: var(--text-dim);">+${ips.length - 2} more</span>` : '')
               : `<span style="color: var(--text-dim);">-</span>`;
@@ -3038,7 +3053,7 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
                 <td>
                   <div style="display: flex; flex-direction: column; gap: 2px;">
                     <span class="code-pill" style="color: #38bdf8; font-weight: 700; cursor: pointer;" onclick="inspectSuspectForensics('${escapeHtml(u.anonUserId)}')">${escapeHtml(u.anonUserId)}</span>
-                    <span style="font-size: 0.7rem; color: var(--text-dim);">Reg: ${u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-IN") : '-'}</span>
+                    <span style="font-size: 0.7rem; color: var(--text-dim);">Reg: ${firstSeenTs ? new Date(firstSeenTs).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }) : '-'}</span>
                   </div>
                 </td>
                 <td>
@@ -3187,10 +3202,12 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
           if (pairings.length === 0) {
             pairingsTbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 12px;">No recent pairings recorded.</td></tr>`;
           } else {
-            pairingsTbody.innerHTML = pairings.map(p => `
+            pairingsTbody.innerHTML = pairings.map(p => {
+              const fanUid = p.fanUid || p.userUid || '';
+              return `
               <tr>
                 <td><span style="font-weight: 600; color: #38bdf8;">${escapeHtml(p.fanNick || 'Anon')}</span></td>
-                <td><span class="code-pill" style="font-size: 0.72rem; cursor: pointer;" onclick="inspectSuspectForensics('${escapeHtml(p.fanUid)}')">${escapeHtml(p.fanUid)}</span></td>
+                <td><span class="code-pill" style="font-size: 0.72rem; cursor: pointer;" onclick="inspectSuspectForensics('${escapeHtml(fanUid)}')">${escapeHtml(fanUid || '-')}</span></td>
                 <td><span style="font-weight: 600; color: #f066ff;">${escapeHtml(p.targetNick || 'Peer')}</span></td>
                 <td><span class="code-pill" style="font-size: 0.72rem; cursor: pointer;" onclick="inspectSuspectForensics('${escapeHtml(p.targetUid)}')">${escapeHtml(p.targetUid)}</span></td>
                 <td>
@@ -3198,7 +3215,8 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
                 </td>
                 <td style="font-size: 0.76rem; color: var(--text-dim);">${p.createdAt ? new Date(p.createdAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }) : '-'}</td>
               </tr>
-            `).join("");
+            `;
+            }).join("");
           }
         }
       } catch (e) {}
@@ -3257,12 +3275,14 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
                   <td>${reportReasons}</td>
                   <td>
                     <div style="font-size: 0.78rem;">
+                      <div style="font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">${escapeHtml(peerA.nickname || 'Stranger')}</div>
                       <div class="code-pill" style="font-size: 0.72rem; color: #38bdf8;">${escapeHtml(peerA.ip || 'Unknown')}</div>
                       <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 2px;">${escapeHtml(pATel.device || 'Peer A')} (${escapeHtml(peerA.country || 'IN')})</div>
                     </div>
                   </td>
                   <td>
                     <div style="font-size: 0.78rem;">
+                      <div style="font-weight: 700; color: #e2e8f0; margin-bottom: 2px;">${escapeHtml(peerB.nickname || 'Stranger')}</div>
                       <div class="code-pill" style="font-size: 0.72rem; color: #f066ff;">${escapeHtml(peerB.ip || 'Unknown')}</div>
                       <div style="font-size: 0.72rem; color: var(--text-dim); margin-top: 2px;">${escapeHtml(pBTel.device || 'Peer B')} (${escapeHtml(peerB.country || 'IN')})</div>
                     </div>
@@ -3301,13 +3321,15 @@ Issuing Authority: Grievance Officer, HASHGANG SOLUTIONS PRIVATE LIMITED`;
                   <td><span class="badge ${modeClass}">${escapeHtml(c.mode || 'text')}</span></td>
                   <td>
                     <div style="font-size: 0.78rem;">
-                      <span class="code-pill" style="font-size: 0.72rem;">${escapeHtml(peerA.ip || '-')}</span>
+                      <div style="font-weight: 600; color: #38bdf8; margin-bottom: 2px;">${escapeHtml(peerA.nickname || 'Stranger')}</div>
+                      <span class="code-pill" style="font-size: 0.72rem;">${escapeHtml(peerA.ip || c.peerA_ip || '-')}</span>
                       <span style="font-size: 0.72rem; color: var(--text-dim); margin-left: 4px;">${escapeHtml((peerA.telemetry && peerA.telemetry.device) || '')}</span>
                     </div>
                   </td>
                   <td>
                     <div style="font-size: 0.78rem;">
-                      <span class="code-pill" style="font-size: 0.72rem;">${escapeHtml(peerB.ip || '-')}</span>
+                      <div style="font-weight: 600; color: #f066ff; margin-bottom: 2px;">${escapeHtml(peerB.nickname || 'Stranger')}</div>
+                      <span class="code-pill" style="font-size: 0.72rem;">${escapeHtml(peerB.ip || c.peerB_ip || '-')}</span>
                       <span style="font-size: 0.72rem; color: var(--text-dim); margin-left: 4px;">${escapeHtml((peerB.telemetry && peerB.telemetry.device) || '')}</span>
                     </div>
                   </td>
