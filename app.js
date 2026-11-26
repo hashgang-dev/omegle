@@ -192,7 +192,7 @@ const DEFAULT_INVITE_COOLDOWN_SECONDS = 20;
 const DEFAULT_INVITE_COOLDOWN_MS = DEFAULT_INVITE_COOLDOWN_SECONDS * 1000;
 const INVITE_COOLDOWN_SECONDS = DEFAULT_INVITE_COOLDOWN_SECONDS;
 const INVITE_COOLDOWN_MS = DEFAULT_INVITE_COOLDOWN_MS;
-const NICKNAME_CHANGE_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour cooldown between nickname changes
+const NICKNAME_CHANGE_COOLDOWN_MS = 12 * 60 * 60 * 1000; // 12 hour cooldown between nickname changes
 
 // DOM Elements Registry
 let el = {};
@@ -519,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v444";
+const APP_CLIENT_VERSION = "v445";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -2242,9 +2242,20 @@ function initSocketConnection() {
 
     socket.on("nickname_updated", (data) => {
       if (data && data.nickname) {
+        const pendingSrc = window.__pendingNickChangeSource || null;
+        window.__pendingNickChangeSource = null;
+        if (pendingSrc && !data.autoAdjusted) {
+          localStorage.setItem("hg_nick_last_changed", String(data.lastChangedAt || Date.now()));
+        }
         currentNickname = data.nickname;
         localStorage.setItem("hg_user_nickname", currentNickname);
         updateNicknameDisplay(currentNickname);
+        if (pendingSrc === "modal") {
+          closeNicknameModal();
+        } else if (pendingSrc === "settings") {
+          showDockHint(`✨ Account Name saved as: ${currentNickname}`, "info", 3000);
+          closeV2SettingsModal();
+        }
         if (data.autoAdjusted) {
           v2ShowToast(`ℹ️ "${data.originalNickname || 'Name'}" was taken, so your name was set to "${data.nickname}".`);
         }
@@ -2252,7 +2263,21 @@ function initSocketConnection() {
     });
 
     socket.on("nickname_error", (data) => {
+      const pendingSrc = window.__pendingNickChangeSource || null;
+      window.__pendingNickChangeSource = null;
+      if (data && (data.lastChangedAt || data.cooldownRemainingMs)) {
+        const syncedLastChanged = data.lastChangedAt || (Date.now() - Math.max(0, NICKNAME_CHANGE_COOLDOWN_MS - data.cooldownRemainingMs));
+        localStorage.setItem("hg_nick_last_changed", String(syncedLastChanged));
+        if (typeof updateNickModalCooldownUI === "function") updateNickModalCooldownUI();
+        if (typeof updateSettingsNickCooldownUI === "function") updateSettingsNickCooldownUI();
+        if (typeof updateNicknameDisplay === "function") updateNicknameDisplay(currentNickname);
+      }
       if (data && data.message) {
+        if (pendingSrc === "modal") {
+          setNickInlineError("v2-nick-inline-error", "v2-input-new-nick", data.message);
+        } else if (pendingSrc === "settings") {
+          setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", data.message);
+        }
         v2ShowToast(data.message);
       }
     });
@@ -6915,9 +6940,13 @@ function getNicknameCooldownRemainingMs() {
 }
 
 function formatNicknameCooldown(ms) {
-  const totalSeconds = Math.ceil(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
+  const totalSeconds = Math.max(1, Math.ceil(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}h ${minutes}m`;
+  }
   if (minutes > 0) {
     return `${minutes}m ${seconds}s`;
   }
@@ -6949,7 +6978,7 @@ function updateNickModalCooldownUI() {
   } else {
     if (hintEl) {
       hintEl.className = "v2-nick-cooldown-hint";
-      hintEl.innerHTML = `<i class="fa-solid fa-clock"></i> <span>Can be changed once every 1 hour</span>`;
+      hintEl.innerHTML = `<i class="fa-solid fa-clock"></i> <span>Can be changed once every 12 hours</span>`;
     }
     if (input) {
       input.disabled = false;
@@ -7095,17 +7124,19 @@ function saveNewNickname() {
   }
   clearNickInlineError("v2-nick-inline-error");
   if (clean && clean !== currentNickname) {
+    if (socket && socket.connected) {
+      window.__pendingNickChangeSource = "modal";
+      socket.emit("update_nickname", {
+        nickname: clean,
+        anonUserId: getOrCreateAnonUserId(),
+        hardware: (typeof getClientHardwareTelemetry === "function") ? getClientHardwareTelemetry() : null
+      });
+      return;
+    }
     currentNickname = clean;
     localStorage.setItem("hg_user_nickname", currentNickname);
     localStorage.setItem("hg_nick_last_changed", Date.now().toString());
     updateNicknameDisplay(currentNickname);
-    if (socket && socket.connected) {
-      socket.emit("update_nickname", {
-        nickname: currentNickname,
-        anonUserId: getOrCreateAnonUserId(),
-        hardware: (typeof getClientHardwareTelemetry === "function") ? getClientHardwareTelemetry() : null
-      });
-    }
   }
   closeNicknameModal();
 }
@@ -12896,7 +12927,7 @@ function updateSettingsNickCooldownUI() {
     }
   } else {
     if (hintEl) {
-      hintEl.innerHTML = `<i class="fa-solid fa-clock"></i> Can be changed once every 1 hour`;
+      hintEl.innerHTML = `<i class="fa-solid fa-clock"></i> Can be changed once every 12 hours`;
       hintEl.style.color = "#a855f7";
     }
     if (saveBtn) {
@@ -13081,17 +13112,19 @@ function saveSettingsNickname() {
 
   clearNickInlineError("v2-settings-nick-error");
   if (clean && clean !== currentNickname) {
+    if (socket && socket.connected) {
+      window.__pendingNickChangeSource = "settings";
+      socket.emit("update_nickname", {
+        nickname: clean,
+        anonUserId: getOrCreateAnonUserId(),
+        hardware: (typeof getClientHardwareTelemetry === "function") ? getClientHardwareTelemetry() : null
+      });
+      return;
+    }
     currentNickname = clean;
     localStorage.setItem("hg_user_nickname", currentNickname);
     localStorage.setItem("hg_nick_last_changed", Date.now().toString());
     if (typeof updateNicknameDisplay === "function") updateNicknameDisplay(currentNickname);
-    if (socket && socket.connected) {
-      socket.emit("update_nickname", {
-        nickname: currentNickname,
-        anonUserId: getOrCreateAnonUserId(),
-        hardware: (typeof getClientHardwareTelemetry === "function") ? getClientHardwareTelemetry() : null
-      });
-    }
     showDockHint(`✨ Account Name saved as: ${currentNickname}`, "info", 3000);
     closeV2SettingsModal();
   } else {
