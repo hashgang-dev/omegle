@@ -519,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v446";
+const APP_CLIENT_VERSION = "v447";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -14020,11 +14020,11 @@ const PROFILE_INTEREST_OPTIONS = [
   "📚 Books", "✈️ Travel", "🍔 Food", "📺 Anime", "💪 Fitness"
 ];
 const CROWN_TIER_META = {
-  bronze: { label: "Bronze Regular (1h+)", color: "#cd7f32" },
-  silver: { label: "Silver Regular (5h+)", color: "#cbd5e1" },
-  gold: { label: "Gold Regular (20h+)", color: "#fbbf24" },
-  diamond: { label: "Diamond VIP (50h+)", color: "#38bdf8" },
-  purple: { label: "Royal Legend (100h+)", color: "#c084fc" }
+  bronze: { label: "Bronze Regular (30+ pts)", color: "#cd7f32" },
+  silver: { label: "Silver Regular (150+ pts)", color: "#cbd5e1" },
+  gold: { label: "Gold Regular (450+ pts)", color: "#fbbf24" },
+  diamond: { label: "Diamond VIP (1,200+ pts)", color: "#38bdf8" },
+  purple: { label: "Royal Legend (2,500+ pts)", color: "#c084fc" }
 };
 
 const DEFAULT_USER_PROFILE = {
@@ -14072,7 +14072,23 @@ function saveUserProfileLocalAndSync(profileObj) {
   }
 }
 
+function startCrownVisibilityHeartbeat() {
+  if (window.__crownHeartbeatStarted) return;
+  window.__crownHeartbeatStarted = true;
+  setInterval(() => {
+    if (
+      document.visibilityState === "visible" &&
+      typeof socket !== "undefined" &&
+      socket &&
+      socket.connected
+    ) {
+      socket.emit("app_active_heartbeat");
+    }
+  }, 60000);
+}
+
 function syncSavedProfileOnConnect(uid) {
+  startCrownVisibilityHeartbeat();
   const prof = getSavedUserProfile();
   if ((prof.mood || prof.languages.length > 0 || prof.interests.length > 0) && socket && socket.connected) {
     socket.emit("update_user_profile", {
@@ -14226,7 +14242,8 @@ function renderUserProfileCardModal(data) {
   }
   if (crownLblEl) {
     if (tierMeta) {
-      crownLblEl.innerHTML = `<i class="fa-solid fa-crown" style="color:${tierMeta.color};"></i> ${escapeHtml(tierMeta.label)}`;
+      const ptsSuffix = typeof data.crownPoints === "number" ? ` • ${data.crownPoints} pts` : "";
+      crownLblEl.innerHTML = `<i class="fa-solid fa-crown" style="color:${tierMeta.color};"></i> ${escapeHtml(tierMeta.label)}${escapeHtml(ptsSuffix)}`;
       crownLblEl.classList.remove("hidden");
     } else {
       crownLblEl.classList.add("hidden");
