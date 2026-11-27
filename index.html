@@ -74,7 +74,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
   <!-- v2 Modern Glassmorphic Stylesheet -->
-  <link rel="stylesheet" href="style.css?v=445" />
+  <link rel="stylesheet" href="style.css?v=446" />
 
   <!-- Google AdSense Library (Ready for approval) -->
   <meta name="google-adsense-account" content="ca-pub-6927010746708408" />
@@ -1344,6 +1344,48 @@
       </div>
     </div>
 
+    <!-- User Profile Card Modal (On-Demand Zero-PII Card) -->
+    <div class="v2-modal-overlay hidden" id="v2-user-profile-modal" onclick="closeUserProfileCard(event)">
+      <div class="v2-modal-card v2-profile-card" onclick="event.stopPropagation()">
+        <div class="v2-modal-header">
+          <div class="v2-profile-card-title-wrap">
+            <span id="v2-profile-card-crown" class="v2-profile-card-crown hidden"></span>
+            <h3 id="v2-profile-card-nick">Stranger</h3>
+            <span id="v2-profile-regular-badge" class="v2-profile-regular-badge hidden" title="Active 7+ days with clean record">
+              <i class="fa-solid fa-shield-check"></i> Regular
+            </span>
+          </div>
+          <button class="v2-close-btn" onclick="closeUserProfileCard()">&times;</button>
+        </div>
+        <div class="v2-modal-body v2-profile-card-body">
+          <div class="v2-profile-meta-row">
+            <span id="v2-profile-member-since" class="v2-profile-meta-pill"><i class="fa-regular fa-calendar"></i> Member</span>
+            <span id="v2-profile-crown-label" class="v2-profile-meta-pill hidden"></span>
+          </div>
+          <div id="v2-profile-mood-section" class="v2-profile-section hidden">
+            <div class="v2-profile-section-lbl">Current Mood</div>
+            <div id="v2-profile-mood-pill" class="v2-profile-mood-display"></div>
+          </div>
+          <div id="v2-profile-langs-section" class="v2-profile-section hidden">
+            <div class="v2-profile-section-lbl">Languages</div>
+            <div id="v2-profile-langs-chips" class="v2-profile-chips-display"></div>
+          </div>
+          <div id="v2-profile-interests-section" class="v2-profile-section hidden">
+            <div class="v2-profile-section-lbl">Interests</div>
+            <div id="v2-profile-interests-chips" class="v2-profile-chips-display"></div>
+          </div>
+          <div id="v2-profile-empty-state" class="v2-profile-empty-state hidden">
+            <i class="fa-regular fa-sparkles"></i> This user hasn't set their mood or interests yet.
+          </div>
+          <div id="v2-profile-self-actions" class="v2-profile-self-actions hidden">
+            <button type="button" class="v2-btn-save-nick" style="width: 100%;" onclick="openMyProfileEditor()">
+              <i class="fa-solid fa-sliders"></i> Edit My Mood &amp; Interests
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Hardware Media Permissions Guidance Modal (PWA & Mobile Aware) -->
     <div class="v2-modal-overlay hidden" id="v2-permission-modal" onclick="closePermissionModal(event)">
       <div class="v2-modal-card v2-perm-card" onclick="event.stopPropagation()">
@@ -1398,6 +1440,30 @@
             <div id="v2-settings-nick-error" class="v2-nick-inline-error hidden"></div>
             <div class="v2-settings-hint" id="v2-settings-nick-hint">
               <i class="fa-solid fa-clock"></i> You can change your name once every 12 hours
+            </div>
+          </div>
+
+          <!-- Card 1B: My Profile & Mood (Zero-PII Predefined Chips) -->
+          <div class="v2-settings-group" id="v2-settings-profile-card">
+            <div class="v2-settings-group-title" style="justify-content: space-between;">
+              <span><i class="fa-solid fa-sparkles text-cyan-400"></i> My Mood &amp; Interests</span>
+              <span id="v2-profile-save-status" class="v2-profile-save-status hidden"><i class="fa-solid fa-check"></i> Saved</span>
+            </div>
+            <p class="v2-settings-desc">Shown under your name in Group Chat &amp; on your Profile Card:</p>
+
+            <div class="v2-profile-editor-block">
+              <div class="v2-profile-editor-lbl">Current Mood <span class="v2-profile-sub">(Displayed below your name)</span></div>
+              <div id="v2-editor-mood-chips" class="v2-editor-chips-wrap"></div>
+            </div>
+
+            <div class="v2-profile-editor-block">
+              <div class="v2-profile-editor-lbl">Languages <span class="v2-profile-sub">(Select up to 3)</span></div>
+              <div id="v2-editor-lang-chips" class="v2-editor-chips-wrap"></div>
+            </div>
+
+            <div class="v2-profile-editor-block">
+              <div class="v2-profile-editor-lbl">Interests <span class="v2-profile-sub">(Select up to 5)</span></div>
+              <div id="v2-editor-interest-chips" class="v2-editor-chips-wrap"></div>
             </div>
           </div>
 
@@ -1659,8 +1725,8 @@
     <script src="ad_mediation_config.js?v=351" defer></script>
     <script src="socket.io.min.js?v=301"></script>
     <script src="bad_words_config.js?v=386" defer></script>
-    <script src="ludo_game.js?v=445" defer></script>
-    <script src="app.js?v=445" defer></script>
+    <script src="ludo_game.js?v=446" defer></script>
+    <script src="app.js?v=446" defer></script>
 </body>
 
 </html>

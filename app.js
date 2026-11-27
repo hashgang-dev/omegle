@@ -519,7 +519,7 @@ function initV2App() {
   }, 30000);
 }
 
-const APP_CLIENT_VERSION = "v445";
+const APP_CLIENT_VERSION = "v446";
 let clientSessionDeployId = null;
 let isAppShellReloading = false;
 let pendingAppShellReload = false;
@@ -1545,6 +1545,9 @@ function initSocketConnection() {
           nickname: currentNickname || "Stranger",
           hardware: (typeof getClientHardwareTelemetry === "function") ? getClientHardwareTelemetry() : null
         });
+        if (typeof syncSavedProfileOnConnect === "function") {
+          syncSavedProfileOnConnect(myUid);
+        }
       } catch (e) {}
 
       // In-Call Session Resume: If reconnected during active 1v1 private chat, resume with server!
@@ -2279,6 +2282,18 @@ function initSocketConnection() {
           setNickInlineError("v2-settings-nick-error", "v2-settings-nick-input", data.message);
         }
         v2ShowToast(data.message);
+      }
+    });
+
+    socket.on("user_profile_updated", (data) => {
+      if (data && typeof handleUserProfileUpdated === "function") {
+        handleUserProfileUpdated(data);
+      }
+    });
+
+    socket.on("user_profile_card_data", (data) => {
+      if (data && typeof renderUserProfileCardModal === "function") {
+        renderUserProfileCardModal(data);
       }
     });
 
@@ -7458,9 +7473,22 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
     </button>
   ` : "";
 
+  const crownHtml = getCrownIconHtml(msg.senderCrownTier);
+  const profileBtnHtml = targetUid ? `
+    <button type="button" class="v2-msg-profile-btn"
+            onclick="openUserProfileCard('${escapeHtml(targetUid)}', '${encodeURIComponent(senderNickRaw)}', event)"
+            title="View Profile Card">
+      <i class="fa-regular fa-circle-user"></i>${crownHtml}
+    </button>
+  ` : "";
+  const hasMoodTag = Boolean(!canGroup && msg.senderMood);
+  const moodTagHtml = hasMoodTag
+    ? `<div class="v2-msg-mood-tag">${escapeHtml(msg.senderMood)}</div>`
+    : "";
+
   const senderLabel = canGroup ? "" : (isSelf
-    ? `<span class="v2-msg-sender-name self"><span class="v2-you-pill">You</span> ${senderNick}</span>`
-    : `<span class="v2-msg-sender-wrap"><span class="v2-msg-sender-name clickable-tag" style="color: ${senderColor};" onclick="tagUserInGroupInput('${encodeURIComponent(senderNickRaw)}')" title="Click to mention @${senderNick}">${senderNick}</span>${starIconHtml}</span>`);
+    ? `<div class="v2-msg-author-block self ${hasMoodTag ? 'has-mood' : ''}"><span class="v2-msg-sender-wrap">${profileBtnHtml}<span class="v2-msg-sender-name self"><span class="v2-you-pill">You</span> ${senderNick}</span></span></div>`
+    : `<div class="v2-msg-author-block ${hasMoodTag ? 'has-mood' : ''}"><span class="v2-msg-sender-wrap">${profileBtnHtml}<span class="v2-msg-sender-name clickable-tag" style="color: ${senderColor};" onclick="tagUserInGroupInput('${encodeURIComponent(senderNickRaw)}')" title="Click to mention @${senderNick}">${senderNick}</span>${starIconHtml}</span></div>`);
 
   const isMsgHidden = Boolean(
     msg.isRemoved ||
@@ -7552,7 +7580,8 @@ function renderGroupMessageRow(msg, isConsecutive = false) {
 
   row.innerHTML = `
     ${senderLabel}
-    <div class="v2-msg-bubble" ${bubbleLeftBorder}>
+    <div class="v2-msg-bubble ${hasMoodTag ? 'has-mood-tag' : ''}" ${bubbleLeftBorder}>
+      ${moodTagHtml}
       ${replyHtml}
       ${bubbleContentHtml}
       ${reportActionHtml}
@@ -12977,6 +13006,11 @@ function openV2SettingsModal(e) {
     soundToggle.checked = localStorage.getItem("hg_sound_muted") !== "true";
   }
 
+  // 3B. Sync User Mood, Languages & Interests Editor
+  if (typeof renderProfileEditorChips === "function") {
+    renderProfileEditorChips();
+  }
+
   // 4. Sync Hardware Media Permissions
   checkHardwarePermissions();
 
@@ -13966,6 +14000,317 @@ window.openGroupReportModal = openGroupReportModal;
 window.closeGroupReportModal = closeGroupReportModal;
 window.selectReportReason = selectReportReason;
 window.submitGroupReport = submitGroupReport;
+
+/* ==========================================================================
+   User Profile Card, Mood Subtitle & Active-Time Crown Tiers
+   ========================================================================== */
+const PROFILE_MOOD_OPTIONS = [
+  { key: "chilling", label: "😎 Chilling" },
+  { key: "ludo", label: "🎲 Ready for Ludo" },
+  { key: "music", label: "🎧 Listening to Music" },
+  { key: "night_owl", label: "🌙 Night Owl" },
+  { key: "coffee", label: "☕ Coffee Break" },
+  { key: "memes", label: "😂 Memes & Fun" },
+  { key: "deep_talks", label: "🧠 Deep Talks" },
+  { key: "quiet", label: "😶 Quiet Listener" }
+];
+const PROFILE_LANGUAGE_OPTIONS = ["Telugu", "English", "Hindi", "Tamil", "Kannada", "Malayalam"];
+const PROFILE_INTEREST_OPTIONS = [
+  "🎬 Movies", "🎮 Gaming", "🏏 Cricket", "🎵 Music", "💻 Tech",
+  "📚 Books", "✈️ Travel", "🍔 Food", "📺 Anime", "💪 Fitness"
+];
+const CROWN_TIER_META = {
+  bronze: { label: "Bronze Regular (1h+)", color: "#cd7f32" },
+  silver: { label: "Silver Regular (5h+)", color: "#cbd5e1" },
+  gold: { label: "Gold Regular (20h+)", color: "#fbbf24" },
+  diamond: { label: "Diamond VIP (50h+)", color: "#38bdf8" },
+  purple: { label: "Royal Legend (100h+)", color: "#c084fc" }
+};
+
+const DEFAULT_USER_PROFILE = {
+  mood: "chilling",
+  languages: ["English"],
+  interests: ["🎬 Movies", "🎵 Music"]
+};
+
+function getSavedUserProfile() {
+  try {
+    const raw = localStorage.getItem("hg_user_profile");
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        mood: parsed.mood !== undefined ? parsed.mood : DEFAULT_USER_PROFILE.mood,
+        languages: Array.isArray(parsed.languages) ? parsed.languages : [...DEFAULT_USER_PROFILE.languages],
+        interests: Array.isArray(parsed.interests) ? parsed.interests : [...DEFAULT_USER_PROFILE.interests]
+      };
+    }
+  } catch (e) {}
+  return {
+    mood: DEFAULT_USER_PROFILE.mood,
+    languages: [...DEFAULT_USER_PROFILE.languages],
+    interests: [...DEFAULT_USER_PROFILE.interests]
+  };
+}
+
+function saveUserProfileLocalAndSync(profileObj) {
+  try {
+    localStorage.setItem("hg_user_profile", JSON.stringify(profileObj));
+  } catch (e) {}
+  if (typeof socket !== "undefined" && socket && socket.connected) {
+    socket.emit("update_user_profile", {
+      anonUserId: getOrCreateAnonUserId(),
+      mood: profileObj.mood,
+      languages: profileObj.languages,
+      interests: profileObj.interests
+    });
+  }
+  const statusEl = document.getElementById("v2-profile-save-status");
+  if (statusEl) {
+    statusEl.classList.remove("hidden");
+    clearTimeout(window.__profileSavedTimer);
+    window.__profileSavedTimer = setTimeout(() => statusEl.classList.add("hidden"), 1800);
+  }
+}
+
+function syncSavedProfileOnConnect(uid) {
+  const prof = getSavedUserProfile();
+  if ((prof.mood || prof.languages.length > 0 || prof.interests.length > 0) && socket && socket.connected) {
+    socket.emit("update_user_profile", {
+      anonUserId: uid || getOrCreateAnonUserId(),
+      mood: prof.mood,
+      languages: prof.languages,
+      interests: prof.interests
+    });
+  }
+}
+
+function handleUserProfileUpdated(data) {
+  if (!data) return;
+  try {
+    localStorage.setItem("hg_user_profile", JSON.stringify({
+      mood: data.mood || null,
+      languages: Array.isArray(data.languages) ? data.languages : [],
+      interests: Array.isArray(data.interests) ? data.interests : []
+    }));
+  } catch (e) {}
+}
+
+function getCrownIconHtml(tier) {
+  if (!tier || tier === "none" || !CROWN_TIER_META[tier]) return "";
+  const meta = CROWN_TIER_META[tier];
+  return `<i class="fa-solid fa-crown v2-msg-crown tier-${tier}" title="${meta.label}"></i>`;
+}
+
+function renderProfileEditorChips() {
+  const prof = getSavedUserProfile();
+  const moodWrap = document.getElementById("v2-editor-mood-chips");
+  const langWrap = document.getElementById("v2-editor-lang-chips");
+  const intWrap = document.getElementById("v2-editor-interest-chips");
+
+  if (moodWrap) {
+    moodWrap.innerHTML = PROFILE_MOOD_OPTIONS.map(m => {
+      const active = prof.mood === m.key ? "active" : "";
+      return `<button type="button" class="v2-editor-chip ${active}" onclick="toggleProfileMood('${m.key}')">${escapeHtml(m.label)}</button>`;
+    }).join("");
+  }
+  if (langWrap) {
+    langWrap.innerHTML = PROFILE_LANGUAGE_OPTIONS.map(l => {
+      const active = prof.languages.includes(l) ? "active" : "";
+      return `<button type="button" class="v2-editor-chip ${active}" onclick="toggleProfileLanguage('${escapeHtml(l)}')">${escapeHtml(l)}</button>`;
+    }).join("");
+  }
+  if (intWrap) {
+    intWrap.innerHTML = PROFILE_INTEREST_OPTIONS.map(i => {
+      const active = prof.interests.includes(i) ? "active" : "";
+      return `<button type="button" class="v2-editor-chip ${active}" onclick="toggleProfileInterest('${escapeHtml(i)}')">${escapeHtml(i)}</button>`;
+    }).join("");
+  }
+}
+
+function toggleProfileMood(moodKey) {
+  const prof = getSavedUserProfile();
+  prof.mood = (prof.mood === moodKey) ? null : moodKey;
+  saveUserProfileLocalAndSync(prof);
+  renderProfileEditorChips();
+}
+
+function toggleProfileLanguage(lang) {
+  const prof = getSavedUserProfile();
+  const idx = prof.languages.indexOf(lang);
+  if (idx >= 0) {
+    prof.languages.splice(idx, 1);
+  } else {
+    if (prof.languages.length >= 3) {
+      v2ShowToast("You can select up to 3 languages.", 2000);
+      return;
+    }
+    prof.languages.push(lang);
+  }
+  saveUserProfileLocalAndSync(prof);
+  renderProfileEditorChips();
+}
+
+function toggleProfileInterest(interest) {
+  const prof = getSavedUserProfile();
+  const idx = prof.interests.indexOf(interest);
+  if (idx >= 0) {
+    prof.interests.splice(idx, 1);
+  } else {
+    if (prof.interests.length >= 5) {
+      v2ShowToast("You can select up to 5 interests.", 2000);
+      return;
+    }
+    prof.interests.push(interest);
+  }
+  saveUserProfileLocalAndSync(prof);
+  renderProfileEditorChips();
+}
+
+function openUserProfileCard(targetUid, encodedNick, event) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  const fallbackNick = encodedNick ? decodeURIComponent(encodedNick) : "Stranger";
+  const modal = document.getElementById("v2-user-profile-modal");
+  const nickEl = document.getElementById("v2-profile-card-nick");
+  if (nickEl) nickEl.textContent = fallbackNick;
+  if (modal) modal.classList.remove("hidden");
+
+  const myUid = typeof getOrCreateAnonUserId === "function" ? getOrCreateAnonUserId() : null;
+  if (targetUid && targetUid === myUid) {
+    const localProf = getSavedUserProfile();
+    const moodObj = PROFILE_MOOD_OPTIONS.find(m => m.key === localProf.mood);
+    renderUserProfileCardModal({
+      targetUid: myUid,
+      nickname: currentNickname || fallbackNick,
+      mood: localProf.mood,
+      moodLabel: moodObj ? moodObj.label : null,
+      languages: localProf.languages,
+      interests: localProf.interests,
+      crownTier: "none",
+      memberSince: null,
+      isRegular: false
+    });
+  }
+
+  if (typeof socket !== "undefined" && socket && socket.connected && targetUid) {
+    socket.emit("get_user_profile_card", { targetUid, fallbackNick });
+  }
+}
+
+function renderUserProfileCardModal(data) {
+  if (!data) return;
+  const nickEl = document.getElementById("v2-profile-card-nick");
+  const crownEl = document.getElementById("v2-profile-card-crown");
+  const crownLblEl = document.getElementById("v2-profile-crown-label");
+  const regBadge = document.getElementById("v2-profile-regular-badge");
+  const sinceEl = document.getElementById("v2-profile-member-since");
+  const moodSec = document.getElementById("v2-profile-mood-section");
+  const moodPill = document.getElementById("v2-profile-mood-pill");
+  const langsSec = document.getElementById("v2-profile-langs-section");
+  const langsWrap = document.getElementById("v2-profile-langs-chips");
+  const intSec = document.getElementById("v2-profile-interests-section");
+  const intWrap = document.getElementById("v2-profile-interests-chips");
+  const emptyEl = document.getElementById("v2-profile-empty-state");
+  const selfActions = document.getElementById("v2-profile-self-actions");
+
+  if (nickEl) nickEl.textContent = data.nickname || "Stranger";
+
+  const tier = data.crownTier || "none";
+  const tierMeta = CROWN_TIER_META[tier];
+  if (crownEl) {
+    if (tierMeta) {
+      crownEl.innerHTML = `<i class="fa-solid fa-crown"></i>`;
+      crownEl.className = `v2-profile-card-crown tier-${tier}`;
+    } else {
+      crownEl.className = "v2-profile-card-crown hidden";
+    }
+  }
+  if (crownLblEl) {
+    if (tierMeta) {
+      crownLblEl.innerHTML = `<i class="fa-solid fa-crown" style="color:${tierMeta.color};"></i> ${escapeHtml(tierMeta.label)}`;
+      crownLblEl.classList.remove("hidden");
+    } else {
+      crownLblEl.classList.add("hidden");
+    }
+  }
+
+  if (regBadge) regBadge.classList.toggle("hidden", !data.isRegular);
+
+  if (sinceEl) {
+    if (data.memberSince) {
+      const dt = new Date(data.memberSince);
+      const formatted = dt.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+      sinceEl.innerHTML = `<i class="fa-regular fa-calendar"></i> Member since ${formatted}`;
+    } else {
+      sinceEl.innerHTML = `<i class="fa-regular fa-calendar"></i> New Member`;
+    }
+  }
+
+  let hasAny = false;
+  if (moodSec && moodPill) {
+    if (data.moodLabel) {
+      moodPill.textContent = data.moodLabel;
+      moodSec.classList.remove("hidden");
+      hasAny = true;
+    } else {
+      moodSec.classList.add("hidden");
+    }
+  }
+
+  if (langsSec && langsWrap) {
+    const langs = Array.isArray(data.languages) ? data.languages : [];
+    if (langs.length > 0) {
+      langsWrap.innerHTML = langs.map(l => `<span class="v2-profile-chip lang">${escapeHtml(l)}</span>`).join("");
+      langsSec.classList.remove("hidden");
+      hasAny = true;
+    } else {
+      langsSec.classList.add("hidden");
+    }
+  }
+
+  if (intSec && intWrap) {
+    const ints = Array.isArray(data.interests) ? data.interests : [];
+    if (ints.length > 0) {
+      intWrap.innerHTML = ints.map(i => `<span class="v2-profile-chip">${escapeHtml(i)}</span>`).join("");
+      intSec.classList.remove("hidden");
+      hasAny = true;
+    } else {
+      intSec.classList.add("hidden");
+    }
+  }
+
+  if (emptyEl) emptyEl.classList.toggle("hidden", hasAny);
+
+  const myUid = typeof getOrCreateAnonUserId === "function" ? getOrCreateAnonUserId() : null;
+  if (selfActions) {
+    selfActions.classList.toggle("hidden", !(myUid && data.targetUid === myUid));
+  }
+}
+
+function closeUserProfileCard(event) {
+  if (event && event.target && event.currentTarget && event.target !== event.currentTarget) return;
+  const modal = document.getElementById("v2-user-profile-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function openMyProfileEditor() {
+  closeUserProfileCard();
+  if (typeof openV2SettingsModal === "function") {
+    openV2SettingsModal();
+    setTimeout(() => {
+      const el = document.getElementById("v2-settings-profile-card");
+      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+  }
+}
+
+window.openUserProfileCard = openUserProfileCard;
+window.closeUserProfileCard = closeUserProfileCard;
+window.toggleProfileMood = toggleProfileMood;
+window.toggleProfileLanguage = toggleProfileLanguage;
+window.toggleProfileInterest = toggleProfileInterest;
+window.openMyProfileEditor = openMyProfileEditor;
+window.renderProfileEditorChips = renderProfileEditorChips;
+window.renderUserProfileCardModal = renderUserProfileCardModal;
 
 
 
